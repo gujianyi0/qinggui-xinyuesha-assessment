@@ -1,0 +1,16 @@
+local A=__dofile("assessment_scenes/common.lua")
+return A.register("SC04",function(room,attacker,first,second)
+  A.equip(attacker,"qinggang_sword")
+  A.equip(first,"silver_lion")
+  A.equip(second,"vine")
+  A.chain(first,second)
+  FkTest.runInRoom(function()
+    room:useCard{from=attacker,tos={},card=Fk:cloneCard("analeptic")}
+    room:useCard{from=attacker,tos={first},card=Fk:cloneCard("fire__slash")}
+  end)
+  A.eq(first.hp,2,"青釭无视首目标白银狮子，酒火杀造成2点")
+  A.eq(second.hp,1,"传导目标藤甲仍生效，2点传导再加1")
+  A.eq(first:getMark(MarkEnum.MarkArmorNullified),0,"首目标防具无效标记已清理")
+  A.eq(second:getMark(MarkEnum.MarkArmorNullified),0,"传导目标未残留青釭标记")
+  A.finish("青釭仅无视本次杀直接目标的防具。此局面白银狮子首目标受2点，连环藤甲目标仍加伤而受3点。")
+end)

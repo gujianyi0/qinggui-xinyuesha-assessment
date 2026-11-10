@@ -1,0 +1,5 @@
+{
+  "backend/app/runtime.py": "5725d10015b35a69672b4b94291c403d251bb60e4ee6059490e3dcbca0f84f82",
+  "backend/app/catalog.py": "d79f9b88a5025c99ab1f8a97c26937d1820ac5a689611672e780518bae2cfa21",
+  "evaluations/cases.json": "63d7c970e34124273725c2099e538d012cc715d20050d683ec8f13282a114cb3"
+}

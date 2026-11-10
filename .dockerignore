@@ -1,0 +1,9 @@
+.env
+.env.*
+.venv
+.local
+**/__pycache__
+frontend
+.pytest_cache
+evaluation-runs
+*.egg-info

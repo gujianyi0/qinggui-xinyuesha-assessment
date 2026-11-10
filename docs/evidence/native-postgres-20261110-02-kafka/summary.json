@@ -1,0 +1,53 @@
+{
+  "started_at": "2026-11-10T06:20:39.772964+00:00",
+  "kafka_version": "3.9.1",
+  "topic": "assessment.verify.f6f286d9ab1d",
+  "consumer_group": "assessment.verify.a7b3fd0a10d7",
+  "checks": [
+    {
+      "name": "crash_after_business_commit_before_offset",
+      "job_id": "9eab3882-80b2-4af0-ace6-198104972ebf",
+      "exit_code": 82,
+      "offset_before_restart": -1001,
+      "offset_after_restart": 1,
+      "attempts": 1,
+      "chunks": 659,
+      "passed": true
+    },
+    {
+      "name": "duplicate_delivery",
+      "job_id": "9eab3882-80b2-4af0-ace6-198104972ebf",
+      "attempts": 1,
+      "passed": true
+    },
+    {
+      "name": "durable_delayed_retry_exhaustion",
+      "job_id": "6d9392a0-e274-4a48-a496-f3a0302ce64f",
+      "attempts": 3,
+      "error": "ConnectionError: 后台依赖暂时不可用",
+      "passed": true
+    },
+    {
+      "name": "bad_input_does_not_block_next_job",
+      "bad_job": "a39c2c10-fb1d-4aa3-a53d-c10dc4e787a2",
+      "next_job": "e43fb2f0-ec57-4b1f-80e5-7c3bb5612677",
+      "passed": true
+    },
+    {
+      "name": "worker_exit_after_claim_lease_recovery",
+      "job_id": "908f08ec-10f8-4fbd-b230-ca47cfa723ed",
+      "attempts": 2,
+      "generation": 3,
+      "passed": true
+    },
+    {
+      "name": "broker_offline_submission_outbox_restart",
+      "job_id": "bb8e260a-9b9d-4c0b-b416-a78a86340196",
+      "passed": true
+    }
+  ],
+  "database": "postgresql",
+  "scope": "Real Kafka broker and independent Python Worker with postgresql and test vectors; Redis, actual chat model and Compose remain separate",
+  "passed": true,
+  "finished_at": "2026-11-10T06:21:58.322265+00:00"
+}

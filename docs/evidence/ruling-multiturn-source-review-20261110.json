@@ -1,0 +1,239 @@
+{
+  "reviewed_at": "2026-11-10T07:49:07.090935+00:00",
+  "reviewer": "Codex, local-source comparison",
+  "human_acceptance": "pending",
+  "case_inputs_unchanged": true,
+  "cases_sha256": "63d7c970e34124273725c2099e538d012cc715d20050d683ec8f13282a114cb3",
+  "label": "live-targeted-rulings-multiturn-20261110-02",
+  "scope": "Six targeted cases, seven actual live model runs. Source review is not human playtesting or full 32-case acceptance.",
+  "cases": [
+    {
+      "case_id": "J01",
+      "problem": "内部bypass标志被错误要求为玩家前提；后续固定记录查看应保留适用范围。",
+      "source_comparison": "结论及目标禁止与SC01断言相符；记录前提明确列出第二张杀，未把HP=3误写成伤害。",
+      "review_status": "source_checked_with_stated_scope",
+      "sources": [
+        {
+          "path": "rulings/scenes/SC01.lua",
+          "line_start": 1,
+          "line_end": 22,
+          "sha256": "0cd11e8425887b8856c96175853c38765d63dbe37d899bb2a894c9d35c5a2e16"
+        },
+        {
+          "path": "data/sources/freekill-local-b9dc701220bc/runtime/packages/standard_cards/pkg/skills/blade.lua",
+          "line_start": 12,
+          "line_end": 24,
+          "sha256": "71291fd96ef6eee70267630ccdb82bdf547c6fbab0cdeedcaf8a946b0285e9b0"
+        },
+        {
+          "path": "data/sources/freekill-local-b9dc701220bc/runtime/packages/standard/pkg/skills/kongcheng.lua",
+          "line_start": 1,
+          "line_end": 30,
+          "sha256": "d9cf5a2d88a2b593ca957003945a3b328ef73d3e004e2d203f9bf996d0b1d175"
+        }
+      ],
+      "run_ids": [
+        "5373a49c-e364-4ce6-b89d-7113fa35e601"
+      ],
+      "automatic_checks": {
+        "terminal_event_received": true,
+        "expected_tool_observed": true,
+        "citation_present": true,
+        "expected_terms_present": true,
+        "literal_terms_present": true,
+        "term_matches": {},
+        "observed_tools": [
+          "get_verified_ruling"
+        ],
+        "human_review_pending": true
+      }
+    },
+    {
+      "case_id": "J02",
+      "problem": "请求读取固定测试牌却被要求补齐牌；模型还曾把HP=4说成响应次数。",
+      "source_comparison": "黑桃6杀、红桃5杀与鬼才红桃3桃来自SC02.lua；两次判定、目标未受伤与执行证据相符，不再解释无单位数值。",
+      "review_status": "source_checked_with_stated_scope",
+      "sources": [
+        {
+          "path": "rulings/scenes/SC02.lua",
+          "line_start": 5,
+          "line_end": 20,
+          "sha256": "ded266f7eaebb7cf34f7cfe9eca311fda0ebcd75e6a119593b56a2c89d522a96"
+        },
+        {
+          "path": "rulings/evidence/SC02.json",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "1e9373b57bbc84e66f25b8fc8e8988821138fb410df845c4e6c42a95f514b839"
+        }
+      ],
+      "run_ids": [
+        "275030d6-0870-4966-9eac-3d59b3309163"
+      ],
+      "automatic_checks": {
+        "terminal_event_received": true,
+        "expected_tool_observed": true,
+        "citation_present": true,
+        "expected_terms_present": true,
+        "literal_terms_present": true,
+        "term_matches": {},
+        "observed_tools": [
+          "get_verified_ruling"
+        ],
+        "human_review_pending": true
+      }
+    },
+    {
+      "case_id": "J04",
+      "problem": "原问题是首目标藤甲/传导白银狮子，与原SC04防具位置和饮酒条件不同；首轮复测混用前提。",
+      "source_comparison": "新增SC04V实际1测试4断言通过；最终分别列酒后白银首目标2/藤甲传导3，以及未饮酒藤甲首目标1/白银传导1。明确全部前提成立，未擅自假定玩家饮酒。",
+      "review_status": "source_checked_with_stated_scope",
+      "sources": [
+        {
+          "path": "rulings/scenes/SC04.lua",
+          "line_start": 1,
+          "line_end": 16,
+          "sha256": "506779536f7d39623a5c241947090b4e88af81d5c8abf8ed2b764e9fc6e2b796"
+        },
+        {
+          "path": "rulings/scenes/SC04V.lua",
+          "line_start": 1,
+          "line_end": 15,
+          "sha256": "f31cfb4b241069ff45e78c29c97f5de20cd8866e333034f83bfa4cc7a85475fb"
+        },
+        {
+          "path": "rulings/evidence/SC04V.json",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "8cd8f35779e3566463ea8ca786ef6960e90cc6103aa06523f014b99f6f49fadb"
+        }
+      ],
+      "run_ids": [
+        "ae8ea8f8-5338-463e-b037-a7b5cc8d45b3"
+      ],
+      "automatic_checks": {
+        "terminal_event_received": true,
+        "expected_tool_observed": true,
+        "citation_present": true,
+        "expected_terms_present": true,
+        "literal_terms_present": true,
+        "term_matches": {},
+        "observed_tools": [
+          "get_verified_ruling"
+        ],
+        "human_review_pending": true
+      }
+    },
+    {
+      "case_id": "J05",
+      "problem": "需要读取固定座位/弃牌，却按当前局面匹配而重复索要记录中的数据。",
+      "source_comparison": "固定座位1/2/3及红桃7桃代价牌取自测试，范围条件与liuli.lua相符；只说明固定记录，不保证任意座位可流离。",
+      "review_status": "source_checked_with_stated_scope",
+      "sources": [
+        {
+          "path": "rulings/scenes/SC05.lua",
+          "line_start": 1,
+          "line_end": 14,
+          "sha256": "64744588a0949565bb180782035881a68b4346a049ebafbea169997c577bea52"
+        },
+        {
+          "path": "data/sources/freekill-local-b9dc701220bc/runtime/packages/standard/pkg/skills/liuli.lua",
+          "line_start": 7,
+          "line_end": 41,
+          "sha256": "94ca4ccc67ce1176724a60021d66fe092c7f8e93f8b8b76b41988f9b493ac3e0"
+        }
+      ],
+      "run_ids": [
+        "e917d896-449f-4705-bb44-a0538fced989"
+      ],
+      "automatic_checks": {
+        "terminal_event_received": true,
+        "expected_tool_observed": true,
+        "citation_present": true,
+        "expected_terms_present": true,
+        "literal_terms_present": true,
+        "term_matches": {},
+        "observed_tools": [
+          "get_verified_ruling",
+          "query_game_data"
+        ],
+        "human_review_pending": true
+      }
+    },
+    {
+      "case_id": "J08",
+      "problem": "已执行的未用杀分支不在查询接口；后续查询覆盖已验证结果，且首轮定向回答曾只剩范围提示。",
+      "source_comparison": "SC08.lua三条断言均保留；正文完整说明红手牌、连弩作为子牌及尚未用杀对照。场景查看不再依赖模型生成正文。",
+      "review_status": "source_checked_with_stated_scope",
+      "sources": [
+        {
+          "path": "rulings/scenes/SC08.lua",
+          "line_start": 1,
+          "line_end": 18,
+          "sha256": "0a0a0e4887c9921413c8c7da165a9c841b427fcd289c031337318428f8b856c4"
+        },
+        {
+          "path": "data/sources/freekill-local-b9dc701220bc/runtime/packages/standard_cards/pkg/skills/crossbow.lua",
+          "line_start": 5,
+          "line_end": 22,
+          "sha256": "70b1d5754d213f35e224bd5e5fb458e2c4b36fdcea774274ab43a128bf2681ee"
+        }
+      ],
+      "run_ids": [
+        "12642fd8-722c-4f3d-9c82-43f4c7cd93ac"
+      ],
+      "automatic_checks": {
+        "terminal_event_received": true,
+        "expected_tool_observed": true,
+        "citation_present": true,
+        "expected_terms_present": true,
+        "literal_terms_present": true,
+        "term_matches": {},
+        "observed_tools": [
+          "get_verified_ruling",
+          "query_game_data"
+        ],
+        "human_review_pending": true
+      }
+    },
+    {
+      "case_id": "M02",
+      "problem": "模型回答用本人但评测只搜索自己，形成词面误报；也需核对两轮上下文。",
+      "source_comparison": "原始两轮已正确区分酒只对使用者、桃可救他人；最终两轮沿用濒死语境，说明自救回复1点、不能救他人。保留字面匹配诊断，别名命中不作为语义正确率。",
+      "review_status": "source_checked_with_stated_scope",
+      "sources": [
+        {
+          "path": "data/sources/freekill-local-b9dc701220bc/runtime/packages/maneuvering/pkg/init.lua",
+          "line_start": 178,
+          "line_end": 178,
+          "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+        },
+        {
+          "path": "data/sources/freekill-local-b9dc701220bc/runtime/packages/maneuvering/pkg/skills/analeptic.lua",
+          "line_start": 8,
+          "line_end": 32,
+          "sha256": "733c5b477ea1bbe8089efd2f376d0be7299fac4114f7ba66c36a159f63ae7eec"
+        }
+      ],
+      "run_ids": [
+        "3ea98580-5c86-41aa-923e-3a6c78eae76b",
+        "731a8925-f8e2-42cf-bb40-c8f4b35cc6a5"
+      ],
+      "automatic_checks": {
+        "terminal_event_received": true,
+        "expected_tool_observed": true,
+        "citation_present": true,
+        "expected_terms_present": true,
+        "literal_terms_present": true,
+        "term_matches": {
+          "自己": "自己"
+        },
+        "observed_tools": [
+          "query_game_data",
+          "search_knowledge"
+        ],
+        "human_review_pending": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "started_at": "2026-11-10T13:03:08.616636+00:00",
+  "job_id": "55128992-f440-4da0-8360-39bc82f532ac",
+  "scope": "Real Kafka, independent Worker; isolated SQLite/test vectors, explicit MemoryError without real memory exhaustion",
+  "fatal_exit_code": 75,
+  "passed": true,
+  "status": "succeeded",
+  "attempts": 2,
+  "generation": 3,
+  "finished_at": "2026-11-10T13:03:17.250954+00:00"
+}

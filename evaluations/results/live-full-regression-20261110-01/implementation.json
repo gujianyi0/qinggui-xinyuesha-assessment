@@ -1,0 +1,8 @@
+{
+  "backend/app/runtime.py": "8c484da972b3ff034c28ffe2c1106c007c525e33721097cdf330eb2a6a50977a",
+  "backend/app/catalog.py": "71a9444c58d0a8a11d015456041a877d20f19e8a0be8234684d55bd576dd8bd4",
+  "backend/app/ruling_text.py": "86ca073b708060bf3819b2d38548d5a86e1ff9105f50747e7f2c21cf12fbf971",
+  "rulings/catalog.json": "e87cf768412de1ec439fb63642bd226755328594e471aabd5b15dcc23205ea9f",
+  "evaluations/run.py": "ff60fd018e2884c0fba9643c0c5ba7c821592caa635e20f888239527ebcd9d8a",
+  "evaluations/cases.json": "63d7c970e34124273725c2099e538d012cc715d20050d683ec8f13282a114cb3"
+}

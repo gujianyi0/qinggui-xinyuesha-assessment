@@ -1,0 +1,292 @@
+%4|1794293426.631|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19094/1: Broker: Coordinator load in progress: retrying
+2026-11-10 14:50:52,659 sentence_transformers.base.model INFO Loading SentenceTransformer model from F:\Work\Biteagle\入职考核\.local\models\pinned\BAAI--bge-small-zh-v1.5\7999e1d3359715c523056ef9478215996d62a620.
+Loading weights:   0%|          | 0/71 [00:00<?, ?it/s]Loading weights: 100%|██████████| 71/71 [00:00<00:00, 1263.74it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.76it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.76it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.86it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.86it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.49s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.49s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.39s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.39s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.15it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.15it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.38it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.38it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.23it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.23it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.12it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.12it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.14it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.14it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.44it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.44it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.61it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.61it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.89it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.89it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.69it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.69it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.87it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.87it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.11it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.11it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.46it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.46it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.15it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.15it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.35it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.35it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.01s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.01s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.81it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.81it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.41it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.41it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.22it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.22it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.12it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.12it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.67it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.67it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.05it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.05it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.86it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.86it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.60it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.60it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.67it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.67it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.56it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.56it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.47it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.47it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.51it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.51it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.21it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.21it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.47it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.47it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.73it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.73it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.72it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.72it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.64it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.64it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.64it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.64it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.63it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.63it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.81it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.81it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.58it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.58it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.87it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.87it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  9.64it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  9.62it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.09it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.09it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.04it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.04it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.75s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.75s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.86s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.86s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.57it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.57it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.60it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.60it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.33s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.33s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.23it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.23it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.25s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.25s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.05s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.05s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.02s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.02s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.07it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.07it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.04it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.04it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.33it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.33it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.40s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.40s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.02it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.02it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.26s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.26s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.16s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.16s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.40s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.40s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.18it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.18it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.04s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.04s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.08s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.08s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.14s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.14s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.01s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.01s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.25it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.25it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.18it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.18it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.13it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.13it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.11it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.11it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.07it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.07it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.12s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.12s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.08s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.08s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.19s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.20s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.01it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.01it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.09it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.09it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.00s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.00s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.02s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.02s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.12it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.12it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.08it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.08it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.03it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.03it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.01it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.01it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.39it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.39it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  6.16it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  6.15it/s]
+%3|1794294812.985|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2050ms in state CONNECT)
+%3|1794294813.001|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2051ms in state CONNECT)
+%3|1794294815.048|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2047ms in state CONNECT)
+%3|1794294815.063|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2046ms in state CONNECT)
+%3|1794294817.112|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2049ms in state CONNECT)
+%3|1794294817.596|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2056ms in state CONNECT)
+%3|1794294819.217|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2042ms in state CONNECT)
+%3|1794294820.074|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2054ms in state CONNECT)
+%3|1794294821.289|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2056ms in state CONNECT)
+%3|1794294822.226|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2058ms in state CONNECT)
+%3|1794294823.404|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2053ms in state CONNECT)
+%4|1794294825.111|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19094/1: Broker: Coordinator load in progress: retrying
+%3|1794295486.959|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2041ms in state CONNECT)
+%3|1794295486.962|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2045ms in state CONNECT)
+%3|1794295489.045|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2040ms in state CONNECT)
+%3|1794295489.076|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2057ms in state CONNECT)
+%3|1794295491.178|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2039ms in state CONNECT)
+%3|1794295491.566|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2053ms in state CONNECT)
+%3|1794295493.231|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2039ms in state CONNECT)
+%3|1794295494.041|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2040ms in state CONNECT)
+%3|1794295495.291|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2044ms in state CONNECT)
+%3|1794295496.145|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2041ms in state CONNECT)
+%3|1794295497.333|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2026ms in state CONNECT)
+%3|1794295498.693|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2033ms in state CONNECT)
+%4|1794295500.095|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19094/1: Broker: Coordinator load in progress: retrying
+%3|1794295854.103|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2047ms in state CONNECT)
+%3|1794295854.104|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2045ms in state CONNECT)
+%3|1794295856.163|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794295856.178|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2042ms in state CONNECT)
+%3|1794295858.237|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2059ms in state CONNECT)
+%3|1794295858.707|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2045ms in state CONNECT)
+%3|1794295860.352|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2051ms in state CONNECT)
+%3|1794295861.192|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2048ms in state CONNECT)
+%3|1794295862.468|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2052ms in state CONNECT)
+%3|1794295863.306|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2037ms in state CONNECT)
+%3|1794295864.581|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2050ms in state CONNECT)
+%3|1794295865.873|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2054ms in state CONNECT)
+%4|1794295866.739|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19094/1: Broker: Coordinator load in progress: retrying
+%3|1794296477.245|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2034ms in state CONNECT)
+%3|1794296477.245|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2036ms in state CONNECT)
+%3|1794296479.310|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2034ms in state CONNECT)
+%3|1794296479.310|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2049ms in state CONNECT)
+%3|1794296481.430|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2056ms in state CONNECT)
+%3|1794296481.853|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2056ms in state CONNECT)
+%3|1794296483.535|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2042ms in state CONNECT)
+%3|1794296484.308|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2048ms in state CONNECT)
+%3|1794296485.597|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2047ms in state CONNECT)
+%3|1794296486.473|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2054ms in state CONNECT)
+%3|1794296487.702|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2042ms in state CONNECT)
+%3|1794296489.021|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2042ms in state CONNECT)
+%4|1794296490.349|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19094/1: Broker: Coordinator load in progress: retrying
+%3|1794296763.491|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2046ms in state CONNECT)
+%3|1794296763.504|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2053ms in state CONNECT)
+%3|1794296765.564|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2047ms in state CONNECT)
+%3|1794296765.579|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2045ms in state CONNECT)
+%3|1794296767.662|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2037ms in state CONNECT)
+%3|1794296768.098|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2055ms in state CONNECT)
+%3|1794296769.731|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2052ms in state CONNECT)
+%3|1794296770.548|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2031ms in state CONNECT)
+%3|1794296771.834|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794296772.701|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794296773.926|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2030ms in state CONNECT)
+%3|1794296775.235|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2027ms in state CONNECT)
+%4|1794296776.096|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19094/1: Broker: Coordinator load in progress: retrying
+%3|1794297500.271|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2026ms in state CONNECT)
+%3|1794297500.287|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2040ms in state CONNECT)
+%3|1794297502.362|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2042ms in state CONNECT)
+%3|1794297502.379|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2044ms in state CONNECT)
+%3|1794297504.417|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2039ms in state CONNECT)
+%3|1794297504.871|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2038ms in state CONNECT)
+%3|1794297506.471|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2038ms in state CONNECT)
+%3|1794297507.377|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2056ms in state CONNECT)
+%3|1794297508.520|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2033ms in state CONNECT)
+%3|1794297509.467|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2042ms in state CONNECT)
+%3|1794297510.584|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2048ms in state CONNECT)
+%3|1794297512.028|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2048ms in state CONNECT)
+%4|1794297512.930|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19094/1: Broker: Coordinator load in progress: retrying
+%3|1794298189.070|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2035ms in state CONNECT)
+%3|1794298189.085|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794298191.141|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2038ms in state CONNECT)
+%3|1794298191.172|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2056ms in state CONNECT)
+%3|1794298193.199|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794298193.669|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2029ms in state CONNECT)
+%3|1794298195.286|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2025ms in state CONNECT)
+%3|1794298196.140|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2041ms in state CONNECT)
+%3|1794298197.371|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2054ms in state CONNECT)
+%3|1794298198.270|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2052ms in state CONNECT)
+%3|1794298199.479|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2045ms in state CONNECT)
+%3|1794298200.827|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2047ms in state CONNECT)
+%4|1794298202.188|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19094/1: Broker: Coordinator load in progress: retrying
+%3|1794298478.281|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2037ms in state CONNECT)
+%3|1794298478.282|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2033ms in state CONNECT)
+%3|1794298480.357|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794298480.374|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2046ms in state CONNECT)
+%3|1794298482.472|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2052ms in state CONNECT)
+%3|1794298482.889|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2048ms in state CONNECT)
+%3|1794298484.569|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2036ms in state CONNECT)
+%3|1794298485.346|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2037ms in state CONNECT)
+%3|1794298486.629|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2044ms in state CONNECT)
+%3|1794298487.501|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2046ms in state CONNECT)
+%3|1794298488.696|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2051ms in state CONNECT)
+%3|1794298490.064|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2046ms in state CONNECT)
+%3|1794298490.809|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2051ms in state CONNECT)
+%4|1794298491.910|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19094/1: Broker: Coordinator load in progress: retrying
+%3|1794298864.840|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2037ms in state CONNECT)
+%3|1794298864.840|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2038ms in state CONNECT)
+%3|1794298866.916|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794298866.932|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2044ms in state CONNECT)
+%3|1794298869.015|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2037ms in state CONNECT)
+%3|1794298869.448|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2047ms in state CONNECT)
+%3|1794298871.065|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2035ms in state CONNECT)
+%3|1794298871.896|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2029ms in state CONNECT)
+%3|1794298873.118|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2037ms in state CONNECT)
+%3|1794298874.023|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2035ms in state CONNECT)
+%3|1794298875.175|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2041ms in state CONNECT)
+%3|1794298876.079|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2041ms in state CONNECT)
+%4|1794298877.659|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19094/1: Broker: Coordinator load in progress: retrying
+%3|1794299276.762|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2048ms in state CONNECT)
+%3|1794299276.762|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2049ms in state CONNECT)
+%3|1794299278.823|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2046ms in state CONNECT)
+%3|1794299278.838|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2046ms in state CONNECT)
+%3|1794299280.929|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2045ms in state CONNECT)
+%3|1794299281.360|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794299283.037|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2045ms in state CONNECT)
+%3|1794299283.812|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2044ms in state CONNECT)
+%3|1794299285.140|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2040ms in state CONNECT)
+%3|1794299285.960|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2038ms in state CONNECT)
+%3|1794299287.249|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2048ms in state CONNECT)
+%3|1794299288.524|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2052ms in state CONNECT)
+%4|1794299289.838|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19094/1: Broker: Coordinator load in progress: retrying
+2026-11-10 16:28:26,596 sentence_transformers.base.model INFO Loading SentenceTransformer model from F:\Work\Biteagle\入职考核\.local\models\pinned\BAAI--bge-small-zh-v1.5\7999e1d3359715c523056ef9478215996d62a620.
+Loading weights:   0%|          | 0/71 [00:00<?, ?it/s]Loading weights: 100%|██████████| 71/71 [00:00<00:00, 1264.57it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.76it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.75it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  3.43it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  3.43it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.28s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.28s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.18s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.18s/it]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.75it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.74it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  3.26it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  3.26it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.47it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.47it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.78it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.78it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.49it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.49it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.87it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.87it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.70it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.70it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.89it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.89it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.06it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.06it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.34it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.34it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.22it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.22it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.86it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.86it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.56it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.56it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.56it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.56it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.35it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.35it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.31it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.31it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.78it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.78it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.70it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.69it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.45it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.45it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.01it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.01it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.39it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.39it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.23it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.22it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.23it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.23it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.26it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.26it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.15it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.14it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.91it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.91it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.96it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.96it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.66it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.66it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.71it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.71it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.19it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.19it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.32it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.32it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.02it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.02it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.15it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.15it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.01it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.00it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.19it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.19it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.00it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.00it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.22it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  2.22it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  9.75it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  9.73it/s]
+2026-11-10 18:08:36,536 assessment.worker WARNING outbox/recovery deferred: MemoryError
+2026-11-10 18:10:00,653 sqlalchemy.pool.impl.AsyncAdaptedQueuePool ERROR The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <asyncpg.connection.Connection object at 0x000001A32C6D6950>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+F:\Apps\Python\Lib\weakref.py:590: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <asyncpg.connection.Connection object at 0x000001A32C6D6950>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+  return info.func(*info.args, **(info.kwargs or {}))
+%3|1794313778.131|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2041ms in state CONNECT)
+%3|1794313778.223|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2037ms in state CONNECT)
+%3|1794313780.214|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2052ms in state CONNECT)
+%3|1794313780.321|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2053ms in state CONNECT)
+%3|1794313782.418|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2035ms in state CONNECT)
+%3|1794313782.727|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2034ms in state CONNECT)
+%3|1794313784.476|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2042ms in state CONNECT)
+%3|1794313785.188|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2045ms in state CONNECT)
+%3|1794313786.581|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794313787.328|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2048ms in state CONNECT)
+%3|1794313788.693|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2039ms in state CONNECT)
+%3|1794313789.892|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2052ms in state CONNECT)
+%4|1794313791.216|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19094/1: Broker: Coordinator load in progress: retrying
+%3|1794314030.832|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794314030.832|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2042ms in state CONNECT)
+%3|1794314032.906|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2044ms in state CONNECT)
+%3|1794314032.936|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2058ms in state CONNECT)
+%3|1794314034.965|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2045ms in state CONNECT)
+%3|1794314035.433|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2041ms in state CONNECT)
+%3|1794314037.025|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794314037.492|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794314039.097|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2057ms in state CONNECT)
+%3|1794314039.534|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2042ms in state CONNECT)
+%3|1794314041.202|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794314041.966|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2044ms in state CONNECT)
+%3|1794314043.256|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19094/bootstrap]: 127.0.0.1:19094/bootstrap: Connect to ipv4#127.0.0.1:19094 failed: Unknown error (after 2038ms in state CONNECT)
+%4|1794314043.616|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19094/bootstrap: Local: Broker handle destroyed without termination: retrying

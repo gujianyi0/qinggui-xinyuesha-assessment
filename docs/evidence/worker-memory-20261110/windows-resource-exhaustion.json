@@ -1,0 +1,38 @@
+[
+  {
+    "TimeCreated": "2026-11-10T19:19:02.7609169+08:00",
+    "RecordId": 105284,
+    "ProviderName": "Microsoft-Windows-Resource-Exhaustion-Detector",
+    "Message": "Windows 成功诊断出虚拟内存不足的情况。以下程序使用了大部分虚拟内存: python.exe (31420) 使用了 8243437568 字节；msedge.exe (30980) 使用了 3556585472 字节；node.exe (47348) 使用了 2416189440 字节。"
+  },
+  {
+    "TimeCreated": "2026-11-10T19:09:39.4957048+08:00",
+    "RecordId": 105283,
+    "ProviderName": "Microsoft-Windows-Resource-Exhaustion-Detector",
+    "Message": "Windows 成功诊断出虚拟内存不足的情况。以下程序使用了大部分虚拟内存: python.exe (31420) 使用了 8243437568 字节；msedge.exe (30980) 使用了 3963195392 字节；node.exe (47348) 使用了 2416189440 字节。"
+  },
+  {
+    "TimeCreated": "2026-11-10T18:57:52.5609405+08:00",
+    "RecordId": 105282,
+    "ProviderName": "Microsoft-Windows-Resource-Exhaustion-Detector",
+    "Message": "Windows 成功诊断出虚拟内存不足的情况。以下程序使用了大部分虚拟内存: python.exe (31420) 使用了 8243437568 字节；msedge.exe (30980) 使用了 3280404480 字节；node.exe (47348) 使用了 2416189440 字节。"
+  },
+  {
+    "TimeCreated": "2026-11-10T18:43:32.9528157+08:00",
+    "RecordId": 105281,
+    "ProviderName": "Microsoft-Windows-Resource-Exhaustion-Detector",
+    "Message": "Windows 成功诊断出虚拟内存不足的情况。以下程序使用了大部分虚拟内存: python.exe (31420) 使用了 8243437568 字节；msedge.exe (30980) 使用了 3282034688 字节；node.exe (47348) 使用了 2416189440 字节。"
+  },
+  {
+    "TimeCreated": "2026-11-10T18:18:50.3650357+08:00",
+    "RecordId": 105278,
+    "ProviderName": "Microsoft-Windows-Resource-Exhaustion-Detector",
+    "Message": "Windows 成功诊断出虚拟内存不足的情况。以下程序使用了大部分虚拟内存: python.exe (31420) 使用了 8243437568 字节；msedge.exe (30980) 使用了 2795896832 字节；node.exe (47348) 使用了 2397020160 字节。"
+  },
+  {
+    "TimeCreated": "2026-11-10T18:08:35.3287338+08:00",
+    "RecordId": 105277,
+    "ProviderName": "Microsoft-Windows-Resource-Exhaustion-Detector",
+    "Message": "Windows 成功诊断出虚拟内存不足的情况。以下程序使用了大部分虚拟内存: python.exe (31420) 使用了 8243437568 字节；node.exe (46380) 使用了 2396372992 字节；node.exe (47348) 使用了 2223091712 字节。"
+  }
+]

@@ -1,0 +1,1456 @@
+{
+  "scope": "Citation file/hash/line/tool-binding integrity only; semantic review is separate",
+  "case_count": 32,
+  "citation_count": 209,
+  "issues_count": 0,
+  "cases": [
+    {
+      "case_id": "R01",
+      "turns": [
+        {
+          "run_id": "0edc7887-e3c2-4415-8c8a-63eea442408a",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:9",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "223bc8069fe86ce07e43:chunk:0:passage:implementation:standard:renegade_wild:0:chunk:0",
+              "path": "runtime/packages/standard/pkg/skills/renegade_wild.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:2",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "8d5f2be610538d42e65f:chunk:1:passage:implementation:standard:renegade_loyalty:0:chunk:1",
+              "path": "runtime/packages/standard/pkg/skills/renegade_loyalty.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:chunk:0:passage:standard:text:aaa_role_mode:3:chunk:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:3",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "R02",
+      "turns": [
+        {
+          "run_id": "b456f975-b784-488b-9f99-d7552db46a62",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:6",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:chunk:0:passage:standard:text:aaa_role_mode:6:chunk:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:chunk:1:passage:standard:text:aaa_role_mode:6:chunk:1",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "641d952b9565dde0ab57:passage:standard:text:luoshen:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "15c9aa0928cdfaf7b074:passage:standard:text:rende:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "R04",
+      "turns": [
+        {
+          "run_id": "dc7529f4-f486-4f59-8d99-53e98b00f646",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:6",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "ee93d3615e1fe080ee90:passage:standard:text:qingnang:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "5a88864711e35e515547:passage:standard:text:jieyin:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:chunk:2:passage:standard:text:aaa_role_mode:6:chunk:2",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "28ea29addea89cf0b809:passage:standard:text:zhiheng:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "R05",
+      "turns": [
+        {
+          "run_id": "330f932e-a2e9-44e4-812f-0c8c59c2fe80",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "909046b2af81ec7ef6ad",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "e0b7102762a209f980de",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "909046b2af81ec7ef6ad:deck-spec",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "67c0cc5bedd662e0274f",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "a4297d5579610f138b1e",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "67c0cc5bedd662e0274f:deck-spec",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "3fdd6a546188888d7c90",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "1c809285fbb18e112a60",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "3fdd6a546188888d7c90:deck-spec",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "7a0fd44bb9be47112f31",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "8f886232827e326bf63f",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "7a0fd44bb9be47112f31:deck-spec",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:6",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "e0b7102762a209f980de:passage:standard_cards:text:slash:0",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "14d2f742973285f1cf46:passage:standard:text:paoxiao:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "bbbaf9223c2fa84db9da:passage:standard:text:keji:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "f0d4cc973a46a2411745:passage:standard:text:fanjian:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "R03",
+      "turns": [
+        {
+          "run_id": "02068618-d850-4eb0-85b6-c65d59176652",
+          "run_status": "failed",
+          "citations": [],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "R06",
+      "turns": [
+        {
+          "run_id": "91f9f60d-e2ab-45c1-9ebd-726b89645d1f",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:8",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "fff5d95ab9a811274daa:passage:standard:text:luoyi:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "448a7c8c40440f28b073:chunk:0:passage:implementation:standard:zhuque:0:chunk:0",
+              "path": "runtime/packages/standard/pkg/skills/zhuque.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:2",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "R08",
+      "turns": [
+        {
+          "run_id": "c31ac034-f867-48ce-9325-b57ac6bdafd0",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "311d43d17b74a571b386",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:6",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "311d43d17b74a571b386:passage:standard:text:qingguo:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "cd67b74184a4bf506afc:passage:standard_cards:text:eight_diagram:0",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "5baffa3e717d8d17719c:passage:standard_cards:text:archery_attack:0",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "0fe86bbd86ca08d57de7:passage:standard_cards:text:lightning:0",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "D01",
+      "turns": [
+        {
+          "run_id": "3c03c91d-2815-48a4-9839-dcec8b35110d",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "79e971341655b73203f6",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "96bba9031035d3b9b12e",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "a183bcd191b6c83b6a6c",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "R07",
+      "turns": [
+        {
+          "run_id": "74457321-fa78-436f-bfdf-68d24454b481",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:8",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "e0b7102762a209f980de:passage:standard_cards:text:slash:0",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "09d0f3810eb41e748aa9:chunk:1:passage:implementation:standard:lord_designating_heir:0:chunk:1",
+              "path": "runtime/packages/standard/pkg/skills/lord_designating_heir.lua",
+              "issues": []
+            },
+            {
+              "id": "09d0f3810eb41e748aa9:chunk:0:passage:implementation:standard:lord_designating_heir:0:chunk:0",
+              "path": "runtime/packages/standard/pkg/skills/lord_designating_heir.lua",
+              "issues": []
+            },
+            {
+              "id": "5a88864711e35e515547:passage:standard:text:jieyin:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "bbbaf9223c2fa84db9da:passage:standard:text:keji:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "909046b2af81ec7ef6ad",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "e0b7102762a209f980de",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "909046b2af81ec7ef6ad:deck-spec",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "37c24d7544823f25d8be",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "26ffb469478e832785a6",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "5a88864711e35e515547",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "4d25a953557435316096",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "2cda392164eff4a868f1",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "4d25a953557435316096:deck-spec",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "eb8650c9af4ddac2b714",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "be8af9929be698fd71dd",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "eb8650c9af4ddac2b714:deck-spec",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "2185a72bec558315b118",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "03a6ae25ee2bca21b766",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "2185a72bec558315b118:deck-spec",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "4a303544858f8ffa028d",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "fc5737e3424ea1227bc6",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "09d0f3810eb41e748aa9:passage:implementation:standard:lord_designating_heir:0",
+              "path": "runtime/packages/standard/pkg/skills/lord_designating_heir.lua",
+              "issues": []
+            },
+            {
+              "id": "80e40a95b2466236dbff:chunk:0:passage:implementation:standard:feiyang:0:chunk:0",
+              "path": "runtime/packages/standard/pkg/skills/feiyang.lua",
+              "issues": []
+            },
+            {
+              "id": "19c317c0215d757be97c:passage:standard:text:liuli:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "ee93d3615e1fe080ee90:passage:standard:text:qingnang:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "D02",
+      "turns": [
+        {
+          "run_id": "c7ce4c1f-cd73-49a3-bc60-a15e85b2a7ff",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "db68818c5b1399b87a00",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "e8cfb0406a9f4c8071cc",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "9937b633d1dd2e694755",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "D03",
+      "turns": [
+        {
+          "run_id": "0dc8c624-860b-4985-a041-c021b905057b",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "8203dd3ec73d586982ba",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "3851bfa9fc6406a295a9",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "2602e4f1c8a9a379a95b",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "15c9aa0928cdfaf7b074",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "2ad1b74478e23e5cdc33",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "ffee5a739c14d257877c",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "28ea29addea89cf0b809",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "6ccdd6212289632e9261",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "79e971341655b73203f6",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "96bba9031035d3b9b12e",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "a183bcd191b6c83b6a6c",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "7204161f9e3492ddb535",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "65bb485bf79804134ec5",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "37c24d7544823f25d8be",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "26ffb469478e832785a6",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "5a88864711e35e515547",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "D04",
+      "turns": [
+        {
+          "run_id": "7aa0ebc5-f38d-4c65-91b2-d84d213194c8",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "6a1d10cc3e7882f474f0",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "bccc9a8b32e2e31a8fd5",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "6a1d10cc3e7882f474f0:deck-spec",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "D05",
+      "turns": [
+        {
+          "run_id": "bb6ab6b7-2eea-4219-9ab9-05cc73fd5d4e",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "44f93f300d7d14622d3e",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "762aac2b3004f5fa89b6",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "44f93f300d7d14622d3e:deck-spec",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "D06",
+      "turns": [
+        {
+          "run_id": "787843c9-17f3-45cb-bb53-5f8d6d358151",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "4152ba3ce6bfc1753823",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "ddffe297bb863c850d7f",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "4152ba3ce6bfc1753823:deck-spec",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "377b53c894f5daec220b",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "2f0fbad65a3951c089a4",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "377b53c894f5daec220b:deck-spec",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:2",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "ddffe297bb863c850d7f:passage:maneuvering:text:analeptic:0",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "fc5737e3424ea1227bc6:passage:standard:text:ganglie:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "fff5d95ab9a811274daa:passage:standard:text:luoyi:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "fe3fbf39ca9a626bf08a:passage:standard:text:tieqi:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:5",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "2f0fbad65a3951c089a4:passage:maneuvering:text:iron_chain:0",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "253c454d3d356ac1549e:passage:standard:text:lijian:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "ebab58c494ff19121c4c:passage:standard:text:tuxi:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "e2cbeccb91d0a5126cc4:passage:standard_cards:text:peach:0",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "J02",
+      "turns": [
+        {
+          "run_id": "591a11f1-0042-4210-b29b-a106fbe7bc38",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "verified-ruling:freekill-local-b9dc701220bc:SC02",
+              "path": "rulings/evidence/SC02.json",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "J01",
+      "turns": [
+        {
+          "run_id": "1a855c76-7021-43f6-944b-52ad04c9108e",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "verified-ruling:freekill-local-b9dc701220bc:SC01",
+              "path": "rulings/evidence/SC01.json",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "J04",
+      "turns": [
+        {
+          "run_id": "e7cf4a35-ca1d-4caf-8318-097f1326079d",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "verified-ruling:freekill-local-b9dc701220bc:SC04",
+              "path": "rulings/evidence/SC04.json",
+              "issues": []
+            },
+            {
+              "id": "verified-ruling:freekill-local-b9dc701220bc:SC04V",
+              "path": "rulings/evidence/SC04V.json",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "J03",
+      "turns": [
+        {
+          "run_id": "5dabbbef-0ba9-4f1c-9b27-85f0256d2473",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "verified-ruling:freekill-local-b9dc701220bc:SC03",
+              "path": "rulings/evidence/SC03.json",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "J06",
+      "turns": [
+        {
+          "run_id": "b00583dc-94b6-4c95-be78-f4d24a55a1d9",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "verified-ruling:freekill-local-b9dc701220bc:SC06",
+              "path": "rulings/evidence/SC06.json",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "J07",
+      "turns": [
+        {
+          "run_id": "9cbdbaf2-275e-4802-969f-70d2444566b6",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "verified-ruling:freekill-local-b9dc701220bc:SC07",
+              "path": "rulings/evidence/SC07.json",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "J05",
+      "turns": [
+        {
+          "run_id": "681796dc-7c29-48b9-b5ed-47585dca2c67",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "verified-ruling:freekill-local-b9dc701220bc:SC05",
+              "path": "rulings/evidence/SC05.json",
+              "issues": []
+            },
+            {
+              "id": "1f08aa9ce7f2c68ae815",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "9a3755ce0daa78b83693",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "1f08aa9ce7f2c68ae815:deck-spec",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "5ff70fe8b2d7e69741aa",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "35670bcd0bdd67c5f2f1",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "5ff70fe8b2d7e69741aa:deck-spec",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "909046b2af81ec7ef6ad",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "e0b7102762a209f980de",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "909046b2af81ec7ef6ad:deck-spec",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "1cdbdfa89a404207f9fb",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "cd67b74184a4bf506afc",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "1cdbdfa89a404207f9fb:deck-spec",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "8d202f7b2e28bee36be1",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "68f4f420c46eb8af960e",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "8d202f7b2e28bee36be1:deck-spec",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "44f93f300d7d14622d3e",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "762aac2b3004f5fa89b6",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "44f93f300d7d14622d3e:deck-spec",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:6",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "19c317c0215d757be97c:passage:standard:text:liuli:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "1899e12a7db1decf6fb4:passage:standard_cards:text:axe:0",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:chunk:2:passage:standard:text:aaa_role_mode:6:chunk:2",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "ee93d3615e1fe080ee90:passage:standard:text:qingnang:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "J08",
+      "turns": [
+        {
+          "run_id": "385827a7-9efd-439f-80d5-1143d3a35f9f",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "verified-ruling:freekill-local-b9dc701220bc:SC08",
+              "path": "rulings/evidence/SC08.json",
+              "issues": []
+            },
+            {
+              "id": "verified-ruling:freekill-local-b9dc701220bc:SC08-unused",
+              "path": "rulings/evidence/SC08.json",
+              "issues": []
+            },
+            {
+              "id": "3851bfa9fc6406a295a9",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "6a1d10cc3e7882f474f0",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "bccc9a8b32e2e31a8fd5",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "6a1d10cc3e7882f474f0:deck-spec",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "M01",
+      "turns": [
+        {
+          "run_id": "29749ab5-fb70-44b1-8605-4d886c3ca8ad",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "db68818c5b1399b87a00",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "e8cfb0406a9f4c8071cc",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "9937b633d1dd2e694755",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        },
+        {
+          "run_id": "67c54bb4-98cd-4ac5-9a45-faf4cbbd64e7",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "9937b633d1dd2e694755",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:6",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "9937b633d1dd2e694755:passage:standard:text:kongcheng:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "19c317c0215d757be97c:passage:standard:text:liuli:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "bbbaf9223c2fa84db9da:passage:standard:text:keji:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "6202a17afab3d2c9fd58:passage:standard:text:wushuang:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "M02",
+      "turns": [
+        {
+          "run_id": "4a1cc273-fee3-4d67-ba25-65dbc1fb5a97",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "4152ba3ce6bfc1753823",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "ddffe297bb863c850d7f",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "4152ba3ce6bfc1753823:deck-spec",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:4",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "ddffe297bb863c850d7f:passage:maneuvering:text:analeptic:0",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "e2cbeccb91d0a5126cc4:passage:standard_cards:text:peach:0",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "282190c8924dcf3da1c2:chunk:12:passage:implementation:maneuvering:analeptic:0:chunk:12",
+              "path": "runtime/packages/maneuvering/pkg/skills/analeptic.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:8",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        },
+        {
+          "run_id": "f2c528e9-a14e-4849-b546-31e97bc7a601",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "4152ba3ce6bfc1753823",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "ddffe297bb863c850d7f",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "4152ba3ce6bfc1753823:deck-spec",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:2",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "ddffe297bb863c850d7f:passage:maneuvering:text:analeptic:0",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "19c317c0215d757be97c:passage:standard:text:liuli:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "e2cbeccb91d0a5126cc4:passage:standard_cards:text:peach:0",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "bbbaf9223c2fa84db9da:passage:standard:text:keji:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "M03",
+      "turns": [
+        {
+          "run_id": "6e17c8f0-8390-4fba-a870-0f3fa35c8797",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "user-statement:47dbeb6d-374f-4661-9abf-ac89b89b116b",
+              "path": "conversation/1c3e301b-99d8-4d0c-9b2e-c75567d489a4/47dbeb6d-374f-4661-9abf-ac89b89b116b",
+              "issues": []
+            }
+          ],
+          "issues": []
+        },
+        {
+          "run_id": "6d7b2fc5-191f-4b75-af5b-a959936bae65",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "user-statement:47dbeb6d-374f-4661-9abf-ac89b89b116b",
+              "path": "conversation/1c3e301b-99d8-4d0c-9b2e-c75567d489a4/47dbeb6d-374f-4661-9abf-ac89b89b116b",
+              "issues": []
+            },
+            {
+              "id": "user-statement:ef96430c-9562-4ac4-8031-0ca671480333",
+              "path": "conversation/1c3e301b-99d8-4d0c-9b2e-c75567d489a4/ef96430c-9562-4ac4-8031-0ca671480333",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "V01",
+      "turns": [
+        {
+          "run_id": "8f6ec5f2-ccd3-499f-add3-545a3ffe1b8f",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:4",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "ffc20dde4c7914c9521c:passage:known-conflict:role-player-count",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:chunk:1:passage:standard:text:aaa_role_mode:3:chunk:1",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:chunk:0:passage:standard:text:aaa_role_mode:3:chunk:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "09d0f3810eb41e748aa9:chunk:4:passage:implementation:standard:lord_designating_heir:0:chunk:4",
+              "path": "runtime/packages/standard/pkg/skills/lord_designating_heir.lua",
+              "issues": []
+            },
+            {
+              "id": "8ba8d03166ce7bd73502:chunk:2:passage:implementation:standard:yiji:0:chunk:2",
+              "path": "runtime/packages/standard/pkg/skills/yiji.lua",
+              "issues": []
+            },
+            {
+              "id": "18b5f04d6bd91666d743:chunk:2:passage:implementation:standard:tuxi:0:chunk:2",
+              "path": "runtime/packages/standard/pkg/skills/tuxi.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "V02",
+      "turns": [
+        {
+          "run_id": "80e5381b-7477-47d1-91e2-f8d4f73419d8",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:9",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "ffc20dde4c7914c9521c:passage:known-conflict:role-player-count",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "0bc79d1c37b6a2bc88d5:chunk:1:passage:implementation:standard_cards:blade:0:chunk:1",
+              "path": "runtime/packages/standard_cards/pkg/skills/blade.lua",
+              "issues": []
+            },
+            {
+              "id": "282190c8924dcf3da1c2:chunk:5:passage:implementation:maneuvering:analeptic:0:chunk:5",
+              "path": "runtime/packages/maneuvering/pkg/skills/analeptic.lua",
+              "issues": []
+            },
+            {
+              "id": "0bc79d1c37b6a2bc88d5:chunk:2:passage:implementation:standard_cards:blade:0:chunk:2",
+              "path": "runtime/packages/standard_cards/pkg/skills/blade.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "N01",
+      "turns": [
+        {
+          "run_id": "ef880a4f-ca8c-4559-be88-f30ab5021911",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:6",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "648052042c2bfc50392e:passage:standard:text:WangzhanBattleRoyal:0",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "2ad1b74478e23e5cdc33:passage:standard:text:jijiang:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "6ccdd6212289632e9261:passage:standard:text:jiuyuan:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "a183bcd191b6c83b6a6c:passage:standard:text:hujia:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:1",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "f2081604a68797e4e4cf:passage:standard:text:reveal_skill&:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:chunk:1:passage:standard:text:aaa_role_mode:4:chunk:1",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:chunk:1:passage:standard:text:aaa_role_mode:6:chunk:1",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "N02",
+      "turns": [
+        {
+          "run_id": "a540aefe-1413-4aa1-8caf-8c1e0f02a3b0",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:5",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "19c317c0215d757be97c:passage:standard:text:liuli:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "f6906179559b27b329ce:chunk:2:passage:implementation:standard_cards:armor_invalidity:0:chunk:2",
+              "path": "runtime/packages/standard_cards/pkg/skills/armor_invalidity.lua",
+              "issues": []
+            },
+            {
+              "id": "e6d26d2859c12bc3afa0:chunk:1:passage:implementation:standard:jiuyuan:0:chunk:1",
+              "path": "runtime/packages/standard/pkg/skills/jiuyuan.lua",
+              "issues": []
+            },
+            {
+              "id": "cb097994b3c9cd3093d9:chunk:0:passage:implementation:standard:wushuang:0:chunk:0",
+              "path": "runtime/packages/standard/pkg/skills/wushuang.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "F01",
+      "turns": [
+        {
+          "run_id": "f004584d-5d34-4dc5-a897-410d187db96c",
+          "run_status": "completed",
+          "citations": [],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "I01",
+      "turns": [
+        {
+          "run_id": "92519070-01d5-4e10-8807-1d75d8f9d432",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "user-statement:feaaba31-dc67-41d7-92b9-330d4b8d5102",
+              "path": "conversation/88dcff27-4316-4752-b425-8e93b03152fa/feaaba31-dc67-41d7-92b9-330d4b8d5102",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "I02",
+      "turns": [
+        {
+          "run_id": "0bcd2841-a7cb-451c-8c2c-3e5671aa0024",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "user-statement:235c6e6e-b0ff-477c-a9cc-89b4b3b9bdc9",
+              "path": "conversation/c235d755-1a48-4b95-8511-f9d438bf98ab/235c6e6e-b0ff-477c-a9cc-89b4b3b9bdc9",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    }
+  ]
+}

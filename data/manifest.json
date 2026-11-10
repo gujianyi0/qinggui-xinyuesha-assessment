@@ -1,0 +1,704 @@
+{
+  "snapshot_id": "freekill-local-b9dc701220bc",
+  "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+  "client_version": "0.5.25",
+  "label": "新月杀本地修改版 · 标准/标准牌/军争",
+  "packages": [
+    "standard",
+    "standard_cards",
+    "maneuvering"
+  ],
+  "extractor_version": "static-lua-v1.1",
+  "created_at": "2026-11-10T08:27:30.421922+00:00",
+  "source_repository": "https://github.com/gujianyi0/xinyuesha-ios",
+  "files": [
+    {
+      "path": "LICENSE",
+      "sha256": "0b383d5a63da644f628d99c33976ea6487ed89aaa59f0b3257992deac1171e6b",
+      "bytes": 35821
+    },
+    {
+      "path": "runtime/packages/standard/aux_choose_general.lua",
+      "sha256": "204ad7a6978858216594844cf02bc9aa6ace6959bc5e97650f4e881b301c79b7",
+      "bytes": 3557
+    },
+    {
+      "path": "runtime/packages/standard/aux_poxi.lua",
+      "sha256": "fc8150be915ed0a58d5ebbd67323c308e3a519112d0f50bec3bcb3eaee7d72aa",
+      "bytes": 1302
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/choose_cards_skill.lua",
+      "sha256": "7fcd9129acaf737557f49b69593c34002d622767cc1fc00ece5417a0fbab88df",
+      "bytes": 1741
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/choose_players_skill.lua",
+      "sha256": "851a5c012460ad4262763866a99d94a04efc1d756ae3eed53777e37a23f050f3",
+      "bytes": 2899
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/choose_players_to_move_card_in_board.lua",
+      "sha256": "28bd8c134c5f936328630cb40cfe173a0b4421185233a90ef31ffb134a363039",
+      "bytes": 2489
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/discard_skill.lua",
+      "sha256": "f1bc5ec6e0f9de91a4b0be4c3cf885629bfde8b80cef2812bdbd7f8ab7307223",
+      "bytes": 3087
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/distribution_select_skill.lua",
+      "sha256": "2855e0e85af991f3782d2bc3b31ea887b80d10d57097d9f43479c1e03d509d65",
+      "bytes": 2052
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/ex__choose_skill.lua",
+      "sha256": "c0bb10e2a7bfcc7e3fb01bbdd1fa4c9a8e0cb7efc5daddfe6c7dee7cd430f836",
+      "bytes": 3575
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/game_rule.lua",
+      "sha256": "3e39e7d1d16b868f7d1529febc0885083ddce33cdcb7b881fd8533d9835bc537",
+      "bytes": 3794
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/init.lua",
+      "sha256": "9a16bd31a7009e1e83f8803631cf8b38e103c739d70d311bfb11e9a21881b710",
+      "bytes": 828
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/max_cards_skill.lua",
+      "sha256": "22b84f6bb18d7a135d95d2183d48058eb2796610f489de13204465962363f92e",
+      "bytes": 873
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/reveal_prohibited.lua",
+      "sha256": "b0791b103d13c2ff9a433b85df3907f6bed1060b7f4e1c5f0c6b315fefb8dac3",
+      "bytes": 1578
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/reveal_skill.lua",
+      "sha256": "2eaf10516aacef5692007f0a0ab520e2aec54c2aee9e9d49a1feb4d623cbf453",
+      "bytes": 2553
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/spin_skill.lua",
+      "sha256": "7f9d98562ce6e1a2ed484f6e4d1a86fcafa18527208b36e58fe7fdfcf0f8702e",
+      "bytes": 1098
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/uncompulsory_invalidity.lua",
+      "sha256": "3034b155f602981bb9ac19cdd10e06d1f110f0ba5897160be49db69b1e402977",
+      "bytes": 410
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/userealcard_skill.lua",
+      "sha256": "b1516fdf6c3edefa60c65db380b7f1c121372e453b0f0f1c26f7c1711c9cc801",
+      "bytes": 460
+    },
+    {
+      "path": "runtime/packages/standard/aux_skills_dir/virtual_viewas.lua",
+      "sha256": "72f8b30a4e27ff33c1e7efd05cf839e4d2bc8b85732d6006136973dba8323de9",
+      "bytes": 5266
+    },
+    {
+      "path": "runtime/packages/standard/i18n/en_US.lua",
+      "sha256": "977bd32b12c63a5eaff19cc26459424175c40cf29a033720305c3257a73af61a",
+      "bytes": 12595
+    },
+    {
+      "path": "runtime/packages/standard/i18n/init.lua",
+      "sha256": "329ac4776ba2f520d7482516aa82b428ef4ddf24ade9462c2bdf7105313bbf95",
+      "bytes": 280
+    },
+    {
+      "path": "runtime/packages/standard/i18n/vi_VN.lua",
+      "sha256": "70ac837eda9e9d1a36cdd97f432a28a5cdb1283cb3abfb232f4597d965f8b890",
+      "bytes": 34388
+    },
+    {
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5",
+      "bytes": 25740
+    },
+    {
+      "path": "runtime/packages/standard/init.lua",
+      "sha256": "278d2cec5b812a5a5cb452cec6dc040832c7d8bf7361064231691d2fd8c41d16",
+      "bytes": 1363
+    },
+    {
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728",
+      "bytes": 15540
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/bahu.lua",
+      "sha256": "a703bd588c4f612eb0d53c0a91b6c64e015f640e85eb95bb1d83a1ef12fa11b4",
+      "bytes": 842
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/baihu.lua",
+      "sha256": "e053e13d3093f2222ccab7a5cb8ff91c4b1fd6f4d6a9dc7d54fb8502dce06c64",
+      "bytes": 1580
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/biyue.lua",
+      "sha256": "4475f7964df985ce9d12a4ef061018717de2abfd5907c0b8f053bf4dc4f8deda",
+      "bytes": 588
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/fanjian.lua",
+      "sha256": "45c0d8ac935a588dfa9e1fea04eb1965597d2ac504f5e792b3ef7072efb81b4d",
+      "bytes": 2447
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/fankui.lua",
+      "sha256": "ac3629a10ea80b7e9d23858e4693b549b0351c7329c77a31d479909ae465fafe",
+      "bytes": 1401
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/feiyang.lua",
+      "sha256": "4948dfcf75e20b299d245e39adc94489b5d845d93cc2b8db1f522d67580fa044",
+      "bytes": 1575
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/ganglie.lua",
+      "sha256": "4fe2a0cb17328bd0d681dc8fb924d5ff6cf87e94e754b15eb7e3cae0107586ce",
+      "bytes": 3941
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/guanxing.lua",
+      "sha256": "0650581a8f4e65623d8aa6d1395d8e111d3b6f7a46a44e24d4cd4c070176b869",
+      "bytes": 610
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/guicai.lua",
+      "sha256": "8b211279f5be53ea555b7d50499d22712d6b08fdf03f144d0e51242da2ba06d1",
+      "bytes": 3074
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/guose.lua",
+      "sha256": "a733a6f21be5af39067804e3869b0119cfebb46a1742767555ceaeb602422e9b",
+      "bytes": 593
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/hujia.lua",
+      "sha256": "0d79269267c1f31f0ec742d683da012e077a615b8f3220af581f2af07b686243",
+      "bytes": 2131
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/jianxiong.lua",
+      "sha256": "86021eeefbb7175df83a204c63eacca6d59385fa1095d55609bc0b2978f37752",
+      "bytes": 1266
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/jieyin.lua",
+      "sha256": "fb13b46b15203e476c601be5ea2bb37fc977c7b3e5306b2dbdcebf400ee823fd",
+      "bytes": 2497
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/jijiang.lua",
+      "sha256": "3ebd8ef5cec1e1f490c690a83bc9e2ae50625b4d009162b1ac80b7430ed6c30d",
+      "bytes": 1508
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/jijiu.lua",
+      "sha256": "8e19c3e7c8cda25e8f79ee9f40501d293cf0606b7df632eec289c9d020bf5816",
+      "bytes": 709
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/jiuyuan.lua",
+      "sha256": "da5bdaaea9638319c291a3a2c51ea4bc224f9100f3715659692734cab6092060",
+      "bytes": 752
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/jizhi.lua",
+      "sha256": "64843beba93bbd384324acd185c6d0f38d74b66ca3abbc930a198f03d01ce2f9",
+      "bytes": 491
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/keji.lua",
+      "sha256": "85d73daa63ff40ae62cb89967419ea77715b3f1ecb9c90125ce9e1565c719e11",
+      "bytes": 1460
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/kongcheng.lua",
+      "sha256": "d9cf5a2d88a2b593ca957003945a3b328ef73d3e004e2d203f9bf996d0b1d175",
+      "bytes": 1778
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/kurou.lua",
+      "sha256": "11a70d24a89ad9f2b680ab8747a9a6742571cf000eaa00d2321137df35a55042",
+      "bytes": 628
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/lianying.lua",
+      "sha256": "682cdc9aafd191173e7281ecc6f82a9da8f81fcb6427fc7334331332146a8834",
+      "bytes": 709
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/lijian.lua",
+      "sha256": "cf91ec68639f155005dfdf0332e117093837aa3a3b39a9ba207944464d70e23b",
+      "bytes": 1326
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/liuli.lua",
+      "sha256": "94ca4ccc67ce1176724a60021d66fe092c7f8e93f8b8b76b41988f9b493ac3e0",
+      "bytes": 1492
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/longdan.lua",
+      "sha256": "3ff5a9e3385acb9442912d26eb152d9007fe23935371453cf34d7d33bcb68da8",
+      "bytes": 909
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/lord_designating_heir.lua",
+      "sha256": "2feabddd8312eb2ca3b7c8aa7d1d393f045c722beba92256b87a37381e0d083d",
+      "bytes": 4848
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/luoshen.lua",
+      "sha256": "ff40622ac6191fd7a5df487656eca936c79fadb236a5056d0dae3727e169fffa",
+      "bytes": 1445
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/luoyi.lua",
+      "sha256": "2c06c8f572c0bff4770c72affaa5c1061a89d0b738ef5bfd57256703d67ce78e",
+      "bytes": 1882
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/m_role_wild_draw.lua",
+      "sha256": "b739b4842b00ac8c8cc539d3771e608167309c0d2e50cf75317c18847ab43568",
+      "bytes": 1439
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/mashu.lua",
+      "sha256": "506b022286fac8b25347ad1365f995aa1facbafb7734c3a9d7404527be88664f",
+      "bytes": 240
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/paoxiao.lua",
+      "sha256": "d2320b3ccd74dceb24cbb5b973738e0f9acf3156e11c58e3887e12725ce27a6d",
+      "bytes": 880
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/qianxun.lua",
+      "sha256": "bee45fa7ba4b8a78edf9acf0fbfd39c60cf031b9945190ec16415a2c2eb46dce",
+      "bytes": 319
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/qicai.lua",
+      "sha256": "00c0ce0d909e0fadc983d4413167700f5c9b52405ea1e74dbcef9efc524e3357",
+      "bytes": 568
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/qingguo.lua",
+      "sha256": "b3540f65d53c12dc17aaa4970539b8ee83459a51424464b65b7b87ef1ae11efe",
+      "bytes": 513
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/qinglong.lua",
+      "sha256": "04a0d6b77959b62e0515d70931c6f775f4dd678fe75ea13275bc2955619adfbb",
+      "bytes": 1604
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/qingnang.lua",
+      "sha256": "412137c656cc47677637e229e70ffff8190b27abc30fb7509837d2da9e1e5471",
+      "bytes": 2071
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/qixi.lua",
+      "sha256": "27203b7cc4210e75f17829b1e04f71e9aa4a338bd437003b516c4130a62dd3e9",
+      "bytes": 612
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/rende.lua",
+      "sha256": "e89c7d74f95f124eb800fbdcd8327cc16e107a4beb730f46d0b6eb762f992d94",
+      "bytes": 1012
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/renegade_loyalty.lua",
+      "sha256": "6b911b5e2d6f6a3035abcdd3e3b549b29dd66b2f2ef5445e3023766c45e4d0a4",
+      "bytes": 2096
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/renegade_wild.lua",
+      "sha256": "aee79b74dfe7c2347994dba8542dfc6552c2f1c252ea772b70ddae6d145b782e",
+      "bytes": 1943
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/tiandu.lua",
+      "sha256": "e9c8bcbdc49b9d4e4db9c5582e6012367007f4d43e7a9d52afb4f84dbdb9b673",
+      "bytes": 757
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/tieqi.lua",
+      "sha256": "1b6d8bda333fa9f3ee1d4c1e5487d45a4d623a67900b464fae5ecdab4cca86af",
+      "bytes": 1003
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/tuxi.lua",
+      "sha256": "16d033d362ffb922d0d530ae98dc4f954945f4aa1bae5c94199b0e350fbc2e45",
+      "bytes": 2243
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/WangzhanBattleRoyal.lua",
+      "sha256": "026afa0f68ad26b7d81dd4952dcffab4ea074c4b7c36bd2f52b15fd0ef2069e1",
+      "bytes": 1973
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/wusheng.lua",
+      "sha256": "029d14438851c264defca25a2e3c88d5024ab2758b2dcad6d2fc8b7545db27e0",
+      "bytes": 529
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/wushuang.lua",
+      "sha256": "4adbb885197114752b06e334eadb9075e8503079312c2967424560622c034273",
+      "bytes": 928
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/xiaoji.lua",
+      "sha256": "aabf31b81d19a77b4f6b81b27f9f04ee41e7e4786854b08119567d67e486e1c4",
+      "bytes": 1267
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/xuanwu.lua",
+      "sha256": "22ce7974d616cda7c3ff8bc72bde12892ea4d02c9048b50b221d0260f058dd94",
+      "bytes": 1344
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/yiji.lua",
+      "sha256": "07ae21164029a79c265e5c99d5d6c2174a7539ce43551ca4048b7fd3e46700b4",
+      "bytes": 1556
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/yingzi.lua",
+      "sha256": "614e255a0dd112583e91dd3028ebee626fadfaa7ce0b8e7f191c9a3dda6a223a",
+      "bytes": 288
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/zhiheng.lua",
+      "sha256": "7c1856b8296193f1191bd3ab85ae3b1b3dfd2bf173e4d4546623c8e6c5d4af83",
+      "bytes": 1039
+    },
+    {
+      "path": "runtime/packages/standard/pkg/skills/zhuque.lua",
+      "sha256": "b688a9328e7ce4c4ed9fc3facdd80b44bf5016014f56b4acf53152ec06e38f4c",
+      "bytes": 2077
+    },
+    {
+      "path": "runtime/packages/standard_cards/i18n/en_US.lua",
+      "sha256": "87640345c818f51902c2ec3d55ac215bfca8a027c56a94faa30677b74edf2294",
+      "bytes": 12205
+    },
+    {
+      "path": "runtime/packages/standard_cards/i18n/init.lua",
+      "sha256": "3edcd66cef4ce4f4c63302840dd3f2b9dcbd8ed3a4c66417518fd076cdf5545b",
+      "bytes": 298
+    },
+    {
+      "path": "runtime/packages/standard_cards/i18n/vi_VN.lua",
+      "sha256": "e9965fc664c34dfd86b391e91d3b317a826ce691c2999d0810814b2528bcc031",
+      "bytes": 15722
+    },
+    {
+      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1",
+      "bytes": 13078
+    },
+    {
+      "path": "runtime/packages/standard_cards/init.lua",
+      "sha256": "335a89557ca0a1ee1fbdae47f2013ece5d21885af0c98dfae116aaecdff68ed8",
+      "bytes": 163
+    },
+    {
+      "path": "runtime/packages/standard_cards/metadata.lua",
+      "sha256": "3706ccb45b3234c39f01eaa0658bd7553726f6287a45737590e06550f20fb00e",
+      "bytes": 266
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a",
+      "bytes": 11087
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/amazing_grace.lua",
+      "sha256": "160b2a704a23ed89b4a3bfea4ffe264e8526892f0830930f779cf3e112c6763c",
+      "bytes": 2602
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/archery_attack.lua",
+      "sha256": "fff40b021664c47b9fc2089f9f0ad54fb2f83299292690512405c6b18ac36614",
+      "bytes": 2008
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/armor_invalidity.lua",
+      "sha256": "df6f6d9a9ee26a6be1087f12a0ad5426a76a57d0c1d67534a18c0cb89c40af30",
+      "bytes": 1700
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/axe.lua",
+      "sha256": "377defef9e434117d17b47ac806b417fba3b61ca9473055184197d349830a0d0",
+      "bytes": 1368
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/blade.lua",
+      "sha256": "71291fd96ef6eee70267630ccdb82bdf547c6fbab0cdeedcaf8a946b0285e9b0",
+      "bytes": 1065
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/chitu.lua",
+      "sha256": "15cc138526b579839c17e0f65df98cff18dd89cd0ab39ac33f9dfe5049ffa7ce",
+      "bytes": 521
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/collateral.lua",
+      "sha256": "9e01174b6924132aa746f10df05a22389136ff19f650483994951a226604b115",
+      "bytes": 2844
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/crossbow.lua",
+      "sha256": "70b1d5754d213f35e224bd5e5fb458e2c4b36fdcea774274ab43a128bf2681ee",
+      "bytes": 1372
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/dayuan.lua",
+      "sha256": "9207563f96984ce63f2ef34ebeb3506fd614cc9e4024bec34462a2361338d24c",
+      "bytes": 278
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/default_card_skill.lua",
+      "sha256": "02dabaf968ecffc730dcd268e5725384574be28d3cc3199f2cbcadfd0577cf1d",
+      "bytes": 233
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/default_equip_skill.lua",
+      "sha256": "6f1d80df93cdd1f8b1f089d0fa7598587a50d64483da23acfcd72b2642f02aa4",
+      "bytes": 988
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/dilu.lua",
+      "sha256": "12ce8a59bd187ae12a7292540a447d4dec20e7f494ce9563c49e009f41485083",
+      "bytes": 686
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/dismantlement.lua",
+      "sha256": "c1c9172273c8338ceac8a9411fe7efe3220b6903e3710fcbbb6db459fadb67fd",
+      "bytes": 1270
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/double_swords.lua",
+      "sha256": "4e5a036b040401baac603f524b7d2e11861c3199872db2449c0d99f2e0b56225",
+      "bytes": 975
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/duel.lua",
+      "sha256": "9286750b2f5325a61533d197656fbf5276198552d60ba101c9eeb8af7cbb6119",
+      "bytes": 1906
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/eight_diagram.lua",
+      "sha256": "c5cc3c5b6fb64656ea4042cd3974a044fa9f1cf5db122374a45c1787baabe67b",
+      "bytes": 2606
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/ex_nihilo.lua",
+      "sha256": "86834bd7c3b4642349f5f552ef70eca9f6daf8a806851b8133c7d7884b8f6f38",
+      "bytes": 842
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/god_salvation.lua",
+      "sha256": "57e23d403be126379958c6a1b6337a2ebbb7655148093baf1f2322bb2ff6aa2f",
+      "bytes": 1278
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/halberd.lua",
+      "sha256": "ec197095faec4449dee8c9de2b66b0e9415644ed033301a913ed75691e0900db",
+      "bytes": 968
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/ice_sword.lua",
+      "sha256": "1d8519d628809fa3db5ea49aa8c117240e75f23b5f97ef9541c98703c4494405",
+      "bytes": 1615
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/indulgence.lua",
+      "sha256": "ab2007a5945fe9308f714bf8898bfae01c2113b47938f2c0c153c3ebc22599f5",
+      "bytes": 974
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/init.lua",
+      "sha256": "3269bf9b62191ada8c54aef27abc502cab2d7d5a4cede93ff8e87905098fffda",
+      "bytes": 1367
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/jink.lua",
+      "sha256": "ab1b16ff3a5c097d5b87a5c3614bec0b02473cdaa06d57fc3e8b15065d4e61d9",
+      "bytes": 829
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/jueying.lua",
+      "sha256": "111a6e9edf1696eec6d0c15d919c4e319ddfc5efad05cad056052a3086f755cf",
+      "bytes": 277
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/kylin_bow.lua",
+      "sha256": "49b1ae2a54f49ce64ffb4f850b003b11beddd53796ac435441861d053bf2b11c",
+      "bytes": 1929
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/lightning.lua",
+      "sha256": "ae757b7981461705349f832c13caa47919e79c04cd807f3fe4802cbb242b377f",
+      "bytes": 1832
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/nioh_shield.lua",
+      "sha256": "433288736fe067bc8822f076714d4949952f4cff80bde54ebf5022c7076958d1",
+      "bytes": 2521
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/nullification.lua",
+      "sha256": "cc4597df22b1609ee6809bf65fdddb05135ad8d5928b20b35cfd2d514d44fd02",
+      "bytes": 843
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/peach.lua",
+      "sha256": "11816d52b94087402c0056fcfbd598f6fec04480b8e12f86ca49ed345487eb32",
+      "bytes": 1893
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/qinggang_sword.lua",
+      "sha256": "3b30e85409612ec2818689ea49b78b82093718c68a20f2c3e87d6d93105e135b",
+      "bytes": 7081
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/savage_assault.lua",
+      "sha256": "44a7314a2c8f2c42d060f96140523e3f12f96ef0fe6fd911138878e0e4a17157",
+      "bytes": 2008
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/slash.lua",
+      "sha256": "db8de4e511857ee4f7b8a0eecff88679532c01cfd9cd229a1ec3ba9e336c2412",
+      "bytes": 3513
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/snatch.lua",
+      "sha256": "722a684fe37ed3ded8e688e0ecc41f90a990f8d70aa489413081651bf0070828",
+      "bytes": 2128
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/spear.lua",
+      "sha256": "926eb268c4906d9871358ba6c6d932a548fbdcf084d0c404312faf75dcc6cfd0",
+      "bytes": 547
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/zhuahuangfeidian.lua",
+      "sha256": "64961a9367f7ce42ce8cb20fb32358314018700ae4b165d3c2939b982e917494",
+      "bytes": 295
+    },
+    {
+      "path": "runtime/packages/standard_cards/pkg/skills/zixing.lua",
+      "sha256": "360e3093441b8406c6e93e8cbd0f91d00d94c3aa27d790ccf8111344b8753396",
+      "bytes": 278
+    },
+    {
+      "path": "runtime/packages/maneuvering/i18n/en_US.lua",
+      "sha256": "cce46dd61df715ca2b2738dfb951ac42dba966a5543c16465f1aaae6283de567",
+      "bytes": 4314
+    },
+    {
+      "path": "runtime/packages/maneuvering/i18n/vi_VN.lua",
+      "sha256": "b0edbd16e1a6456ed991d8e665092a22b33f6f32495d1e8e6575ff6149a6a9b5",
+      "bytes": 5402
+    },
+    {
+      "path": "runtime/packages/maneuvering/init.lua",
+      "sha256": "c7abcb67f4606a4bbf84be19a35f4a97caf105a2c5f4a41f940f3ea20db0656e",
+      "bytes": 160
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/init.lua",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53",
+      "bytes": 9449
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/skills/analeptic.lua",
+      "sha256": "733c5b477ea1bbe8089efd2f376d0be7299fac4114f7ba66c36a159f63ae7eec",
+      "bytes": 3580
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/skills/fan.lua",
+      "sha256": "bc480070e9e331eadb237dbdbe6a4f3a8966df994dbe70730ecf347dd8477b74",
+      "bytes": 1940
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/skills/fire__slash.lua",
+      "sha256": "d65583e856baf013a33cd0644a6cf5cd58f71e296247c111256094d8cebcb473",
+      "bytes": 1437
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/skills/fire_attack.lua",
+      "sha256": "df5b08aa13a4465d5f10c2f6c77abd4d4d98de8da524edd1c3b912f7c4de898b",
+      "bytes": 2319
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/skills/guding_blade.lua",
+      "sha256": "456d2fa7052fcb89abfdf61f38750af2b2d675f1bdf401241169f3cf54c074b5",
+      "bytes": 712
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/skills/hualiu.lua",
+      "sha256": "2ac4af660f6a6008b80d2d31bb1eae3aa0af5f2fde4efdd6481cf462ec4ec53b",
+      "bytes": 275
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/skills/init.lua",
+      "sha256": "c83b03e818d35ca65409cfe5bd4aabd2765477e8ad2984de2934341ad7a2aed2",
+      "bytes": 560
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/skills/iron_chain.lua",
+      "sha256": "ed2f139941a0482e2cef6ba2717f8dd003dd90ce63191cb746bcd2f0745a6847",
+      "bytes": 602
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/skills/recast.lua",
+      "sha256": "917bd1e60933b9f51c37abc99b77c352ee5a5009abece2de03c25772cf69cc85",
+      "bytes": 232
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/skills/silver_lion.lua",
+      "sha256": "17a459cb93093d8f56296de71fcfa78cfc607a0a9c814cbfbd94d6f5a18bae50",
+      "bytes": 1629
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/skills/supply_shortage.lua",
+      "sha256": "15b32a2d70db5b708ba01a49f91fb6d4574606423ff13171f9a19a96af14fe9e",
+      "bytes": 1115
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/skills/thunder__slash.lua",
+      "sha256": "a518679a0f942ee178611a4acdea8c2fd9db1457afd268a19e4d71a432d4055b",
+      "bytes": 1456
+    },
+    {
+      "path": "runtime/packages/maneuvering/pkg/skills/vine.lua",
+      "sha256": "3c3f657011a6172d9a266adf449ff32a8712610f288708890ac6b75e4b399502",
+      "bytes": 2035
+    }
+  ],
+  "counts": {
+    "general": 25,
+    "skill": 44,
+    "card": 43
+  },
+  "documents": 198,
+  "limitations": [
+    "只解析白名单静态字面量，不执行Lua",
+    "不是当前线上服务器规则声明",
+    "卡牌定义数量不是牌堆张数",
+    "不包含freekill-core内部镜像"
+  ],
+  "manifest_hash": "b2c6c90826ead2bf8918c6be4f4ac88a0e9223e9daf8f3e354916bf66bae489a"
+}

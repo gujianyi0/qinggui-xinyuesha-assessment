@@ -1,0 +1,3 @@
+2026-11-10 21:03:09,906 assessment.worker INFO worker_resources {"process": {"pid": 24244, "available": true, "private_bytes": 50966528, "working_set_bytes": 70717440, "peak_working_set_bytes": 70717440, "handles": 242}, "system": {"available": true, "physical_load_percent": 92, "physical_total_bytes": 17024741376, "physical_free_bytes": 1337135104, "commit_limit_bytes": 53531963392, "commit_free_bytes": 18907246592}, "async_tasks": 3}
+2026-11-10 21:03:12,032 assessment.worker INFO job_claimed job_id=55128992-f440-4da0-8360-39bc82f532ac generation=1
+worker_fatal MemoryError exit_code=75; lease recovery required

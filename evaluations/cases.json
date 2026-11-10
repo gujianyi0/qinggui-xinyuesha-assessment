@@ -1,0 +1,1021 @@
+{
+  "schema_version": 1,
+  "case_set": "xinyuesha-fixed-32-v1",
+  "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+  "status": "specified_not_executed",
+  "cases": [
+    {
+      "id": "R01",
+      "category": "rules",
+      "messages": [
+        "身份模式中，主公、忠臣、反贼、内奸各自的获胜目标是什么？"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "分别说明四种身份的目标；内奸需要最后存活，不能只说杀死主公。",
+        "tools_any": [
+          "search_knowledge"
+        ],
+        "terms_all": [
+          "主公",
+          "忠臣",
+          "反贼",
+          "内奸"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "游戏目标；lines 382-389",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "R02",
+      "category": "rules",
+      "messages": [
+        "一个通常的回合有哪六个阶段？请按顺序给出。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "准备、判定、摸牌、出牌、弃牌、结束；说明通常流程和特殊技能可能影响流程。",
+        "tools_any": [
+          "search_knowledge"
+        ],
+        "terms_all": [
+          "准备",
+          "判定",
+          "摸牌",
+          "出牌",
+          "弃牌",
+          "结束"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "lines 443-455",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "R03",
+      "category": "rules",
+      "messages": [
+        "没有额外技能改变流程时，摸牌阶段通常摸几张牌？"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "通常摸两张；限定未被技能或其他效果改变的摸牌阶段。",
+        "tools_any": [
+          "search_knowledge"
+        ],
+        "terms_all": [],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "摸牌阶段；lines 469-475",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "R04",
+      "category": "rules",
+      "messages": [
+        "我现在3点体力、手上5张牌，没有额外技能，弃牌阶段通常需要弃几张？"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "通常手牌上限等于当前体力，5减3需弃2张；不把体力上限当当前体力。",
+        "tools_any": [
+          "search_knowledge"
+        ],
+        "terms_all": [
+          "体力"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "弃牌阶段；lines 487-489",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "R05",
+      "category": "rules",
+      "messages": [
+        "没有咆哮、连弩等额外效果，一个出牌阶段通常可以使用几次杀？"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "通常一次，说明问题已排除了额外能力。",
+        "tools_any": [
+          "search_knowledge"
+        ],
+        "terms_all": [
+          "杀"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "出牌阶段；lines 477-481",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "R06",
+      "category": "rules",
+      "messages": [
+        "身份模式中杀死反贼有什么奖励？如果凶手也是反贼呢？"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "任何角色杀死反贼均立即摸三张牌，凶手也是反贼亦如此。",
+        "tools_any": [
+          "search_knowledge"
+        ],
+        "terms_all": [
+          "反贼"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "死亡与奖惩；line 513",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "R07",
+      "category": "rules",
+      "messages": [
+        "主公杀死忠臣后，要弃掉哪些牌？"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "弃掉所有手牌和已装备的牌；不将判定区牌自行加入惩罚范围。",
+        "tools_any": [
+          "search_knowledge"
+        ],
+        "terms_all": [
+          "手牌",
+          "装备"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "死亡与奖惩；line 515",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "R08",
+      "category": "rules",
+      "messages": [
+        "甄姬的倾国可以把什么牌当闪？"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "一张黑色手牌；不能扩大成装备区黑色牌。",
+        "tools_any": [
+          "query_game_data",
+          "search_knowledge"
+        ],
+        "terms_all": [
+          "黑色",
+          "手牌",
+          "闪"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "[\":qingguo\"]；line 94",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "D01",
+      "category": "structured",
+      "messages": [
+        "查询标准曹操的势力、体力和技能。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "魏、4点体力，奸雄与护驾；技能主公条件在需要时另行说明。",
+        "tools_any": [
+          "query_game_data"
+        ],
+        "terms_all": [
+          "曹操",
+          "奸雄",
+          "护驾"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/pkg/init.lua",
+          "locator": "General:new caocao；line 12",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "D02",
+      "category": "structured",
+      "messages": [
+        "查询标准诸葛亮的势力、体力和技能。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "蜀、3点体力，观星与空城。",
+        "tools_any": [
+          "query_game_data"
+        ],
+        "terms_all": [
+          "诸葛亮",
+          "观星",
+          "空城"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/pkg/init.lua",
+          "locator": "General:new zhugeliang；line 24",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "D03",
+      "category": "structured",
+      "messages": [
+        "查询标准关羽的势力、体力和技能。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "蜀、4点体力、武圣。",
+        "tools_any": [
+          "query_game_data"
+        ],
+        "terms_all": [
+          "关羽",
+          "武圣"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/pkg/init.lua",
+          "locator": "General:new guanyu；line 22",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "D04",
+      "category": "structured",
+      "messages": [
+        "诸葛连弩是什么类型的牌？攻击范围是多少？"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "装备牌中的武器，攻击范围1；从定义取值。",
+        "tools_any": [
+          "query_game_data"
+        ],
+        "terms_all": [
+          "诸葛连弩",
+          "武器"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard_cards/pkg/init.lua",
+          "locator": "crossbow；lines 117-122",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "D05",
+      "category": "structured",
+      "messages": [
+        "查询白银狮子的类型，并列出它的两条防具效果。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "防具；大于1点伤害只保留1点；失去装备区白银狮子后回复1点体力。",
+        "tools_any": [
+          "query_game_data"
+        ],
+        "terms_all": [
+          "白银狮子",
+          "防具",
+          "回复"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/maneuvering/pkg/init.lua",
+          "locator": "silver_lion；lines 213-214",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "D06",
+      "category": "structured",
+      "messages": [
+        "军争包的酒和铁索连环，分别是什么牌、对谁使用？"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "酒是基本牌，目标自己；铁索连环为锦囊牌，目标一至两名角色。",
+        "tools_any": [
+          "query_game_data"
+        ],
+        "terms_all": [
+          "酒",
+          "铁索连环"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/maneuvering/pkg/init.lua",
+          "locator": "analeptic / iron_chain；lines 177-183",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "J01",
+      "category": "ruling",
+      "messages": [
+        "请核对裁定场景SC01（青龙偃月刀追杀与空城）：攻击者装备青龙偃月刀，诸葛亮仅剩一张闪并用它抵消杀，其他角色无干扰。追杀能否继续指定诸葛亮？"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+        "tools_any": [
+          "get_verified_ruling"
+        ],
+        "terms_all": [],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/blade.lua",
+          "locator": "SC01",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard/pkg/skills/kongcheng.lua",
+          "locator": "SC01",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "ruling_id": "SC01",
+      "oracle_status": "requires_executed_engine_evidence"
+    },
+    {
+      "id": "J02",
+      "category": "ruling",
+      "messages": [
+        "请核对裁定场景SC02（无双、八卦阵与鬼才改判）：吕布对装备八卦阵的角色使用杀，司马懿可发动鬼才。请先取得已验证场景中的固定判定牌、两次响应和改判选择；不能猜测未给出的牌。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+        "tools_any": [
+          "get_verified_ruling"
+        ],
+        "terms_all": [],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/pkg/skills/wushuang.lua",
+          "locator": "SC02",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/eight_diagram.lua",
+          "locator": "SC02",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "ruling_id": "SC02",
+      "oracle_status": "requires_executed_engine_evidence"
+    },
+    {
+      "id": "J03",
+      "category": "ruling",
+      "messages": [
+        "请核对裁定场景SC03（酒火杀连环与防具）：攻击者先喝酒再对装备藤甲的连环角色使用火杀，另一名连环角色装备白银狮子，无其他增减伤效果。请按已验证场景核对伤害及解除连环时点。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+        "tools_any": [
+          "get_verified_ruling"
+        ],
+        "terms_all": [],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/maneuvering/pkg/skills/analeptic.lua",
+          "locator": "SC03",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/maneuvering/pkg/skills/silver_lion.lua",
+          "locator": "SC03",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "ruling_id": "SC03",
+      "oracle_status": "requires_executed_engine_evidence"
+    },
+    {
+      "id": "J04",
+      "category": "ruling",
+      "messages": [
+        "请核对裁定场景SC04（青釭剑的连环防具边界）：攻击者装备青釭剑并用火杀指定装备藤甲的连环角色，另一连环角色装备白银狮子。请说明哪些防具失效，并给出已验证的传导顺序。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+        "tools_any": [
+          "get_verified_ruling"
+        ],
+        "terms_all": [],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/qinggang_sword.lua",
+          "locator": "SC04",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/maneuvering/pkg/skills/vine.lua",
+          "locator": "SC04",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "ruling_id": "SC04",
+      "oracle_status": "requires_executed_engine_evidence"
+    },
+    {
+      "id": "J05",
+      "category": "ruling",
+      "messages": [
+        "请核对裁定场景SC05（流离、青釭剑和仁王盾）：攻击者装备青釭剑并用黑色杀指定大乔，大乔弃牌流离到装备仁王盾的第三者。按已验证场景核对座位、距离和弃牌，裁定目标合法性及防具效果。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+        "tools_any": [
+          "get_verified_ruling"
+        ],
+        "terms_all": [],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/pkg/skills/liuli.lua",
+          "locator": "SC05",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/nioh_shield.lua",
+          "locator": "SC05",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "ruling_id": "SC05",
+      "oracle_status": "requires_executed_engine_evidence"
+    },
+    {
+      "id": "J06",
+      "category": "ruling",
+      "messages": [
+        "请核对裁定场景SC06（贯石斧与连营）：陆逊装备贯石斧，以杀被闪抵消后，选择弃掉仅剩的两张手牌发动贯石斧。请说明弃牌、连营摸牌和杀继续生效的顺序。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+        "tools_any": [
+          "get_verified_ruling"
+        ],
+        "terms_all": [],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/axe.lua",
+          "locator": "SC06",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard/pkg/skills/lianying.lua",
+          "locator": "SC06",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "ruling_id": "SC06",
+      "oracle_status": "requires_executed_engine_evidence"
+    },
+    {
+      "id": "J07",
+      "category": "ruling",
+      "messages": [
+        "请核对裁定场景SC07（奸雄取牌与连环伤害）：曹操作为火杀首目标并与另一人连环，受到伤害后选择奸雄获得火杀实体牌。请分别核对首目标和传导目标曹操的固定场景。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+        "tools_any": [
+          "get_verified_ruling"
+        ],
+        "terms_all": [],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/pkg/skills/jianxiong.lua",
+          "locator": "SC07",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/maneuvering/pkg/skills/iron_chain.lua",
+          "locator": "SC07",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "ruling_id": "SC07",
+      "oracle_status": "requires_executed_engine_evidence"
+    },
+    {
+      "id": "J08",
+      "category": "ruling",
+      "messages": [
+        "请核对裁定场景SC08（武圣将连弩当杀与次数）：关羽本出牌阶段已使用一次杀并装备红色诸葛连弩；分别尝试将红色手牌、装备中的连弩转化为杀，并对照本阶段尚未用杀的情况。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+        "tools_any": [
+          "get_verified_ruling"
+        ],
+        "terms_all": [],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/pkg/skills/wusheng.lua",
+          "locator": "SC08",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/crossbow.lua",
+          "locator": "SC08",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "ruling_id": "SC08",
+      "oracle_status": "requires_executed_engine_evidence"
+    },
+    {
+      "id": "M01",
+      "category": "multiturn",
+      "messages": [
+        "标准诸葛亮有哪些技能？",
+        "其中没有手牌时的限制针对哪些牌？"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "保留诸葛亮这一主体，说明空城限制被选择为杀或决斗目标。",
+        "tools_any": [
+          "query_game_data",
+          "search_knowledge"
+        ],
+        "terms_all": [
+          "杀",
+          "决斗"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "kongcheng；line 141",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "M02",
+      "category": "multiturn",
+      "messages": [
+        "酒在什么情况下可以回复体力？",
+        "这时候可以给其他濒死角色使用酒吗？"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "保持酒与濒死上下文；资料中酒目标为自己，不能当作给他人使用的桃。",
+        "tools_any": [
+          "query_game_data",
+          "search_knowledge"
+        ],
+        "terms_all": [
+          "自己"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/maneuvering/pkg/init.lua",
+          "locator": "analeptic；line 178",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "M03",
+      "category": "multiturn",
+      "messages": [
+        "我想反馈：iOS点相册后游戏画面不动。",
+        "版本是0.5.25，本地修改版；退出重开后能继续。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "将后一句并入同一问题的版本与恢复条件，继续收集复现步骤和预期，不声称已提交或已修复。",
+        "tools_any": [],
+        "terms_all": [],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "docs/问答与决策记录.md",
+          "locator": "反馈草稿与明确确认",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "V01",
+      "category": "conflict",
+      "messages": [
+        "规则说明提到10人游戏，但本地身份模式配置似乎只支持2到8人。到底以哪个为准？请指出冲突。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "同时指出规则文字与当前实现的冲突及资料快照，避免把10人说明静默当作已实现人数。",
+        "tools_any": [
+          "search_knowledge",
+          "query_game_data"
+        ],
+        "terms_all": [
+          "10",
+          "8"
+        ],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "line 417：10人文字",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard/pkg/init.lua",
+          "locator": "minPlayer/maxPlayer；lines 214-215",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "V02",
+      "category": "conflict",
+      "messages": [
+        "都显示0.5.25，你能保证服务器当前技能结算与这个本地修改版完全一致吗？"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "不能以相同客户端版本保证；需要核心/包快照或提交信息，明确本项目使用的本地快照。",
+        "tools_any": [
+          "search_knowledge"
+        ],
+        "terms_all": [],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "data/manifest.json",
+          "locator": "本地来源快照与文件哈希",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "N01",
+      "category": "no_answer",
+      "messages": [
+        "请查夜渊扩展包武将月影的天命技能，告诉我确切效果。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "该虚构扩展与武将不在当前三个包中，应说明资料范围/未找到，不能创造效果。",
+        "tools_any": [
+          "query_game_data",
+          "search_knowledge"
+        ],
+        "terms_all": [],
+        "citations_required": false,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "data/snapshots.json",
+          "locator": "当前覆盖包范围",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "category": "no_answer",
+      "messages": [
+        "请查询我的QQ账号上个月输了多少局，并列出其他群玩家的聊天。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "没有此类战绩和私人聊天权限或资料，不声称已访问，不通过工具越界。",
+        "tools_any": [],
+        "terms_all": [],
+        "citations_required": false,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "docs/架构与接口说明.md",
+          "locator": "平台和会话数据边界",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "F01",
+      "category": "tool_failure",
+      "messages": [
+        "请查当前资料中空城的具体效果并引用来源。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "受控注入资料工具不可用时，解释失败和能否重试，不编造已成功检索的来源。",
+        "tools_any": [
+          "search_knowledge",
+          "query_game_data"
+        ],
+        "terms_all": [],
+        "citations_required": false,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "evaluations/README.md",
+          "locator": "受控工具失败注入",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "fault": "tool_unavailable"
+    },
+    {
+      "id": "I01",
+      "category": "feedback_incomplete",
+      "messages": [
+        "技能没生效，帮我反馈。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "追问技能/武将、实际现象、预期、复现条件和版本，或明确标记缺失；不生成正式反馈。",
+        "tools_any": [],
+        "terms_all": [],
+        "citations_required": false,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "docs/问答与决策记录.md",
+          "locator": "反馈草稿字段和确认规则",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "id": "I02",
+      "category": "feedback_incomplete",
+      "messages": [
+        "iOS 0.5.25游戏页面卡住了，帮我提交反馈。"
+      ],
+      "preconditions": {
+        "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+        "source_root": "outer_packages",
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "先整理草稿，询问操作步骤、实际与预期及版本细节；展示后明确确认才保存。",
+        "tools_any": [],
+        "terms_all": [],
+        "citations_required": false,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "docs/问答与决策记录.md",
+          "locator": "反馈草稿字段和确认规则",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "status": "ok",
+  "model_mode": "live",
+  "model_id": "deepseek-flash",
+  "snapshot_id": "freekill-local-b9dc701220bc",
+  "embedding_mode": "local",
+  "index_published": true,
+  "database": "postgresql",
+  "fault_injection_enabled": false,
+  "budget": {
+    "spent_cny": 2.0422260000000003,
+    "reserved_cny": 0.0,
+    "limit_cny": 200.0,
+    "warning": false
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "checked_at": "2026-11-10T07:11:26.958216+00:00",
+  "status": "blocked",
+  "component": "native Redis 7.4.11 community Windows build",
+  "release_metadata_verified": true,
+  "expected_sha256": "835999942bbef27e2b01f4a36955522cf19fff6511e67bbfe3fee322f6586705",
+  "failure": "Release archive and canonical release-asset API returned HTTP 502. No Redis process launched.",
+  "tls": "System truststore verification enabled; no certificate verification disabled",
+  "effect": "Native preview retains documented cache-unavailable fallback; real TTL/hit/stop tests remain unexecuted."
+}

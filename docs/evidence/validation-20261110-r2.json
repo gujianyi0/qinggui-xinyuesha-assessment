@@ -1,0 +1,16 @@
+{
+  "date": "2026-11-10",
+  "timezone": "Asia/Shanghai",
+  "python": {"passed": 61, "failed": 0, "elapsed_seconds": 41.82},
+  "frontend": {"changed_this_round": false, "prior_tests_passed": 4, "prior_build": "passed"},
+  "bge": {"summary": "bge-local-20261110-01/summary.json", "actual_cpu_inference": true, "documents": 198, "chunks": 659, "dimension": 512, "semantic_top5_probe_hits": 4, "semantic_probe_count": 5},
+  "postgres": {"summary": "native-postgres-20261110-02/summary.json", "version": "17.11", "pgvector_version": "0.8.7", "checks_passed": 6, "actual_bge_pgvector_index": true, "actual_process_restart": true},
+  "kafka_with_postgres": {"summary": "native-postgres-20261110-02-kafka/summary.json", "checks_passed": 6, "actual_broker_and_worker": true, "embedding_mode_for_fault_matrix": "test"},
+  "kafka_with_sqlite": {"summary": "native-kafka-20261110-02/summary.json", "checks_passed": 6},
+  "live_chat_model_calls": 0,
+  "redis_real_ttl_or_downtime_verified": false,
+  "compose_built_or_started": false,
+  "human_trial_participants_completed": 0,
+  "qq_live_messages_sent": 0,
+  "scope": "Native real dependency verification supplements Compose; live chat model, Redis, containers and human trial remain pending. BGE concept probes are not answer accuracy scores."
+}

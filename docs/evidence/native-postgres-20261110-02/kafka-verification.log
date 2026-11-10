@@ -1,0 +1,6 @@
+PASS real crash after database commit, before Kafka commit
+PASS real delayed retry exhaustion
+PASS bad input retained, next job succeeds
+PASS crashed running task recovered after lease expiry
+PASS broker unavailable submission, restart delivery
+{"passed": true, "checks": 6, "evidence": "F:\\Work\\Biteagle\\»Î÷∞øº∫À\\docs\\evidence\\native-postgres-20261110-02-kafka"}

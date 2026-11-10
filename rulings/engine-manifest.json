@@ -1,0 +1,1307 @@
+{
+  "prepared_at": "2026-11-10T04:15:00.238107+00:00",
+  "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+  "archive_sha256": "5a804efac7a50efb3189987d10fa79d9253a7c807ac8a15bf790c757f87978dd",
+  "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+  "rule_files": [
+    {
+      "path": "lua/client/client.lua",
+      "sha256": "62b9020b3adb971479f1dca56f722513e1feeabb801a799f1850047a4596d08c"
+    },
+    {
+      "path": "lua/client/client_util.lua",
+      "sha256": "cebb33c7c3809f5b274fcb8debf22d2c2023dc7200b8c9b26613922aca47b798"
+    },
+    {
+      "path": "lua/client/clientbase.lua",
+      "sha256": "62c84af4927a05aec3aed47ea72e4401612f69fe09f27d063f8575cbe991017d"
+    },
+    {
+      "path": "lua/client/clientplayer_base.lua",
+      "sha256": "e80af50d4048e75e20f3997202d863f6d2e1778d52ab0725755e0a290c99ca06"
+    },
+    {
+      "path": "lua/client/i18n/en_US.lua",
+      "sha256": "09cacf1b39a02b582afcece3232ec6bed69b28a081b8e8a7c452db025ede3ba4"
+    },
+    {
+      "path": "lua/client/i18n/init.lua",
+      "sha256": "9331109824e8eb788a7cad3fda00097ca2e77cf1a42ace0855684cbe22df19c0"
+    },
+    {
+      "path": "lua/client/i18n/vi_VN.lua",
+      "sha256": "30b59654d018da553176268aab89aa769f97d155728c2c1461cd9de8421ef22d"
+    },
+    {
+      "path": "lua/client/i18n/zh_CN.lua",
+      "sha256": "66f7d82782600703008c8edc54e432a6196f97118528912bd445cbf8b8b3fc2a"
+    },
+    {
+      "path": "lua/core/boardgame.lua",
+      "sha256": "9a403416adf969e0f44ae75f7a99423b27ed1a268f1e970660c356aefff06667"
+    },
+    {
+      "path": "lua/core/debug.lua",
+      "sha256": "053895babe4549dc205ecc5b8d5bf1f44aba7f156691da729abfb2b9f3bb8584"
+    },
+    {
+      "path": "lua/core/engine.lua",
+      "sha256": "1a2edc56a161c0fa7572381920b948b99a4a707b9e59ebfc65c426a054d875aa"
+    },
+    {
+      "path": "lua/core/game_mode.lua",
+      "sha256": "45edeb75eacc37e0c4a7f3bbdc42d6c97871ef55481c61f82c76f1997d7cf659"
+    },
+    {
+      "path": "lua/core/mod_manager.lua",
+      "sha256": "8e1128d601054fa2088eb3d8ec9a43527411e690a28c31d98fd95b7be1898147"
+    },
+    {
+      "path": "lua/core/package.lua",
+      "sha256": "ecb32b8f6503a7a631f3161909100a15949256a70ff5388c60269df9c8c6c3a9"
+    },
+    {
+      "path": "lua/core/player.lua",
+      "sha256": "d6cb2a8cd43149dc17163f763b7263777a84ae8e09eaef17a70153f763cf8755"
+    },
+    {
+      "path": "lua/core/request_handler.lua",
+      "sha256": "bf9f8b73e12c1607d79aaaaffa96a80b279096623cccbb295d40183a892aab07"
+    },
+    {
+      "path": "lua/core/roombase.lua",
+      "sha256": "c4dd5a811ffdf141d38d53f234403301d7efd110cda9acc06662a4e09901ffa4"
+    },
+    {
+      "path": "lua/core/task_def.lua",
+      "sha256": "341f315d92b97c74c9b583a9feed05617bc9e8189f4f78b94664fcb865da9c5b"
+    },
+    {
+      "path": "lua/core/trigger_event.lua",
+      "sha256": "fa3c4f684e1c99ad742d2199dba47de42ff0af3f9e896f8629e7bffedd050844"
+    },
+    {
+      "path": "lua/core/ui_package.lua",
+      "sha256": "07f06888f6a60307207f44423fab98a79b8a43e73800d74acd355baffe3cbf9d"
+    },
+    {
+      "path": "lua/core/util.lua",
+      "sha256": "e712fb4053b47370189fd0341629dc9bdd0b64ca6e2b2eafe6a5575b08a1ddd2"
+    },
+    {
+      "path": "lua/fk_ex.lua",
+      "sha256": "47e554c093f9bc540503d4083403000d57613a910357d26fd765ef26309f59ed"
+    },
+    {
+      "path": "lua/freekill.lua",
+      "sha256": "6b9efba7ea491a4a00d5983ff7a0f092638ced89134ac23f84ef59bd2248b1aa"
+    },
+    {
+      "path": "lua/lib/debugger.lua",
+      "sha256": "f91b6074197ce066a1a7300715063a6a5e454b711fb24e4ecb56f0a6a2017cc6"
+    },
+    {
+      "path": "lua/lib/fkparser.lua",
+      "sha256": "406fc2c9469dbe9f0a64d323dd5502176e06b244840d2d87017118f8619a1bea"
+    },
+    {
+      "path": "lua/lib/inspect.lua",
+      "sha256": "707a4272fd5d39908362c83086d0601c1dbdcf3dc925e9b91263e3801ef1c949"
+    },
+    {
+      "path": "lua/lib/json.lua",
+      "sha256": "0eaccda57fabc0330736de25f45cf589821a42b5e0fe02e4e3125f7dc0bf2b7e"
+    },
+    {
+      "path": "lua/lib/middleclass.lua",
+      "sha256": "80a3d071bf7e6476fd97f44c7f520d15072da578a3e2de4eb78faae49c969d52"
+    },
+    {
+      "path": "lua/lib/vscode-debug-attacher.lua",
+      "sha256": "1d207fc47ae8b116b26488ccd155c420b490e9cfbbdb2cbd9acd9c76952e1ea1"
+    },
+    {
+      "path": "lua/lib/xoshiro256starstar.lua",
+      "sha256": "17843d74fbd27f05ac919f8eaf46bff3f3d5c24db9ccf5cfc49ea51485d28346"
+    },
+    {
+      "path": "lua/lsp/client.lua",
+      "sha256": "81104e352302a7b4446c31bf3e52a87d31acfb13c45c2f0b2731eba8ca4cf92f"
+    },
+    {
+      "path": "lua/lsp/freekill.lua",
+      "sha256": "62026b5570c3d365c3c58725d0bac7c529fae397725477cbe3545ac61a9f4aa7"
+    },
+    {
+      "path": "lua/lsp/lib.lua",
+      "sha256": "d255d1cc65093f048e8ffc47a5915ad66ca1609b8be51de9944a2ef0ec74234d"
+    },
+    {
+      "path": "lua/lsp/player.lua",
+      "sha256": "ba4d6644c9e4a45453fb4e255260365df64c8da033d4a75ab33d39ffbbf33052"
+    },
+    {
+      "path": "lua/lsp/qt.lua",
+      "sha256": "472449208690455246f6c39af56f7961e4a4c4a807b007e7393af4c7e353cabc"
+    },
+    {
+      "path": "lua/lsp/server.lua",
+      "sha256": "30e5f5c7e7cee4759d7ec875a39842be4a2d6cf2dc8d1a031d477ec062f10d19"
+    },
+    {
+      "path": "lua/lsp/test_util.lua",
+      "sha256": "c01ceb72f184f749fbb4a6d501e9371d4ee840321d95be27612019723a290050"
+    },
+    {
+      "path": "lua/server/ai.lua",
+      "sha256": "2b93404740003eb8166704828f195abeab0e72a926dbaad267a3e2c561bce9c5"
+    },
+    {
+      "path": "lua/server/gameevent.lua",
+      "sha256": "799ed64380951ee54bd7d9ef1ffa30926dfea5adb1eaabf20d398dd0d73ce4e7"
+    },
+    {
+      "path": "lua/server/gamelogic.lua",
+      "sha256": "bdf01cc2388473366074adcdfd7ea5a55d354084748eed933b1643351dfca14a"
+    },
+    {
+      "path": "lua/server/request.lua",
+      "sha256": "4a8d2925ff33c726a27c819610ea7a2b33e5cdd9a47bb00a2411e6a98d18d870"
+    },
+    {
+      "path": "lua/server/roombase.lua",
+      "sha256": "d6c2bd0429dc55c284ad650b51fe9f71c6426f2cfcce9cf15aa28163151370d5"
+    },
+    {
+      "path": "lua/server/rpc/cbor.lua",
+      "sha256": "9cfda0b927489b9a72ccb3cad288735f1c9f2a03e2ff105251c0306293e521b4"
+    },
+    {
+      "path": "lua/server/rpc/dispatchers.lua",
+      "sha256": "0177c0e72c130b2e292d50d674c8cf619211aa75b0a9d27c5c3f3f6a5ff3064d"
+    },
+    {
+      "path": "lua/server/rpc/entry.lua",
+      "sha256": "c05e6fc6e8153660d83c03362f04f3e0fccc9b415bae06a09dc5cd5fc7f15dc6"
+    },
+    {
+      "path": "lua/server/rpc/fk.lua",
+      "sha256": "c2ecb832df60d17d8d8317ed45728a26c9e8622ea277388d5b4a201f4ea9f47d"
+    },
+    {
+      "path": "lua/server/rpc/jsonrpc.lua",
+      "sha256": "187d7674ec302b80483b2231a43d9278193e81319efa2354886645c3cb5f22ea"
+    },
+    {
+      "path": "lua/server/rpc/stdio.lua",
+      "sha256": "07078d014907b46ad3f6b55b7ed3746740f43f9ea09303b88aa65d145934d7fb"
+    },
+    {
+      "path": "lua/server/scheduler.lua",
+      "sha256": "185d099df880adf02f8c00de3eab5f7be19f7009ad127bd37f2b60fcb7d37f6d"
+    },
+    {
+      "path": "lua/server/serverplayer_base.lua",
+      "sha256": "04460865e703706f5610c6ffc0d2fc819e8f8a5c0b0f41bdcfc58e4a785a5fc1"
+    },
+    {
+      "path": "lua/server/task.lua",
+      "sha256": "d0b1f5d41792d133245225041dd464cd5d8e450ff6018903d7e06f9e22921c22"
+    },
+    {
+      "path": "lua/server/taskplayer.lua",
+      "sha256": "b8d62b92cd870d6344f2a3e9cddaefcba5614b7995a38c435b5b15b5f79b71a8"
+    },
+    {
+      "path": "lua/ui-util.lua",
+      "sha256": "67c8ae0aaefababa185e3bbad12961d020f58e638788dfe0774bc1e6e2d2284f"
+    },
+    {
+      "path": "lua/ui_emu/base.lua",
+      "sha256": "af822754661f9a109af1c32bea9cb136ab874d3bdd501f629cc9476e96f73053"
+    },
+    {
+      "path": "lua/ui_emu/choosecardbox.lua",
+      "sha256": "986260166265f870eca36eecaabcc170f3cec58087d0d42af7b31ff4e22c54c7"
+    },
+    {
+      "path": "lua/ui_emu/common.lua",
+      "sha256": "c02ab81c367fbf25d7649aac9f41cb464108a935365cac86c75d60799d6adf5f"
+    },
+    {
+      "path": "lua/ui_emu/control.lua",
+      "sha256": "c4bdbea908ff2fb2b0992511b266494463576d58be9cbd3a7773e553bb50d83f"
+    },
+    {
+      "path": "lua/ui_emu/interaction.lua",
+      "sha256": "c68fb4aaff4d13b29b9f8627f2ab41ca5052367f487ff6cfba234ded9811c486"
+    },
+    {
+      "path": "lua/ui_emu/okscene.lua",
+      "sha256": "168f651bb1837b44e4bbf9ee79e547572081fcbc945a2e03e651c99508882fe4"
+    },
+    {
+      "path": "lua/ui_emu/popupbox.lua",
+      "sha256": "8d5ee4b4a24fc761373c0ac8fb7d93af27ef5fad3e9a2ae853c49148ea15286e"
+    },
+    {
+      "path": "lua/ui_emu/poxi_box.lua",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "lua/ui_emu/preferences.lua",
+      "sha256": "af260966c89c83bda00e5fc1588bfe14dd1d8dfccbde96329195a06ec2d7ea3a"
+    },
+    {
+      "path": "lua/ui_emu/roomscene.lua",
+      "sha256": "a6934980518f53ddc1546ff56a80eff5e4ff6c34ccbc0861bd09d5c6c4d21a94"
+    },
+    {
+      "path": "lua/ui_emu/specialskills.lua",
+      "sha256": "6bf635bdc37687dab6ea9dfa62e0d8ac14fbd7fefbb00dfeabc3d234031c4e20"
+    },
+    {
+      "path": "ltk/client/client.lua",
+      "sha256": "b7e5efce6addfaf0fa3ae155674f4968813c4907ed8792bbf5e2060f035bb410"
+    },
+    {
+      "path": "ltk/client/clientplayer.lua",
+      "sha256": "079c63b0e2f58e9f15376a1cc9dce02958bf5791abf9b6d08a8ca251234de743"
+    },
+    {
+      "path": "ltk/client/util.lua",
+      "sha256": "d25fc0c29c7b0358f4b0be4d27b50bc42f14ceb65c7aa1008e05f4730a54ec80"
+    },
+    {
+      "path": "ltk/core/card.lua",
+      "sha256": "99d7f760e1e8c6aae89b744697c40a15e130a91b119b10fb1cee9398b0bd2204"
+    },
+    {
+      "path": "ltk/core/card_skeleton.lua",
+      "sha256": "b80a8d2de85790f62a0998a4d9c487ee475f45ab24efbf919f058b58d844ef67"
+    },
+    {
+      "path": "ltk/core/card_type/basic.lua",
+      "sha256": "f550de590fca89a7d7a3da78ed611d9302e17dd5558d29fefc4aeb73c67fb060"
+    },
+    {
+      "path": "ltk/core/card_type/equip.lua",
+      "sha256": "1f8403ceb5aafbd431d5b196d3a9302369f67f211c6c7c3021484b2f7c25d02d"
+    },
+    {
+      "path": "ltk/core/card_type/trick.lua",
+      "sha256": "9e1c3e464d1e855b15a2b9c2618545fd5f95f6fd21633237e96b61b16b689628"
+    },
+    {
+      "path": "ltk/core/engine.lua",
+      "sha256": "9e3244a616122ca89a700210aed44a98529983403e2191383e271d38ccb1ff17"
+    },
+    {
+      "path": "ltk/core/events/death.lua",
+      "sha256": "625b96f3aa9a026d529d5bd1b00482809a7f4471d10963f7d1b04b8fc95bd3aa"
+    },
+    {
+      "path": "ltk/core/events/gameflow.lua",
+      "sha256": "a7f16b5e4ac996ad4b0fd1142783910cc632abb86d2ca05783f3ae71c114077d"
+    },
+    {
+      "path": "ltk/core/events/hp.lua",
+      "sha256": "00e66fd2a1fe620489db38310a661db74c5c2a3a3c3b78aaceae65265acd2959"
+    },
+    {
+      "path": "ltk/core/events/init.lua",
+      "sha256": "c32ffdd3526eaafebe07cd0e034b92ff045341b270279062052d142d25e87ef1"
+    },
+    {
+      "path": "ltk/core/events/judge.lua",
+      "sha256": "df0ac56b4fb2439a20a7b6a93ccc59ae8113b527c6573561864e3a7607049b87"
+    },
+    {
+      "path": "ltk/core/events/misc.lua",
+      "sha256": "8ebf4727837fc43918dc5eadfb17423823b67c923cec169559a0a9c477215c7f"
+    },
+    {
+      "path": "ltk/core/events/movecard.lua",
+      "sha256": "ee423ba6b37742e767ab1ee65d824be6c0442506e65a02498e26aac626c8a2db"
+    },
+    {
+      "path": "ltk/core/events/pindian.lua",
+      "sha256": "290b16c6e810c7eba1beec6fb2af8500840a928ae23e54a1261409836957e303"
+    },
+    {
+      "path": "ltk/core/events/skill.lua",
+      "sha256": "84812ea4303b3eeee174c3d682dceb01fe08bd2b2fe0cb5492f83e92dc061107"
+    },
+    {
+      "path": "ltk/core/events/usecard.lua",
+      "sha256": "7635dfa3b31484e07c3c90ef7841a72244647d4221ac456179a1ca6c0147aa79"
+    },
+    {
+      "path": "ltk/core/exppattern.lua",
+      "sha256": "7676a9d4feccaca337d89304b5bee1d9dc58d4702f8a345c3beafbc756bc1f60"
+    },
+    {
+      "path": "ltk/core/general.lua",
+      "sha256": "e5684e7bc3b0769d6a14e6725dda1e9438b83b361b564844e7df993ce6d5e6c2"
+    },
+    {
+      "path": "ltk/core/known_card_tracker.lua",
+      "sha256": "04e4bf47e5c10484c3d9a8e80005a78f03d88cd64a03482840ce99e5f4a32705"
+    },
+    {
+      "path": "ltk/core/package.lua",
+      "sha256": "02b6bad5ac35ac322946f93c9ec2cb81f1a80fc48c709e2cb4553f07fe7f1a27"
+    },
+    {
+      "path": "ltk/core/personal_mark.lua",
+      "sha256": "b8363952fb982e9e444271f75b44926aa1503bd68b70b01f14d202cc39a9bd0a"
+    },
+    {
+      "path": "ltk/core/player.lua",
+      "sha256": "075bcc290ace14b258ccde7393900cced8942d53b9594185e5324e1ed8a6dbb0"
+    },
+    {
+      "path": "ltk/core/request_type/active_skill.lua",
+      "sha256": "6a2a94dec564580e1ea09eab73b3d68b4f422a411247e37eb5961b5da66e8fbd"
+    },
+    {
+      "path": "ltk/core/request_type/invoke.lua",
+      "sha256": "9dbfd68d6899634633fbe747048d9f77ad827e386537369df64f93b398a91673"
+    },
+    {
+      "path": "ltk/core/request_type/play_card.lua",
+      "sha256": "91bc5d1e302fdeea961b682ceb0854f0c7f0634af31516cadcba0e7200c14add"
+    },
+    {
+      "path": "ltk/core/request_type/response_card.lua",
+      "sha256": "f483b8b1a878d3b2ea8d66b54e6ed1b71caaf68c50e798cc92de680907c9dd17"
+    },
+    {
+      "path": "ltk/core/request_type/use_card.lua",
+      "sha256": "2d82d0cf68e579dc5e5168f1fd64b976e17176912cfbf753caaee3523e882deb"
+    },
+    {
+      "path": "ltk/core/room/abstract_room.lua",
+      "sha256": "c7cb2a4ddf5eefb614f33a2466dc842dfbb16840dcf272daf188e7610cce8ff8"
+    },
+    {
+      "path": "ltk/core/room/card_manager.lua",
+      "sha256": "f745eea7b5a0e74c7d53509abf03aa50869cc9a088e9d9e7b04bca0634f45c87"
+    },
+    {
+      "path": "ltk/core/room/skill_manager.lua",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "ltk/core/room/user_manager.lua",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "ltk/core/skill.lua",
+      "sha256": "c8737715dc19320284e41a163fea0cbbea8820b61dd4c486651808b6f9cdefdd"
+    },
+    {
+      "path": "ltk/core/skill_skeleton.lua",
+      "sha256": "4bcc6b658a66936fac81e487ed8c2fb0c698e711e87e1978b1542da48bfc8b7b"
+    },
+    {
+      "path": "ltk/core/skill_type/active.lua",
+      "sha256": "b6ae495e92392ec4dbfbbf9377c1ba053877e74bce4e43cda8eb359f90e59293"
+    },
+    {
+      "path": "ltk/core/skill_type/attack_range.lua",
+      "sha256": "954c83f3e7a480a2f91015e232200689613d69d4b26d12833d789cb4afe47b40"
+    },
+    {
+      "path": "ltk/core/skill_type/button.lua",
+      "sha256": "eeeed746b09f5a5dfab017ea5a87c65dca45cc8968d1764e15965a7eca4ad555"
+    },
+    {
+      "path": "ltk/core/skill_type/cardskill.lua",
+      "sha256": "ec8a081f7f4005df014c308506d72a31c929f12407613751a8775666849dc475"
+    },
+    {
+      "path": "ltk/core/skill_type/distance.lua",
+      "sha256": "51928e7d71471c0db7f7c81009138d141d70dd721b8f0cba4bcba23a8953fa22"
+    },
+    {
+      "path": "ltk/core/skill_type/filter.lua",
+      "sha256": "ed29727aac43011e10852235ef7da0545f9a0c3a97c25aed5f75a5479bab1fea"
+    },
+    {
+      "path": "ltk/core/skill_type/invalidity.lua",
+      "sha256": "8a28807e8f62e3583bc01e8c133dbc832071848f1c134f0962daba380d3ddd13"
+    },
+    {
+      "path": "ltk/core/skill_type/max_cards.lua",
+      "sha256": "159e68cb48b0a77c0a79b4fceb8d77c86760af9ad77a1a7bbc13a9ec78c22c77"
+    },
+    {
+      "path": "ltk/core/skill_type/prohibit.lua",
+      "sha256": "52bad8e369bc1fcf8188bc20958b438e825b391e1828a5c6349db0693783168d"
+    },
+    {
+      "path": "ltk/core/skill_type/status_skill.lua",
+      "sha256": "ad97694315b058c03e156dc589e11d226ebda1dcccb1a08d8199964404c00f64"
+    },
+    {
+      "path": "ltk/core/skill_type/target_mod.lua",
+      "sha256": "9aa98f8ff3f696ec201d3fae6488f4ad4a96a0fe41d9ade418db632fd66fe0a7"
+    },
+    {
+      "path": "ltk/core/skill_type/trigger.lua",
+      "sha256": "bf3f61bc015020f40fdebe652bda6a4da727b749ce60def60aa4ef4cc2f16200"
+    },
+    {
+      "path": "ltk/core/skill_type/usable_skill.lua",
+      "sha256": "ce2df286e157db777ec84fd2729e0be46f09655da6d0ee5624de74cb63df7e6b"
+    },
+    {
+      "path": "ltk/core/skill_type/view_as.lua",
+      "sha256": "153d105932cf5831d80c793d706944b24ea71132dec1d02670f4c16a486b065d"
+    },
+    {
+      "path": "ltk/core/skill_type/visibility.lua",
+      "sha256": "782161b9011eaf7500bc911e5f0c6b5463ff00750d6adcc5524920bb21449a90"
+    },
+    {
+      "path": "ltk/core/skin_package.lua",
+      "sha256": "adc481ce699f3c7d1edad16d0881d62a04e33813e29a2c185940e3149ce1b2e6"
+    },
+    {
+      "path": "ltk/init.lua",
+      "sha256": "221b0934f35780c0db4d6277935eb1582212bbd6a7408f661a6ec793e827929f"
+    },
+    {
+      "path": "ltk/server/ai/ai.lua",
+      "sha256": "35a34f1239f93e651e81051719db82a25853916e665ddb684125332a2a2966db"
+    },
+    {
+      "path": "ltk/server/ai/init.lua",
+      "sha256": "00b9d663b68c865364c98f8f650e30992526dbd3964a183bbf6a0efc094d9cce"
+    },
+    {
+      "path": "ltk/server/ai/logic.lua",
+      "sha256": "112df4414ced3e4f8f4ac2820f7e809b875f97bdefc9d491567ff4155061c535"
+    },
+    {
+      "path": "ltk/server/ai/smart_ai.lua",
+      "sha256": "855c4314792a540f21c894029363846e2c449a1a82b3100c9d4c7233b6cd9bfb"
+    },
+    {
+      "path": "ltk/server/ai/strategies/active.lua",
+      "sha256": "ae6ee413791214feeb6d11575fc50bb24c4ea39fd65d1041d961ee6d0d1a6ee2"
+    },
+    {
+      "path": "ltk/server/ai/strategies/ag.lua",
+      "sha256": "0525ba2556b1b0aba6e1aef6a9f6a5a8d7aed33d30603f429ba2b7c25904fa10"
+    },
+    {
+      "path": "ltk/server/ai/strategies/arrange_cards.lua",
+      "sha256": "56067319d97222899701c55efe3869714428bb4de65b8250d10fb9121af4871d"
+    },
+    {
+      "path": "ltk/server/ai/strategies/card_skill.lua",
+      "sha256": "0069d0a035c788aa2a6b8b804de628ed5cfe872f0f6b3254e6a72eeba7ffad93"
+    },
+    {
+      "path": "ltk/server/ai/strategies/cards.lua",
+      "sha256": "11bb1876c155518dc9a36ab7d39b3a8503eaec6a1f0986d61442ad74e9c27f7b"
+    },
+    {
+      "path": "ltk/server/ai/strategies/choice.lua",
+      "sha256": "5eeb8abc8b1b41be01f6ba74c21ab06cd94c77c156566326840605315609af23"
+    },
+    {
+      "path": "ltk/server/ai/strategies/choices.lua",
+      "sha256": "f214c6358e220a7352cd835a1873b4906e4270c6db7af91042c51be9ccea5c9c"
+    },
+    {
+      "path": "ltk/server/ai/strategies/choose_card.lua",
+      "sha256": "2726654cf6a1e20ec1ace98a45a950b55d00154a2ac88db87dc1e105e0aa92f0"
+    },
+    {
+      "path": "ltk/server/ai/strategies/choose_cards.lua",
+      "sha256": "76ce04763f182d728de238ca30120fb551fdd3af147c040931e3e9a7e91fc8a2"
+    },
+    {
+      "path": "ltk/server/ai/strategies/choose_cards_and_choice.lua",
+      "sha256": "f11acd62dc2b822cbeabdf3ecad9fc09bda558e672ca2736a305a044696ce9cb"
+    },
+    {
+      "path": "ltk/server/ai/strategies/choose_cards_and_players.lua",
+      "sha256": "c1c40c50377082fbbca0b6e84d39c367470c12a75380df621b56a4b21fa83097"
+    },
+    {
+      "path": "ltk/server/ai/strategies/choose_general.lua",
+      "sha256": "7994ece177fa1e063227462ef99f9dfbeaad1c24d2e9ace805652035efddda44"
+    },
+    {
+      "path": "ltk/server/ai/strategies/choose_kingdom.lua",
+      "sha256": "ce86ad4c11ec3dbb3a89a45db66be78185fc577122fb9e1ad3838da7962bb10e"
+    },
+    {
+      "path": "ltk/server/ai/strategies/choose_player.lua",
+      "sha256": "1498a52e95032d15c3e1f58ef59ca9c617efd00a1ab09c2afbdaaea58fa8c0cc"
+    },
+    {
+      "path": "ltk/server/ai/strategies/discard.lua",
+      "sha256": "d2ad36718d3b82509874a293764cedfecd2ae2492f8b80173aee4745637cb51c"
+    },
+    {
+      "path": "ltk/server/ai/strategies/exchange.lua",
+      "sha256": "08cbc542bc025bd9f03b66d4c92d20b831206d28586930e5179378271549b2ff"
+    },
+    {
+      "path": "ltk/server/ai/strategies/init.lua",
+      "sha256": "2ffc9b615c40a9bb5f23498bad51ad3e23cd35abaabb6afd8fe37a9c5b3d6c66"
+    },
+    {
+      "path": "ltk/server/ai/strategies/invoke.lua",
+      "sha256": "3fa4fb3d6fb63800b96c15f100475205f9d9b3616e9ac3e5c6d2e3d1930fb8bf"
+    },
+    {
+      "path": "ltk/server/ai/strategies/joint_cards.lua",
+      "sha256": "05476bbf0e7f03c5e34e3eb4ccdfa9f97adabd7f2b26c5889f23d7effc355057"
+    },
+    {
+      "path": "ltk/server/ai/strategies/joint_choice.lua",
+      "sha256": "5051df34a8135f0449c93258b6e84febbb47e7ed289e42832d454074e851136b"
+    },
+    {
+      "path": "ltk/server/ai/strategies/move_board.lua",
+      "sha256": "4f732a74b0319cbb3feef19fd492746ddfafe9d4515c0c51532f958742f6b84c"
+    },
+    {
+      "path": "ltk/server/ai/strategies/number.lua",
+      "sha256": "70e71e17bd1020e4dfc385aa3bd49365cb3303f3932741327a4e8f931d3ab5c3"
+    },
+    {
+      "path": "ltk/server/ai/strategies/poxi.lua",
+      "sha256": "9695d11b7e8df8a4a1205c47e355c954e584a64ac646265d63132192f4ec036b"
+    },
+    {
+      "path": "ltk/server/ai/strategies/view_cards.lua",
+      "sha256": "cb08b0c1a9b3566afbffc14565c989447ec91b26146b0edb98eb67ed6a3c07e1"
+    },
+    {
+      "path": "ltk/server/ai/strategies/view_cards_and_choice.lua",
+      "sha256": "bc2b5feaaf921458294ef3a2e18c15c168559cd242f683baa7395f91d5e4341a"
+    },
+    {
+      "path": "ltk/server/ai/strategies/yiji.lua",
+      "sha256": "8240564706d37bfc7d443ceb2b4a37425ac518c4aa117f3070b1e7c1efc467a9"
+    },
+    {
+      "path": "ltk/server/ai/strategy.lua",
+      "sha256": "97c7016fb402b7ba4e4bed646a2edb11c434cd5fe7344b5d595e54244969a70b"
+    },
+    {
+      "path": "ltk/server/ai/trust_ai.lua",
+      "sha256": "5eabd5f44480928f9e95ea69127b3be7e64763f61b189809647f78b22e6d4ce5"
+    },
+    {
+      "path": "ltk/server/ai/util.lua",
+      "sha256": "cbf5708f71cac8824117a5f00ffa1ddce8f7d03b2c39dab1540afc996f8a2c59"
+    },
+    {
+      "path": "ltk/server/events/death.lua",
+      "sha256": "0dff8c7fe85b190a0f1621befc31982604f5cf7ce0e8714e9bc3deb2b874c27b"
+    },
+    {
+      "path": "ltk/server/events/gameflow.lua",
+      "sha256": "bcb09ee52df117be8a5defcce7777aebd532637c60a75856b1b64f21dad7976c"
+    },
+    {
+      "path": "ltk/server/events/hp.lua",
+      "sha256": "a2afd43e696f27b6cc3dc717d246a15f53f83f923fef649a12430982bed422ea"
+    },
+    {
+      "path": "ltk/server/events/init.lua",
+      "sha256": "ef91cbb48c8b8efec00d50b679353172c52d4c70f1aada5c07fb23e95da37b91"
+    },
+    {
+      "path": "ltk/server/events/judge.lua",
+      "sha256": "876cc35db847a2bc8ef3b4feb55177eccc68e6bd9fd868ef74393e2d43287a10"
+    },
+    {
+      "path": "ltk/server/events/misc.lua",
+      "sha256": "dcd7105ef39a7bf563111019c9fcea55c2d57bb30e59dbd817deaac3c83bc149"
+    },
+    {
+      "path": "ltk/server/events/movecard.lua",
+      "sha256": "c8c888a69a01a8e65d2eb6bf2e5e2d0f9a0fbe79f52cb8f95513ec457eb0377c"
+    },
+    {
+      "path": "ltk/server/events/pindian.lua",
+      "sha256": "b01f5411f37870557fea06ebaa28c026af9354e85a75f582681faf133e60434d"
+    },
+    {
+      "path": "ltk/server/events/skill.lua",
+      "sha256": "9bfb7fdded0cc216bb2a92d2207ed39c97ec2a8074448c67558c0f7d29eec24a"
+    },
+    {
+      "path": "ltk/server/events/usecard.lua",
+      "sha256": "28992a0960bcbf1620c12f2b456d32a00f5974616c4a9cbc244b6b1b872c4a52"
+    },
+    {
+      "path": "ltk/server/gamelogic.lua",
+      "sha256": "2a7fe5d8b07c17805a2bbbbe8ea9239a8c894228536e70a708fcd14bddf961c5"
+    },
+    {
+      "path": "ltk/server/mark_enum.lua",
+      "sha256": "2ef856b7c2c7782e2deae08ab3e3c67af6939d9adc4c6ca7b0cf85fc4f835990"
+    },
+    {
+      "path": "ltk/server/room.lua",
+      "sha256": "968f0761ca016986d800e0265e1d41d16334168d2a5b3562d811965239562d54"
+    },
+    {
+      "path": "ltk/server/serverplayer.lua",
+      "sha256": "beeacecf7a60d13e8e965fab8f85f6b892370d8ed1ccdebec85216ff0e6601c5"
+    },
+    {
+      "path": "ltk/server/system_enum.lua",
+      "sha256": "f984199cd38c4ddc5a8ba88ba7d8ba44477992987ea0e8c0d30cab42489742f7"
+    },
+    {
+      "path": "packages/standard/aux_choose_general.lua",
+      "sha256": "204ad7a6978858216594844cf02bc9aa6ace6959bc5e97650f4e881b301c79b7"
+    },
+    {
+      "path": "packages/standard/aux_poxi.lua",
+      "sha256": "fc8150be915ed0a58d5ebbd67323c308e3a519112d0f50bec3bcb3eaee7d72aa"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/choose_cards_skill.lua",
+      "sha256": "7fcd9129acaf737557f49b69593c34002d622767cc1fc00ece5417a0fbab88df"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/choose_players_skill.lua",
+      "sha256": "851a5c012460ad4262763866a99d94a04efc1d756ae3eed53777e37a23f050f3"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/choose_players_to_move_card_in_board.lua",
+      "sha256": "28bd8c134c5f936328630cb40cfe173a0b4421185233a90ef31ffb134a363039"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/discard_skill.lua",
+      "sha256": "f1bc5ec6e0f9de91a4b0be4c3cf885629bfde8b80cef2812bdbd7f8ab7307223"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/distribution_select_skill.lua",
+      "sha256": "2855e0e85af991f3782d2bc3b31ea887b80d10d57097d9f43479c1e03d509d65"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/ex__choose_skill.lua",
+      "sha256": "c0bb10e2a7bfcc7e3fb01bbdd1fa4c9a8e0cb7efc5daddfe6c7dee7cd430f836"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/game_rule.lua",
+      "sha256": "3e39e7d1d16b868f7d1529febc0885083ddce33cdcb7b881fd8533d9835bc537"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/init.lua",
+      "sha256": "9a16bd31a7009e1e83f8803631cf8b38e103c739d70d311bfb11e9a21881b710"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/max_cards_skill.lua",
+      "sha256": "22b84f6bb18d7a135d95d2183d48058eb2796610f489de13204465962363f92e"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/reveal_prohibited.lua",
+      "sha256": "b0791b103d13c2ff9a433b85df3907f6bed1060b7f4e1c5f0c6b315fefb8dac3"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/reveal_skill.lua",
+      "sha256": "2eaf10516aacef5692007f0a0ab520e2aec54c2aee9e9d49a1feb4d623cbf453"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/spin_skill.lua",
+      "sha256": "7f9d98562ce6e1a2ed484f6e4d1a86fcafa18527208b36e58fe7fdfcf0f8702e"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/uncompulsory_invalidity.lua",
+      "sha256": "3034b155f602981bb9ac19cdd10e06d1f110f0ba5897160be49db69b1e402977"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/userealcard_skill.lua",
+      "sha256": "b1516fdf6c3edefa60c65db380b7f1c121372e453b0f0f1c26f7c1711c9cc801"
+    },
+    {
+      "path": "packages/standard/aux_skills_dir/virtual_viewas.lua",
+      "sha256": "72f8b30a4e27ff33c1e7efd05cf839e4d2bc8b85732d6006136973dba8323de9"
+    },
+    {
+      "path": "packages/standard/i18n/en_US.lua",
+      "sha256": "977bd32b12c63a5eaff19cc26459424175c40cf29a033720305c3257a73af61a"
+    },
+    {
+      "path": "packages/standard/i18n/init.lua",
+      "sha256": "329ac4776ba2f520d7482516aa82b428ef4ddf24ade9462c2bdf7105313bbf95"
+    },
+    {
+      "path": "packages/standard/i18n/vi_VN.lua",
+      "sha256": "70ac837eda9e9d1a36cdd97f432a28a5cdb1283cb3abfb232f4597d965f8b890"
+    },
+    {
+      "path": "packages/standard/i18n/zh_CN.lua",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    },
+    {
+      "path": "packages/standard/init.lua",
+      "sha256": "278d2cec5b812a5a5cb452cec6dc040832c7d8bf7361064231691d2fd8c41d16"
+    },
+    {
+      "path": "packages/standard/pkg/init.lua",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    },
+    {
+      "path": "packages/standard/pkg/skills/bahu.lua",
+      "sha256": "a703bd588c4f612eb0d53c0a91b6c64e015f640e85eb95bb1d83a1ef12fa11b4"
+    },
+    {
+      "path": "packages/standard/pkg/skills/baihu.lua",
+      "sha256": "e053e13d3093f2222ccab7a5cb8ff91c4b1fd6f4d6a9dc7d54fb8502dce06c64"
+    },
+    {
+      "path": "packages/standard/pkg/skills/biyue.lua",
+      "sha256": "4475f7964df985ce9d12a4ef061018717de2abfd5907c0b8f053bf4dc4f8deda"
+    },
+    {
+      "path": "packages/standard/pkg/skills/fanjian.lua",
+      "sha256": "45c0d8ac935a588dfa9e1fea04eb1965597d2ac504f5e792b3ef7072efb81b4d"
+    },
+    {
+      "path": "packages/standard/pkg/skills/fankui.lua",
+      "sha256": "ac3629a10ea80b7e9d23858e4693b549b0351c7329c77a31d479909ae465fafe"
+    },
+    {
+      "path": "packages/standard/pkg/skills/feiyang.lua",
+      "sha256": "4948dfcf75e20b299d245e39adc94489b5d845d93cc2b8db1f522d67580fa044"
+    },
+    {
+      "path": "packages/standard/pkg/skills/ganglie.lua",
+      "sha256": "4fe2a0cb17328bd0d681dc8fb924d5ff6cf87e94e754b15eb7e3cae0107586ce"
+    },
+    {
+      "path": "packages/standard/pkg/skills/guanxing.lua",
+      "sha256": "0650581a8f4e65623d8aa6d1395d8e111d3b6f7a46a44e24d4cd4c070176b869"
+    },
+    {
+      "path": "packages/standard/pkg/skills/guicai.lua",
+      "sha256": "8b211279f5be53ea555b7d50499d22712d6b08fdf03f144d0e51242da2ba06d1"
+    },
+    {
+      "path": "packages/standard/pkg/skills/guose.lua",
+      "sha256": "a733a6f21be5af39067804e3869b0119cfebb46a1742767555ceaeb602422e9b"
+    },
+    {
+      "path": "packages/standard/pkg/skills/hujia.lua",
+      "sha256": "0d79269267c1f31f0ec742d683da012e077a615b8f3220af581f2af07b686243"
+    },
+    {
+      "path": "packages/standard/pkg/skills/jianxiong.lua",
+      "sha256": "86021eeefbb7175df83a204c63eacca6d59385fa1095d55609bc0b2978f37752"
+    },
+    {
+      "path": "packages/standard/pkg/skills/jieyin.lua",
+      "sha256": "fb13b46b15203e476c601be5ea2bb37fc977c7b3e5306b2dbdcebf400ee823fd"
+    },
+    {
+      "path": "packages/standard/pkg/skills/jijiang.lua",
+      "sha256": "3ebd8ef5cec1e1f490c690a83bc9e2ae50625b4d009162b1ac80b7430ed6c30d"
+    },
+    {
+      "path": "packages/standard/pkg/skills/jijiu.lua",
+      "sha256": "8e19c3e7c8cda25e8f79ee9f40501d293cf0606b7df632eec289c9d020bf5816"
+    },
+    {
+      "path": "packages/standard/pkg/skills/jiuyuan.lua",
+      "sha256": "da5bdaaea9638319c291a3a2c51ea4bc224f9100f3715659692734cab6092060"
+    },
+    {
+      "path": "packages/standard/pkg/skills/jizhi.lua",
+      "sha256": "64843beba93bbd384324acd185c6d0f38d74b66ca3abbc930a198f03d01ce2f9"
+    },
+    {
+      "path": "packages/standard/pkg/skills/keji.lua",
+      "sha256": "85d73daa63ff40ae62cb89967419ea77715b3f1ecb9c90125ce9e1565c719e11"
+    },
+    {
+      "path": "packages/standard/pkg/skills/kongcheng.lua",
+      "sha256": "d9cf5a2d88a2b593ca957003945a3b328ef73d3e004e2d203f9bf996d0b1d175"
+    },
+    {
+      "path": "packages/standard/pkg/skills/kurou.lua",
+      "sha256": "11a70d24a89ad9f2b680ab8747a9a6742571cf000eaa00d2321137df35a55042"
+    },
+    {
+      "path": "packages/standard/pkg/skills/lianying.lua",
+      "sha256": "682cdc9aafd191173e7281ecc6f82a9da8f81fcb6427fc7334331332146a8834"
+    },
+    {
+      "path": "packages/standard/pkg/skills/lijian.lua",
+      "sha256": "cf91ec68639f155005dfdf0332e117093837aa3a3b39a9ba207944464d70e23b"
+    },
+    {
+      "path": "packages/standard/pkg/skills/liuli.lua",
+      "sha256": "94ca4ccc67ce1176724a60021d66fe092c7f8e93f8b8b76b41988f9b493ac3e0"
+    },
+    {
+      "path": "packages/standard/pkg/skills/longdan.lua",
+      "sha256": "3ff5a9e3385acb9442912d26eb152d9007fe23935371453cf34d7d33bcb68da8"
+    },
+    {
+      "path": "packages/standard/pkg/skills/lord_designating_heir.lua",
+      "sha256": "2feabddd8312eb2ca3b7c8aa7d1d393f045c722beba92256b87a37381e0d083d"
+    },
+    {
+      "path": "packages/standard/pkg/skills/luoshen.lua",
+      "sha256": "ff40622ac6191fd7a5df487656eca936c79fadb236a5056d0dae3727e169fffa"
+    },
+    {
+      "path": "packages/standard/pkg/skills/luoyi.lua",
+      "sha256": "2c06c8f572c0bff4770c72affaa5c1061a89d0b738ef5bfd57256703d67ce78e"
+    },
+    {
+      "path": "packages/standard/pkg/skills/m_role_wild_draw.lua",
+      "sha256": "b739b4842b00ac8c8cc539d3771e608167309c0d2e50cf75317c18847ab43568"
+    },
+    {
+      "path": "packages/standard/pkg/skills/mashu.lua",
+      "sha256": "506b022286fac8b25347ad1365f995aa1facbafb7734c3a9d7404527be88664f"
+    },
+    {
+      "path": "packages/standard/pkg/skills/paoxiao.lua",
+      "sha256": "d2320b3ccd74dceb24cbb5b973738e0f9acf3156e11c58e3887e12725ce27a6d"
+    },
+    {
+      "path": "packages/standard/pkg/skills/qianxun.lua",
+      "sha256": "bee45fa7ba4b8a78edf9acf0fbfd39c60cf031b9945190ec16415a2c2eb46dce"
+    },
+    {
+      "path": "packages/standard/pkg/skills/qicai.lua",
+      "sha256": "00c0ce0d909e0fadc983d4413167700f5c9b52405ea1e74dbcef9efc524e3357"
+    },
+    {
+      "path": "packages/standard/pkg/skills/qingguo.lua",
+      "sha256": "b3540f65d53c12dc17aaa4970539b8ee83459a51424464b65b7b87ef1ae11efe"
+    },
+    {
+      "path": "packages/standard/pkg/skills/qinglong.lua",
+      "sha256": "04a0d6b77959b62e0515d70931c6f775f4dd678fe75ea13275bc2955619adfbb"
+    },
+    {
+      "path": "packages/standard/pkg/skills/qingnang.lua",
+      "sha256": "412137c656cc47677637e229e70ffff8190b27abc30fb7509837d2da9e1e5471"
+    },
+    {
+      "path": "packages/standard/pkg/skills/qixi.lua",
+      "sha256": "27203b7cc4210e75f17829b1e04f71e9aa4a338bd437003b516c4130a62dd3e9"
+    },
+    {
+      "path": "packages/standard/pkg/skills/rende.lua",
+      "sha256": "e89c7d74f95f124eb800fbdcd8327cc16e107a4beb730f46d0b6eb762f992d94"
+    },
+    {
+      "path": "packages/standard/pkg/skills/renegade_loyalty.lua",
+      "sha256": "6b911b5e2d6f6a3035abcdd3e3b549b29dd66b2f2ef5445e3023766c45e4d0a4"
+    },
+    {
+      "path": "packages/standard/pkg/skills/renegade_wild.lua",
+      "sha256": "aee79b74dfe7c2347994dba8542dfc6552c2f1c252ea772b70ddae6d145b782e"
+    },
+    {
+      "path": "packages/standard/pkg/skills/tiandu.lua",
+      "sha256": "e9c8bcbdc49b9d4e4db9c5582e6012367007f4d43e7a9d52afb4f84dbdb9b673"
+    },
+    {
+      "path": "packages/standard/pkg/skills/tieqi.lua",
+      "sha256": "1b6d8bda333fa9f3ee1d4c1e5487d45a4d623a67900b464fae5ecdab4cca86af"
+    },
+    {
+      "path": "packages/standard/pkg/skills/tuxi.lua",
+      "sha256": "16d033d362ffb922d0d530ae98dc4f954945f4aa1bae5c94199b0e350fbc2e45"
+    },
+    {
+      "path": "packages/standard/pkg/skills/WangzhanBattleRoyal.lua",
+      "sha256": "026afa0f68ad26b7d81dd4952dcffab4ea074c4b7c36bd2f52b15fd0ef2069e1"
+    },
+    {
+      "path": "packages/standard/pkg/skills/wusheng.lua",
+      "sha256": "029d14438851c264defca25a2e3c88d5024ab2758b2dcad6d2fc8b7545db27e0"
+    },
+    {
+      "path": "packages/standard/pkg/skills/wushuang.lua",
+      "sha256": "4adbb885197114752b06e334eadb9075e8503079312c2967424560622c034273"
+    },
+    {
+      "path": "packages/standard/pkg/skills/xiaoji.lua",
+      "sha256": "aabf31b81d19a77b4f6b81b27f9f04ee41e7e4786854b08119567d67e486e1c4"
+    },
+    {
+      "path": "packages/standard/pkg/skills/xuanwu.lua",
+      "sha256": "22ce7974d616cda7c3ff8bc72bde12892ea4d02c9048b50b221d0260f058dd94"
+    },
+    {
+      "path": "packages/standard/pkg/skills/yiji.lua",
+      "sha256": "07ae21164029a79c265e5c99d5d6c2174a7539ce43551ca4048b7fd3e46700b4"
+    },
+    {
+      "path": "packages/standard/pkg/skills/yingzi.lua",
+      "sha256": "614e255a0dd112583e91dd3028ebee626fadfaa7ce0b8e7f191c9a3dda6a223a"
+    },
+    {
+      "path": "packages/standard/pkg/skills/zhiheng.lua",
+      "sha256": "7c1856b8296193f1191bd3ab85ae3b1b3dfd2bf173e4d4546623c8e6c5d4af83"
+    },
+    {
+      "path": "packages/standard/pkg/skills/zhuque.lua",
+      "sha256": "b688a9328e7ce4c4ed9fc3facdd80b44bf5016014f56b4acf53152ec06e38f4c"
+    },
+    {
+      "path": "packages/standard_cards/i18n/en_US.lua",
+      "sha256": "87640345c818f51902c2ec3d55ac215bfca8a027c56a94faa30677b74edf2294"
+    },
+    {
+      "path": "packages/standard_cards/i18n/init.lua",
+      "sha256": "3edcd66cef4ce4f4c63302840dd3f2b9dcbd8ed3a4c66417518fd076cdf5545b"
+    },
+    {
+      "path": "packages/standard_cards/i18n/vi_VN.lua",
+      "sha256": "e9965fc664c34dfd86b391e91d3b317a826ce691c2999d0810814b2528bcc031"
+    },
+    {
+      "path": "packages/standard_cards/i18n/zh_CN.lua",
+      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+    },
+    {
+      "path": "packages/standard_cards/init.lua",
+      "sha256": "335a89557ca0a1ee1fbdae47f2013ece5d21885af0c98dfae116aaecdff68ed8"
+    },
+    {
+      "path": "packages/standard_cards/metadata.lua",
+      "sha256": "3706ccb45b3234c39f01eaa0658bd7553726f6287a45737590e06550f20fb00e"
+    },
+    {
+      "path": "packages/standard_cards/pkg/init.lua",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/amazing_grace.lua",
+      "sha256": "160b2a704a23ed89b4a3bfea4ffe264e8526892f0830930f779cf3e112c6763c"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/archery_attack.lua",
+      "sha256": "fff40b021664c47b9fc2089f9f0ad54fb2f83299292690512405c6b18ac36614"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/armor_invalidity.lua",
+      "sha256": "df6f6d9a9ee26a6be1087f12a0ad5426a76a57d0c1d67534a18c0cb89c40af30"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/axe.lua",
+      "sha256": "377defef9e434117d17b47ac806b417fba3b61ca9473055184197d349830a0d0"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/blade.lua",
+      "sha256": "71291fd96ef6eee70267630ccdb82bdf547c6fbab0cdeedcaf8a946b0285e9b0"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/chitu.lua",
+      "sha256": "15cc138526b579839c17e0f65df98cff18dd89cd0ab39ac33f9dfe5049ffa7ce"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/collateral.lua",
+      "sha256": "9e01174b6924132aa746f10df05a22389136ff19f650483994951a226604b115"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/crossbow.lua",
+      "sha256": "70b1d5754d213f35e224bd5e5fb458e2c4b36fdcea774274ab43a128bf2681ee"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/dayuan.lua",
+      "sha256": "9207563f96984ce63f2ef34ebeb3506fd614cc9e4024bec34462a2361338d24c"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/default_card_skill.lua",
+      "sha256": "02dabaf968ecffc730dcd268e5725384574be28d3cc3199f2cbcadfd0577cf1d"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/default_equip_skill.lua",
+      "sha256": "6f1d80df93cdd1f8b1f089d0fa7598587a50d64483da23acfcd72b2642f02aa4"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/dilu.lua",
+      "sha256": "12ce8a59bd187ae12a7292540a447d4dec20e7f494ce9563c49e009f41485083"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/dismantlement.lua",
+      "sha256": "c1c9172273c8338ceac8a9411fe7efe3220b6903e3710fcbbb6db459fadb67fd"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/double_swords.lua",
+      "sha256": "4e5a036b040401baac603f524b7d2e11861c3199872db2449c0d99f2e0b56225"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/duel.lua",
+      "sha256": "9286750b2f5325a61533d197656fbf5276198552d60ba101c9eeb8af7cbb6119"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/eight_diagram.lua",
+      "sha256": "c5cc3c5b6fb64656ea4042cd3974a044fa9f1cf5db122374a45c1787baabe67b"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/ex_nihilo.lua",
+      "sha256": "86834bd7c3b4642349f5f552ef70eca9f6daf8a806851b8133c7d7884b8f6f38"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/god_salvation.lua",
+      "sha256": "57e23d403be126379958c6a1b6337a2ebbb7655148093baf1f2322bb2ff6aa2f"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/halberd.lua",
+      "sha256": "ec197095faec4449dee8c9de2b66b0e9415644ed033301a913ed75691e0900db"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/ice_sword.lua",
+      "sha256": "1d8519d628809fa3db5ea49aa8c117240e75f23b5f97ef9541c98703c4494405"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/indulgence.lua",
+      "sha256": "ab2007a5945fe9308f714bf8898bfae01c2113b47938f2c0c153c3ebc22599f5"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/init.lua",
+      "sha256": "3269bf9b62191ada8c54aef27abc502cab2d7d5a4cede93ff8e87905098fffda"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/jink.lua",
+      "sha256": "ab1b16ff3a5c097d5b87a5c3614bec0b02473cdaa06d57fc3e8b15065d4e61d9"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/jueying.lua",
+      "sha256": "111a6e9edf1696eec6d0c15d919c4e319ddfc5efad05cad056052a3086f755cf"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/kylin_bow.lua",
+      "sha256": "49b1ae2a54f49ce64ffb4f850b003b11beddd53796ac435441861d053bf2b11c"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/lightning.lua",
+      "sha256": "ae757b7981461705349f832c13caa47919e79c04cd807f3fe4802cbb242b377f"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/nioh_shield.lua",
+      "sha256": "433288736fe067bc8822f076714d4949952f4cff80bde54ebf5022c7076958d1"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/nullification.lua",
+      "sha256": "cc4597df22b1609ee6809bf65fdddb05135ad8d5928b20b35cfd2d514d44fd02"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/peach.lua",
+      "sha256": "11816d52b94087402c0056fcfbd598f6fec04480b8e12f86ca49ed345487eb32"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/qinggang_sword.lua",
+      "sha256": "3b30e85409612ec2818689ea49b78b82093718c68a20f2c3e87d6d93105e135b"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/savage_assault.lua",
+      "sha256": "44a7314a2c8f2c42d060f96140523e3f12f96ef0fe6fd911138878e0e4a17157"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/slash.lua",
+      "sha256": "db8de4e511857ee4f7b8a0eecff88679532c01cfd9cd229a1ec3ba9e336c2412"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/snatch.lua",
+      "sha256": "722a684fe37ed3ded8e688e0ecc41f90a990f8d70aa489413081651bf0070828"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/spear.lua",
+      "sha256": "926eb268c4906d9871358ba6c6d932a548fbdcf084d0c404312faf75dcc6cfd0"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/zhuahuangfeidian.lua",
+      "sha256": "64961a9367f7ce42ce8cb20fb32358314018700ae4b165d3c2939b982e917494"
+    },
+    {
+      "path": "packages/standard_cards/pkg/skills/zixing.lua",
+      "sha256": "360e3093441b8406c6e93e8cbd0f91d00d94c3aa27d790ccf8111344b8753396"
+    },
+    {
+      "path": "packages/maneuvering/i18n/en_US.lua",
+      "sha256": "cce46dd61df715ca2b2738dfb951ac42dba966a5543c16465f1aaae6283de567"
+    },
+    {
+      "path": "packages/maneuvering/i18n/vi_VN.lua",
+      "sha256": "b0edbd16e1a6456ed991d8e665092a22b33f6f32495d1e8e6575ff6149a6a9b5"
+    },
+    {
+      "path": "packages/maneuvering/init.lua",
+      "sha256": "c7abcb67f4606a4bbf84be19a35f4a97caf105a2c5f4a41f940f3ea20db0656e"
+    },
+    {
+      "path": "packages/maneuvering/pkg/init.lua",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+    },
+    {
+      "path": "packages/maneuvering/pkg/skills/analeptic.lua",
+      "sha256": "733c5b477ea1bbe8089efd2f376d0be7299fac4114f7ba66c36a159f63ae7eec"
+    },
+    {
+      "path": "packages/maneuvering/pkg/skills/fan.lua",
+      "sha256": "bc480070e9e331eadb237dbdbe6a4f3a8966df994dbe70730ecf347dd8477b74"
+    },
+    {
+      "path": "packages/maneuvering/pkg/skills/fire__slash.lua",
+      "sha256": "d65583e856baf013a33cd0644a6cf5cd58f71e296247c111256094d8cebcb473"
+    },
+    {
+      "path": "packages/maneuvering/pkg/skills/fire_attack.lua",
+      "sha256": "df5b08aa13a4465d5f10c2f6c77abd4d4d98de8da524edd1c3b912f7c4de898b"
+    },
+    {
+      "path": "packages/maneuvering/pkg/skills/guding_blade.lua",
+      "sha256": "456d2fa7052fcb89abfdf61f38750af2b2d675f1bdf401241169f3cf54c074b5"
+    },
+    {
+      "path": "packages/maneuvering/pkg/skills/hualiu.lua",
+      "sha256": "2ac4af660f6a6008b80d2d31bb1eae3aa0af5f2fde4efdd6481cf462ec4ec53b"
+    },
+    {
+      "path": "packages/maneuvering/pkg/skills/init.lua",
+      "sha256": "c83b03e818d35ca65409cfe5bd4aabd2765477e8ad2984de2934341ad7a2aed2"
+    },
+    {
+      "path": "packages/maneuvering/pkg/skills/iron_chain.lua",
+      "sha256": "ed2f139941a0482e2cef6ba2717f8dd003dd90ce63191cb746bcd2f0745a6847"
+    },
+    {
+      "path": "packages/maneuvering/pkg/skills/recast.lua",
+      "sha256": "917bd1e60933b9f51c37abc99b77c352ee5a5009abece2de03c25772cf69cc85"
+    },
+    {
+      "path": "packages/maneuvering/pkg/skills/silver_lion.lua",
+      "sha256": "17a459cb93093d8f56296de71fcfa78cfc607a0a9c814cbfbd94d6f5a18bae50"
+    },
+    {
+      "path": "packages/maneuvering/pkg/skills/supply_shortage.lua",
+      "sha256": "15b32a2d70db5b708ba01a49f91fb6d4574606423ff13171f9a19a96af14fe9e"
+    },
+    {
+      "path": "packages/maneuvering/pkg/skills/thunder__slash.lua",
+      "sha256": "a518679a0f942ee178611a4acdea8c2fd9db1457afd268a19e4d71a432d4055b"
+    },
+    {
+      "path": "packages/maneuvering/pkg/skills/vine.lua",
+      "sha256": "3c3f657011a6172d9a266adf449ff32a8712610f288708890ac6b75e4b399502"
+    },
+    {
+      "path": "packages/test/init.lua",
+      "sha256": "2a338738a85b368abcd028abeb6241040f41b3c2056e79f77d2ee07234e7bc41"
+    },
+    {
+      "path": "packages/test/skills/change_hero.lua",
+      "sha256": "d6afabc241399d8bd9cd245a5e3b542b3a7d6a035735e3cf00d4590e5f1ef8b4"
+    },
+    {
+      "path": "packages/test/skills/cheat.lua",
+      "sha256": "1a19d7369f5e077708cb66b5a57041a2fd85bd977813769e341d9579502b5469"
+    },
+    {
+      "path": "packages/test/skills/control.lua",
+      "sha256": "ff5fe920d253a63f27267ab71c4b1807a2f1a80ea3c04a4b0bb57159c8a79355"
+    },
+    {
+      "path": "packages/test/skills/damage_maker.lua",
+      "sha256": "59e72f6a542a95ebbe8846f4eacd819193c820e4ade3e5e2fca3ab208681a499"
+    },
+    {
+      "path": "packages/test/skills/test_rende.lua",
+      "sha256": "a89d37aa371c7f1bff222c8e7533386e66cc7a071f1adfeae4d73d9348fd562c"
+    },
+    {
+      "path": "packages/test/skills/test_zhenggong.lua",
+      "sha256": "0f4456504df0aede1954be53fb4e789588268285fe4a6261fbc3559ba37f53af"
+    },
+    {
+      "path": "packages/test/skills/test_zhijian.lua",
+      "sha256": "9ed23cfbd175b7b19483649620ee9ab71a602b0331f92026674be38e5ab54b6f"
+    }
+  ],
+  "harness_files": [
+    {
+      "path": "test/lua/core/card.lua",
+      "sha256": "e29a40cd394301463f0a3e801d474cad96b46a01c6aedf7bb5028579e2284974"
+    },
+    {
+      "path": "test/lua/core/engine.lua",
+      "sha256": "c13893cc8b531da3882233aafa4d406b41dad62ea48651388b4079e31feb6682"
+    },
+    {
+      "path": "test/lua/core/init.lua",
+      "sha256": "43d35995bebb0cd17d6dfe5209ba316786a799d80798d7ec25c4a7249112f2e5"
+    },
+    {
+      "path": "test/lua/core/pattern.lua",
+      "sha256": "a93d113006dd915bee45e98038e797c71e752107251e7ba0c32a796248241b0c"
+    },
+    {
+      "path": "test/lua/core/util.lua",
+      "sha256": "fd2a43c15a8ee27f33d5d44ab68ce27f4ec06ab70a694fc413a856bdbb8ef00d"
+    },
+    {
+      "path": "test/lua/cpp_run.lua",
+      "sha256": "2862cea75eecf399017809203b009c5c759e6e72dd41cbf767a74d8f86e42854"
+    },
+    {
+      "path": "test/lua/cpp_run_gamelogic.lua",
+      "sha256": "9ef41acc6c4dc57af605cf81bce4c7cf900a0978a8ab248dd495a5588cc91538"
+    },
+    {
+      "path": "test/lua/cpp_run_skill.lua",
+      "sha256": "a38d23f911418e7a6ebf614724b22fb97e4e65c68cd5e8ecdd54df894ce984fc"
+    },
+    {
+      "path": "test/lua/lib/fake_backend.lua",
+      "sha256": "0f78b1e831d652c0ac99b00184904d7247df2046f2dec6a8127727d12b4a1654"
+    },
+    {
+      "path": "test/lua/lib/luaunit.lua",
+      "sha256": "210e876d3ac781b8ac25c5cc192a45c8963e33500b2051f212a5616dec2eb347"
+    },
+    {
+      "path": "test/lua/lib/serverplayer.lua",
+      "sha256": "8c80fc6bf9452a851dca751c3c7821a11745a04646a399ee7a35017c950e0516"
+    },
+    {
+      "path": "test/lua/lib/ui.lua",
+      "sha256": "6dbf594cac429e1f1d664125b8a7e49416d872af7f99e5783289391f1e38dc6d"
+    },
+    {
+      "path": "test/lua/play.lua",
+      "sha256": "e1fb44b344ee92b1e287cfaae7c333e090935a4a9073facbde56e34bdad26489"
+    },
+    {
+      "path": "test/lua/run.lua",
+      "sha256": "92b321dc5078662c14c5a3e587d815799e805161d9025a723b8d1fed4107f5eb"
+    },
+    {
+      "path": "test/lua/server/gameevent.lua",
+      "sha256": "5e114288e36d3e644c8e31d980b51d7a0990704e20c827d36840a3fe6b8e7757"
+    },
+    {
+      "path": "test/lua/server/gamelogic.lua",
+      "sha256": "cb6548b32f26eb9ff58ead070bfbd9e521e0893b970668672199128779e92d3a"
+    },
+    {
+      "path": "test/lua/testmode.lua",
+      "sha256": "d0de8cf6aa34eec1867018dbd3ec842fb018d238fe64c46c5bad6ded034401c8"
+    }
+  ],
+  "scope": "fixed-snapshot Lua rules with fake_backend; not full-client or online-match validation"
+}

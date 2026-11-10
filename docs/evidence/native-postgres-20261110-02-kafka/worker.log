@@ -1,0 +1,1 @@
+%4|1794291647.911|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19092/1: Broker: Coordinator load in progress: retrying

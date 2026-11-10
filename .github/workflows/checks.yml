@@ -1,0 +1,37 @@
+name: local-contracts
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.9.8'
+      - run: uv sync --frozen --extra dev
+      - run: uv run ruff check backend tests migrations scripts/local_demo.py scripts/prepare_embedding.py scripts/prepare_native_kafka.py scripts/verify_native_kafka.py scripts/verify_embeddings.py scripts/prepare_native_postgres.py scripts/verify_native_postgres.py
+      - run: uv run pytest -q
+      - name: Verify migration roundtrip on a disposable database
+        env:
+          DATABASE_URL: sqlite+aiosqlite:///migration-check.sqlite3
+        run: |
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build

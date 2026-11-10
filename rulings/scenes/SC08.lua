@@ -1,0 +1,18 @@
+local A=__dofile("assessment_scenes/common.lua")
+return A.register("SC08",function(room,attacker,target)
+  A.actor(attacker,"guanyu","wusheng")
+  local crossbow=A.equip(attacker,"crossbow",Card.Heart,1)
+  local red=A.give(attacker,"peach",Card.Heart,7)
+  FkTest.runInRoom(function()
+    attacker.phase=Player.Play
+    attacker:addCardUseHistory("slash",1)
+    local skill=Fk.skills["wusheng"]
+    local from_hand=skill:viewAs(attacker,{red.id})
+    local from_weapon=skill:viewAs(attacker,{crossbow.id})
+    A.eq(attacker:canUseTo(from_hand,target),true,"已用一次杀仍可借连弩把红色手牌当杀")
+    A.eq(attacker:canUseTo(from_weapon,target),false,"把唯一连弩作为转化子牌时不再绕过次数")
+    attacker:setCardUseHistory("slash",0,Player.HistoryPhase)
+    A.eq(attacker:canUseTo(from_weapon,target),true,"本阶段尚未用杀时可将红色连弩转化为杀")
+  end)
+  A.finish("已用过杀时，武圣红色手牌可借装备中的连弩绕过次数；若把唯一连弩本身转化为杀，则该牌不再提供次数绕过。未用杀的对照局面可用。")
+end)

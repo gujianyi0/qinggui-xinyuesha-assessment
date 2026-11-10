@@ -1,0 +1,15 @@
+{
+  "executed_at": "2026-11-10T05:25:43.397831+00:00",
+  "url": "http://127.0.0.1:15173",
+  "checks": [
+    "login",
+    "chat_stream_and_citations",
+    "draft_edit_revision_confirm",
+    "job_submit_and_cancel",
+    "catalog",
+    "mobile_no_horizontal_overflow"
+  ],
+  "page_errors": [],
+  "passed": true,
+  "scope": "Edge browser with SQLite, mock model, test vectors; no live model or Kafka worker"
+}

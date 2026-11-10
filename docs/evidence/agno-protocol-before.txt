@@ -1,0 +1,10 @@
+.F.                                                                      [100%]
+================================== FAILURES ===================================
+____________ test_real_agno_verified_ruling_has_evidence_citation _____________
+tests\test_agno_protocol.py:102: in test_real_agno_verified_ruling_has_evidence_citation
+    assert any(source["path"] == scene["evidence_path"] for source in run["citations"])
+E   assert False
+E    +  where False = any(<generator object test_real_agno_verified_ruling_has_evidence_citation.<locals>.<genexpr> at 0x0000025A53D27760>)
+=========================== short test summary info ===========================
+FAILED tests/test_agno_protocol.py::test_real_agno_verified_ruling_has_evidence_citation
+1 failed, 2 passed in 15.21s

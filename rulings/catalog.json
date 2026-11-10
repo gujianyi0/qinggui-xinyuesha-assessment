@@ -1,0 +1,717 @@
+[
+  {
+    "id": "SC01",
+    "title": "青龙偃月刀追杀与空城",
+    "required_conditions": [
+      "攻击者装备青龙偃月刀且有第二张杀",
+      "诸葛亮仅剩一张闪并有空城",
+      "以该闪抵消首张杀后核对追杀目标合法性"
+    ],
+    "conditions": {
+      "attacker_weapon": "blade",
+      "target_general": "zhugeliang",
+      "target_last_hand_card": "jink",
+      "bypass_times": true,
+      "bypass_distances": true
+    },
+    "scope_note": "验证实际空城禁止指定规则；fake_backend会信任脚本回复，因此追杀提示采用取消并单独断言真实目标合法性，不注入非法目标回复。",
+    "status": "verified",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "source_manifest_hash": "e6aa339a5a1bf355bc03dc113ef902effc3c143dde2b13a61829f29146822dbc",
+    "summary": "诸葛亮打出最后一张闪后满足空城。青龙追杀不能绕过空城的目标禁止。",
+    "evidence_path": "rulings/evidence/SC01.json",
+    "steps": [
+      "有手牌时可指定诸葛亮",
+      "第一张杀被闪抵消，空城后追杀未造成伤害",
+      "最后一张闪离手后为空城",
+      "青龙绕过次数距离，仍不绕过空城禁止指定"
+    ],
+    "scenario_sha256": "0cd11e8425887b8856c96175853c38765d63dbe37d899bb2a894c9d35c5a2e16",
+    "result": {
+      "assertions": [
+        {
+          "passed": true,
+          "actual": true,
+          "label": "有手牌时可指定诸葛亮",
+          "expected": true
+        },
+        {
+          "passed": true,
+          "actual": 3,
+          "label": "第一张杀被闪抵消，空城后追杀未造成伤害",
+          "expected": 3
+        },
+        {
+          "passed": true,
+          "actual": true,
+          "label": "最后一张闪离手后为空城",
+          "expected": true
+        },
+        {
+          "passed": true,
+          "actual": false,
+          "label": "青龙绕过次数距离，仍不绕过空城禁止指定",
+          "expected": false
+        }
+      ],
+      "tests_run": 1,
+      "failures": 0,
+      "event_count": 68,
+      "executed_at": "2026-11-10T04:20:35.693172+00:00",
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+      "verification_scope": "fixed-snapshot Lua rules / fake_backend"
+    }
+  },
+  {
+    "id": "SC02",
+    "title": "无双、八卦阵与鬼才改判",
+    "required_conditions": [
+      "吕布有无双并使用杀",
+      "目标装备八卦阵且无手牌",
+      "第一次判定黑色由司马懿用红色手牌鬼才改判",
+      "第二次判定红色，目标两次发动八卦"
+    ],
+    "conditions": {
+      "attacker_general": "lvbu",
+      "attacker_skill": "wushuang",
+      "target_armor": "eight_diagram",
+      "first_judgment": "black_to_red_by_guicai",
+      "second_judgment": "red"
+    },
+    "status": "verified",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "source_manifest_hash": "e6aa339a5a1bf355bc03dc113ef902effc3c143dde2b13a61829f29146822dbc",
+    "summary": "无双要求两张闪，八卦可分别判定。固定牌堆中第一次黑判由鬼才改红，第二次为红，两次均成功，目标不受伤。",
+    "evidence_path": "rulings/evidence/SC02.json",
+    "steps": [
+      "两次八卦响应成功满足无双要求",
+      "鬼才已使用指定红色手牌改判",
+      "无双之杀实际进行了两次八卦判定"
+    ],
+    "scenario_sha256": "ded266f7eaebb7cf34f7cfe9eca311fda0ebcd75e6a119593b56a2c89d522a96",
+    "result": {
+      "assertions": [
+        {
+          "passed": true,
+          "expected": 4,
+          "actual": 4,
+          "label": "两次八卦响应成功满足无双要求"
+        },
+        {
+          "passed": true,
+          "expected": true,
+          "actual": true,
+          "label": "鬼才已使用指定红色手牌改判"
+        },
+        {
+          "passed": true,
+          "expected": 2,
+          "actual": 2,
+          "label": "无双之杀实际进行了两次八卦判定"
+        }
+      ],
+      "tests_run": 1,
+      "failures": 0,
+      "event_count": 103,
+      "executed_at": "2026-11-10T04:20:36.404572+00:00",
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+      "verification_scope": "fixed-snapshot Lua rules / fake_backend"
+    },
+    "scenario_details": {
+      "judgment_cards": [
+        {
+          "name": "slash",
+          "suit": "spade",
+          "number": 6
+        },
+        {
+          "name": "slash",
+          "suit": "heart",
+          "number": 5
+        }
+      ],
+      "guicai_cost": {
+        "name": "peach",
+        "suit": "heart",
+        "number": 3
+      },
+      "responses": "目标两次发动八卦；司马懿第一次用红桃3桃改判",
+      "source": "rulings/scenes/SC02.lua:7-14"
+    }
+  },
+  {
+    "id": "SC03",
+    "title": "酒火杀、连环、藤甲与白银狮子",
+    "required_conditions": [
+      "攻击者先用酒再使用火杀",
+      "首目标装备藤甲且与第二目标连环",
+      "第二目标装备白银狮子",
+      "没有闪、其他防止伤害或额外增伤"
+    ],
+    "conditions": {
+      "drank": 1,
+      "card": "fire__slash",
+      "first_armor": "vine",
+      "chain_armor": "silver_lion",
+      "targets_chained": true
+    },
+    "status": "verified",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "source_manifest_hash": "e6aa339a5a1bf355bc03dc113ef902effc3c143dde2b13a61829f29146822dbc",
+    "summary": "该固定局面首目标受3点火焰伤害；传导到白银狮子时伤害减至1点，两者解除连环。",
+    "evidence_path": "rulings/evidence/SC03.json",
+    "steps": [
+      "酒火杀加藤甲对首目标造成3点",
+      "传导到白银狮子被减至1点",
+      "首目标解除连环",
+      "传导目标解除连环",
+      "酒加伤状态已消费"
+    ],
+    "scenario_sha256": "0ae71c8d4ee2141176559ef8fc4c26541a63be1821e498799af5fe2117b705da",
+    "result": {
+      "assertions": [
+        {
+          "expected": 1,
+          "passed": true,
+          "label": "酒火杀加藤甲对首目标造成3点",
+          "actual": 1
+        },
+        {
+          "expected": 3,
+          "passed": true,
+          "label": "传导到白银狮子被减至1点",
+          "actual": 3
+        },
+        {
+          "expected": false,
+          "passed": true,
+          "label": "首目标解除连环",
+          "actual": false
+        },
+        {
+          "expected": false,
+          "passed": true,
+          "label": "传导目标解除连环",
+          "actual": false
+        },
+        {
+          "expected": 0,
+          "passed": true,
+          "label": "酒加伤状态已消费",
+          "actual": 0
+        }
+      ],
+      "tests_run": 1,
+      "failures": 0,
+      "event_count": 100,
+      "executed_at": "2026-11-10T04:20:37.126574+00:00",
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+      "verification_scope": "fixed-snapshot Lua rules / fake_backend"
+    },
+    "chronology": [
+      "首目标藤甲将酒火杀伤害由2增加至3；事件轨迹显示，首目标在体力实际扣减之前解除连环。",
+      "首目标扣除3点体力，伤害结束后继续向另一名连环角色传导。",
+      "传导目标的白银狮子将伤害由3减至1；该目标也在体力实际扣减之前解除连环，随后扣除1点体力。"
+    ],
+    "chronology_source": {
+      "evidence": "rulings/evidence/SC03.json",
+      "event_indices_zero_based": [
+        70,
+        74,
+        75,
+        76,
+        77,
+        78,
+        81,
+        82,
+        86,
+        90,
+        91,
+        92,
+        93
+      ],
+      "scope": "Observed event order in this fixed Lua/fake_backend execution, not a universal client guarantee"
+    }
+  },
+  {
+    "id": "SC04",
+    "title": "青釭剑无视防具的连环传导边界",
+    "required_conditions": [
+      "攻击者装备青釭剑，先用酒再使用火杀",
+      "首目标装备白银狮子",
+      "连环传导目标装备藤甲",
+      "没有其他伤害修改或响应"
+    ],
+    "conditions": {
+      "attacker_weapon": "qinggang_sword",
+      "drank": 1,
+      "card": "fire__slash",
+      "first_armor": "silver_lion",
+      "chain_armor": "vine",
+      "targets_chained": true
+    },
+    "status": "verified",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "source_manifest_hash": "e6aa339a5a1bf355bc03dc113ef902effc3c143dde2b13a61829f29146822dbc",
+    "summary": "青釭仅无视本次杀直接目标的防具。此局面白银狮子首目标受2点，连环藤甲目标仍加伤而受3点。",
+    "evidence_path": "rulings/evidence/SC04.json",
+    "steps": [
+      "青釭无视首目标白银狮子，酒火杀造成2点",
+      "传导目标藤甲仍生效，2点传导再加1",
+      "首目标防具无效标记已清理",
+      "传导目标未残留青釭标记"
+    ],
+    "scenario_sha256": "506779536f7d39623a5c241947090b4e88af81d5c8abf8ed2b764e9fc6e2b796",
+    "result": {
+      "assertions": [
+        {
+          "label": "青釭无视首目标白银狮子，酒火杀造成2点",
+          "passed": true,
+          "actual": 2,
+          "expected": 2
+        },
+        {
+          "label": "传导目标藤甲仍生效，2点传导再加1",
+          "passed": true,
+          "actual": 1,
+          "expected": 1
+        },
+        {
+          "label": "首目标防具无效标记已清理",
+          "passed": true,
+          "actual": 0,
+          "expected": 0
+        },
+        {
+          "label": "传导目标未残留青釭标记",
+          "passed": true,
+          "actual": 0,
+          "expected": 0
+        }
+      ],
+      "tests_run": 1,
+      "failures": 0,
+      "event_count": 114,
+      "executed_at": "2026-11-10T04:20:37.863349+00:00",
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+      "verification_scope": "fixed-snapshot Lua rules / fake_backend"
+    },
+    "variants": [
+      {
+        "variant_id": "SC04V",
+        "conditions": {
+          "attacker_weapon": "qinggang_sword",
+          "drank": 0,
+          "card": "fire__slash",
+          "first_armor": "vine",
+          "chain_armor": "silver_lion",
+          "targets_chained": true
+        },
+        "required_conditions": [
+          "未饮酒，无其他增减伤或响应",
+          "首目标藤甲，传导目标白银狮子，双方连环"
+        ],
+        "summary": "未饮酒且首目标藤甲、传导目标白银狮子时，青釭仅无视首目标防具；两者各受1点火焰伤害。",
+        "evidence_path": "rulings/evidence/SC04V.json",
+        "scenario_sha256": "f31cfb4b241069ff45e78c29c97f5de20cd8866e333034f83bfa4cc7a85475fb",
+        "steps": [
+          "未饮酒火杀无视首目标藤甲，造成1点",
+          "连环白银狮子仍生效，此次传导为1点",
+          "首目标藤甲无效标记已清理",
+          "传导目标未残留青釭标记"
+        ],
+        "result": {
+          "assertions": [
+            {
+              "passed": true,
+              "actual": 3,
+              "expected": 3,
+              "label": "未饮酒火杀无视首目标藤甲，造成1点"
+            },
+            {
+              "passed": true,
+              "actual": 3,
+              "expected": 3,
+              "label": "连环白银狮子仍生效，此次传导为1点"
+            },
+            {
+              "passed": true,
+              "actual": 0,
+              "expected": 0,
+              "label": "首目标藤甲无效标记已清理"
+            },
+            {
+              "passed": true,
+              "actual": 0,
+              "expected": 0,
+              "label": "传导目标未残留青釭标记"
+            }
+          ],
+          "tests_run": 1,
+          "failures": 0,
+          "executed_at": "2026-11-10T07:37:49.645775+00:00",
+          "verification_scope": "fixed-snapshot Lua rules / fake_backend"
+        }
+      }
+    ]
+  },
+  {
+    "id": "SC05",
+    "title": "流离转移与青釭剑、仁王盾",
+    "required_conditions": [
+      "攻击者装备青釭剑使用黑色杀",
+      "大乔有流离和一张可弃手牌",
+      "第三者装备仁王盾且在大乔攻击范围内",
+      "大乔选择弃置该牌并转移给第三者"
+    ],
+    "conditions": {
+      "seats": [
+        1,
+        2,
+        3
+      ],
+      "attacker_weapon": "qinggang_sword",
+      "card": "black_slash",
+      "redirect_general": "daqiao",
+      "redirect_skill": "liuli",
+      "new_target_armor": "nioh_shield"
+    },
+    "status": "verified",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "source_manifest_hash": "e6aa339a5a1bf355bc03dc113ef902effc3c143dde2b13a61829f29146822dbc",
+    "summary": "固定座位和范围满足流离时，黑杀转移至仁王盾目标，青釭效果应用于新目标并在结算后清理。",
+    "evidence_path": "rulings/evidence/SC05.json",
+    "steps": [
+      "大乔成功流离，自己不受伤",
+      "流离弃置了指定代价牌",
+      "黑杀转移后青釭无视新目标仁王盾",
+      "转移目标的无效防具标记已清理"
+    ],
+    "scenario_sha256": "64744588a0949565bb180782035881a68b4346a049ebafbea169997c577bea52",
+    "result": {
+      "assertions": [
+        {
+          "passed": true,
+          "actual": 3,
+          "expected": 3,
+          "label": "大乔成功流离，自己不受伤"
+        },
+        {
+          "passed": true,
+          "actual": true,
+          "expected": true,
+          "label": "流离弃置了指定代价牌"
+        },
+        {
+          "passed": true,
+          "actual": 3,
+          "expected": 3,
+          "label": "黑杀转移后青釭无视新目标仁王盾"
+        },
+        {
+          "passed": true,
+          "actual": 0,
+          "expected": 0,
+          "label": "转移目标的无效防具标记已清理"
+        }
+      ],
+      "tests_run": 1,
+      "failures": 0,
+      "event_count": 75,
+      "executed_at": "2026-11-10T04:20:38.595904+00:00",
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+      "verification_scope": "fixed-snapshot Lua rules / fake_backend"
+    },
+    "scenario_details": {
+      "seats": [
+        1,
+        2,
+        3
+      ],
+      "cost_card": {
+        "name": "peach",
+        "suit": "heart",
+        "number": 7
+      },
+      "source": "rulings/scenes/SC05.lua:7-9",
+      "scope": "固定测试座位和范围，不保证任意座位流离合法"
+    }
+  },
+  {
+    "id": "SC06",
+    "title": "贯石斧弃尽手牌与连营",
+    "required_conditions": [
+      "陆逊有连营并装备贯石斧",
+      "使用杀后恰余两张手牌",
+      "目标用闪抵消杀",
+      "陆逊弃尽这两张手牌发动贯石斧并同意连营",
+      "牌堆顶固定为方块J闪"
+    ],
+    "conditions": {
+      "attacker_general": "luxun",
+      "attacker_skill": "lianying",
+      "attacker_weapon": "axe",
+      "remaining_hand_cards": 2,
+      "target_response": "jink",
+      "lianying_invoked": true
+    },
+    "status": "verified",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "source_manifest_hash": "e6aa339a5a1bf355bc03dc113ef902effc3c143dde2b13a61829f29146822dbc",
+    "summary": "弃两张剩余手牌发动贯石斧后，连营可摸一张牌，随后该杀继续生效造成伤害；武器本身保留。",
+    "evidence_path": "rulings/evidence/SC06.json",
+    "steps": [
+      "贯石斧令已被闪抵消的杀继续造成伤害",
+      "弃尽两张手牌后连营取得固定牌堆顶牌",
+      "贯石斧本体仍在装备区"
+    ],
+    "scenario_sha256": "2370ee427595e1438a7bbdc37960bbbcc304e0cb47e0e12b5a09ccfab5cabde5",
+    "result": {
+      "assertions": [
+        {
+          "passed": true,
+          "label": "贯石斧令已被闪抵消的杀继续造成伤害",
+          "actual": 3,
+          "expected": 3
+        },
+        {
+          "passed": true,
+          "label": "弃尽两张手牌后连营取得固定牌堆顶牌",
+          "actual": [
+            -7
+          ],
+          "expected": [
+            -7
+          ]
+        },
+        {
+          "passed": true,
+          "label": "贯石斧本体仍在装备区",
+          "actual": 2,
+          "expected": 2
+        }
+      ],
+      "tests_run": 1,
+      "failures": 0,
+      "event_count": 94,
+      "executed_at": "2026-11-10T04:20:39.238235+00:00",
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+      "verification_scope": "fixed-snapshot Lua rules / fake_backend"
+    },
+    "chronology": [
+      "杀被闪抵消后，陆逊选择弃掉仅剩两张手牌，支付贯石斧代价。",
+      "弃尽手牌触发并选择发动连营，先取得固定牌堆顶的一张牌。",
+      "连营结算后返回贯石斧效果，该杀继续生效并造成伤害。"
+    ],
+    "chronology_source": {
+      "evidence": "rulings/evidence/SC06.json",
+      "event_indices_zero_based": [
+        66,
+        70,
+        73,
+        75,
+        79,
+        87
+      ],
+      "interpretation_sources": [
+        "runtime/packages/standard_cards/pkg/skills/axe.lua",
+        "runtime/packages/standard/pkg/skills/lianying.lua"
+      ]
+    }
+  },
+  {
+    "id": "SC07",
+    "title": "奸雄取牌与连环伤害",
+    "required_conditions": [
+      "首目标与传导目标均为有奸雄的曹操",
+      "两目标连环，首目标受到实体火杀伤害",
+      "首目标选择发动奸雄获得该实体牌",
+      "没有防具和其他伤害修改"
+    ],
+    "conditions": {
+      "card": "physical_fire__slash",
+      "first_general": "caocao",
+      "chain_general": "caocao",
+      "targets_chained": true,
+      "first_jianxiong_invoked": true
+    },
+    "status": "verified",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "source_manifest_hash": "e6aa339a5a1bf355bc03dc113ef902effc3c143dde2b13a61829f29146822dbc",
+    "summary": "首目标曹操发动奸雄取得实体火杀，不阻止连环伤害继续；后续曹操因牌已不在处理区，不能再次获得该牌。",
+    "evidence_path": "rulings/evidence/SC07.json",
+    "steps": [
+      "首目标曹操受1点火焰伤害",
+      "实体牌移走后连环传导仍造成1点",
+      "首目标奸雄获得造成伤害的实体牌",
+      "传导目标无法再取得已离开处理区的牌"
+    ],
+    "scenario_sha256": "e6e883fccc29f3081d28cf2e61e52b5dcca74bde48fc6cd0102b574b3a67288b",
+    "result": {
+      "assertions": [
+        {
+          "passed": true,
+          "label": "首目标曹操受1点火焰伤害",
+          "expected": 3,
+          "actual": 3
+        },
+        {
+          "passed": true,
+          "label": "实体牌移走后连环传导仍造成1点",
+          "expected": 3,
+          "actual": 3
+        },
+        {
+          "passed": true,
+          "label": "首目标奸雄获得造成伤害的实体牌",
+          "expected": true,
+          "actual": true
+        },
+        {
+          "passed": true,
+          "label": "传导目标无法再取得已离开处理区的牌",
+          "expected": false,
+          "actual": false
+        }
+      ],
+      "tests_run": 1,
+      "failures": 0,
+      "event_count": 65,
+      "executed_at": "2026-11-10T04:20:39.841510+00:00",
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+      "verification_scope": "fixed-snapshot Lua rules / fake_backend"
+    },
+    "chronology": [
+      "首目标曹操受到1点火焰伤害。",
+      "首目标发动奸雄取得实体火杀，牌离开处理区。",
+      "随后连环传导继续，第二名曹操受到1点火焰伤害。",
+      "第二名曹操不能再通过奸雄取得已离开处理区的同一张牌。"
+    ],
+    "chronology_source": {
+      "evidence": "rulings/evidence/SC07.json",
+      "event_indices_zero_based": [
+        41,
+        45,
+        47,
+        50,
+        60,
+        61
+      ],
+      "interpretation_sources": [
+        "runtime/packages/standard/pkg/skills/jianxiong.lua"
+      ]
+    }
+  },
+  {
+    "id": "SC08",
+    "title": "武圣将诸葛连弩转化为杀与次数限制",
+    "required_conditions": [
+      "关羽有武圣，装备唯一一把红色诸葛连弩",
+      "处于出牌阶段，目标在攻击范围内",
+      "分别选择红色手牌与装备中的连弩转化为杀",
+      "包含本阶段已用一次杀及尚未用杀的对照"
+    ],
+    "conditions": {
+      "attacker_general": "guanyu",
+      "attacker_skill": "wusheng",
+      "attacker_weapon": "red_crossbow",
+      "only_one_crossbow": true,
+      "phase": "play",
+      "used_slash_times": 1
+    },
+    "status": "verified",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "source_manifest_hash": "e6aa339a5a1bf355bc03dc113ef902effc3c143dde2b13a61829f29146822dbc",
+    "summary": "已用过杀时，武圣红色手牌可借装备中的连弩绕过次数；若把唯一连弩本身转化为杀，则该牌不再提供次数绕过。未用杀的对照局面可用。",
+    "evidence_path": "rulings/evidence/SC08.json",
+    "steps": [
+      "已用一次杀仍可借连弩把红色手牌当杀",
+      "把唯一连弩作为转化子牌时不再绕过次数",
+      "本阶段尚未用杀时可将红色连弩转化为杀"
+    ],
+    "scenario_sha256": "0a0a0e4887c9921413c8c7da165a9c841b427fcd289c031337318428f8b856c4",
+    "result": {
+      "assertions": [
+        {
+          "label": "已用一次杀仍可借连弩把红色手牌当杀",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "label": "把唯一连弩作为转化子牌时不再绕过次数",
+          "passed": true,
+          "expected": false,
+          "actual": false
+        },
+        {
+          "label": "本阶段尚未用杀时可将红色连弩转化为杀",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        }
+      ],
+      "tests_run": 1,
+      "failures": 0,
+      "event_count": 18,
+      "executed_at": "2026-11-10T04:20:40.439128+00:00",
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+      "verification_scope": "fixed-snapshot Lua rules / fake_backend"
+    },
+    "variants": [
+      {
+        "conditions": {
+          "attacker_general": "guanyu",
+          "attacker_skill": "wusheng",
+          "attacker_weapon": "red_crossbow",
+          "only_one_crossbow": true,
+          "phase": "play",
+          "used_slash_times": 0
+        },
+        "required_conditions": [
+          "关羽有武圣，装备唯一一把红色诸葛连弩",
+          "处于出牌阶段，目标在攻击范围内",
+          "分别选择红色手牌与装备中的连弩转化为杀",
+          "包含本阶段已用一次杀及尚未用杀的对照"
+        ],
+        "summary": "本出牌阶段尚未使用杀的已执行对照中，可用武圣将装备中的红色连弩转化为杀。",
+        "evidence_path": "rulings/evidence/SC08.json",
+        "steps": [
+          "已用一次杀仍可借连弩把红色手牌当杀",
+          "把唯一连弩作为转化子牌时不再绕过次数",
+          "本阶段尚未用杀时可将红色连弩转化为杀"
+        ],
+        "result": {
+          "assertions": [
+            {
+              "label": "已用一次杀仍可借连弩把红色手牌当杀",
+              "passed": true,
+              "expected": true,
+              "actual": true
+            },
+            {
+              "label": "把唯一连弩作为转化子牌时不再绕过次数",
+              "passed": true,
+              "expected": false,
+              "actual": false
+            },
+            {
+              "label": "本阶段尚未用杀时可将红色连弩转化为杀",
+              "passed": true,
+              "expected": true,
+              "actual": true
+            }
+          ],
+          "tests_run": 1,
+          "failures": 0,
+          "event_count": 18,
+          "executed_at": "2026-11-10T04:20:40.439128+00:00",
+          "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+          "verification_scope": "fixed-snapshot Lua rules / fake_backend"
+        },
+        "scenario_sha256": "0a0a0e4887c9921413c8c7da165a9c841b427fcd289c031337318428f8b856c4",
+        "variant_id": "SC08-unused"
+      }
+    ]
+  }
+]

@@ -1,0 +1,81 @@
+local skill = fk.CreateSkill {
+  name = "archery_attack_skill",
+}
+
+skill:addEffect("cardskill", {
+  prompt = "#archery_attack_skill",
+  can_use = Util.CanUseFixedTarget,
+  mod_target_filter = function(self, player, to_select, selected, card, distance_limited)
+    return to_select ~= player
+  end,
+  on_effect = function(self, room, effect)
+    local loopTimes = effect:getResponseTimes()
+    local respond
+    for i = 1, loopTimes do
+      local params = { ---@type AskToUseCardParams
+        skill_name = 'jink',
+        pattern = 'jink',
+        cancelable = true,
+        event_data = effect
+      }
+      if loopTimes > 1 then
+        params.prompt = "#AskForResponseMultiCard:::jink:"..i..":"..loopTimes
+      end
+      respond = room:askToResponse(effect.to, params)
+      if respond then
+        room:responseCard(respond)
+      else
+        room:damage({
+          from = effect.from,
+          to = effect.to,
+          card = effect.card,
+          damage = 1,
+          damageType = fk.NormalDamage,
+          skillName = skill.name,
+        })
+        break
+      end
+      if effect.to.dead then break end
+    end
+  end,
+})
+
+skill:addAI(Fk.Ltk.AI.newCardSkillStrategy {
+  keep_value = 3.38,
+  use_value = 3.8,
+  use_priority = 3.35,
+
+  on_effect = function(self, logic, effect)
+    logic:damage({
+      from = effect.from,
+      to = effect.to,
+      card = effect.card,
+      damage = 1,
+      damageType = fk.NormalDamage,
+      skillName = skill.name
+    })
+  end,
+})
+
+skill:addTest(function(room, me)
+  local comp2 = room.players[2]
+  local card = room:printCard("jink")
+  FkTest.setNextReplies(comp2, { {
+    card = card.id,
+    targets = { }
+  } })
+  FkTest.runInRoom(function()
+    room:obtainCard(comp2, card, true)
+    room:useCard {
+      from = me,
+      tos = {},
+      card = Fk:cloneCard("archery_attack"),
+    }
+  end)
+  lu.assertEquals(me.hp, 4)
+  lu.assertEquals(comp2.hp, 4)
+  lu.assertEquals(room.players[3].hp, 3)
+  lu.assertEquals(room.players[4].hp, 3)
+end)
+
+return skill

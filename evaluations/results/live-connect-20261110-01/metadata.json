@@ -1,0 +1,27 @@
+{
+  "label": "live-connect-20261110-01",
+  "mode": "live",
+  "backend": {
+    "status": "ok",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 0.0,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "started_at": "2026-11-10T07:13:40.547027+00:00",
+  "case_set": "xinyuesha-fixed-32-v1",
+  "cases_sha256": "63d7c970e34124273725c2099e538d012cc715d20050d683ec8f13282a114cb3",
+  "selected_cases": [
+    "R01"
+  ],
+  "semantic_status": "awaiting_human_review"
+}

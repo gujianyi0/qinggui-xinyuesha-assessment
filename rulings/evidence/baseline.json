@@ -1,0 +1,14 @@
+{
+  "exit_code": 0,
+  "stdout": "\r2026-11-10 12:15:04.486 Main[I] [ModManager] Loading extensions...\r\n\r2026-11-10 12:15:04.487 Main[I] [ModManager] Loaded 4 extension(s):\r\n - standard, standard_cards, maneuvering, test\r\n\r2026-11-10 12:15:04.491 Main[I] [LunarLtk] Loaded 29 generals.\r\n\r2026-11-10 12:15:04.491 Main[I] [LunarLtk] Loaded 121 skills.\r\n\r2026-11-10 12:15:04.491 Main[I] [LunarLtk] Loaded 43 card types.\r\n\r2026-11-10 12:15:04.491 Main[I] [Core] Loaded 1 boardgame(s).\r\n\r2026-11-10 12:15:04.491 Main[I] [Core] Loaded 1 game mode(s).\r\n\r\n███████╗██████╗ ███████╗███████╗██╗  ██╗██╗██╗     ██╗     \r\n██╔════╝██╔══██╗██╔════╝██╔════╝██║ ██╔╝██║██║     ██║     \r\n█████╗  ██████╔╝█████╗  █████╗  █████╔╝ ██║██║     ██║     \r\n██╔══╝  ██╔══██╗██╔══╝  ██╔══╝  ██╔═██╗ ██║██║     ██║     \r\n██║     ██║  ██║███████╗███████╗██║  ██╗██║███████╗███████╗\r\n╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝\r\n\r\n        Free          Open         Flexible\r\n\r\n   Git: <https://github.com/Qsgs-Fans/FreeKill>\r\n   Doc: <https://fkbook-all-in-one.readthedocs.io>\r\n\r\n..\r\nRan 2 tests in 0.125 seconds, 2 successes, 0 failures\r\nOK\r\n",
+  "stderr": "",
+  "label": "baseline",
+  "arguments": [
+    "--testskills",
+    "jianxiong,#eight_diagram_skill"
+  ],
+  "cwd": ".local/engine",
+  "executed_at": "2026-11-10T04:15:04.687266+00:00",
+  "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+  "server_log": "2026-11-10 12:15:04.486 Main[I] [ModManager] Loading extensions...\n2026-11-10 12:15:04.487 Main[I] [ModManager] Loaded 4 extension(s):\n - standard, standard_cards, maneuvering, test\n2026-11-10 12:15:04.491 Main[I] [LunarLtk] Loaded 29 generals.\n2026-11-10 12:15:04.491 Main[I] [LunarLtk] Loaded 121 skills.\n2026-11-10 12:15:04.491 Main[I] [LunarLtk] Loaded 43 card types.\n2026-11-10 12:15:04.491 Main[I] [Core] Loaded 1 boardgame(s).\n2026-11-10 12:15:04.491 Main[I] [Core] Loaded 1 game mode(s).\n"
+}

@@ -1,0 +1,33 @@
+{
+  "executed_at": "2026-11-10T07:10:32.234052+00:00",
+  "url": "http://127.0.0.1:15174",
+  "checks": [
+    "login",
+    "chat_stream_and_citations",
+    "draft_edit_revision_confirm",
+    "job_submit_and_cancel",
+    "real_worker_import_and_publish",
+    "catalog",
+    "mobile_no_horizontal_overflow"
+  ],
+  "page_errors": [],
+  "passed": true,
+  "backend": {
+    "status": "ok",
+    "model_mode": "mock",
+    "model_id": "",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 0.0,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "imported_job_id": "6a4268f7-bdfa-4933-b29b-4aa5f7eee2a5",
+  "scope": "Edge browser using the recorded backend health; model mocks are not live model evidence"
+}

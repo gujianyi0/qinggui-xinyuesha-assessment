@@ -1,0 +1,7 @@
+{
+  "model": "BAAI/bge-small-zh-v1.5",
+  "revision": "7999e1d3359715c523056ef9478215996d62a620",
+  "dimension": 512,
+  "resolved_at": "2026-11-10T06:11:38.510157+00:00",
+  "downloaded": true
+}

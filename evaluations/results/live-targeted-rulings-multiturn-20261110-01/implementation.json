@@ -1,0 +1,8 @@
+{
+  "backend/app/catalog.py": "71a9444c58d0a8a11d015456041a877d20f19e8a0be8234684d55bd576dd8bd4",
+  "backend/app/runtime.py": "5e5541c97f95d8ade23e2722abe5743aa956c0382b31894c07475c4310161d52",
+  "rulings/catalog.json": "e87cf768412de1ec439fb63642bd226755328594e471aabd5b15dcc23205ea9f",
+  "rulings/scenes/SC04V.lua": "f31cfb4b241069ff45e78c29c97f5de20cd8866e333034f83bfa4cc7a85475fb",
+  "evaluations/run.py": "ff60fd018e2884c0fba9643c0c5ba7c821592caa635e20f888239527ebcd9d8a",
+  "evaluations/cases.json": "63d7c970e34124273725c2099e538d012cc715d20050d683ec8f13282a114cb3"
+}

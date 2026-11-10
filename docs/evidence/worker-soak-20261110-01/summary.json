@@ -1,0 +1,37 @@
+{
+  "elapsed_seconds": 420.938,
+  "samples": 206,
+  "probe_failures": 0,
+  "checks": [
+    {
+      "name": "worker_replaced_website_preserved",
+      "old_pid": 37588,
+      "new_pid": 35580,
+      "elapsed_seconds": 18.96,
+      "passed": true
+    },
+    {
+      "name": "active_job_lease_recovery",
+      "attempts": 2,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62369792,
+      "elapsed_seconds": 131.28,
+      "passed": true
+    }
+  ],
+  "worker": {
+    "state": "running",
+    "pid": 35580,
+    "restart_count": 1,
+    "last_exit": {
+      "pid": 37588,
+      "code": 1
+    }
+  },
+  "passed": false,
+  "status": "interrupted_for_instrumentation_fix",
+  "reason": "Monitoring ctypes classes were recreated per sample; restart full-duration validation after fixing type-cache growth. No availability failure observed before interruption."
+}

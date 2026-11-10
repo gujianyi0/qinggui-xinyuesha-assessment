@@ -1,0 +1,904 @@
+{
+  "exit_code": 0,
+  "stdout": "\r2026-11-10 12:20:37.011 Main[I] [ModManager] Loading extensions...\r\n\r2026-11-10 12:20:37.011 Main[I] [ModManager] Loaded 4 extension(s):\r\n - standard, standard_cards, maneuvering, test\r\n\r2026-11-10 12:20:37.015 Main[I] [LunarLtk] Loaded 29 generals.\r\n\r2026-11-10 12:20:37.015 Main[I] [LunarLtk] Loaded 121 skills.\r\n\r2026-11-10 12:20:37.015 Main[I] [LunarLtk] Loaded 43 card types.\r\n\r2026-11-10 12:20:37.015 Main[I] [Core] Loaded 1 boardgame(s).\r\n\r2026-11-10 12:20:37.015 Main[I] [Core] Loaded 1 game mode(s).\r\n\r\n███████╗██████╗ ███████╗███████╗██╗  ██╗██╗██╗     ██╗     \r\n██╔════╝██╔══██╗██╔════╝██╔════╝██║ ██╔╝██║██║     ██║     \r\n█████╗  ██████╔╝█████╗  █████╗  █████╔╝ ██║██║     ██║     \r\n██╔══╝  ██╔══██╗██╔══╝  ██╔══╝  ██╔═██╗ ██║██║     ██║     \r\n██║     ██║  ██║███████╗███████╗██║  ██╗██║███████╗███████╗\r\n╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝\r\n\r\n        Free          Open         Flexible\r\n\r\n   Git: <https://github.com/Qsgs-Fans/FreeKill>\r\n   Doc: <https://fkbook-all-in-one.readthedocs.io>\r\n\r\n.\r\nRan 1 tests in 0.061 seconds, 1 success, 0 failures\r\nOK\r\n",
+  "stderr": "",
+  "label": "SC03",
+  "arguments": [
+    "--testfile",
+    "assessment_scenes/SC03.lua"
+  ],
+  "cwd": ".local/engine",
+  "executed_at": "2026-11-10T04:20:37.126574+00:00",
+  "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+  "server_log": "2026-11-10 12:20:37.011 Main[I] [ModManager] Loading extensions...\n2026-11-10 12:20:37.011 Main[I] [ModManager] Loaded 4 extension(s):\n - standard, standard_cards, maneuvering, test\n2026-11-10 12:20:37.015 Main[I] [LunarLtk] Loaded 29 generals.\n2026-11-10 12:20:37.015 Main[I] [LunarLtk] Loaded 121 skills.\n2026-11-10 12:20:37.015 Main[I] [LunarLtk] Loaded 43 card types.\n2026-11-10 12:20:37.015 Main[I] [Core] Loaded 1 boardgame(s).\n2026-11-10 12:20:37.015 Main[I] [Core] Loaded 1 game mode(s).\n",
+  "tests_run": 1,
+  "successes": 1,
+  "failures": 0,
+  "passed": true,
+  "trace": {
+    "scope": "fixed-snapshot Lua rules / fake_backend",
+    "events": [
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.PreCardUse",
+        "card": "vine",
+        "after_hp": 4
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.AfterCardUseDeclared",
+        "card": "vine",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.AfterCardTargetDeclared",
+        "card": "vine",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.CardUsing",
+        "card": "vine",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.TargetSpecifying",
+        "card": "vine",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.TargetConfirming",
+        "card": "vine",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.TargetSpecified",
+        "card": "vine",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.TargetConfirmed",
+        "card": "vine",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.BeforeCardUseEffect",
+        "card": "vine",
+        "after_hp": 4
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.CardUseFinished",
+        "card": "vine",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 3,
+        "event": "fk.PreCardUse",
+        "card": "silver_lion",
+        "after_hp": 4
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "before_hp": 4,
+        "target": 3,
+        "event": "fk.AfterCardUseDeclared",
+        "card": "silver_lion",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 3,
+        "event": "fk.AfterCardTargetDeclared",
+        "card": "silver_lion",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 3,
+        "event": "fk.CardUsing",
+        "card": "silver_lion",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 3,
+        "event": "fk.TargetSpecifying",
+        "card": "silver_lion",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 3,
+        "event": "fk.TargetConfirming",
+        "card": "silver_lion",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 3,
+        "event": "fk.TargetSpecified",
+        "card": "silver_lion",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 3,
+        "event": "fk.TargetConfirmed",
+        "card": "silver_lion",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 3,
+        "event": "fk.BeforeCardUseEffect",
+        "card": "silver_lion",
+        "after_hp": 4
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "before_hp": 4,
+        "target": 3,
+        "event": "fk.CardUseFinished",
+        "card": "silver_lion",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.BeforeChainStateChange",
+        "target": 2,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.ChainStateChanged",
+        "target": 2,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.BeforeChainStateChange",
+        "target": 3,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.ChainStateChanged",
+        "target": 3,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.PreCardUse",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.AfterCardUseDeclared",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.AfterCardTargetDeclared",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.CardUsing",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.TargetSpecifying",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.TargetConfirming",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.TargetSpecified",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.TargetConfirmed",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.BeforeCardUseEffect",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.PreCardEffect",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.BeforeCardEffect",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.CardEffecting",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.SkillEffect",
+        "target": 1,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.AfterSkillEffect",
+        "target": 1,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.CardEffectFinished",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.CardUseFinished",
+        "card": "analeptic",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.PreCardUse",
+        "card": "fire__slash",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.AfterCardUseDeclared",
+        "card": "fire__slash",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.AfterCardTargetDeclared",
+        "card": "fire__slash",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.CardUsing",
+        "card": "fire__slash",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.TargetSpecifying",
+        "card": "fire__slash",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.TargetConfirming",
+        "card": "fire__slash",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.TargetSpecified",
+        "card": "fire__slash",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.TargetConfirmed",
+        "card": "fire__slash",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.BeforeCardUseEffect",
+        "card": "fire__slash",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.PreCardEffect",
+        "card": "fire__slash",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.AskForCardUse",
+        "target": 2,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.HandleAskForPlayCard",
+        "target": 2,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.BeforeRequestAsk"
+      },
+      {
+        "event": "fk.AfterRequestAsk"
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.HandleAskForPlayCard",
+        "target": 2,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.AfterAskForCardUse",
+        "target": 2,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.BeforeCardEffect",
+        "card": "fire__slash",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.CardEffecting",
+        "card": "fire__slash",
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.SkillEffect",
+        "target": 1,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "damage_before": 2,
+        "after_hp": 4,
+        "event": "fk.PreDamage",
+        "card": "fire__slash",
+        "damage_after": 2
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "damage_before": 2,
+        "after_hp": 4,
+        "event": "fk.DamageCaused",
+        "card": "fire__slash",
+        "damage_after": 2
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "damage_before": 2,
+        "after_hp": 4,
+        "event": "fk.DetermineDamageCaused",
+        "card": "fire__slash",
+        "damage_after": 2
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "damage_before": 2,
+        "after_hp": 4,
+        "event": "fk.DamageInflicted",
+        "card": "fire__slash",
+        "damage_after": 3
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.BeforeTriggerSkillUse",
+        "target": 2,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.SkillEffect",
+        "target": 2,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.AfterSkillEffect",
+        "target": 2,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "target": 2,
+        "damage_before": 3,
+        "after_hp": 4,
+        "event": "fk.DetermineDamageInflicted",
+        "card": "fire__slash",
+        "damage_after": 3
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.BeforeChainStateChange",
+        "target": 2,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.ChainStateChanged",
+        "target": 2,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.BeforeHpChanged",
+        "target": 2,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 1,
+        "event": "fk.HpChanged",
+        "target": 2,
+        "after_hp": 1
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "damage_before": 3,
+        "after_hp": 4,
+        "event": "fk.Damage",
+        "card": "fire__slash",
+        "damage_after": 3
+      },
+      {
+        "before_hp": 1,
+        "target": 2,
+        "damage_before": 3,
+        "after_hp": 1,
+        "event": "fk.Damaged",
+        "card": "fire__slash",
+        "damage_after": 3
+      },
+      {
+        "before_hp": 1,
+        "target": 2,
+        "damage_before": 3,
+        "after_hp": 1,
+        "event": "fk.DamageFinished",
+        "card": "fire__slash",
+        "damage_after": 3
+      },
+      {
+        "before_hp": 4,
+        "damage_before": 3,
+        "target": 1,
+        "after_hp": 4,
+        "chain": true,
+        "event": "fk.PreDamage",
+        "card": "fire__slash",
+        "damage_after": 3
+      },
+      {
+        "before_hp": 4,
+        "damage_before": 3,
+        "target": 1,
+        "after_hp": 4,
+        "chain": true,
+        "event": "fk.DamageCaused",
+        "card": "fire__slash",
+        "damage_after": 3
+      },
+      {
+        "before_hp": 4,
+        "damage_before": 3,
+        "target": 1,
+        "after_hp": 4,
+        "chain": true,
+        "event": "fk.DetermineDamageCaused",
+        "card": "fire__slash",
+        "damage_after": 3
+      },
+      {
+        "before_hp": 4,
+        "damage_before": 3,
+        "target": 3,
+        "after_hp": 4,
+        "chain": true,
+        "event": "fk.DamageInflicted",
+        "card": "fire__slash",
+        "damage_after": 3
+      },
+      {
+        "before_hp": 4,
+        "damage_before": 3,
+        "target": 3,
+        "after_hp": 4,
+        "chain": true,
+        "event": "fk.DetermineDamageInflicted",
+        "card": "fire__slash",
+        "damage_after": 1
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.BeforeTriggerSkillUse",
+        "target": 3,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.SkillEffect",
+        "target": 3,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.AfterSkillEffect",
+        "target": 3,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.BeforeChainStateChange",
+        "target": 3,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.ChainStateChanged",
+        "target": 3,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.BeforeHpChanged",
+        "target": 3,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 3,
+        "event": "fk.HpChanged",
+        "target": 3,
+        "after_hp": 3
+      },
+      {
+        "before_hp": 4,
+        "damage_before": 1,
+        "target": 1,
+        "after_hp": 4,
+        "chain": true,
+        "event": "fk.Damage",
+        "card": "fire__slash",
+        "damage_after": 1
+      },
+      {
+        "before_hp": 3,
+        "damage_before": 1,
+        "target": 3,
+        "after_hp": 3,
+        "chain": true,
+        "event": "fk.Damaged",
+        "card": "fire__slash",
+        "damage_after": 1
+      },
+      {
+        "before_hp": 3,
+        "damage_before": 1,
+        "target": 3,
+        "after_hp": 3,
+        "chain": true,
+        "event": "fk.DamageFinished",
+        "card": "fire__slash",
+        "damage_after": 1
+      },
+      {
+        "before_hp": 4,
+        "event": "fk.AfterSkillEffect",
+        "target": 1,
+        "after_hp": 4
+      },
+      {
+        "before_hp": 1,
+        "target": 2,
+        "event": "fk.CardEffectFinished",
+        "card": "fire__slash",
+        "after_hp": 1
+      },
+      {
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.CardUseFinished",
+        "card": "fire__slash",
+        "after_hp": 4
+      }
+    ],
+    "initial_players": [
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "caocao",
+        "id": 1
+      },
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "sunquan",
+        "id": 2
+      },
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "liubei",
+        "id": 3
+      },
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "zhangfei",
+        "id": 4
+      },
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "ganning",
+        "id": 5
+      },
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "guanyu",
+        "id": 6
+      },
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "xuchu",
+        "id": 7
+      },
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "lvbu",
+        "id": 8
+      }
+    ],
+    "summary": "该固定局面首目标受3点火焰伤害；传导到白银狮子时伤害减至1点，两者解除连环。",
+    "scene_id": "SC03",
+    "assertions": [
+      {
+        "expected": 1,
+        "passed": true,
+        "label": "酒火杀加藤甲对首目标造成3点",
+        "actual": 1
+      },
+      {
+        "expected": 3,
+        "passed": true,
+        "label": "传导到白银狮子被减至1点",
+        "actual": 3
+      },
+      {
+        "expected": false,
+        "passed": true,
+        "label": "首目标解除连环",
+        "actual": false
+      },
+      {
+        "expected": false,
+        "passed": true,
+        "label": "传导目标解除连环",
+        "actual": false
+      },
+      {
+        "expected": 0,
+        "passed": true,
+        "label": "酒加伤状态已消费",
+        "actual": 0
+      }
+    ],
+    "actions": [
+      {
+        "player": 2,
+        "card": "vine",
+        "action": "equip"
+      },
+      {
+        "player": 3,
+        "card": "silver_lion",
+        "action": "equip"
+      }
+    ],
+    "passed": true,
+    "final_players": [
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "caocao",
+        "id": 1
+      },
+      {
+        "chained": false,
+        "equip": [
+          {
+            "id": -2,
+            "name": "vine"
+          }
+        ],
+        "hp": 1,
+        "hand": [],
+        "max_hp": 4,
+        "general": "sunquan",
+        "id": 2
+      },
+      {
+        "chained": false,
+        "equip": [
+          {
+            "id": -3,
+            "name": "silver_lion"
+          }
+        ],
+        "hp": 3,
+        "hand": [],
+        "max_hp": 4,
+        "general": "liubei",
+        "id": 3
+      },
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "zhangfei",
+        "id": 4
+      },
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "ganning",
+        "id": 5
+      },
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "guanyu",
+        "id": 6
+      },
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "xuchu",
+        "id": 7
+      },
+      {
+        "chained": false,
+        "equip": [],
+        "hp": 4,
+        "hand": [],
+        "max_hp": 4,
+        "general": "lvbu",
+        "id": 8
+      }
+    ]
+  },
+  "scenario_sha256": "0ae71c8d4ee2141176559ef8fc4c26541a63be1821e498799af5fe2117b705da",
+  "common_sha256": "36798d608cfcf75ac91db1e372ac99e9abbf178f8487be4bd9f5b4b73edee96e"
+}

@@ -1,0 +1,55 @@
+{
+  "started_at": "2026-11-10T06:19:25.144377+00:00",
+  "checks": [
+    {
+      "name": "postgres_concurrent_submit_claim_and_bge_pgvector_publish",
+      "job_id": "8d154301-e974-4fbb-b0f1-df84d071fa9b",
+      "concurrent_requests": 8,
+      "attempts": 1,
+      "chunks": 659,
+      "dimension": 512,
+      "elapsed_seconds": 57.802,
+      "passed": true
+    },
+    {
+      "name": "actual_pgvector_retrieval",
+      "mode": "pgvector",
+      "source_ids": [
+        "7ffbbe8438221160ba4b",
+        "e0b7102762a209f980de",
+        "9937b633d1dd2e694755",
+        "19c317c0215d757be97c",
+        "bbbaf9223c2fa84db9da"
+      ],
+      "passed": true
+    },
+    {
+      "name": "postgres_api_stream_feedback_concurrent_confirm_and_isolation",
+      "session_id": "3ff709e6-f892-401c-b163-e3081a79860c",
+      "confirmation_requests": 8,
+      "feedback_records": 1,
+      "bob_read_status": 404,
+      "model_mode": "mock",
+      "passed": true
+    },
+    {
+      "name": "postgres_cancel_preserves_prior_published_index",
+      "job_id": "69e6c60f-ace9-41b2-956c-84fbf282db3a",
+      "passed": true
+    },
+    {
+      "name": "postgres_and_real_kafka_six_fault_scenarios",
+      "summary": "../native-postgres-20261110-02-kafka/summary.json",
+      "passed": true
+    },
+    {
+      "name": "postgres_actual_process_restart_persistence",
+      "passed": true
+    }
+  ],
+  "scope": "Actual local PostgreSQL, pgvector, BGE CPU, Kafka and independent Worker; chat model remains mock; Redis/Compose/human trials remain separate",
+  "postgres_version": "17.11",
+  "pgvector_version": "0.8.7",
+  "passed": true,
+  "finished_at": "2026-11-10T06:22:02.131102+00:00"
+}

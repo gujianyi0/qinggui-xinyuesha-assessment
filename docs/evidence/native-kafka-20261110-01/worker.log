@@ -1,0 +1,20 @@
+%4|1794290805.710|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker 127.0.0.1:19092/1: Broker: Coordinator load in progress: retrying
+%6|1794290862.569|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19092/1]: 127.0.0.1:19092/1: Disconnected: connection closed by peer: POLLHUP (after 9533ms in state UP)
+%6|1794290862.569|FAIL|rdkafka#consumer-1| [thrd:GroupCoordinator]: GroupCoordinator: 127.0.0.1:19092: Disconnected: connection closed by peer: POLLHUP (after 9531ms in state UP)
+%6|1794290862.569|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19092/1]: 127.0.0.1:19092/1: Disconnected: connection closed by peer: POLLHUP (after 9082ms in state UP)
+%3|1794290864.673|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2040ms in state CONNECT)
+%3|1794290865.095|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2024ms in state CONNECT)
+%3|1794290866.728|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2039ms in state CONNECT)
+%3|1794290867.181|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2040ms in state CONNECT)
+%3|1794290868.798|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2054ms in state CONNECT)
+%3|1794290870.143|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2044ms in state CONNECT)
+%3|1794290870.905|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2045ms in state CONNECT)
+%4|1794290871.967|SESSTMOUT|rdkafka#consumer-1| [thrd:main]: Consumer group session timed out (in join-state steady) after 10059 ms without a successful response from the group coordinator (broker -1, last error was Success): revoking assignment and rejoining group
+%3|1794290872.217|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2043ms in state CONNECT)
+%3|1794290873.008|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2041ms in state CONNECT)
+2026-11-10 14:07:53,215 assessment.worker WARNING outbox/recovery deferred: ConnectionError
+%3|1794290875.077|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2053ms in state CONNECT)
+%3|1794290875.203|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2053ms in state CONNECT)
+%3|1794290877.189|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2048ms in state CONNECT)
+%3|1794290877.281|FAIL|rdkafka#producer-2| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2046ms in state CONNECT)
+%3|1794290879.280|FAIL|rdkafka#consumer-1| [thrd:127.0.0.1:19092/bootstrap]: 127.0.0.1:19092/bootstrap: Connect to ipv4#127.0.0.1:19092 failed: Unknown error (after 2029ms in state CONNECT)

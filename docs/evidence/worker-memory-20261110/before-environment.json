@@ -1,0 +1,9 @@
+{
+  "observed_at": "2026-11-10T12:51:14.399557+00:00",
+  "python_bits": 64,
+  "system_available_physical_bytes": 1007624192,
+  "system_available_commit_bytes": 20306698240,
+  "worker_idle_private_mb": 55,
+  "api_idle_private_mb": 71,
+  "original_failure_trace_missing": true
+}

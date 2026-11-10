@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-10",
+  "timezone": "Asia/Shanghai",
+  "python": {"command": ".venv/Scripts/python.exe -m pytest -q --tb=short", "passed": 54, "failed": 0, "elapsed_seconds": 24.89},
+  "ruff": {"status": "passed", "scope": ["backend", "tests", "migrations", "scripts/local_demo.py", "scripts/prepare_embedding.py", "scripts/browser_smoke.py"]},
+  "frontend": {"tests_passed": 4, "tests_failed": 0, "production_build": "passed"},
+  "browser": {"summary": "browser/summary.json", "flows_passed": 6, "page_errors": 0},
+  "fixed_cases": {"mode": "mock", "recorded": 32, "semantic_review": "pending", "summary": "../../evaluations/results/mock-resume-20261110/summary.json"},
+  "rulings": {"existing_executed_scenes": 8, "assertions": 30, "rerun_in_this_turn": false, "scope": "fixed snapshot Lua logic with fake_backend"},
+  "compose": {"yaml_parsed": true, "services": 7, "built_or_started": false, "reason": "docker command unavailable"},
+  "live_model_runs": 0,
+  "human_trial_participants_completed": 0,
+  "qq_live_messages_sent": 0,
+  "scope": "Local smoke and contract verification using SQLite, test vectors and model/consumer doubles; PostgreSQL, Kafka, Redis TTL, BGE inference and live model integration remain unverified."
+}

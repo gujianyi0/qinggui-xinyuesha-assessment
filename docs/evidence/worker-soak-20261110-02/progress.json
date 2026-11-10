@@ -1,0 +1,40 @@
+{
+  "elapsed_seconds": 1395.233,
+  "samples": 683,
+  "probe_failures": 0,
+  "checks": [
+    {
+      "name": "worker_replaced_website_preserved",
+      "old_pid": 38740,
+      "new_pid": 35480,
+      "elapsed_seconds": 37.68,
+      "passed": true
+    },
+    {
+      "name": "active_job_lease_recovery",
+      "attempts": 2,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62185472,
+      "elapsed_seconds": 139.89,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62386176,
+      "elapsed_seconds": 645.05,
+      "passed": true
+    }
+  ],
+  "worker": {
+    "state": "running",
+    "pid": 35480,
+    "restart_count": 1,
+    "last_exit": {
+      "pid": 38740,
+      "code": 1
+    }
+  }
+}

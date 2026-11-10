@@ -1,0 +1,13 @@
+{
+  "source": "F:\\QingGui",
+  "credential_copied": true,
+  "secret_displayed": false,
+  "model_id": "deepseek-flash",
+  "provider_host": "api.deepseek.com",
+  "input_cny_per_million": 2,
+  "output_cny_per_million": 8,
+  "cost_policy": "Conservative peak/cache-miss prices; actual provider bill may be lower",
+  "pricing_verified_date": "2026-11-10",
+  "pricing_source": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/",
+  "scope": "Only model parameters; no QQ identifiers, private memories or user preferences imported"
+}

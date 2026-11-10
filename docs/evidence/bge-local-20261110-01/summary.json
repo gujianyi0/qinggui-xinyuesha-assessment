@@ -1,0 +1,925 @@
+{
+  "started_at": "2026-11-10T06:13:11.979254+00:00",
+  "model": "BAAI/bge-small-zh-v1.5",
+  "revision": "7999e1d3359715c523056ef9478215996d62a620",
+  "device": "cpu",
+  "threads": 4,
+  "scope": "Actual BGE CPU inference, persistent indexing and cosine retrieval on SQLite; pgvector/PostgreSQL and real chat model remain separately unverified",
+  "index_elapsed_seconds": 44.034,
+  "job_id": "9517be91-a205-4050-a9d1-a259953ddf67",
+  "index": {
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "documents": 198,
+    "chunks": 659,
+    "chunk_size": 320,
+    "chunk_overlap": 64,
+    "embedding_mode": "local",
+    "embedding_model": "BAAI/bge-small-zh-v1.5",
+    "embedding_revision": "7999e1d3359715c523056ef9478215996d62a620"
+  },
+  "vector_dimension": 512,
+  "indexed_chunks": 659,
+  "normalized": true,
+  "semantic_probe_count": 5,
+  "semantic_probe_hits": 4,
+  "results": [
+    {
+      "query": "手里一张牌也没有时不能成为杀和决斗的目标",
+      "expected_concept": "空城",
+      "semantic_top5_contains_concept": true,
+      "elapsed_seconds": 1.07,
+      "semantic_top5": [
+        {
+          "id": "standard:text:kongcheng:0",
+          "title": "空城",
+          "score": 0.74739,
+          "text": "锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。",
+          "source": {
+            "id": "9937b633d1dd2e694755",
+            "title": "空城",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 141,
+            "line_end": 141,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        },
+        {
+          "id": "standard:text:keji:0",
+          "title": "克己",
+          "score": 0.70066,
+          "text": "若你未于出牌阶段内使用或打出【杀】，你可以跳过弃牌阶段。",
+          "source": {
+            "id": "bbbaf9223c2fa84db9da",
+            "title": "克己",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 206,
+            "line_end": 206,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "若你未于出牌阶段内使用或打出【杀】，你可以跳过弃牌阶段。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        },
+        {
+          "id": "standard:text:liuli:0",
+          "title": "流离",
+          "score": 0.69667,
+          "text": "当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。",
+          "source": {
+            "id": "19c317c0215d757be97c",
+            "title": "流离",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 244,
+            "line_end": 244,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        },
+        {
+          "id": "standard_cards:text:spear_skill&:0",
+          "title": "丈八矛",
+          "score": 0.68325,
+          "text": "你可以将两张手牌当【杀】使用或打出。",
+          "source": {
+            "id": "48ca63121fb8885c769f",
+            "title": "丈八矛",
+            "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+            "line_start": 181,
+            "line_end": 181,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "你可以将两张手牌当【杀】使用或打出。",
+            "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+          }
+        },
+        {
+          "id": "standard:text:lijian:0",
+          "title": "离间",
+          "score": 0.67677,
+          "text": "出牌阶段限一次，你可以弃置一张牌并选择两名其他男性角色，后选择的角色视为对先选择的角色使用了一张不能被【无懈可击】的【决斗】。",
+          "source": {
+            "id": "253c454d3d356ac1549e",
+            "title": "离间",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 305,
+            "line_end": 305,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "出牌阶段限一次，你可以弃置一张牌并选择两名其他男性角色，后选择的角色视为对先选择的角色使用了一张不能被【无懈可击】的【决斗】。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        }
+      ],
+      "hybrid_result": {
+        "mode": "sqlite_vectors",
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "items": [
+          {
+            "id": "standard_cards:text:duel:0",
+            "title": "决斗",
+            "text": "锦囊牌\n时机：出牌阶段\n目标：一名其他角色\n效果：由目标角色开始，其与你轮流打出一张【杀】，直到其与你中的一名角色未打出【杀】。未打出【杀】的角色受到其与你中的另一名角色造成的1点伤害。",
+            "source": {
+              "id": "7ffbbe8438221160ba4b",
+              "title": "决斗",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 110,
+              "line_end": 110,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：一名其他角色<br /><b>效果</b>：由目标角色开始，其与你轮流打出一张【杀】，直到其与你中的一名角色未打出【杀】。未打出【杀】的角色受到其与你中的另一名角色造成的1点伤害。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          },
+          {
+            "id": "standard_cards:text:slash:0",
+            "title": "杀",
+            "text": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点伤害。",
+            "source": {
+              "id": "e0b7102762a209f980de",
+              "title": "杀",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 84,
+              "line_end": 84,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：攻击范围内的一名角色<br /><b>效果</b>：对目标角色造成1点伤害。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          },
+          {
+            "id": "standard:text:kongcheng:0",
+            "title": "空城",
+            "text": "锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。",
+            "source": {
+              "id": "9937b633d1dd2e694755",
+              "title": "空城",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 141,
+              "line_end": 141,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          },
+          {
+            "id": "standard:text:keji:0",
+            "title": "克己",
+            "text": "若你未于出牌阶段内使用或打出【杀】，你可以跳过弃牌阶段。",
+            "source": {
+              "id": "bbbaf9223c2fa84db9da",
+              "title": "克己",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 206,
+              "line_end": 206,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "若你未于出牌阶段内使用或打出【杀】，你可以跳过弃牌阶段。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          },
+          {
+            "id": "standard:text:liuli:0",
+            "title": "流离",
+            "text": "当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。",
+            "source": {
+              "id": "19c317c0215d757be97c",
+              "title": "流离",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 244,
+              "line_end": 244,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "query": "把红色牌当作杀来使用",
+      "expected_concept": "武圣",
+      "semantic_top5_contains_concept": true,
+      "elapsed_seconds": 1.046,
+      "semantic_top5": [
+        {
+          "id": "standard:text:wusheng:0",
+          "title": "武圣",
+          "score": 0.7611,
+          "text": "你可以将一张红色牌当【杀】使用或打出。",
+          "source": {
+            "id": "3851bfa9fc6406a295a9",
+            "title": "武圣",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 118,
+            "line_end": 118,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "你可以将一张红色牌当【杀】使用或打出。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        },
+        {
+          "id": "standard_cards:text:spear_skill&:0",
+          "title": "丈八矛",
+          "score": 0.62302,
+          "text": "你可以将两张手牌当【杀】使用或打出。",
+          "source": {
+            "id": "48ca63121fb8885c769f",
+            "title": "丈八矛",
+            "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+            "line_start": 181,
+            "line_end": 181,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "你可以将两张手牌当【杀】使用或打出。",
+            "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+          }
+        },
+        {
+          "id": "standard:text:tieqi:0",
+          "title": "铁骑",
+          "score": 0.60954,
+          "text": "当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。",
+          "source": {
+            "id": "fe3fbf39ca9a626bf08a",
+            "title": "铁骑",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 162,
+            "line_end": 162,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        },
+        {
+          "id": "standard:text:keji:0",
+          "title": "克己",
+          "score": 0.60124,
+          "text": "若你未于出牌阶段内使用或打出【杀】，你可以跳过弃牌阶段。",
+          "source": {
+            "id": "bbbaf9223c2fa84db9da",
+            "title": "克己",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 206,
+            "line_end": 206,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "若你未于出牌阶段内使用或打出【杀】，你可以跳过弃牌阶段。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        },
+        {
+          "id": "standard:text:liuli:0",
+          "title": "流离",
+          "score": 0.59395,
+          "text": "当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。",
+          "source": {
+            "id": "19c317c0215d757be97c",
+            "title": "流离",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 244,
+            "line_end": 244,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        }
+      ],
+      "hybrid_result": {
+        "mode": "sqlite_vectors",
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "items": [
+          {
+            "id": "standard_cards:text:slash:0",
+            "title": "杀",
+            "text": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点伤害。",
+            "source": {
+              "id": "e0b7102762a209f980de",
+              "title": "杀",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 84,
+              "line_end": 84,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：攻击范围内的一名角色<br /><b>效果</b>：对目标角色造成1点伤害。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          },
+          {
+            "id": "standard:text:wusheng:0",
+            "title": "武圣",
+            "text": "你可以将一张红色牌当【杀】使用或打出。",
+            "source": {
+              "id": "3851bfa9fc6406a295a9",
+              "title": "武圣",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 118,
+              "line_end": 118,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "你可以将一张红色牌当【杀】使用或打出。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          },
+          {
+            "id": "standard_cards:text:spear_skill&:0",
+            "title": "丈八矛",
+            "text": "你可以将两张手牌当【杀】使用或打出。",
+            "source": {
+              "id": "48ca63121fb8885c769f",
+              "title": "丈八矛",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 181,
+              "line_end": 181,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "你可以将两张手牌当【杀】使用或打出。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          },
+          {
+            "id": "standard:text:tieqi:0",
+            "title": "铁骑",
+            "text": "当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。",
+            "source": {
+              "id": "fe3fbf39ca9a626bf08a",
+              "title": "铁骑",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 162,
+              "line_end": 162,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          },
+          {
+            "id": "standard:text:keji:0",
+            "title": "克己",
+            "text": "若你未于出牌阶段内使用或打出【杀】，你可以跳过弃牌阶段。",
+            "source": {
+              "id": "bbbaf9223c2fa84db9da",
+              "title": "克己",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 206,
+              "line_end": 206,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "若你未于出牌阶段内使用或打出【杀】，你可以跳过弃牌阶段。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "query": "受到伤害后获得造成伤害的那张牌",
+      "expected_concept": "奸雄",
+      "semantic_top5_contains_concept": true,
+      "elapsed_seconds": 1.057,
+      "semantic_top5": [
+        {
+          "id": "standard:text:jianxiong:0",
+          "title": "奸雄",
+          "score": 0.7572,
+          "text": "当你受到伤害后，你可以获得对你造成伤害的牌。",
+          "source": {
+            "id": "96bba9031035d3b9b12e",
+            "title": "奸雄",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 17,
+            "line_end": 17,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "当你受到伤害后，你可以获得对你造成伤害的牌。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        },
+        {
+          "id": "standard:text:fankui:0",
+          "title": "反馈",
+          "score": 0.75235,
+          "text": "当你受到伤害后，你可以获得伤害来源的一张牌。",
+          "source": {
+            "id": "ecde7c06ee678135e8ef",
+            "title": "反馈",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 36,
+            "line_end": 36,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "当你受到伤害后，你可以获得伤害来源的一张牌。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        },
+        {
+          "id": "standard:text:ganglie:0",
+          "title": "刚烈",
+          "score": 0.66775,
+          "text": "当你受到伤害后，你可以进行判定：若结果不为♥，则伤害来源选择一项：弃置两张手牌，或受到1点伤害。",
+          "source": {
+            "id": "fc5737e3424ea1227bc6",
+            "title": "刚烈",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 45,
+            "line_end": 45,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "当你受到伤害后，你可以进行判定：若结果不为<font color='red'>♥</font>，则伤害来源选择一项：弃置两张手牌，或受到1点伤害。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        },
+        {
+          "id": "standard:text:yiji:0",
+          "title": "遗计",
+          "score": 0.62504,
+          "text": "当你受到1点伤害后，你可以观看牌堆顶的两张牌并任意分配它们。",
+          "source": {
+            "id": "6096b448eaeb437f250c",
+            "title": "遗计",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 77,
+            "line_end": 77,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "当你受到1点伤害后，你可以观看牌堆顶的两张牌并任意分配它们。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        },
+        {
+          "id": "standard:text:qingnang:0",
+          "title": "青囊",
+          "score": 0.62401,
+          "text": "出牌阶段限一次，你可以弃置一张手牌并选择一名已受伤的角色，然后其回复1点体力。",
+          "source": {
+            "id": "ee93d3615e1fe080ee90",
+            "title": "青囊",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 281,
+            "line_end": 281,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "出牌阶段限一次，你可以弃置一张手牌并选择一名已受伤的角色，然后其回复1点体力。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        }
+      ],
+      "hybrid_result": {
+        "mode": "sqlite_vectors",
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "items": [
+          {
+            "id": "standard:text:jianxiong:0",
+            "title": "奸雄",
+            "text": "当你受到伤害后，你可以获得对你造成伤害的牌。",
+            "source": {
+              "id": "96bba9031035d3b9b12e",
+              "title": "奸雄",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 17,
+              "line_end": 17,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "当你受到伤害后，你可以获得对你造成伤害的牌。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          },
+          {
+            "id": "standard:text:fankui:0",
+            "title": "反馈",
+            "text": "当你受到伤害后，你可以获得伤害来源的一张牌。",
+            "source": {
+              "id": "ecde7c06ee678135e8ef",
+              "title": "反馈",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 36,
+              "line_end": 36,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "当你受到伤害后，你可以获得伤害来源的一张牌。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          },
+          {
+            "id": "standard:text:ganglie:0",
+            "title": "刚烈",
+            "text": "当你受到伤害后，你可以进行判定：若结果不为♥，则伤害来源选择一项：弃置两张手牌，或受到1点伤害。",
+            "source": {
+              "id": "fc5737e3424ea1227bc6",
+              "title": "刚烈",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 45,
+              "line_end": 45,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "当你受到伤害后，你可以进行判定：若结果不为<font color='red'>♥</font>，则伤害来源选择一项：弃置两张手牌，或受到1点伤害。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          },
+          {
+            "id": "standard:text:yiji:0",
+            "title": "遗计",
+            "text": "当你受到1点伤害后，你可以观看牌堆顶的两张牌并任意分配它们。",
+            "source": {
+              "id": "6096b448eaeb437f250c",
+              "title": "遗计",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 77,
+              "line_end": 77,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "当你受到1点伤害后，你可以观看牌堆顶的两张牌并任意分配它们。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          },
+          {
+            "id": "standard:text:qingnang:0",
+            "title": "青囊",
+            "text": "出牌阶段限一次，你可以弃置一张手牌并选择一名已受伤的角色，然后其回复1点体力。",
+            "source": {
+              "id": "ee93d3615e1fe080ee90",
+              "title": "青囊",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 281,
+              "line_end": 281,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "出牌阶段限一次，你可以弃置一张手牌并选择一名已受伤的角色，然后其回复1点体力。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "query": "卸下这件防具以后恢复一点体力",
+      "expected_concept": "白银狮子",
+      "semantic_top5_contains_concept": true,
+      "elapsed_seconds": 1.058,
+      "semantic_top5": [
+        {
+          "id": "maneuvering:text:silver_lion:0",
+          "title": "白银狮子",
+          "score": 0.52052,
+          "text": "装备牌·防具\n防具技能：锁定技。每当你受到伤害时，若此伤害大于1点，防止多余的伤害。每当你失去装备区里的【白银狮子】后，你回复1点体力。",
+          "source": {
+            "id": "762aac2b3004f5fa89b6",
+            "title": "白银狮子",
+            "path": "runtime/packages/maneuvering/pkg/init.lua",
+            "line_start": 214,
+            "line_end": 214,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "装备牌·防具<br/><b>防具技能</b>：锁定技。每当你受到伤害时，若此伤害大于1点，防止多余的伤害。每当你失去装备区里的【白银狮子】后，你回复1点体力。",
+            "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+          }
+        },
+        {
+          "id": "standard_cards:text:eight_diagram:0",
+          "title": "八卦阵",
+          "score": 0.5033,
+          "text": "装备牌·防具\n防具技能：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+          "source": {
+            "id": "cd67b74184a4bf506afc",
+            "title": "八卦阵",
+            "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+            "line_start": 198,
+            "line_end": 198,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "装备牌·防具<br /><b>防具技能</b>：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+            "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+          }
+        },
+        {
+          "id": "standard_cards:text:nioh_shield:0",
+          "title": "仁王盾",
+          "score": 0.49746,
+          "text": "装备牌·防具\n防具技能：锁定技，黑色【杀】对你无效。",
+          "source": {
+            "id": "9a3755ce0daa78b83693",
+            "title": "仁王盾",
+            "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+            "line_start": 202,
+            "line_end": 202,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "装备牌·防具<br /><b>防具技能</b>：锁定技，黑色【杀】对你无效。",
+            "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+          }
+        },
+        {
+          "id": "standard:text:qingnang:0",
+          "title": "青囊",
+          "score": 0.47924,
+          "text": "出牌阶段限一次，你可以弃置一张手牌并选择一名已受伤的角色，然后其回复1点体力。",
+          "source": {
+            "id": "ee93d3615e1fe080ee90",
+            "title": "青囊",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 281,
+            "line_end": 281,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "出牌阶段限一次，你可以弃置一张手牌并选择一名已受伤的角色，然后其回复1点体力。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        },
+        {
+          "id": "maneuvering:text:vine:0",
+          "title": "藤甲",
+          "score": 0.47321,
+          "text": "装备牌·防具\n防具技能：锁定技。【南蛮入侵】、【万箭齐发】和普通【杀】对你无效。每当你受到火焰伤害时，此伤害+1。",
+          "source": {
+            "id": "68f4f420c46eb8af960e",
+            "title": "藤甲",
+            "path": "runtime/packages/maneuvering/pkg/init.lua",
+            "line_start": 210,
+            "line_end": 210,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "装备牌·防具<br/><b>防具技能</b>：锁定技。【南蛮入侵】、【万箭齐发】和普通【杀】对你无效。每当你受到火焰伤害时，此伤害+1。",
+            "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+          }
+        }
+      ],
+      "hybrid_result": {
+        "mode": "sqlite_vectors",
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "items": [
+          {
+            "id": "standard:text:aaa_role_mode:5",
+            "title": "身份模式",
+            "text": "## 分发体力牌\n\n拿取对应人物体力上限的体力牌（看阴阳鱼的数量），用武将牌盖住左侧。\n\n主公在其体力上限的基础上再增加一点（四人游戏时不再额外增加）。\n\n例如三点体力的角色当主公时，他/她的体力上限就是四点，使用四点体力的体力牌。\n\n将体力牌置于武将牌下方，露出当前体力值。扣减体力时，将武将牌右移挡住被扣减的体力。\n\n___",
+            "source": {
+              "id": "17b4f1f68651669d5aa4",
+              "title": "身份模式",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 365,
+              "line_end": 529,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "rule_text",
+              "excerpt": "# 身份模式简介\n\n___\n\n你即将开始学习一款集角色扮演、战斗、伪装等要素于一体的多人卡牌游戏。它能让你通过扮演耳熟能详的三国角色，在颠覆性的历史舞台中，演义一段扑朔迷离并充满刺激的较量。你将会充分体验到与玩家博弈的乐趣，它将是你聚会休闲的最佳伙伴，它就是——三国杀。\n\n___\n\n## 游戏配件\n\n游戏需要用到的牌为：身份牌，体力牌，武将牌，游戏牌。\n\n身份牌8张：1主公，2忠臣，4反贼，1内奸；武将牌25张；游戏牌104张＋EX游戏牌4张；体力牌8张。\n\n___\n\n## 游戏目标\n\n玩家的游戏目标是由拿到的身份牌决定的，每种身份的胜利条件如下：\n\n- 主公：消灭所有的反贼和内奸，平定天下。\n- 忠臣：不惜一切代价保护主公，胜利条件与主公相同。\n- 反贼：杀死主公，推翻统治。\n- 内奸：除掉除自己之外的所有人，成为最后的生还者。\n\n___\n\n## 决定身份\n\n参考下表，抽取等于玩家人数的身份牌：\n\n| 玩家人数 | 主公 | 忠臣 | 反贼 | 内奸 |\n| -------- | ---- | ---- | ---- | ---- |\n| 2        | 1    | 0    | 1    | 0    |\n| 3        | 1    | 0    | 1    | 1    |\n| 4        | 1    | 1    | 1    | 1    |\n| 5        | 1    | 1    | 2    | 1    |\n| 6        | 1    | 1    | 3    | 1    |\n| 7        | 1    | 2    | 3    | 1    |\n| 8        | 1    | 2    | 4    | 1    |\n\n随机分给每个玩家一张身份牌，抽到主公身份的玩家需立即亮出身份（将主公牌正面朝上放在面前），其它身份的玩家保存好自己的身份牌，不让别的玩家知道自己的身份。\n\n___\n\n## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___\n\n## 分发体力牌\n\n拿取对应人物体力上限的体力牌（看阴阳鱼的数量），用武将牌盖住左侧。\n\n主公在其体力上限的基础上再增加一点（四人游戏时不再额外增加）。\n\n例如三点体力的角色当主公时，他/她的体力上限就是四点，使用四点体力的体力牌。\n\n将体力牌置于武将牌下方，露出当前体力值。扣减体力时，将武将牌右移挡住被扣减的体力。\n\n___\n\n## 回合流程\n\n将游戏牌洗混，随机分给每个玩家4张，此为起始手牌（手牌：拿在手里的牌）。\n\n将剩余游戏牌放在桌子中央，作为牌堆（玩家在游戏中弃置的牌放在一旁，组成弃牌堆，弃牌堆里的牌全部正面朝上放置）。\n\n进行游戏时，由主公开始，按逆时针方向以回合的方式进行。\n\n即：每名玩家有一个自己的回合，一名玩家回合结束后，其右边玩家的回合开始，依次轮流进行。\n\n每个玩家的回合可以分为六个阶段：\n\n1. 准备阶段\n\n2. 判定阶段\n\n3. 摸牌阶段\n\n4. 出牌阶段\n\n5. 弃牌阶段\n\n6. 结束阶段\n\n下面对这几个阶段进行描述：\n\n### 准备阶段\n\n通常可以跳过，有些武将可以使用此阶段的技能。\n\n### 判定阶段\n\n若你的面前横置着延时类锦囊，你必须依次对这些延时类锦囊进行判定。\n\n*若你的面前横置有两种或更多的延时类锦囊，你从最后一个施加给你的锦囊开始判定（最早放置的最后判定）。*\n\n### 摸牌阶段\n\n你从牌堆顶摸两张牌。\n\n*在游戏里，若没有特殊说明，“摸…张牌”指的就是从牌堆最上方摸牌。*\n\n*当需要摸牌或将要对牌堆产生影响时，牌堆没牌，则立即将弃牌堆洗混后形成新的摸牌堆。*\n\n### 出牌阶段\n\n你可以使用0到任意张牌，加强自己或攻击他人，但必须遵守以下两条规则：\n\n1. 每个出牌阶段仅限使用一次【杀】。\n\n2. 任何一个玩家面前的判定区或装备区里不能放有两张同名的牌。\n\n每使用一张牌，即执行该牌之效果，详见“游戏牌详解”。如无特殊说明，游戏牌在使用后均需弃置（放入弃牌堆）。\n\n### 弃牌阶段\n\n在出牌阶段中，不想出或没法出牌时，就进入弃牌阶段，此时检查你的手牌数是否超出你当前的体力值（你的手牌上限等于你当前的体力值），每超出一张，需要弃一张手牌。\n\n### 结束阶段\n\n通常可以跳过，有些武将可以使用此阶段的技能。\n\n___\n\n## 补充说明\n\n1. 在游戏里，若无特殊说明，摸牌即是说从游戏牌堆顶摸牌。\n\n2. 玩家在游戏中使用、打出或弃置的游戏牌放在一旁，组成弃牌堆，弃牌堆里的牌全部正面朝上放置。\n\n3. 当牌堆没牌时，则立即将弃牌堆洗混后形成新的牌堆。\n\n4. “体力上限”与“当前体力值”不一样，请注意区别。\n\n___\n\n## 武将死亡\n\n当一个武将的体力降到0或更低时，即进入濒死状态，除非自己或他人在此时用【桃】来挽救该武将，否则该武将死亡。武将死亡后，弃置该武将所有牌及判定区里的牌，并亮出身份牌。\n\n任何人杀死一名反贼（即凶手也是反贼），立即摸三张牌。\n\n若主公杀死了忠臣，主公需要立即弃掉所有手牌和已装备的牌。\n\n___\n\n## 游戏结束\n\n当以下任意一种情况发生时，游戏立即结束：\n\n1、主公被杀。此时若内奸是唯一存活的角色（有且仅有一名内奸存活），则内奸获胜，除此之外的情况为反贼获胜（不论反贼角色死活）。\n\n2、所有的反贼和内奸都已死亡：主公和忠臣（不论死活）都获胜。\n\n（原文地址： https://sgs.52pk.com/zl/201205/5299813.shtml ）\n\n  ",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          },
+          {
+            "id": "maneuvering:text:silver_lion:0",
+            "title": "白银狮子",
+            "text": "装备牌·防具\n防具技能：锁定技。每当你受到伤害时，若此伤害大于1点，防止多余的伤害。每当你失去装备区里的【白银狮子】后，你回复1点体力。",
+            "source": {
+              "id": "762aac2b3004f5fa89b6",
+              "title": "白银狮子",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "line_start": 214,
+              "line_end": 214,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "装备牌·防具<br/><b>防具技能</b>：锁定技。每当你受到伤害时，若此伤害大于1点，防止多余的伤害。每当你失去装备区里的【白银狮子】后，你回复1点体力。",
+              "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+            }
+          },
+          {
+            "id": "standard_cards:text:eight_diagram:0",
+            "title": "八卦阵",
+            "text": "装备牌·防具\n防具技能：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+            "source": {
+              "id": "cd67b74184a4bf506afc",
+              "title": "八卦阵",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 198,
+              "line_end": 198,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "装备牌·防具<br /><b>防具技能</b>：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          },
+          {
+            "id": "standard_cards:text:nioh_shield:0",
+            "title": "仁王盾",
+            "text": "装备牌·防具\n防具技能：锁定技，黑色【杀】对你无效。",
+            "source": {
+              "id": "9a3755ce0daa78b83693",
+              "title": "仁王盾",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 202,
+              "line_end": 202,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "装备牌·防具<br /><b>防具技能</b>：锁定技，黑色【杀】对你无效。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          },
+          {
+            "id": "standard:text:qingnang:0",
+            "title": "青囊",
+            "text": "出牌阶段限一次，你可以弃置一张手牌并选择一名已受伤的角色，然后其回复1点体力。",
+            "source": {
+              "id": "ee93d3615e1fe080ee90",
+              "title": "青囊",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 281,
+              "line_end": 281,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "出牌阶段限一次，你可以弃置一张手牌并选择一名已受伤的角色，然后其回复1点体力。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "query": "一个回合里能多次使用杀的武器",
+      "expected_concept": "诸葛连弩",
+      "semantic_top5_contains_concept": false,
+      "elapsed_seconds": 1.053,
+      "semantic_top5": [
+        {
+          "id": "standard:text:WangzhanBattleRoyal:0",
+          "title": "鏖战",
+          "score": 0.57354,
+          "text": "每回合所有行动结束后，当前回合角色须选择一项：1.将两张牌置入弃牌堆；2.失去1点体力。结算中当前回合角色不触发任何武将技能。",
+          "source": {
+            "id": "648052042c2bfc50392e",
+            "title": "鏖战",
+            "path": "runtime/packages/standard/pkg/init.lua",
+            "line_start": 415,
+            "line_end": 415,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "每回合所有行动结束后，当前回合角色须选择一项：1.将两张牌置入弃牌堆；2.失去1点体力。结算中当前回合角色不触发任何武将技能。",
+            "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+          }
+        },
+        {
+          "id": "standard_cards:text:spear:0",
+          "title": "丈八蛇矛",
+          "score": 0.54551,
+          "text": "装备牌·武器\n攻击范围：3\n武器技能：你可以将两张手牌当【杀】使用或打出。",
+          "source": {
+            "id": "623e0ecfc14a95e16fd5",
+            "title": "丈八蛇矛",
+            "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+            "line_start": 179,
+            "line_end": 179,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "装备牌·武器<br /><b>攻击范围</b>：3<br /><b>武器技能</b>：你可以将两张手牌当【杀】使用或打出。",
+            "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+          }
+        },
+        {
+          "id": "standard_cards:text:blade:0",
+          "title": "青龙偃月刀",
+          "score": 0.54082,
+          "text": "装备牌·武器\n攻击范围：3\n武器技能：当你使用的【杀】被【闪】抵消后，你可以对该角色再使用一张【杀】（不能选择额外目标）。",
+          "source": {
+            "id": "054a07a026e021fc7265",
+            "title": "青龙偃月刀",
+            "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+            "line_start": 174,
+            "line_end": 174,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "装备牌·武器<br /><b>攻击范围</b>：3<br /><b>武器技能</b>：当你使用的【杀】被【闪】抵消后，你可以对该角色再使用一张【杀】（不能选择额外目标）。",
+            "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+          }
+        },
+        {
+          "id": "standard_cards:text:axe:0",
+          "title": "贯石斧",
+          "score": 0.5375,
+          "text": "装备牌·武器\n攻击范围：3\n武器技能：当你使用的【杀】被【闪】抵消后，你可以弃置两张牌，则此【杀】继续造成伤害。",
+          "source": {
+            "id": "1899e12a7db1decf6fb4",
+            "title": "贯石斧",
+            "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+            "line_start": 185,
+            "line_end": 185,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "装备牌·武器<br /><b>攻击范围</b>：3<br /><b>武器技能</b>：当你使用的【杀】被【闪】抵消后，你可以弃置两张牌，则此【杀】继续造成伤害。",
+            "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+          }
+        },
+        {
+          "id": "standard:text:wushuang:0",
+          "title": "无双",
+          "score": 0.52203,
+          "text": "锁定技，当你使用【杀】指定目标后，其使用【闪】抵消此【杀】的方式改为需连续使用两张【闪】；当你使用【决斗】指定目标后，或当你成为【决斗】的目标后，你令其打出【杀】响应此【决斗】的方式改为需连续打出两张【杀】。",
+          "source": {
+            "id": "6202a17afab3d2c9fd58",
+            "title": "无双",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 296,
+            "line_end": 296,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "锁定技，当你使用【杀】指定目标后，其使用【闪】抵消此【杀】的方式改为需连续使用两张【闪】；当你使用【决斗】指定目标后，或当你成为【决斗】的目标后，你令其打出【杀】响应此【决斗】的方式改为需连续打出两张【杀】。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        }
+      ],
+      "hybrid_result": {
+        "mode": "sqlite_vectors",
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "items": [
+          {
+            "id": "standard_cards:text:slash:0",
+            "title": "杀",
+            "text": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点伤害。",
+            "source": {
+              "id": "e0b7102762a209f980de",
+              "title": "杀",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 84,
+              "line_end": 84,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：攻击范围内的一名角色<br /><b>效果</b>：对目标角色造成1点伤害。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          },
+          {
+            "id": "standard_cards:text:collateral:0",
+            "title": "借刀杀人",
+            "text": "锦囊牌\n时机：出牌阶段\n目标：装备区里有武器牌且攻击范围内有【杀】的合法目标的一名其他角色A（你需要选择一名A攻击范围内的【杀】的合法目标B）\n效果：A需对B使用一张【杀】，否则将装备区里的武器牌交给你。",
+            "source": {
+              "id": "a4297d5579610f138b1e",
+              "title": "借刀杀人",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 114,
+              "line_end": 114,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：装备区里有武器牌且攻击范围内有【杀】的合法目标的一名其他角色A（你需要选择一名A攻击范围内的【杀】的合法目标B）<br /><b>效果</b>：A需对B使用一张【杀】，否则将装备区里的武器牌交给你。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          },
+          {
+            "id": "standard:text:WangzhanBattleRoyal:0",
+            "title": "鏖战",
+            "text": "每回合所有行动结束后，当前回合角色须选择一项：1.将两张牌置入弃牌堆；2.失去1点体力。结算中当前回合角色不触发任何武将技能。",
+            "source": {
+              "id": "648052042c2bfc50392e",
+              "title": "鏖战",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "line_start": 415,
+              "line_end": 415,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "每回合所有行动结束后，当前回合角色须选择一项：1.将两张牌置入弃牌堆；2.失去1点体力。结算中当前回合角色不触发任何武将技能。",
+              "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+            }
+          },
+          {
+            "id": "standard_cards:text:spear:0",
+            "title": "丈八蛇矛",
+            "text": "装备牌·武器\n攻击范围：3\n武器技能：你可以将两张手牌当【杀】使用或打出。",
+            "source": {
+              "id": "623e0ecfc14a95e16fd5",
+              "title": "丈八蛇矛",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 179,
+              "line_end": 179,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "装备牌·武器<br /><b>攻击范围</b>：3<br /><b>武器技能</b>：你可以将两张手牌当【杀】使用或打出。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          },
+          {
+            "id": "standard_cards:text:blade:0",
+            "title": "青龙偃月刀",
+            "text": "装备牌·武器\n攻击范围：3\n武器技能：当你使用的【杀】被【闪】抵消后，你可以对该角色再使用一张【杀】（不能选择额外目标）。",
+            "source": {
+              "id": "054a07a026e021fc7265",
+              "title": "青龙偃月刀",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 174,
+              "line_end": 174,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "装备牌·武器<br /><b>攻击范围</b>：3<br /><b>武器技能</b>：当你使用的【杀】被【闪】抵消后，你可以对该角色再使用一张【杀】（不能选择额外目标）。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "passed": true,
+  "notice": "Term presence is only a retrieval probe, not a semantic answer score or live-chat evaluation",
+  "finished_at": "2026-11-10T06:14:01.648411+00:00"
+}

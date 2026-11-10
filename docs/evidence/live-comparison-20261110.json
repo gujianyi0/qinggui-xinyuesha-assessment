@@ -1,0 +1,691 @@
+{
+  "case_set": "xinyuesha-fixed-32-v1",
+  "cases_sha256": "63d7c970e34124273725c2099e538d012cc715d20050d683ec8f13282a114cb3",
+  "labels": [
+    "live-baseline-20261110-01",
+    "live-after-ruling-guard-20261110-01"
+  ],
+  "before_concurrency": 1,
+  "after_concurrency": 2,
+  "performance_comparable": false,
+  "notice": "Same 32-case inputs, different concurrency and explicit fault-mode coverage. Runtime completion and mechanical checks are not semantic correctness. Human review remains pending.",
+  "cases": [
+    {
+      "case_id": "R01",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "R02",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "R03",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "R04",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "R05",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "R06",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "R07",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "R08",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "D01",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "D02",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "D03",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "D04",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "D05",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "D06",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "J01",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification"
+        ],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification",
+          "needs_clarification"
+        ],
+        "mechanical_checks_not_met": [
+          "citation_present"
+        ]
+      }
+    },
+    {
+      "case_id": "J02",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification",
+          "verified"
+        ],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification"
+        ],
+        "mechanical_checks_not_met": [
+          "citation_present"
+        ]
+      }
+    },
+    {
+      "case_id": "J03",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "failed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification"
+        ],
+        "mechanical_checks_not_met": [
+          "citation_present"
+        ]
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification",
+          "verified"
+        ],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "J04",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification"
+        ],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification",
+          "needs_clarification"
+        ],
+        "mechanical_checks_not_met": [
+          "citation_present"
+        ]
+      }
+    },
+    {
+      "case_id": "J05",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "failed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification",
+          "verified"
+        ],
+        "mechanical_checks_not_met": [
+          "citation_present"
+        ]
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification",
+          "needs_clarification"
+        ],
+        "mechanical_checks_not_met": [
+          "citation_present"
+        ]
+      }
+    },
+    {
+      "case_id": "J06",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification",
+          "verified"
+        ],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification",
+          "verified"
+        ],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "J07",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification",
+          "needs_clarification",
+          "needs_clarification",
+          "verified"
+        ],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification",
+          "verified"
+        ],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "J08",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification",
+          "needs_clarification",
+          "needs_clarification",
+          "verified"
+        ],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [
+          "needs_clarification",
+          "verified",
+          "needs_clarification"
+        ],
+        "mechanical_checks_not_met": [
+          "citation_present"
+        ]
+      }
+    },
+    {
+      "case_id": "M01",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed",
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed",
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "M02",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed",
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed",
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": [
+          "expected_terms_present"
+        ]
+      }
+    },
+    {
+      "case_id": "M03",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed",
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed",
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "V01",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "V02",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "N01",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "N02",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "F01",
+      "before": {
+        "record_status": "blocked",
+        "run_statuses": [],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "I01",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    },
+    {
+      "case_id": "I02",
+      "before": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      },
+      "after": {
+        "record_status": "recorded",
+        "run_statuses": [
+          "completed"
+        ],
+        "tool_ruling_statuses": [],
+        "mechanical_checks_not_met": []
+      }
+    }
+  ]
+}

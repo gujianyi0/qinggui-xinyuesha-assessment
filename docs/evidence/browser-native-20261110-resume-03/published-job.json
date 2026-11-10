@@ -1,0 +1,54 @@
+{
+  "checked_at": "2026-11-10T07:11:26.947001+00:00",
+  "job": {
+    "id": "6a4268f7-bdfa-4933-b29b-4aa5f7eee2a5",
+    "user_id": "89387b7f-19d0-4758-bb32-86f7dd701470",
+    "idempotency_key": "3c9369e3-aafc-4486-a9ee-bbac3a1810b6",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "status": "succeeded",
+    "attempts": 1,
+    "generation": 1,
+    "progress": 100,
+    "error": null,
+    "result": {
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "documents": 198,
+      "chunks": 659,
+      "chunk_size": 320,
+      "chunk_overlap": 64,
+      "embedding_mode": "local",
+      "embedding_model": "BAAI/bge-small-zh-v1.5",
+      "embedding_revision": "7999e1d3359715c523056ef9478215996d62a620"
+    },
+    "lease_until": null,
+    "retry_at": null,
+    "created_at": "2026-11-10T07:09:42.175540",
+    "attempt_records": [
+      {
+        "id": "635d3f6e-f02e-4fab-ad51-efad48bc3ae6",
+        "job_id": "6a4268f7-bdfa-4933-b29b-4aa5f7eee2a5",
+        "generation": 1,
+        "status": "succeeded",
+        "error": null,
+        "created_at": "2026-11-10T07:09:42.368086"
+      }
+    ]
+  },
+  "health": {
+    "status": "ok",
+    "model_mode": "mock",
+    "model_id": "",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 0.0,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "scope": "Actual web-triggered PostgreSQL/Kafka/independent Worker/BGE publication; chat remains mock"
+}

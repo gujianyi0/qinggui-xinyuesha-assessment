@@ -1,0 +1,16 @@
+local A=__dofile("assessment_scenes/common.lua")
+return A.register("SC03",function(room,attacker,first,second)
+  A.equip(first,"vine")
+  A.equip(second,"silver_lion")
+  A.chain(first,second)
+  FkTest.runInRoom(function()
+    room:useCard{from=attacker,tos={},card=Fk:cloneCard("analeptic")}
+    room:useCard{from=attacker,tos={first},card=Fk:cloneCard("fire__slash")}
+  end)
+  A.eq(first.hp,1,"酒火杀加藤甲对首目标造成3点")
+  A.eq(second.hp,3,"传导到白银狮子被减至1点")
+  A.eq(first.chained,false,"首目标解除连环")
+  A.eq(second.chained,false,"传导目标解除连环")
+  A.eq(attacker.drank,0,"酒加伤状态已消费")
+  A.finish("该固定局面首目标受3点火焰伤害；传导到白银狮子时伤害减至1点，两者解除连环。")
+end)

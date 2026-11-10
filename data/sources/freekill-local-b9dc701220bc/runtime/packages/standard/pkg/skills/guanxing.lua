@@ -1,0 +1,23 @@
+local guanxing = fk.CreateSkill({
+  name = "guanxing",
+})
+
+guanxing:addEffect(fk.EventPhaseStart, {
+  anim_type = "control",
+  can_trigger = function(self, event, target, player, data)
+    return target == player and player:hasSkill(guanxing.name) and player.phase == Player.Start
+  end,
+  on_use = function(self, event, target, player, data)
+    local room = player.room
+    room:askToGuanxing(player, {
+      cards = room:getNCards(math.min(5, #room.alive_players)),
+      skill_name = guanxing.name,
+    })
+  end,
+})
+
+guanxing:addAI(Fk.Ltk.AI.newInvokeStrategy{
+  think = Util.TrueFunc,
+})
+
+return guanxing

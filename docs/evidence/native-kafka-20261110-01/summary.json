@@ -1,0 +1,52 @@
+{
+  "started_at": "2026-11-10T06:06:39.701605+00:00",
+  "kafka_version": "3.9.1",
+  "topic": "assessment.verify.f8b9de3db595",
+  "consumer_group": "assessment.verify.607dd0cb84ae",
+  "checks": [
+    {
+      "name": "crash_after_business_commit_before_offset",
+      "job_id": "0280b801-1ecf-4cd3-8fea-449772bfb833",
+      "exit_code": 82,
+      "offset_before_restart": -1001,
+      "offset_after_restart": 1,
+      "attempts": 1,
+      "chunks": 198,
+      "passed": true
+    },
+    {
+      "name": "duplicate_delivery",
+      "job_id": "0280b801-1ecf-4cd3-8fea-449772bfb833",
+      "attempts": 1,
+      "passed": true
+    },
+    {
+      "name": "durable_delayed_retry_exhaustion",
+      "job_id": "913839c6-783d-450a-b1cd-7b4947cc868a",
+      "attempts": 3,
+      "error": "ConnectionError: 后台依赖暂时不可用",
+      "passed": true
+    },
+    {
+      "name": "bad_input_does_not_block_next_job",
+      "bad_job": "e24f8e54-7558-4347-8a98-38a85f6e6490",
+      "next_job": "b36e9ee9-b3cb-4469-a628-409a37f3077e",
+      "passed": true
+    },
+    {
+      "name": "worker_exit_after_claim_lease_recovery",
+      "job_id": "f3db2b7a-50b4-4685-a462-3017b7757685",
+      "attempts": 2,
+      "generation": 3,
+      "passed": true
+    },
+    {
+      "name": "broker_offline_submission_outbox_restart",
+      "job_id": "916a1c81-f99b-49e4-9855-f31325c6934b",
+      "passed": true
+    }
+  ],
+  "scope": "Real Kafka broker and independent Python Worker with SQLite and test vectors; PostgreSQL/pgvector/Redis/Compose remain separate",
+  "passed": true,
+  "finished_at": "2026-11-10T06:08:01.274034+00:00"
+}

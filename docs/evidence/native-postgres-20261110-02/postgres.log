@@ -1,0 +1,46 @@
+2026-11-10 14:19:25.536 CST [33824] LOG:  starting PostgreSQL 17.11 on x86_64-windows, compiled by msvc-19.44.35228, 64-bit
+2026-11-10 14:19:25.538 CST [33824] LOG:  listening on IPv4 address "127.0.0.1", port 15432
+2026-11-10 14:19:25.779 CST [43344] LOG:  database system was shut down at 2026-11-10 14:19:24 CST
+2026-11-10 14:19:25.895 CST [52480] FATAL:  the database system is starting up
+2026-11-10 14:19:26.030 CST [33824] LOG:  database system is ready to accept connections
+2026-11-10 14:20:53.862 CST [46852] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-11-10 14:20:53.862 CST [34976] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-11-10 14:21:04.645 CST [32868] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-11-10 14:21:18.147 CST [49996] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-11-10 14:21:18.148 CST [49516] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-11-10 14:21:31.740 CST [47956] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-11-10 14:21:31.740 CST [52288] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-11-10 14:21:41.563 CST [28056] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-11-10 14:21:58.300 CST [44392] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-11-10 14:21:58.300 CST [52300] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-11-10 14:21:58.300 CST [35636] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-11-10 14:21:58.814 CST [33824] LOG:  received fast shutdown request
+2026-11-10 14:21:58.816 CST [33824] LOG:  aborting any active transactions
+2026-11-10 14:21:58.842 CST [33824] LOG:  background worker "logical replication launcher" (PID 51700) exited with exit code 1
+2026-11-10 14:21:58.848 CST [45256] LOG:  shutting down
+2026-11-10 14:21:58.852 CST [45256] LOG:  checkpoint starting: shutdown immediate
+2026-11-10 14:22:00.239 CST [45256] LOG:  checkpoint complete: wrote 4926 buffers (30.1%); 0 WAL file(s) added, 0 removed, 2 recycled; write=0.676 s, sync=0.691 s, total=1.392 s; sync files=783, longest=0.022 s, average=0.001 s; distance=32150 kB, estimate=32150 kB; lsn=0/34D9C10, redo lsn=0/34D9C10
+2026-11-10 14:22:00.281 CST [33824] LOG:  database system is shut down
+2026-11-10 14:22:00.709 CST [31448] LOG:  starting PostgreSQL 17.11 on x86_64-windows, compiled by msvc-19.44.35228, 64-bit
+2026-11-10 14:22:00.712 CST [31448] LOG:  listening on IPv4 address "127.0.0.1", port 15432
+2026-11-10 14:22:00.961 CST [48340] LOG:  database system was shut down at 2026-11-10 14:22:00 CST
+2026-11-10 14:22:01.074 CST [46732] FATAL:  the database system is starting up
+2026-11-10 14:22:01.218 CST [31448] LOG:  database system is ready to accept connections
+2026-11-10 14:22:02.005 CST [31448] LOG:  received fast shutdown request
+2026-11-10 14:22:02.008 CST [31448] LOG:  aborting any active transactions
+2026-11-10 14:22:02.018 CST [31448] LOG:  background worker "logical replication launcher" (PID 38776) exited with exit code 1
+2026-11-10 14:22:02.018 CST [10672] LOG:  shutting down
+2026-11-10 14:22:02.022 CST [10672] LOG:  checkpoint starting: shutdown immediate
+2026-11-10 14:22:02.041 CST [10672] LOG:  checkpoint complete: wrote 7 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.004 s, sync=0.009 s, total=0.023 s; sync files=6, longest=0.005 s, average=0.002 s; distance=0 kB, estimate=0 kB; lsn=0/34D9C88, redo lsn=0/34D9C88
+2026-11-10 14:22:02.055 CST [31448] LOG:  database system is shut down

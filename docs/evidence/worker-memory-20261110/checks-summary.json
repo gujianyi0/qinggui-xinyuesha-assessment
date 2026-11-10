@@ -1,0 +1,27 @@
+{
+  "python": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "108",
+    "time": "63.494",
+    "timestamp": "2026-11-10T21:09:09.659866+08:00",
+    "hostname": "gujianyi"
+  },
+  "frontend_tests": {
+    "files_passed": 3,
+    "tests_passed": 4,
+    "runner": "vitest",
+    "version": "1.0.0"
+  },
+  "frontend_build": {
+    "exit_code": 0,
+    "typescript": "passed",
+    "vite": "passed",
+    "modules": 1736
+  },
+  "uv_lock_offline_check": "passed",
+  "ruff": "passed",
+  "notice": "Unit/protocol tests and build checks are separate from the real-clock soak and human acceptance"
+}
