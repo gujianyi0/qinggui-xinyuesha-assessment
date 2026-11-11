@@ -1,0 +1,23 @@
+{
+  "checked_at": "2026-11-11T08:47:25.007435+00:00",
+  "docker_in_path": null,
+  "podman_in_path": null,
+  "common_install_paths": [
+    {
+      "path": "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop",
+      "exists": false
+    },
+    {
+      "path": "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe",
+      "exists": false
+    }
+  ],
+  "wsl_distributions": {
+    "exit_code": 0,
+    "output": ""
+  },
+  "wsl_status": {
+    "exit_code": 0,
+    "output": "默认版本: 2\r\n当前计算机配置不支持 WSL1。\r\n若要使用 WSL1，请启用“Windows Subsystem for Linux”可选组件。"
+  }
+}

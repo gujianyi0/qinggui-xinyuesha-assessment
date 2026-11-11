@@ -1,0 +1,10 @@
+{
+  "version": "1.2",
+  "scope": "Execution-plan/documentation and package version metadata only",
+  "trial_execution": "removed_by_explicit_user_instruction_not_completed",
+  "code_files_unchanged_from_1_1": 96,
+  "doc_links": "valid",
+  "new_program_tests_run": false,
+  "existing_133_tests": "1.1 evidence retained, not re-reported as newly run",
+  "original_assessment_reference_sha256": "05fbf169f403cab243295c0186eaf369413cebcb3dc9b922d2e90dd977a00d7f"
+}
