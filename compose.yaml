@@ -1,7 +1,7 @@
 name: qinggui-assessment
 x-app: &app
   build: .
-  env_file: .env
+  env_file: ${ASSESSMENT_ENV_FILE:-.env}
   environment:
     DATABASE_URL: postgresql+asyncpg://assessment:${POSTGRES_PASSWORD:-assessment_local}@postgres:5432/assessment
     REDIS_URL: redis://redis:6379/0
@@ -12,6 +12,7 @@ x-app: &app
 services:
   postgres:
     image: pgvector/pgvector:pg17
+    restart: on-failure:5
     environment:
       POSTGRES_USER: assessment
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-assessment_local}
@@ -38,7 +39,7 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
@@ -57,7 +58,7 @@ services:
       timeout: 10s
       retries: 20
     volumes:
-      - kafka:/tmp/kraft-combined-logs
+      - kafka:/var/lib/kafka/data
   migrate:
     <<: *app
     command: [alembic, upgrade, head]
@@ -65,10 +66,11 @@ services:
       postgres: {condition: service_healthy}
   api:
     <<: *app
+    restart: on-failure:5
     depends_on:
       migrate: {condition: service_completed_successfully}
     ports:
-      - '127.0.0.1:8000:8000'
+      - '127.0.0.1:${API_PORT:-18082}:8000'
     healthcheck:
       test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://localhost:8000/health", timeout=3)']
       interval: 10s
@@ -83,8 +85,9 @@ services:
       kafka: {condition: service_healthy}
   web:
     build: ./frontend
+    restart: on-failure:5
     ports:
-      - '127.0.0.1:5173:80'
+      - '127.0.0.1:${WEB_PORT:-15175}:80'
     depends_on:
       api: {condition: service_healthy}
 volumes:

@@ -1,0 +1,8 @@
+{
+  "before_status": 200,
+  "postgres_stopped_status": 500,
+  "body": "Internal Server Error",
+  "expected_status": 503,
+  "passed": false,
+  "scope": "Explicit pre-fix reproduction on the old running image after source repair; image not yet replaced"
+}

@@ -1,0 +1,7 @@
+redis-1  | 1:C 11 Nov 2026 15:04:58.802 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+redis-1  | 1:C 11 Nov 2026 15:04:58.802 * Redis version=7.4.12, bits=64, commit=00000000, modified=0, pid=1, just started
+redis-1  | 1:C 11 Nov 2026 15:04:58.802 * Configuration loaded
+redis-1  | 1:M 11 Nov 2026 15:04:58.803 * monotonic clock: POSIX clock_gettime
+redis-1  | 1:M 11 Nov 2026 15:04:58.804 * Running mode=standalone, port=6379.
+redis-1  | 1:M 11 Nov 2026 15:04:58.805 * Server initialized
+redis-1  | 1:M 11 Nov 2026 15:04:58.805 * Ready to accept connections tcp

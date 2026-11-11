@@ -1,0 +1,211 @@
+--progress is a global compose flag, better use `docker compose --progress xx build ...
+ Image qinggui-assessment-migrate Building 
+ Image qinggui-assessment-api Building 
+ Image qinggui-assessment-worker Building 
+ Image qinggui-assessment-web Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 2.11kB 0.1s done
+#1 DONE 0.1s
+
+#2 [migrate internal] load build definition from Dockerfile
+#2 transferring dockerfile: 30B 0.0s
+#2 transferring dockerfile: 603B 0.1s done
+#2 DONE 0.2s
+
+#3 [web internal] load build definition from Dockerfile
+#3 transferring dockerfile: 278B 0.1s done
+#3 DONE 0.2s
+
+#2 [worker internal] load build definition from Dockerfile
+#2 DONE 0.2s
+
+#4 [worker internal] load metadata for docker.io/library/python:3.13-slim
+#4 ...
+
+#5 [api internal] load metadata for ghcr.io/astral-sh/uv:0.9.8
+#5 DONE 2.6s
+
+#6 [web internal] load metadata for docker.io/library/nginx:1.27-alpine
+#6 DONE 3.1s
+
+#7 [web internal] load metadata for docker.io/library/node:22-alpine
+#7 DONE 3.1s
+
+#4 [worker internal] load metadata for docker.io/library/python:3.13-slim
+#4 DONE 3.1s
+
+#8 [web internal] load .dockerignore
+#8 transferring context: 58B done
+#8 DONE 0.0s
+
+#9 [migrate internal] load .dockerignore
+#9 transferring context: 139B 0.0s done
+#9 DONE 0.1s
+
+#10 [web internal] load build context
+#10 DONE 0.0s
+
+#11 [api internal] load build context
+#11 transferring context: 54.25kB 0.1s done
+#11 transferring context: 54.25kB 0.1s done
+#11 DONE 0.2s
+
+#12 [api] FROM ghcr.io/astral-sh/uv:0.9.8@sha256:08f409e1d53e77dfb5b65c788491f8ca70fe1d2d459f41c89afa2fcbef998abe
+#12 resolve ghcr.io/astral-sh/uv:0.9.8@sha256:08f409e1d53e77dfb5b65c788491f8ca70fe1d2d459f41c89afa2fcbef998abe
+#12 resolve ghcr.io/astral-sh/uv:0.9.8@sha256:08f409e1d53e77dfb5b65c788491f8ca70fe1d2d459f41c89afa2fcbef998abe 0.3s done
+#12 DONE 0.3s
+
+#13 [web stage-1 1/3] FROM docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#13 resolve docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 0.3s done
+#13 DONE 0.3s
+
+#14 [web build 1/6] FROM docker.io/library/node:22-alpine@sha256:0e1754758c2df4cfa3e68d59e2e1b7374bb7fd9ea6328eaaacf15cc934af8202
+#14 resolve docker.io/library/node:22-alpine@sha256:0e1754758c2df4cfa3e68d59e2e1b7374bb7fd9ea6328eaaacf15cc934af8202 0.3s done
+#14 DONE 0.3s
+
+#15 [worker stage-0  1/13] FROM docker.io/library/python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
+#15 resolve docker.io/library/python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 0.3s done
+#15 DONE 0.3s
+
+#10 [web internal] load build context
+#10 transferring context: 1.01kB 0.0s done
+#10 DONE 0.1s
+
+#16 [web build 3/6] COPY package.json package-lock.json ./
+#16 CACHED
+
+#17 [web build 2/6] WORKDIR /app
+#17 CACHED
+
+#18 [web stage-1 2/3] COPY nginx.conf /etc/nginx/conf.d/default.conf
+#18 CACHED
+
+#19 [web build 5/6] COPY . .
+#19 CACHED
+
+#20 [web build 6/6] RUN npm run build
+#20 CACHED
+
+#21 [web build 4/6] RUN npm ci
+#21 CACHED
+
+#22 [web stage-1 3/3] COPY --from=build /app/dist /usr/share/nginx/html
+#22 CACHED
+
+#23 [migrate stage-0 10/13] COPY data ./data
+#23 CACHED
+
+#24 [migrate stage-0  4/13] COPY pyproject.toml uv.lock ./
+#24 CACHED
+
+#25 [migrate stage-0  8/13] COPY migrations ./migrations
+#25 CACHED
+
+#26 [migrate stage-0  6/13] COPY integrations ./integrations
+#26 CACHED
+
+#27 [migrate stage-0  9/13] COPY alembic.ini ./
+#27 CACHED
+
+#28 [migrate stage-0  2/13] WORKDIR /app
+#28 CACHED
+
+#29 [migrate stage-0  5/13] COPY backend ./backend
+#29 CACHED
+
+#30 [migrate stage-0  3/13] COPY --from=ghcr.io/astral-sh/uv:0.9.8 /uv /usr/local/bin/uv
+#30 CACHED
+
+#31 [migrate stage-0  7/13] RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --extra embeddings --link-mode=copy
+#31 CACHED
+
+#32 [migrate stage-0 11/13] COPY rulings ./rulings
+#32 CACHED
+
+#33 [web] exporting to image
+#33 exporting layers
+#33 exporting layers done
+#33 exporting manifest sha256:81162b282160ff95397637166229b4573d3c613fd37606f42466444b94d924ca 0.0s done
+#33 exporting config sha256:7c68bd3058a5a46dae1188d2c2ade549089cb1998f4f79c044fa92fe6ee43352 0.0s done
+#33 exporting attestation manifest sha256:574676f2e0af663cc5e03336d2bc7800a8872a55fb7bf56f42b7bcca538c2df4
+#33 ...
+
+#34 [worker stage-0 12/13] COPY scripts ./scripts
+#34 DONE 0.3s
+
+#34 [migrate stage-0 12/13] COPY scripts ./scripts
+#34 DONE 0.3s
+
+#35 [worker stage-0 13/13] COPY evaluations ./evaluations
+#35 ...
+
+#33 [web] exporting to image
+#33 exporting attestation manifest sha256:574676f2e0af663cc5e03336d2bc7800a8872a55fb7bf56f42b7bcca538c2df4 0.2s done
+#33 exporting manifest list sha256:8ca3004e0c20198587e6152e5b57f2aded0cc957ac903e445ff216f09f7e51cf 0.2s done
+#33 naming to docker.io/library/qinggui-assessment-web:latest 0.0s done
+#33 unpacking to docker.io/library/qinggui-assessment-web:latest 0.1s done
+#33 DONE 0.7s
+
+#35 [worker stage-0 13/13] COPY evaluations ./evaluations
+#35 ...
+
+#36 [web] resolving provenance for metadata file
+#36 DONE 0.0s
+
+#35 [worker stage-0 13/13] COPY evaluations ./evaluations
+#35 DONE 1.5s
+
+#35 [worker stage-0 13/13] COPY evaluations ./evaluations
+#35 DONE 1.5s
+
+#37 [worker] exporting to image
+#37 exporting layers 1.3s done
+#37 exporting manifest sha256:8d5d0822cd018fc4713a5a780898bd0e58887c1b9b99c1f347dec8fa0c98505a
+#37 exporting manifest sha256:8d5d0822cd018fc4713a5a780898bd0e58887c1b9b99c1f347dec8fa0c98505a 0.2s done
+#37 exporting config sha256:e6d625d1fe24b3e698d345a25d19ebf1c93c89a25d006e6fdd8f045b8de572da
+#37 exporting config sha256:e6d625d1fe24b3e698d345a25d19ebf1c93c89a25d006e6fdd8f045b8de572da 0.2s done
+#37 exporting attestation manifest sha256:ed63c69e05d14077dd1553211599ee358f09497a94912305a57f0e52284738f3
+#37 exporting attestation manifest sha256:ed63c69e05d14077dd1553211599ee358f09497a94912305a57f0e52284738f3 0.4s done
+#37 exporting manifest list sha256:2ed16f80b9ab57ed18211f748c722f6df25616e3fd63c507d7693143b713ff32
+#37 exporting manifest list sha256:2ed16f80b9ab57ed18211f748c722f6df25616e3fd63c507d7693143b713ff32 0.2s done
+#37 naming to docker.io/library/qinggui-assessment-worker:latest
+#37 naming to docker.io/library/qinggui-assessment-worker:latest 0.0s done
+#37 unpacking to docker.io/library/qinggui-assessment-worker:latest
+#37 ...
+
+#38 [migrate] exporting to image
+#38 exporting layers 1.3s done
+#38 exporting manifest sha256:a65793a819a8a01dce023ee27f6e438314abf71e7fb71521bf9374af3c331952 0.2s done
+#38 exporting config sha256:68b4fc58bda97fd87252abfed8a24a1b131695f772ee371ca841148f56f2a1ae 0.2s done
+#38 exporting attestation manifest sha256:f42e2c269a979703a0ffeb6708af664baebff1d2a101c1ad5de99d461c7f47d0 0.5s done
+#38 exporting manifest list sha256:d729f835c01b23637d17375e801a55cbe23cccd55c11352dbb2042aa42c985bd 0.2s done
+#38 naming to docker.io/library/qinggui-assessment-migrate:latest 0.1s done
+#38 unpacking to docker.io/library/qinggui-assessment-migrate:latest 0.8s done
+#38 DONE 3.6s
+
+#39 [api] exporting to image
+#39 exporting layers 1.3s done
+#39 exporting manifest sha256:312dd20c0127efd028ef25138d8f3f411196dc24a1c9e576c456dcdaab4045bf 0.2s done
+#39 exporting config sha256:9e1048a583da5a92aea12bf04e355250417219bdb28cd3aa2e10a46c947a3797 0.2s done
+#39 exporting attestation manifest sha256:b44af2b5524d5a5824656bc6dfa2426efd4352a5fc9b1dceaae0610898d27515 0.4s done
+#39 exporting manifest list sha256:488cf38eb40d4eec74efdbe47b2d62f5e092ac381799497030daaa5d67ce0deb 0.2s done
+#39 naming to docker.io/library/qinggui-assessment-api:latest 0.1s done
+#39 unpacking to docker.io/library/qinggui-assessment-api:latest 0.9s done
+#39 DONE 3.7s
+
+#37 [worker] exporting to image
+#37 unpacking to docker.io/library/qinggui-assessment-worker:latest 0.9s done
+#37 DONE 3.8s
+
+#40 [migrate] resolving provenance for metadata file
+#40 DONE 0.2s
+
+#41 [api] resolving provenance for metadata file
+#41 DONE 0.2s
+
+#42 [worker] resolving provenance for metadata file
+#42 DONE 0.0s
+ Image qinggui-assessment-migrate Built 
+ Image qinggui-assessment-web Built 
+ Image qinggui-assessment-worker Built 
+ Image qinggui-assessment-api Built 

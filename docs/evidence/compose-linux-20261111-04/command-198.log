@@ -1,0 +1,2 @@
+worker-1  | 2026-11-11 15:05:23,287 assessment.worker INFO worker_resources {"process": {"pid": 1, "available": false}, "system": {"available": false}, "async_tasks": 3}
+worker-1  | %4|1794409523.753|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker kafka:9092/1: Broker: Coordinator load in progress: retrying

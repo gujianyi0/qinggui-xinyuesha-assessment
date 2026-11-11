@@ -1,0 +1,21 @@
+# Isolated integration profile: real infrastructure/BGE; no paid model or QQ.
+# Use --env-file .env.example and ASSESSMENT_ENV_FILE=.env.example.
+services:
+  migrate:
+    image: qinggui-assessment-migrate:latest
+  api:
+    image: qinggui-assessment-api:latest
+    environment:
+      MODEL_MODE: mock
+      MODEL_API_KEY: ''
+      ENABLE_TEST_FAULTS: 'false'
+      QQ_LIVE_ENABLED: 'false'
+  worker:
+    image: qinggui-assessment-worker:latest
+    environment:
+      MODEL_MODE: mock
+      MODEL_API_KEY: ''
+      ENABLE_TEST_FAULTS: 'false'
+      QQ_LIVE_ENABLED: 'false'
+  web:
+    image: qinggui-assessment-web:latest

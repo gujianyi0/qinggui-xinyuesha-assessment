@@ -1,0 +1,118 @@
+[
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "config",
+      "--quiet"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.786
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "up",
+      "-d",
+      "--no-build",
+      "--wait",
+      "--wait-timeout",
+      "180"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 36.89
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "SELECT version_num FROM alembic_version"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.848
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "SELECT json_build_object('attempts',j.attempts,'chunks',(SELECT count(*) FROM indexed_chunks c WHERE c.job_id=j.id),'vectors',(SELECT count(*) FROM vector_chunks v WHERE v.job_id=j.id),'dimensions',(SELECT min(vector_dims(embedding)) FROM vector_chunks v WHERE v.job_id=j.id),'publications',(SELECT count(*) FROM published_indexes p WHERE p.job_id=j.id)) FROM jobs j WHERE j.id='53134f2a-ccb6-44b7-9556-bf220fe1c4a6'"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.827
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "python",
+      "-c",
+      "import asyncio, hashlib, json\nfrom backend.app.config import Settings\nfrom backend.app.catalog import Catalog, Embedder, KnowledgeSearch\nfrom backend.app.db import Database\nfrom backend.app.models import PublishedIndex\nasync def main():\n s=Settings(); d=Database(s); c=Catalog(s); e=Embedder(s); k=KnowledgeSearch(c,d,e,s)\n count=0\n original=e.encode\n async def encode(*args,**kwargs):\n  nonlocal count\n  count+=1\n  return await original(*args,**kwargs)\n e.encode=encode\n try:\n  first=await k.search('空城无手牌的目标限制 compose-linux-20261111-01',c.active_id)\n  initial=count\n  if True:\n   second=await k.search('空城无手牌的目标限制 compose-linux-20261111-01',c.active_id)\n   assert second==first and count==initial\n  async with d.sessions() as db:\n   p=await db.get(PublishedIndex,c.active_id)\n  raw=f'policy-v2:{c.active_id}:{p.job_id}:{p.generation}:{s.embedding_mode}:{s.embedding_revision}:{'空城无手牌的目标限制 compose-linux-20261111-01'}:5'\n  key='retrieval:'+hashlib.sha256(raw.encode()).hexdigest()\n  ttl=None\n  try: ttl=await k.cache.ttl(key)\n  except Exception: pass\n  assert first['mode']=='pgvector' and first['items']\n  print(json.dumps({'mode':first['mode'],'sources':[x['source']['id'] for x in first['items']], 'encode_calls':count,'ttl':ttl,'cache_key':key}))\n finally:\n  await k.close(); await d.close()\nasyncio.run(main())\n"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 34.307
+  }
+]

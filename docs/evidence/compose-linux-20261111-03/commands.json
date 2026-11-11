@@ -1,0 +1,3239 @@
+[
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "config",
+      "--quiet"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.74
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "up",
+      "-d",
+      "--no-build",
+      "--wait",
+      "--wait-timeout",
+      "180"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 35.282
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "python",
+      "-c",
+      "from importlib.metadata import version; print(version('qinggui-xinyuesha-assessment'))"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.071
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "SHOW server_version"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.836
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "SELECT extversion FROM pg_extension WHERE extname='vector'"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.878
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "SELECT version_num FROM alembic_version"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.839
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.751
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "fd3313a905bf83ab6e741adee1ae8bb0b6e60f76efe7675dda2e07777e29df13"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.353
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "SELECT json_build_object('attempts',j.attempts,'chunks',(SELECT count(*) FROM indexed_chunks c WHERE c.job_id=j.id AND c.generation=j.generation),'vectors',(SELECT count(*) FROM vector_chunks v WHERE v.job_id=j.id AND v.generation=j.generation),'dimensions',(SELECT min(vector_dims(embedding)) FROM vector_chunks v WHERE v.job_id=j.id AND v.generation=j.generation),'prior_staging_chunks',(SELECT count(*) FROM indexed_chunks c WHERE c.job_id=j.id AND c.generation<>j.generation),'publications',(SELECT count(*) FROM published_indexes p WHERE p.job_id=j.id AND p.generation=j.generation)) FROM jobs j WHERE j.id='de8a196c-04c3-40ad-a60a-10b64e32ba76'"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.917
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.809
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "fd3313a905bf83ab6e741adee1ae8bb0b6e60f76efe7675dda2e07777e29df13"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.429
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "python",
+      "-c",
+      "import asyncio, hashlib, json\nfrom backend.app.config import Settings\nfrom backend.app.catalog import Catalog, Embedder, KnowledgeSearch\nfrom backend.app.db import Database\nfrom backend.app.models import PublishedIndex\nasync def main():\n s=Settings(); d=Database(s); c=Catalog(s); e=Embedder(s); k=KnowledgeSearch(c,d,e,s)\n count=0\n original=e.encode\n async def encode(*args,**kwargs):\n  nonlocal count\n  count+=1\n  return await original(*args,**kwargs)\n e.encode=encode\n try:\n  first=await k.search('空城无手牌的目标限制 compose-linux-20261111-03',c.active_id)\n  initial=count\n  if True:\n   second=await k.search('空城无手牌的目标限制 compose-linux-20261111-03',c.active_id)\n   assert second==first and count==initial\n  async with d.sessions() as db:\n   p=await db.get(PublishedIndex,c.active_id)\n  raw=f'policy-v2:{c.active_id}:{p.job_id}:{p.generation}:{s.embedding_mode}:{s.embedding_revision}:{'空城无手牌的目标限制 compose-linux-20261111-03'}:5'\n  key='retrieval:'+hashlib.sha256(raw.encode()).hexdigest()\n  ttl=None\n  try: ttl=await k.cache.ttl(key)\n  except Exception: pass\n  assert first['mode']=='pgvector' and first['items']\n  print(json.dumps({'mode':first['mode'],'sources':[x['source']['id'] for x in first['items']], 'encode_calls':count,'ttl':ttl,'cache_key':key}))\n finally:\n  await k.close(); await d.close()\nasyncio.run(main())\n"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 63.107
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.548
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "fd3313a905bf83ab6e741adee1ae8bb0b6e60f76efe7675dda2e07777e29df13"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.439
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.056
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "fd3313a905bf83ab6e741adee1ae8bb0b6e60f76efe7675dda2e07777e29df13"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.499
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "stop",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 5.516
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "start",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 5.046
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "SELECT job_id FROM published_indexes LIMIT 1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.407
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.214
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "fd3313a905bf83ab6e741adee1ae8bb0b6e60f76efe7675dda2e07777e29df13"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.629
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.844
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "fd3313a905bf83ab6e741adee1ae8bb0b6e60f76efe7675dda2e07777e29df13"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.431
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.033
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.92
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "fd3313a905bf83ab6e741adee1ae8bb0b6e60f76efe7675dda2e07777e29df13"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.41
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "worker",
+      "python",
+      "-c",
+      "import os; print(os.readlink('/proc/1/ns/pid'))"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.47
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "run",
+      "--rm",
+      "--network",
+      "none",
+      "--pid",
+      "host",
+      "--read-only",
+      "--cap-drop",
+      "ALL",
+      "--cap-add",
+      "KILL",
+      "--cap-add",
+      "SYS_PTRACE",
+      "--entrypoint",
+      "python",
+      "qinggui-assessment-api:latest",
+      "-c",
+      "import os,signal; assert os.readlink('/proc/55632/ns/pid') == 'pid:[4026532618]'; os.kill(55632,signal.SIGKILL)"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.239
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.284
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "fd3313a905bf83ab6e741adee1ae8bb0b6e60f76efe7675dda2e07777e29df13"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.34
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "SELECT json_build_object('attempts',j.attempts,'chunks',(SELECT count(*) FROM indexed_chunks c WHERE c.job_id=j.id AND c.generation=j.generation),'vectors',(SELECT count(*) FROM vector_chunks v WHERE v.job_id=j.id AND v.generation=j.generation),'dimensions',(SELECT min(vector_dims(embedding)) FROM vector_chunks v WHERE v.job_id=j.id AND v.generation=j.generation),'prior_staging_chunks',(SELECT count(*) FROM indexed_chunks c WHERE c.job_id=j.id AND c.generation<>j.generation),'publications',(SELECT count(*) FROM published_indexes p WHERE p.job_id=j.id AND p.generation=j.generation)) FROM jobs j WHERE j.id='257d486b-fef0-4caf-bdef-8e05902a4cfa'"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.174
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.024
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "fd3313a905bf83ab6e741adee1ae8bb0b6e60f76efe7675dda2e07777e29df13"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.495
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "-f",
+      "F:\\Work\\Biteagle\\入职考核\\.local\\compose-linux-20261111-03-worker.json",
+      "up",
+      "-d",
+      "--no-deps",
+      "--force-recreate",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 6.441
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "python",
+      "-c",
+      "from confluent_kafka import Consumer,TopicPartition; from backend.app.config import Settings; s=Settings(); c=Consumer({'bootstrap.servers':s.kafka_bootstrap_servers,'group.id':s.kafka_consumer_group,'enable.auto.commit':False}); print(c.committed([TopicPartition(s.kafka_topic,0)],timeout=10)[0].offset); c.close()"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.225
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "python",
+      "-c",
+      "from confluent_kafka import Consumer,TopicPartition; from backend.app.config import Settings; s=Settings(); c=Consumer({'bootstrap.servers':s.kafka_bootstrap_servers,'group.id':s.kafka_consumer_group,'enable.auto.commit':False}); print(c.get_watermark_offsets(TopicPartition(s.kafka_topic,0),timeout=10)[1]); c.close()"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.701
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "python",
+      "-c",
+      "from confluent_kafka import Consumer,TopicPartition; from backend.app.config import Settings; s=Settings(); c=Consumer({'bootstrap.servers':s.kafka_bootstrap_servers,'group.id':s.kafka_consumer_group,'enable.auto.commit':False}); print(c.committed([TopicPartition(s.kafka_topic,0)],timeout=10)[0].offset); c.close()"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.532
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.728
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.259
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.77
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.273
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.862
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.361
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.793
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.352
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.777
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.311
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.899
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.329
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.868
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.372
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.716
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.278
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.72
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.288
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.713
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.249
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.807
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.314
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.821
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.32
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.798
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.285
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.741
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.268
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.597
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.237
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.624
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.259
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.646
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.294
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.667
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.252
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.699
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.272
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.674
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.301
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.792
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.253
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.641
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.269
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.588
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.253
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.628
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.24
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.61
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.249
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.652
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.296
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.756
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.309
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.714
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.417
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.871
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.325
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.724
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.276
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.695
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.288
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.736
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.275
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.774
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.317
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.709
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.264
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.706
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.324
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.799
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.348
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.372
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.667
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.425
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.589
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.355
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.336
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.033
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.321
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.918
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.332
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.698
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.285
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.776
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.286
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.957
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.332
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.831
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.303
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.803
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.275
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.927
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "bc06ce41067cdbeb0927ba517b91a6e12a01011565b9678e01c3d24519e39cb1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.267
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "python",
+      "-c",
+      "from confluent_kafka import Consumer,TopicPartition; from backend.app.config import Settings; s=Settings(); c=Consumer({'bootstrap.servers':s.kafka_bootstrap_servers,'group.id':s.kafka_consumer_group,'enable.auto.commit':False}); print(c.committed([TopicPartition(s.kafka_topic,0)],timeout=10)[0].offset); c.close()"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.258
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "-f",
+      "F:\\Work\\Biteagle\\入职考核\\.local\\compose-linux-20261111-03-worker.json",
+      "up",
+      "-d",
+      "--no-deps",
+      "--force-recreate",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.887
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "python",
+      "-c",
+      "from confluent_kafka import Consumer,TopicPartition; from backend.app.config import Settings; s=Settings(); c=Consumer({'bootstrap.servers':s.kafka_bootstrap_servers,'group.id':s.kafka_consumer_group,'enable.auto.commit':False}); print(c.committed([TopicPartition(s.kafka_topic,0)],timeout=10)[0].offset); c.close()"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.323
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "python",
+      "-c",
+      "from confluent_kafka import Consumer,TopicPartition; from backend.app.config import Settings; s=Settings(); c=Consumer({'bootstrap.servers':s.kafka_bootstrap_servers,'group.id':s.kafka_consumer_group,'enable.auto.commit':False}); print(c.committed([TopicPartition(s.kafka_topic,0)],timeout=10)[0].offset); c.close()"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.096
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "python",
+      "-c",
+      "from confluent_kafka import Consumer,TopicPartition; from backend.app.config import Settings; s=Settings(); c=Consumer({'bootstrap.servers':s.kafka_bootstrap_servers,'group.id':s.kafka_consumer_group,'enable.auto.commit':False}); print(c.committed([TopicPartition(s.kafka_topic,0)],timeout=10)[0].offset); c.close()"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.197
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "SELECT json_build_object('attempts',j.attempts,'chunks',(SELECT count(*) FROM indexed_chunks c WHERE c.job_id=j.id AND c.generation=j.generation),'vectors',(SELECT count(*) FROM vector_chunks v WHERE v.job_id=j.id AND v.generation=j.generation),'dimensions',(SELECT min(vector_dims(embedding)) FROM vector_chunks v WHERE v.job_id=j.id AND v.generation=j.generation),'prior_staging_chunks',(SELECT count(*) FROM indexed_chunks c WHERE c.job_id=j.id AND c.generation<>j.generation),'publications',(SELECT count(*) FROM published_indexes p WHERE p.job_id=j.id AND p.generation=j.generation)) FROM jobs j WHERE j.id='f174d324-1eec-44fc-942e-6835715c13bb'"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.785
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.799
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "9e66cef2a517cd622308b61b181aaa8710510354c5c5ce371ace3292c6efb4fc"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.304
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "python",
+      "-c",
+      "import json; from confluent_kafka import Producer; from backend.app.config import Settings; s=Settings(); p=Producer({'bootstrap.servers':s.kafka_bootstrap_servers}); p.produce(s.kafka_topic,key='f174d324-1eec-44fc-942e-6835715c13bb',value=json.dumps({'job_id':'f174d324-1eec-44fc-942e-6835715c13bb','expected_generation':0})); assert p.flush(10)==0"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.026
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "python",
+      "-c",
+      "from confluent_kafka import Consumer,TopicPartition; from backend.app.config import Settings; s=Settings(); c=Consumer({'bootstrap.servers':s.kafka_bootstrap_servers,'group.id':s.kafka_consumer_group,'enable.auto.commit':False}); print(c.committed([TopicPartition(s.kafka_topic,0)],timeout=10)[0].offset); c.close()"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.072
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "SELECT json_build_object('attempts',j.attempts,'chunks',(SELECT count(*) FROM indexed_chunks c WHERE c.job_id=j.id AND c.generation=j.generation),'vectors',(SELECT count(*) FROM vector_chunks v WHERE v.job_id=j.id AND v.generation=j.generation),'dimensions',(SELECT min(vector_dims(embedding)) FROM vector_chunks v WHERE v.job_id=j.id AND v.generation=j.generation),'prior_staging_chunks',(SELECT count(*) FROM indexed_chunks c WHERE c.job_id=j.id AND c.generation<>j.generation),'publications',(SELECT count(*) FROM published_indexes p WHERE p.job_id=j.id AND p.generation=j.generation)) FROM jobs j WHERE j.id='f174d324-1eec-44fc-942e-6835715c13bb'"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.698
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.818
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "9e66cef2a517cd622308b61b181aaa8710510354c5c5ce371ace3292c6efb4fc"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.302
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "-f",
+      "F:\\Work\\Biteagle\\入职考核\\.local\\compose-linux-20261111-03-worker.json",
+      "up",
+      "-d",
+      "--no-deps",
+      "--force-recreate",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.688
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.874
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "609768af0bf0c6751b5c9a46b08ccd2270af0a45d4ad4753afd1e9e642ed3482"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.324
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.863
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "609768af0bf0c6751b5c9a46b08ccd2270af0a45d4ad4753afd1e9e642ed3482"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.298
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all",
+      "-q",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.754
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "inspect",
+      "--format",
+      "{{json .State}}|{{.RestartCount}}|{{.Id}}",
+      "609768af0bf0c6751b5c9a46b08ccd2270af0a45d4ad4753afd1e9e642ed3482"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.235
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "SELECT delivered FROM outbox WHERE job_id='2f4de2fb-75d4-4103-b8b5-fac64637c6fb'"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.669
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "-f",
+      "F:\\Work\\Biteagle\\入职考核\\.local\\compose-linux-20261111-03-worker.json",
+      "up",
+      "-d",
+      "--no-deps",
+      "--force-recreate",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.618
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "SELECT json_build_object('attempts',j.attempts,'chunks',(SELECT count(*) FROM indexed_chunks c WHERE c.job_id=j.id AND c.generation=j.generation),'vectors',(SELECT count(*) FROM vector_chunks v WHERE v.job_id=j.id AND v.generation=j.generation),'dimensions',(SELECT min(vector_dims(embedding)) FROM vector_chunks v WHERE v.job_id=j.id AND v.generation=j.generation),'prior_staging_chunks',(SELECT count(*) FROM indexed_chunks c WHERE c.job_id=j.id AND c.generation<>j.generation),'publications',(SELECT count(*) FROM published_indexes p WHERE p.job_id=j.id AND p.generation=j.generation)) FROM jobs j WHERE j.id='2f4de2fb-75d4-4103-b8b5-fac64637c6fb'"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.81
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.719
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "dc530e79fd0220ca9e0ad882d690efecc7b6f13aad9d04f47c975203c1deb714"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.276
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "-f",
+      "F:\\Work\\Biteagle\\入职考核\\.local\\compose-linux-20261111-03-worker.json",
+      "up",
+      "-d",
+      "--no-deps",
+      "--force-recreate",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.673
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.724
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "b6b6faa6c4d3e2ecead70909780853142663d3055a33476a51ece0ecaaee6e05"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.294
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "stop",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.255
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "UPDATE jobs SET snapshot_id='invalid-compose-fixture' WHERE id='04aee0aa-8de5-4de0-a5c6-e61106023a59'"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.769
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "-f",
+      "F:\\Work\\Biteagle\\入职考核\\.local\\compose-linux-20261111-03-worker.json",
+      "up",
+      "-d",
+      "--no-deps",
+      "--force-recreate",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.703
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.779
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "b15ffca56bb8bc56ec3dd2462582507c3de66da6bfedccaad043b13e5a2b75bd"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.304
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "redis",
+      "redis-cli",
+      "TTL",
+      "retrieval:481b4336be905c44c5a441d1795f1593d9e5d714566bd48391511430570371af"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.655
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.628
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "b15ffca56bb8bc56ec3dd2462582507c3de66da6bfedccaad043b13e5a2b75bd"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.284
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "stop",
+      "redis"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.98
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "python",
+      "-c",
+      "import asyncio, hashlib, json\nfrom backend.app.config import Settings\nfrom backend.app.catalog import Catalog, Embedder, KnowledgeSearch\nfrom backend.app.db import Database\nfrom backend.app.models import PublishedIndex\nasync def main():\n s=Settings(); d=Database(s); c=Catalog(s); e=Embedder(s); k=KnowledgeSearch(c,d,e,s)\n count=0\n original=e.encode\n async def encode(*args,**kwargs):\n  nonlocal count\n  count+=1\n  return await original(*args,**kwargs)\n e.encode=encode\n try:\n  first=await k.search('Redis停机回源 空城',c.active_id)\n  initial=count\n  if False:\n   second=await k.search('Redis停机回源 空城',c.active_id)\n   assert second==first and count==initial\n  async with d.sessions() as db:\n   p=await db.get(PublishedIndex,c.active_id)\n  raw=f'policy-v2:{c.active_id}:{p.job_id}:{p.generation}:{s.embedding_mode}:{s.embedding_revision}:{'Redis停机回源 空城'}:5'\n  key='retrieval:'+hashlib.sha256(raw.encode()).hexdigest()\n  ttl=None\n  try: ttl=await k.cache.ttl(key)\n  except Exception: pass\n  assert first['mode']=='pgvector' and first['items']\n  print(json.dumps({'mode':first['mode'],'sources':[x['source']['id'] for x in first['items']], 'encode_calls':count,'ttl':ttl,'cache_key':key}))\n finally:\n  await k.close(); await d.close()\nasyncio.run(main())\n"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 15.947
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "start",
+      "redis"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.868
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.543
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "b15ffca56bb8bc56ec3dd2462582507c3de66da6bfedccaad043b13e5a2b75bd"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.262
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "stop",
+      "kafka"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 4.132
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "assessment",
+      "-d",
+      "assessment",
+      "-At",
+      "-c",
+      "SELECT delivered FROM outbox WHERE job_id='5f9db273-51c4-4508-8367-3c0ad82d263b'"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.594
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "start",
+      "kafka"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.91
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "-q"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.612
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{json .}}",
+      "3bb4a3664c849521598048eaba92b23c37b117d187e8d8cbab6d3cfb044a171a",
+      "085dca130431be11c067167cefff8cd8252f8f7706313a8a6ef46d85ef3fdce7",
+      "70501339b35411aa1fa50be7d64fab327a19ae05e7bec9331c11bf59e756ff68",
+      "077e44cbf9695148c93319a3c774b6942ad9fdd2ee47f8b619113262e397b0d4",
+      "ac3ccaa3c3d518071ca9f09505edc1c256e1ceaa570a97bbccd313cdd7a3ba6a",
+      "b15ffca56bb8bc56ec3dd2462582507c3de66da6bfedccaad043b13e5a2b75bd"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 2.261
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "stop",
+      "postgres"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 1.497
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "logs",
+      "--no-color",
+      "--tail",
+      "200",
+      "api"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.552
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "logs",
+      "--no-color",
+      "--tail",
+      "200",
+      "worker"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.563
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "logs",
+      "--no-color",
+      "--tail",
+      "200",
+      "kafka"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.567
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "logs",
+      "--no-color",
+      "--tail",
+      "200",
+      "postgres"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.56
+  },
+  {
+    "command": [
+      "C:\\Users\\c2115\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+      "compose",
+      "--env-file",
+      ".env.example",
+      "-p",
+      "qinggui-assessment-verify-14",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "logs",
+      "--no-color",
+      "--tail",
+      "200",
+      "redis"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.565
+  }
+]

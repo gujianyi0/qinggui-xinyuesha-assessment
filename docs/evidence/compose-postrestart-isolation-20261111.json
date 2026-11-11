@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "method": "GET",
+      "path": "sessions/2175fa80-47d8-4339-8de8-0aabb52fbed8/messages",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "path": "runs/2ad6dda2-ec3e-4011-9283-0821dc57df7a",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "path": "jobs/7e482cec-664c-4d82-bf25-cf3f170ab0ca",
+      "status": 404
+    },
+    {
+      "method": "PATCH",
+      "path": "feedback-drafts/72c7e4e9-590e-4e09-b6e3-784d95d856ae",
+      "status": 404
+    }
+  ],
+  "scope": "Two authenticated identities after actual down/up container recreation; no tokens saved"
+}

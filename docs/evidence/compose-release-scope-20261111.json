@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "version": "1.4",
+  "python_tests": 137,
+  "frontend_tests": 4,
+  "compose_groups": 17,
+  "browser_checks": 7,
+  "local_links_checked": 92,
+  "missing_local_links": [],
+  "tested_sources_unchanged": true,
+  "ruff": "All checks passed!",
+  "lock_check_exit": 0,
+  "no_new_paid_model_runs": true,
+  "github_actions_executed": false
+}

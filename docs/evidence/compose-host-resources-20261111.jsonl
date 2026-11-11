@@ -1,0 +1,3 @@
+{"at": "2026-11-11T14:31:49.131056+00:00", "memory": {"available": true, "physical_load_percent": 95, "physical_total_bytes": 17024741376, "physical_free_bytes": 816742400, "commit_limit_bytes": 54617247744, "commit_free_bytes": 3442270208}}
+{"at": "2026-11-11T14:39:15.997154+00:00", "memory": {"available": true, "physical_load_percent": 84, "physical_total_bytes": 17024741376, "physical_free_bytes": 2720391168, "commit_limit_bytes": 54617247744, "commit_free_bytes": 5770985472}}
+{"at": "2026-11-11T15:03:02.234986+00:00", "memory": {"available": true, "physical_load_percent": 92, "physical_total_bytes": 17024741376, "physical_free_bytes": 1272152064, "commit_limit_bytes": 54617247744, "commit_free_bytes": 8571490304}}

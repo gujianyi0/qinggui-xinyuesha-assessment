@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import os,signal; assert os.readlink('/proc/23138/ns/pid') == 'pid:[4026532613]'; os.kill(23138,signal.SIGKILL)
+                             ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: '/proc/23138/ns/pid'

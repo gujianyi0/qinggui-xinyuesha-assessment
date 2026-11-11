@@ -1,0 +1,74 @@
+{
+  "started_at": "2026-11-11T14:25:41.086235+00:00",
+  "project": "qinggui-assessment-verify-final",
+  "scope": "Real Linux PostgreSQL/pgvector, Kafka, Redis, independent Worker and pinned CPU BGE; chat is a test double; no model fee or QQ",
+  "checks": [
+    {
+      "name": "scoped_ancestor_pid_signal_and_actual_api_restart",
+      "passed": true,
+      "before_restart_count": 0,
+      "after_restart_count": 1,
+      "before_pid": 23138,
+      "after_pid": 43399,
+      "container_resources": [
+        {
+          "BlockIO": "143kB / 0B",
+          "CPUPerc": "0.23%",
+          "Container": "a7032376441b95d0b8b47b65768933d6c8b22eb77edefde4675f2f9b3db80577",
+          "ID": "a7032376441b",
+          "MemPerc": "0.86%",
+          "MemUsage": "67.88MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-api-1",
+          "NetIO": "8.29kB / 7.96kB",
+          "PIDs": "5"
+        },
+        {
+          "BlockIO": "58.1MB / 7.05MB",
+          "CPUPerc": "5.07%",
+          "Container": "3431dd6f494ccf08cc000fc03b2c2917064a41ecdf0d119d84ad0ef1039a88da",
+          "ID": "3431dd6f494c",
+          "MemPerc": "3.46%",
+          "MemUsage": "271.9MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-kafka-1",
+          "NetIO": "91.2kB / 97.8kB",
+          "PIDs": "112"
+        },
+        {
+          "BlockIO": "49.5MB / 106MB",
+          "CPUPerc": "0.00%",
+          "Container": "2be88f5cafe7066fbd1a08627136ed21f939053d95681e2f0228b0219c9b48fa",
+          "ID": "2be88f5cafe7",
+          "MemPerc": "1.16%",
+          "MemUsage": "91.45MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-postgres-1",
+          "NetIO": "18.7MB / 1.65MB",
+          "PIDs": "7"
+        },
+        {
+          "BlockIO": "19.7MB / 0B",
+          "CPUPerc": "6.30%",
+          "Container": "6171bfc763c759ad94f4fd9ea4bb31a67b0a662ddb4b6a8192eca9e07b83baef",
+          "ID": "6171bfc763c7",
+          "MemPerc": "0.30%",
+          "MemUsage": "23.49MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-redis-1",
+          "NetIO": "83.3kB / 39.3kB",
+          "PIDs": "6"
+        },
+        {
+          "BlockIO": "3.36MB / 8.19kB",
+          "CPUPerc": "0.00%",
+          "Container": "e94430c44eb65079ff4b8e83c6aae791e90fb34a6837e718529eb3a9c0d29337",
+          "ID": "e94430c44eb6",
+          "MemPerc": "0.21%",
+          "MemUsage": "16.54MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-web-1",
+          "NetIO": "1MB / 1.31MB",
+          "PIDs": "17"
+        }
+      ]
+    }
+  ],
+  "passed": true,
+  "finished_at": "2026-11-11T14:25:56.754592+00:00"
+}

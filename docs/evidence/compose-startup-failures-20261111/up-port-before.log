@@ -1,0 +1,23 @@
+ Container qinggui-assessment-verify-postgres-1 Running 
+ Container qinggui-assessment-verify-redis-1 Running 
+ Container qinggui-assessment-verify-kafka-1 Recreate 
+ Container qinggui-assessment-verify-kafka-1 Recreated 
+ Container qinggui-assessment-verify-postgres-1 Waiting 
+ Container qinggui-assessment-verify-kafka-1 Starting 
+ Container qinggui-assessment-verify-postgres-1 Healthy 
+ Container qinggui-assessment-verify-migrate-1 Starting 
+ Container qinggui-assessment-verify-kafka-1 Started 
+ Container qinggui-assessment-verify-kafka-1 Waiting 
+ Container qinggui-assessment-verify-migrate-1 Started 
+ Container qinggui-assessment-verify-migrate-1 Waiting 
+ Container qinggui-assessment-verify-migrate-1 Exited 
+ Container qinggui-assessment-verify-api-1 Starting 
+ Container qinggui-assessment-verify-api-1 Started 
+ Container qinggui-assessment-verify-api-1 Waiting 
+ Container qinggui-assessment-verify-kafka-1 Healthy 
+ Container qinggui-assessment-verify-api-1 Healthy 
+ Container qinggui-assessment-verify-worker-1 Starting 
+ Container qinggui-assessment-verify-web-1 Starting 
+ Container qinggui-assessment-verify-worker-1 Started 
+ Container qinggui-assessment-verify-web-1 Error response from daemon: ports are not available: exposing port TCP 127.0.0.1:5173 -> 127.0.0.1:0: listen tcp4 127.0.0.1:5173: bind: An attempt was made to access a socket in a way forbidden by its access permissions. 
+Error response from daemon: ports are not available: exposing port TCP 127.0.0.1:5173 -> 127.0.0.1:0: listen tcp4 127.0.0.1:5173: bind: An attempt was made to access a socket in a way forbidden by its access permissions.

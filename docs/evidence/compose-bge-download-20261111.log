@@ -1,0 +1,29 @@
+ Volume qinggui-assessment-verify-final_models Creating 
+ Volume qinggui-assessment-verify-final_models Creating 
+ Volume qinggui-assessment-verify-final_postgres Creating 
+ Volume qinggui-assessment-verify-final_postgres Creating 
+ Network qinggui-assessment-verify-final_default Creating 
+ Network qinggui-assessment-verify-final_default Creating 
+ Volume qinggui-assessment-verify-final_models Created 
+ Volume qinggui-assessment-verify-final_models Created 
+ Volume qinggui-assessment-verify-final_postgres Created 
+ Volume qinggui-assessment-verify-final_postgres Created 
+ Network qinggui-assessment-verify-final_default Created 
+ Network qinggui-assessment-verify-final_default Created 
+ Container qinggui-assessment-verify-final-api-run-2f194442f6ad Creating 
+ Container qinggui-assessment-verify-final-api-run-2f194442f6ad Created 
+Verified 1_Pooling/config.json
+Verified config.json
+Verified config_sentence_transformers.json
+Verified model.safetensors
+Verified modules.json
+Verified sentence_bert_config.json
+Verified special_tokens_map.json
+Verified tokenizer.json
+Verified tokenizer_config.json
+Verified vocab.txt
+
+Loading weights:   0%|          | 0/71 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 71/71 [00:00<00:00, 1099.96it/s]
+EMBEDDING_REVISION=7999e1d3359715c523056ef9478215996d62a620
+Pin this revision in this project's .env. No proxy or login settings were changed.

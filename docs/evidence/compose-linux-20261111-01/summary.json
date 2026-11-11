@@ -1,0 +1,70 @@
+{
+  "started_at": "2026-11-11T14:08:38.937492+00:00",
+  "project": "qinggui-assessment-verify",
+  "scope": "Real Linux PostgreSQL/pgvector, Kafka, Redis, independent Worker and pinned CPU BGE; chat is a test double; no model fee or QQ",
+  "checks": [
+    {
+      "name": "seven_service_start_and_migration",
+      "passed": true,
+      "health": {
+        "status": "ok",
+        "cache": "available",
+        "model_mode": "mock",
+        "model_id": "",
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "embedding_mode": "local",
+        "index_published": false,
+        "database": "postgresql",
+        "fault_injection_enabled": false,
+        "budget": {
+          "spent_cny": 0.0,
+          "reserved_cny": 0.0,
+          "limit_cny": 200.0,
+          "warning": false
+        }
+      },
+      "migration": "0001"
+    },
+    {
+      "name": "eight_concurrent_submissions_one_real_bge_index",
+      "passed": true,
+      "job_id": "53134f2a-ccb6-44b7-9556-bf220fe1c4a6",
+      "attempts": 1,
+      "chunks": 659,
+      "vectors": 659,
+      "dimensions": 512,
+      "publications": 1
+    },
+    {
+      "name": "pgvector_retrieval_and_redis_cache_hit",
+      "passed": true,
+      "mode": "pgvector",
+      "sources": [
+        "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:3",
+        "9937b633d1dd2e694755:passage:standard:text:kongcheng:0",
+        "223bc8069fe86ce07e43:chunk:0:passage:implementation:standard:renegade_wild:0:chunk:0",
+        "19c317c0215d757be97c:passage:standard:text:liuli:0",
+        "223bc8069fe86ce07e43:chunk:1:passage:implementation:standard:renegade_wild:0:chunk:1"
+      ],
+      "encode_calls": 1,
+      "ttl": 300,
+      "cache_key": "retrieval:44d83f8305be9890af9677faa19b40a3f230b2a83bb2d25d1af1b51c0c2d523a"
+    },
+    {
+      "name": "mock_stream_citations_feedback_race_and_four_identity_boundaries",
+      "passed": true,
+      "session_id": "6c2e74e8-621a-410a-8c8b-d37e915cc4e0",
+      "run_id": "c187f17b-4b75-45b6-9433-a82ea004fc6a",
+      "feedback_id": "fa1d60df-5be7-43d1-b070-ebf24c64bec1"
+    }
+  ],
+  "source_sha256": {
+    "compose.yaml": "83d3c722e663d62b2865e1ffc70cb4bec55af76e855a322682c6be573092e181",
+    "compose.verify.yaml": "de18e0aad0fd41ded17bb2aa6ca2adf4503f8d32331ded71f1033ba8953f7ebf",
+    "scripts/verify_compose.py": "0ebfa7fe068ed6a8ce387aab67e8e679ff8070cb8a439b22bb553c083fd1c241"
+  },
+  "passed": false,
+  "interrupted": true,
+  "error_type": "VerificationDriverCorrection",
+  "error": "Stopped this run after discovering that an in-namespace SIGKILL of PID 1 can be ignored. Final verification will use daemon-delivered signals in a fresh project. Existing successful checks are partial evidence only."
+}

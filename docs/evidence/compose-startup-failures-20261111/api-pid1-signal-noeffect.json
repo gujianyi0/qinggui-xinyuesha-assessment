@@ -1,0 +1,59 @@
+{
+  "before_http": 200,
+  "after_5_seconds": 200,
+  "state": {
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 6343,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-11-11T14:07:17.749366468Z",
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "Health": {
+      "Status": "healthy",
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "Start": "2026-11-11T14:07:28.092159074Z",
+          "End": "2026-11-11T14:07:28.334555675Z",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-11-11T14:07:38.336165935Z",
+          "End": "2026-11-11T14:07:38.578013451Z",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-11-11T14:07:48.58003963Z",
+          "End": "2026-11-11T14:07:48.796397223Z",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-11-11T14:07:58.797587827Z",
+          "End": "2026-11-11T14:07:59.007206615Z",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-11-11T14:08:09.00855559Z",
+          "End": "2026-11-11T14:08:09.473052743Z",
+          "ExitCode": 0,
+          "Output": ""
+        }
+      ]
+    }
+  },
+  "restart_policy": {
+    "Name": "no",
+    "MaximumRetryCount": 0
+  },
+  "kill_command_returncode": 0,
+  "scope": "Actual API SIGKILL before configuration fix; no model calls"
+}

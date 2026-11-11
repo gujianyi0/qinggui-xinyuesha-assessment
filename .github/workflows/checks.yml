@@ -11,7 +11,7 @@ jobs:
         with:
           version: '0.9.8'
       - run: uv sync --frozen --extra dev
-      - run: uv run ruff check backend tests migrations scripts/local_demo.py scripts/prepare_embedding.py scripts/prepare_native_kafka.py scripts/verify_native_kafka.py scripts/verify_embeddings.py scripts/prepare_native_postgres.py scripts/verify_native_postgres.py
+      - run: uv run ruff check backend tests migrations scripts/local_demo.py scripts/prepare_embedding.py scripts/prepare_native_kafka.py scripts/verify_native_kafka.py scripts/verify_embeddings.py scripts/prepare_native_postgres.py scripts/verify_native_postgres.py scripts/verify_compose.py
       - run: uv run pytest -q
       - name: Verify migration roundtrip on a disposable database
         env:

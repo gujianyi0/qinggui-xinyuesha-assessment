@@ -1,0 +1,200 @@
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2498, in connect
+worker-1  |     return await connect_utils._connect(
+worker-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |     ...<22 lines>...
+worker-1  |     )
+worker-1  |     ^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1307, in _connect
+worker-1  |     raise last_error or exceptions.TargetServerAttributeNotMatched(
+worker-1  |     ...<2 lines>...
+worker-1  |     )
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1278, in _connect
+worker-1  |     conn = await _connect_addr(
+worker-1  |            ^^^^^^^^^^^^^^^^^^^^
+worker-1  |     ...<6 lines>...
+worker-1  |     )
+worker-1  |     ^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1092, in _connect_addr
+worker-1  |     return await __connect_addr(params, True, *args)
+worker-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1162, in __connect_addr
+worker-1  |     tr, pr = await connector
+worker-1  |              ^^^^^^^^^^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 996, in _create_ssl_connection
+worker-1  |     tr, pr = await loop.create_connection(
+worker-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |     ...<2 lines>...
+worker-1  |         host, port)
+worker-1  |         ^^^^^^^^^^^
+worker-1  |   File "/usr/local/lib/python3.13/asyncio/base_events.py", line 1172, in create_connection
+worker-1  |     raise exceptions[0]
+worker-1  |   File "/usr/local/lib/python3.13/asyncio/base_events.py", line 1147, in create_connection
+worker-1  |     sock = await self._connect_sock(
+worker-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |         exceptions, addrinfo, laddr_infos)
+worker-1  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |   File "/usr/local/lib/python3.13/asyncio/base_events.py", line 1046, in _connect_sock
+worker-1  |     await self.sock_connect(sock, address)
+worker-1  |   File "/usr/local/lib/python3.13/asyncio/selector_events.py", line 643, in sock_connect
+worker-1  |     return await fut
+worker-1  |            ^^^^^^^^^
+worker-1  |   File "/usr/local/lib/python3.13/asyncio/selector_events.py", line 683, in _sock_connect_cb
+worker-1  |     raise OSError(err, f'Connect call failed {address}')
+worker-1  | ConnectionRefusedError: [Errno 111] Connect call failed ('172.20.0.4', 5432)
+worker-1  | 2026-11-11 14:41:16,194 assessment.worker ERROR outbox/recovery deferred
+worker-1  | Traceback (most recent call last):
+worker-1  |   File "/app/backend/app/worker.py", line 45, in outbox_loop
+worker-1  |     await self.jobs.recover()
+worker-1  |   File "/app/backend/app/jobs.py", line 126, in recover
+worker-1  |     due = list((await db.scalars(select(Job).where(or_(
+worker-1  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |     ...<2 lines>...
+worker-1  |     )).order_by(Job.created_at).limit(100).with_for_update(skip_locked=True))).all())
+worker-1  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/ext/asyncio/session.py", line 778, in scalars
+worker-1  |     result = await self.execute(
+worker-1  |              ^^^^^^^^^^^^^^^^^^^
+worker-1  |     ...<5 lines>...
+worker-1  |     )
+worker-1  |     ^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/ext/asyncio/session.py", line 652, in execute
+worker-1  |     result = await greenlet_spawn(
+worker-1  |              ^^^^^^^^^^^^^^^^^^^^^
+worker-1  |     ...<6 lines>...
+worker-1  |     )
+worker-1  |     ^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/util/concurrency.py", line 210, in greenlet_spawn
+worker-1  |     result = context.throw(*sys.exc_info())
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 2555, in execute
+worker-1  |     return self._execute_internal(
+worker-1  |            ~~~~~~~~~~~~~~~~~~~~~~^
+worker-1  |         statement,
+worker-1  |         ^^^^^^^^^^
+worker-1  |     ...<4 lines>...
+worker-1  |         _add_event=_add_event,
+worker-1  |         ^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |     )
+worker-1  |     ^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 2432, in _execute_internal
+worker-1  |     conn = self._connection_for_bind(bind)
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 2255, in _connection_for_bind
+worker-1  |     return trans._connection_for_bind(engine, execution_options)
+worker-1  |            ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |   File "<sqlalchemy generated _go() wrapper for sqlalchemy.orm.session.SessionTransaction._connection_for_bind>", line 2, in _connection_for_bind
+worker-1  |     return target(fn, self, bind, execution_options)
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+worker-1  |     ret_value = fn(self, *arg, **kw)
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 1282, in _connection_for_bind
+worker-1  |     conn = bind.connect()
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 3279, in connect
+worker-1  |     return self._connection_cls(self)
+worker-1  |            ~~~~~~~~~~~~~~~~~~~~^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 154, in __init__
+worker-1  |     self._dbapi_connection = engine.raw_connection()
+worker-1  |                              ~~~~~~~~~~~~~~~~~~~~~^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 3303, in raw_connection
+worker-1  |     return self.pool.connect()
+worker-1  |            ~~~~~~~~~~~~~~~~~^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 445, in connect
+worker-1  |     return _ConnectionFairy._checkout(self)
+worker-1  |            ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 1340, in _checkout
+worker-1  |     fairy = _ConnectionRecord.checkout(pool)
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 718, in checkout
+worker-1  |     with util.safe_reraise():
+worker-1  |          ~~~~~~~~~~~~~~~~~^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py", line 166, in __exit__
+worker-1  |     raise exc_value.with_traceback(exc_tb)
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 716, in checkout
+worker-1  |     dbapi_connection = rec.get_connection()
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 893, in get_connection
+worker-1  |     self.__connect()
+worker-1  |     ~~~~~~~~~~~~~~^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 932, in __connect
+worker-1  |     with util.safe_reraise():
+worker-1  |          ~~~~~~~~~~~~~~~~~^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py", line 166, in __exit__
+worker-1  |     raise exc_value.with_traceback(exc_tb)
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 928, in __connect
+worker-1  |     self.dbapi_connection = connection = pool._invoke_creator(self)
+worker-1  |                                          ~~~~~~~~~~~~~~~~~~~~^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/engine/create.py", line 645, in connect
+worker-1  |     return dialect.connect(*cargs_tup, **cparams)
+worker-1  |            ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py", line 869, in connect
+worker-1  |     return self.loaded_dbapi.connect(*cargs, **cparams)  # type: ignore[no-any-return]  # NOQA: E501
+worker-1  |            ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 967, in connect
+worker-1  |     return await_(
+worker-1  |         AsyncAdapt_asyncpg_connection.create(
+worker-1  |     ...<4 lines>...
+worker-1  |         )
+worker-1  |     )
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/util/concurrency.py", line 167, in await_
+worker-1  |     return current.parent.switch(awaitable)  # type: ignore[no-any-return]
+worker-1  |            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/util/concurrency.py", line 205, in greenlet_spawn
+worker-1  |     value = await result
+worker-1  |             ^^^^^^^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/connectors/asyncio.py", line 378, in create
+worker-1  |     cls._handle_exception_no_connection(dbapi, error)
+worker-1  |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 841, in _handle_exception_no_connection
+worker-1  |     super()._handle_exception_no_connection(dbapi, error)
+worker-1  |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/connectors/asyncio.py", line 409, in _handle_exception_no_connection
+worker-1  |     raise error.with_traceback(exc_info[2])
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/connectors/asyncio.py", line 376, in create
+worker-1  |     connection = await connection_awaitable
+worker-1  |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2498, in connect
+worker-1  |     return await connect_utils._connect(
+worker-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |     ...<22 lines>...
+worker-1  |     )
+worker-1  |     ^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1307, in _connect
+worker-1  |     raise last_error or exceptions.TargetServerAttributeNotMatched(
+worker-1  |     ...<2 lines>...
+worker-1  |     )
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1278, in _connect
+worker-1  |     conn = await _connect_addr(
+worker-1  |            ^^^^^^^^^^^^^^^^^^^^
+worker-1  |     ...<6 lines>...
+worker-1  |     )
+worker-1  |     ^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1092, in _connect_addr
+worker-1  |     return await __connect_addr(params, True, *args)
+worker-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1162, in __connect_addr
+worker-1  |     tr, pr = await connector
+worker-1  |              ^^^^^^^^^^^^^^^
+worker-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 996, in _create_ssl_connection
+worker-1  |     tr, pr = await loop.create_connection(
+worker-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |     ...<2 lines>...
+worker-1  |         host, port)
+worker-1  |         ^^^^^^^^^^^
+worker-1  |   File "/usr/local/lib/python3.13/asyncio/base_events.py", line 1123, in create_connection
+worker-1  |     infos = await self._ensure_resolved(
+worker-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |         (host, port), family=family,
+worker-1  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |         type=socket.SOCK_STREAM, proto=proto, flags=flags, loop=self)
+worker-1  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |   File "/usr/local/lib/python3.13/asyncio/base_events.py", line 1519, in _ensure_resolved
+worker-1  |     return await loop.getaddrinfo(host, port, family=family, type=type,
+worker-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |                                   proto=proto, flags=flags)
+worker-1  |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |   File "/usr/local/lib/python3.13/asyncio/base_events.py", line 940, in getaddrinfo
+worker-1  |     return await self.run_in_executor(
+worker-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |         None, getaddr_func, host, port, family, type, proto, flags)
+worker-1  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  |   File "/usr/local/lib/python3.13/concurrent/futures/thread.py", line 59, in run
+worker-1  |     result = self.fn(*self.args, **self.kwargs)
+worker-1  |   File "/usr/local/lib/python3.13/socket.py", line 983, in getaddrinfo
+worker-1  |     for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+worker-1  |                ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+worker-1  | socket.gaierror: [Errno -3] Temporary failure in name resolution

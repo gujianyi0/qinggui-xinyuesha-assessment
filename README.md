@@ -2,7 +2,7 @@
 
 面向普通新月杀玩家：查武将、卡牌和技能资料，核对有明确前提的复杂结算，整理并确认问题反馈。所有实现均位于本目录，未修改原轻归或原游戏工程。
 
-**当前版本1.3（2026-11-11）：Docker环境已安装并验证可用。** Docker Desktop4.99.0、Linux Engine29.9.3、Compose5.7.0已启动；hello-world实际运行和本项目Compose配置检查通过。项目七服务的镜像构建、容器启动/导入/数据卷与故障验证仍待执行。现有133项程序及4项前端证据沿用，不记为本轮新测试；真人试用按1.2决定移除。[本轮报告](docs/1.3-Docker环境安装与验证-20261111.md) · [验收矩阵](docs/验收矩阵.md) · [差距](docs/验证与差距.md)。
+**当前版本1.4（2026-11-11）：Compose启动与故障验证完成。** 137项Python、4项前端、17组真实Linux容器和7项网页流程通过；修复Kafka卷权限、Windows端口、数据库停机500。容器聊天为替身，真实模型历史另列；原生15174已恢复真实问答。测试容器/Docker Desktop已停止并保留卷，使用Docker前先启动Desktop。[本轮报告](docs/1.4-Compose集成与故障恢复验证-20261111.md) · [验收矩阵](docs/验收矩阵.md) · [差距](docs/验证与差距.md)。真人试用按1.2决定移除。
 
 ## 快速运行（不需要模型密钥或Docker）
 
@@ -14,7 +14,7 @@
 pwsh -File F:\Work\Biteagle\入职考核\scripts\start_native.ps1
 ```
 
-打开 http://127.0.0.1:15174 ，账号 `alice` 或 `bob`，演示密码 `local-demo-change-me`。这个预览实际连接 PostgreSQL、pgvector、Kafka、独立 Worker 和本地 BGE；聊天模式读取本项目 `.env`，当前已按用户授权接通轻归的 `deepseek-flash`。Redis 当前不可用并回源。首次问答会加载 CPU 模型，可能需要更长等待。网页可以实际导入、取消和确认反馈。
+打开 http://127.0.0.1:15174 ，账号 `alice` 或 `bob`，演示密码 `local-demo-change-me`。这个预览实际连接 PostgreSQL、pgvector、Kafka、独立 Worker 和本地 BGE；聊天模式读取本项目 `.env`，当前已按用户授权接通轻归的 `deepseek-flash`。Redis 已接通，故障时自动回源。首次问答会加载 CPU 模型，可能需要更长等待。网页可以实际导入、取消和确认反馈。
 
 停止时执行 `pwsh -File scripts/stop_native.ps1`，只停止此预览拥有的进程并保留数据库。状态位于 `.local/native-demo/status.json`。本轮[集成网页证据](docs/evidence/browser-native-20261110-resume-03/summary.json)包含 7 项通过流程，另有[真实导入结果](docs/evidence/browser-native-20261110-resume-03/published-job.json)。
 
@@ -49,9 +49,13 @@ npm run dev
 
 ## 完整技术栈（Compose）
 
+先启动Docker服务。Windows使用Docker Desktop时可运行`docker desktop start`并等待引擎就绪，再执行下列命令。
+
 ```powershell
-Copy-Item .env.example .env
-docker compose up --build -d
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+docker compose build
+docker compose run --rm --no-deps api python scripts/prepare_embedding.py --download
+docker compose up -d --wait
 docker compose ps
 ```
 
@@ -61,7 +65,7 @@ docker compose ps
 docker compose run --rm --no-deps api python scripts/prepare_embedding.py --download
 ```
 
-将输出的`EMBEDDING_REVISION`写入本项目`.env`，确认`EMBEDDING_MODE=local`，再`docker compose up -d api worker`。网页“后台任务”选择固定快照并导入，成功后`/health`的`index_published=true`。下载缓存位于专用models卷，不写入仓库。网络暂时不可用时按错误处理，不切换代理或出口。
+示例配置已锁定`EMBEDDING_REVISION=7999e1d3359715c523056ef9478215996d62a620`，只需确认本项目`.env`没有改动它且`EMBEDDING_MODE=local`。打开 http://127.0.0.1:15175 ，账号alice或bob，演示密码以`.env`为准。网页“后台任务”选择固定快照并导入，成功后 http://127.0.0.1:18082/health 的`index_published=true`。可通过`WEB_PORT`和`API_PORT`修改端口；示例使用15175/18082，避开本机Windows的5173保留范围。下载缓存位于专用models卷，不写入仓库。网络暂时不可用时按错误处理，不切换代理或出口。
 
 服务：PostgreSQL 17＋pgvector、Kafka KRaft单节点、Redis 7、Alembic迁移、一个API进程、独立Worker、Nginx＋React。API启动依赖迁移成功；单机验收限定**一个API进程**，启动会清理上个API进程中断的运行。不要使用`--workers`扩展API；多实例运行恢复需要另行实现租约。
 
@@ -70,13 +74,32 @@ docker compose logs --tail 100 api worker
 docker compose stop
 ```
 
-`stop`保留数据卷。升级先备份本项目数据库，再运行`docker compose run --rm migrate`。此处不提供清空数据操作。当前机器未检测到Docker，Compose文件尚未实际构建启动。
+`stop`保留数据卷。升级先备份本项目数据库，再运行`docker compose run --rm migrate`。此处不提供清空数据操作。本机已安装Docker Desktop/WSL2；项目容器验证结果单独记录。内存有限时先停止原生预览，避免两套基础设施同时占用资源。
+
+### 隔离的Linux容器验证
+
+先按上文构建镜像。每次使用新的英文project和label，保留旧结果及数据卷：
+
+```powershell
+$env:ASSESSMENT_ENV_FILE = '.env.example'
+$verifyProject = 'qinggui-assessment-verify-demo01'
+docker compose --env-file .env.example -p $verifyProject -f compose.yaml -f compose.verify.yaml run --rm --no-deps api python scripts/prepare_embedding.py --download
+.venv\Scripts\python.exe scripts/verify_compose.py --label compose-demo01 --project $verifyProject
+docker compose --env-file .env.example -p $verifyProject -f compose.yaml -f compose.verify.yaml stop
+Remove-Item Env:ASSESSMENT_ENV_FILE
+```
+
+复查脚本需要本项目Python依赖，首次可用`uv sync --frozen --extra dev`安装；常规Docker启动只需Docker。验证配置读取`.env.example`，聊天为替身且模型密钥为空；数据库、Kafka、Redis、CPU BGE及Worker实际运行。脚本覆盖并发提交、取消、崩溃、位点、重试、依赖停机及重建，约需十几至二十分钟，以实测为准，证据保存在`docs/evidence/<label>`。
+
+异常退出测试使用一个无网络、无数据挂载、只读根目录的辅助容器；它在Docker VM的PID命名空间内核对目标命名空间后发送信号，只授予KILL及读取目标身份所需的SYS_PTRACE能力。正常运行不需要这一步。测试仅接受`qinggui-assessment-verify`前缀的项目名。
+
+验证库与原生预览库独立，验证费用为0。切换真实付费服务时须沿用或迁移项目用量账本，200元为整个项目总额。
 
 ## 原生验证与模型配置
 
 ### 已完成的本机真实依赖验证
 
-本机没有Docker，补充使用项目`.local`中的临时原生依赖验证，未注册Windows服务。PostgreSQL 17.11、pgvector 0.8.7、Kafka 3.9.1与锁定的BGE权重已实际执行。原生验证和Compose验收分别报告。
+在Docker安装前，使用项目`.local`中的便携原生依赖验证，未注册Windows服务；这套启动方式继续保留。PostgreSQL 17.11、pgvector 0.8.7、Kafka 3.9.1与锁定的BGE权重已实际执行。原生验证和Compose验收分别报告。
 
 ```powershell
 uv sync --frozen --extra dev --extra embeddings
@@ -128,7 +151,7 @@ PostgreSQL是业务状态权威；Redis仅缓存公共检索，默认TTL300秒�
 
 ```powershell
 uv run pytest -q
-uv run ruff check backend tests migrations scripts/local_demo.py scripts/prepare_embedding.py
+uv run ruff check backend tests migrations scripts/local_demo.py scripts/prepare_embedding.py scripts/verify_compose.py
 cd frontend
 npm test
 npm run build
@@ -144,7 +167,7 @@ uv run python -m evaluations.run --mode mock --label mock-01
 
 GitHub Actions配置已落盘，尚未上传或在GitHub执行。它执行本机契约测试和构建，不替代Kafka/PostgreSQL集成验收。
 
-最新 Python 记录为 133 项通过，其中 11 项 Agno 协议夹具覆盖工具、裁定引用、前提保护、用户反馈来源、用量、超时、供应商错误、空正文和连接关闭。协议夹具不是实际供应商调用；真实模型记录保存在 `evaluations/results/live-*`，语义审查状态单独标识。Redis原下载502阻碍已解除；1.1实际命中、300秒自然失效、停机回源与重连验证通过，详见本轮报告。
+最新 Python 记录为 137 项通过，其中 11 项 Agno 协议夹具覆盖工具、裁定引用、前提保护、用户反馈来源、用量、超时、供应商错误、空正文和连接关闭。协议夹具不是实际供应商调用；真实模型记录保存在 `evaluations/results/live-*`，语义审查状态单独标识。Redis原下载502阻碍已解除；1.1实际命中、300秒自然失效、停机回源与重连验证通过，详见本轮报告。
 
 完整实模评测可用 `python -m evaluations.run --api-url http://127.0.0.1:15174/api --mode live --label 唯一标签 --concurrency 2`。并发仅限1或2，记录在元数据中。F01需要明确启用故障模式：先停止本机预览，再 `pwsh -File scripts/start_native.ps1 -EvaluationFaults`；评测结束停止后不带参数重新启动，恢复默认禁用故障注入。未启用时该条明确记录为blocked。
 

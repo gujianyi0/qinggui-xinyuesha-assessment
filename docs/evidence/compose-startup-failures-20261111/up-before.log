@@ -1,0 +1,33 @@
+ Container qinggui-assessment-verify-redis-1 Creating 
+ Volume qinggui-assessment-verify_kafka Creating 
+ Volume qinggui-assessment-verify_kafka Creating 
+ Container qinggui-assessment-verify-postgres-1 Creating 
+ Volume qinggui-assessment-verify_kafka Created 
+ Volume qinggui-assessment-verify_kafka Created 
+ Container qinggui-assessment-verify-kafka-1 Creating 
+ Container qinggui-assessment-verify-postgres-1 Created 
+ Container qinggui-assessment-verify-migrate-1 Creating 
+ Container qinggui-assessment-verify-redis-1 Created 
+ Container qinggui-assessment-verify-kafka-1 Created 
+ Container qinggui-assessment-verify-migrate-1 Created 
+ Container qinggui-assessment-verify-api-1 Creating 
+ Container qinggui-assessment-verify-api-1 Created 
+ Container qinggui-assessment-verify-worker-1 Creating 
+ Container qinggui-assessment-verify-web-1 Creating 
+ Container qinggui-assessment-verify-web-1 Created 
+ Container qinggui-assessment-verify-worker-1 Created 
+ Container qinggui-assessment-verify-kafka-1 Starting 
+ Container qinggui-assessment-verify-redis-1 Starting 
+ Container qinggui-assessment-verify-postgres-1 Starting 
+ Container qinggui-assessment-verify-kafka-1 Started 
+ Container qinggui-assessment-verify-kafka-1 Waiting 
+ Container qinggui-assessment-verify-redis-1 Started 
+ Container qinggui-assessment-verify-postgres-1 Started 
+ Container qinggui-assessment-verify-postgres-1 Waiting 
+ Container qinggui-assessment-verify-kafka-1 Error dependency kafka failed to start
+ Container qinggui-assessment-verify-postgres-1 Skipped: condition "service_healthy" of service "postgres" not reached: interrupted by the unmet condition "service_healthy" of service "kafka" 
+ Container qinggui-assessment-verify-migrate-1 not started: condition "service_healthy" of service "postgres" not reached: interrupted by the unmet condition "service_healthy" of service "kafka" 
+ Container qinggui-assessment-verify-worker-1 not started: condition "service_healthy" of service "kafka" not met 
+ Container qinggui-assessment-verify-web-1 not started: condition "service_healthy" of service "api" not reached: interrupted by the unmet condition "service_healthy" of service "kafka" 
+ Container qinggui-assessment-verify-api-1 not started: condition "service_completed_successfully" of service "migrate" not reached: interrupted by the unmet condition "service_healthy" of service "kafka" 
+dependency failed to start: container qinggui-assessment-verify-kafka-1 is unhealthy

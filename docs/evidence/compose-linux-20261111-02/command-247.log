@@ -1,0 +1,23 @@
+worker-1  | 2026-11-11 14:18:14,927 assessment.worker INFO worker_resources {"process": {"pid": 1, "available": false}, "system": {"available": false}, "async_tasks": 3}
+worker-1  | %4|1794406695.393|GETPID|rdkafka#producer-2| [thrd:main]: Failed to acquire idempotence PID from broker kafka:9092/1: Broker: Coordinator load in progress: retrying
+worker-1  | 2026-11-11 14:18:25,271 assessment.worker INFO job_claimed job_id=fc639502-f34c-477e-afad-a7d581464d0f generation=1
+worker-1  | 2026-11-11 14:18:44,929 assessment.worker INFO worker_resources {"process": {"pid": 1, "available": false}, "system": {"available": false}, "async_tasks": 4}
+worker-1  | 
+Loading weights:   0%|          | 0/71 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 71/71 [00:00<00:00, 1309.86it/s]
+worker-1  | 2026-11-11 14:19:14,930 assessment.worker INFO worker_resources {"process": {"pid": 1, "available": false}, "system": {"available": false}, "async_tasks": 4}
+worker-1  | 2026-11-11 14:19:44,932 assessment.worker INFO worker_resources {"process": {"pid": 1, "available": false}, "system": {"available": false}, "async_tasks": 3}
+worker-1  | 2026-11-11 14:19:47,997 assessment.worker INFO job_released job_id=fc639502-f34c-477e-afad-a7d581464d0f memory={"pid": 1, "available": false}
+worker-1  | 2026-11-11 14:20:14,933 assessment.worker INFO worker_resources {"process": {"pid": 1, "available": false}, "system": {"available": false}, "async_tasks": 3}
+worker-1  | 2026-11-11 14:20:44,935 assessment.worker INFO worker_resources {"process": {"pid": 1, "available": false}, "system": {"available": false}, "async_tasks": 3}
+worker-1  | 2026-11-11 14:20:52,413 assessment.worker INFO worker_resources {"process": {"pid": 1, "available": false}, "system": {"available": false}, "async_tasks": 3}
+worker-1  | 2026-11-11 14:20:55,548 assessment.worker INFO job_claimed job_id=9f461849-1f74-40df-b602-47d93495d5d0 generation=1
+worker-1  | 
+Loading weights:   0%|          | 0/71 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 71/71 [00:00<00:00, 1244.50it/s]
+worker-1  | 2026-11-11 14:21:15,267 assessment.worker INFO job_released job_id=9f461849-1f74-40df-b602-47d93495d5d0 memory={"pid": 1, "available": false}
+worker-1  | 2026-11-11 14:21:16,855 assessment.worker INFO job_claimed job_id=47d6925e-e33e-4682-bfd4-5b92e69b0ec6 generation=1
+worker-1  | 2026-11-11 14:21:22,415 assessment.worker INFO worker_resources {"process": {"pid": 1, "available": false}, "system": {"available": false}, "async_tasks": 4}
+worker-1  | 
+Loading weights:   0%|          | 0/71 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 71/71 [00:00<00:00, 1017.22it/s]

@@ -1,0 +1,10 @@
+{
+  "started_at": "2026-11-11T14:25:04.085546+00:00",
+  "project": "qinggui-assessment-verify-final",
+  "scope": "Real Linux PostgreSQL/pgvector, Kafka, Redis, independent Worker and pinned CPU BGE; chat is a test double; no model fee or QQ",
+  "checks": [],
+  "passed": false,
+  "error_type": "RuntimeError",
+  "error": "Docker command 7 failed (1); inspect command log",
+  "finished_at": "2026-11-11T14:25:11.541479+00:00"
+}

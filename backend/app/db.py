@@ -1,4 +1,6 @@
 from sqlalchemy import event, select
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from .config import Settings
@@ -8,7 +10,21 @@ from .security import password_hash
 
 class Database:
     def __init__(self, settings: Settings):
-        self.engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+        options = {}
+        if make_url(settings.database_url).drivername == "postgresql+asyncpg":
+            import asyncpg
+            dsn = make_url(settings.database_url).set(drivername="postgresql").render_as_string(hide_password=False)
+
+            async def connect_postgres():
+                # Bare asyncpg DNS/socket errors can bypass SQLAlchemy's normal
+                # DBAPI wrapper. Translate at creation, not as global OSError.
+                try:
+                    return await asyncpg.connect(dsn, timeout=5)
+                except OSError as error:
+                    raise SQLAlchemyError("数据库连接暂时不可用") from error
+
+            options["async_creator"] = connect_postgres
+        self.engine = create_async_engine(settings.database_url, pool_pre_ping=True, **options)
         if settings.database_url.startswith("sqlite"):
             @event.listens_for(self.engine.sync_engine, "connect")
             def configure_sqlite(connection, _):

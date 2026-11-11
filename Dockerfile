@@ -4,7 +4,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.9.8 /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
 COPY backend ./backend
 COPY integrations ./integrations
-RUN uv sync --frozen --no-dev --extra embeddings
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --extra embeddings --link-mode=copy
 COPY migrations ./migrations
 COPY alembic.ini ./
 COPY data ./data
