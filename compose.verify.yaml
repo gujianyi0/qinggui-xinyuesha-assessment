@@ -9,13 +9,11 @@ services:
       MODEL_MODE: mock
       MODEL_API_KEY: ''
       ENABLE_TEST_FAULTS: 'false'
-      QQ_LIVE_ENABLED: 'false'
   worker:
     image: qinggui-assessment-worker:latest
     environment:
       MODEL_MODE: mock
       MODEL_API_KEY: ''
       ENABLE_TEST_FAULTS: 'false'
-      QQ_LIVE_ENABLED: 'false'
   web:
     image: qinggui-assessment-web:latest

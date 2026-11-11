@@ -1,0 +1,215 @@
+{
+  "input": "在当前固定资料快照中，诸葛亮的观星和空城各是什么？请给出来源。",
+  "run": {
+    "id": "0bf54cab-dae7-423c-986b-574115ffe431",
+    "session_id": "333cb5cd-3896-4091-bb2a-8cc69b942953",
+    "user_id": "89387b7f-19d0-4758-bb32-86f7dd701470",
+    "status": "completed",
+    "text": "**结论：** 在当前固定资料快照（freekill-local-b9dc701220bc）中，标准版诸葛亮的「观星」是一项牌堆顶操控技能；「空城」是锁定技，手牌为空时不能被选为【杀】或【决斗】的目标。\n\n- **观星**：准备阶段开始时，你可以观看牌堆顶的X张牌，然后将任意数量的牌置于牌堆顶，将其余的牌置于牌堆底；X为存活角色数，至多为5。\n- **空城**：锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。\n\n**来源（描述与实现快照一致）：**\n- 技能描述来自中文说明文件 `runtime/packages/standard/i18n/zh_CN.lua`，观星在第137行、空城在第141行。\n- 武将定义来自实现文件 `runtime/packages/standard/pkg/init.lua` 第23行：`zhugeliang`（蜀，3体力，技能 `guanxing`、`kongcheng`）。\n\n**前提：** 以上内容仅对应快照中的标准版诸葛亮；其他版本诸葛亮未在此次查询范围内。",
+    "citations": [
+      {
+        "id": "db68818c5b1399b87a00",
+        "title": "诸葛亮",
+        "path": "runtime/packages/standard/pkg/init.lua",
+        "line_start": 23,
+        "line_end": 23,
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "evidence_type": "implementation",
+        "excerpt": "General:new(extension, \"zhugeliang\", \"shu\", 3):addSkills { \"guanxing\", \"kongcheng\" }",
+        "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+      },
+      {
+        "id": "e8cfb0406a9f4c8071cc",
+        "title": "观星",
+        "path": "runtime/packages/standard/i18n/zh_CN.lua",
+        "line_start": 137,
+        "line_end": 137,
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "evidence_type": "skill_description",
+        "excerpt": "准备阶段开始时，你可以观看牌堆顶的X张牌，然后将任意数量的牌置于牌堆顶，将其余的牌置于牌堆底。（X为存活角色数且至多为5）",
+        "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+      },
+      {
+        "id": "9937b633d1dd2e694755",
+        "title": "空城",
+        "path": "runtime/packages/standard/i18n/zh_CN.lua",
+        "line_start": 141,
+        "line_end": 141,
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "evidence_type": "skill_description",
+        "excerpt": "锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。",
+        "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+      }
+    ],
+    "error": null,
+    "retryable": false,
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "prompt_version": "grounded-v1",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "fault": null,
+    "input_tokens": 4299,
+    "output_tokens": 414,
+    "elapsed_ms": 4917,
+    "created_at": "2026-11-11T20:39:01.638551",
+    "tool_calls": [
+      {
+        "id": "93c3a544-a4b4-41cd-a47b-e56a0798949a",
+        "run_id": "0bf54cab-dae7-423c-986b-574115ffe431",
+        "name": "query_game_data",
+        "arguments": {
+          "query": "诸葛亮 观星 空城",
+          "kind": "general"
+        },
+        "result": {
+          "items": [
+            {
+              "id": "standard:general:zhugeliang",
+              "kind": "general",
+              "name": "诸葛亮",
+              "package": "standard",
+              "description": "观星：准备阶段开始时，你可以观看牌堆顶的X张牌，然后将任意数量的牌置于牌堆顶，将其余的牌置于牌堆底。（X为存活角色数且至多为5）\n空城：锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。",
+              "attributes": {
+                "internal_id": "zhugeliang",
+                "kingdom": "shu",
+                "hp": 3,
+                "max_hp": 3,
+                "gender": "male",
+                "skills": [
+                  "guanxing",
+                  "kongcheng"
+                ]
+              },
+              "source": {
+                "id": "db68818c5b1399b87a00",
+                "title": "诸葛亮",
+                "path": "runtime/packages/standard/pkg/init.lua",
+                "line_start": 23,
+                "line_end": 23,
+                "snapshot_id": "freekill-local-b9dc701220bc",
+                "evidence_type": "implementation",
+                "excerpt": "General:new(extension, \"zhugeliang\", \"shu\", 3):addSkills { \"guanxing\", \"kongcheng\" }",
+                "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+              },
+              "description_sources": [
+                {
+                  "id": "e8cfb0406a9f4c8071cc",
+                  "title": "观星",
+                  "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                  "line_start": 137,
+                  "line_end": 137,
+                  "snapshot_id": "freekill-local-b9dc701220bc",
+                  "evidence_type": "skill_description",
+                  "excerpt": "准备阶段开始时，你可以观看牌堆顶的X张牌，然后将任意数量的牌置于牌堆顶，将其余的牌置于牌堆底。（X为存活角色数且至多为5）",
+                  "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                },
+                {
+                  "id": "9937b633d1dd2e694755",
+                  "title": "空城",
+                  "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                  "line_start": 141,
+                  "line_end": 141,
+                  "snapshot_id": "freekill-local-b9dc701220bc",
+                  "evidence_type": "skill_description",
+                  "excerpt": "锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。",
+                  "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                }
+              ],
+              "attribute_sources": []
+            }
+          ]
+        },
+        "status": "succeeded",
+        "elapsed_ms": 5,
+        "created_at": "2026-11-11T20:39:03.413539"
+      },
+      {
+        "id": "2c3f1416-edfe-4e31-80fa-b5849aca7beb",
+        "run_id": "0bf54cab-dae7-423c-986b-574115ffe431",
+        "name": "query_game_data",
+        "arguments": {
+          "query": "观星",
+          "kind": "skill"
+        },
+        "result": {
+          "items": [
+            {
+              "id": "standard:skill:guanxing",
+              "kind": "skill",
+              "name": "观星",
+              "package": "standard",
+              "description": "准备阶段开始时，你可以观看牌堆顶的X张牌，然后将任意数量的牌置于牌堆顶，将其余的牌置于牌堆底。（X为存活角色数且至多为5）",
+              "attributes": {
+                "internal_id": "guanxing",
+                "implementation_available": true
+              },
+              "source": {
+                "id": "e8cfb0406a9f4c8071cc",
+                "title": "观星",
+                "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                "line_start": 137,
+                "line_end": 137,
+                "snapshot_id": "freekill-local-b9dc701220bc",
+                "evidence_type": "skill_description",
+                "excerpt": "准备阶段开始时，你可以观看牌堆顶的X张牌，然后将任意数量的牌置于牌堆顶，将其余的牌置于牌堆底。（X为存活角色数且至多为5）",
+                "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+              },
+              "description_sources": [],
+              "attribute_sources": []
+            }
+          ]
+        },
+        "status": "succeeded",
+        "elapsed_ms": 2,
+        "created_at": "2026-11-11T20:39:03.414241"
+      },
+      {
+        "id": "cfa4f66d-ecba-41d1-a899-6b65f54cb4b6",
+        "run_id": "0bf54cab-dae7-423c-986b-574115ffe431",
+        "name": "query_game_data",
+        "arguments": {
+          "query": "空城",
+          "kind": "skill"
+        },
+        "result": {
+          "items": [
+            {
+              "id": "standard:skill:kongcheng",
+              "kind": "skill",
+              "name": "空城",
+              "package": "standard",
+              "description": "锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。",
+              "attributes": {
+                "internal_id": "kongcheng",
+                "implementation_available": true
+              },
+              "source": {
+                "id": "9937b633d1dd2e694755",
+                "title": "空城",
+                "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                "line_start": 141,
+                "line_end": 141,
+                "snapshot_id": "freekill-local-b9dc701220bc",
+                "evidence_type": "skill_description",
+                "excerpt": "锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。",
+                "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+              },
+              "description_sources": [],
+              "attribute_sources": []
+            }
+          ]
+        },
+        "status": "succeeded",
+        "elapsed_ms": 1,
+        "created_at": "2026-11-11T20:39:03.428113"
+      }
+    ],
+    "usage": {
+      "run_id": "0bf54cab-dae7-423c-986b-574115ffe431",
+      "reserved_cny": 1.010688,
+      "charged_cny": 0.01191,
+      "estimated": false,
+      "settled": true
+    }
+  }
+}

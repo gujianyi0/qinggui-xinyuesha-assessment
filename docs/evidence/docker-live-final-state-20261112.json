@@ -1,0 +1,60 @@
+{
+  "passed": true,
+  "web_status": 200,
+  "api_status": 200,
+  "health": {
+    "status": "ok",
+    "cache": "available",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 5.762454000000001,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "database": {
+    "counts": {
+      "alembic_version": 1,
+      "auth_tokens": 31,
+      "budget_account": 1,
+      "feedback": 4,
+      "feedback_drafts": 4,
+      "indexed_chunks": 8679,
+      "job_attempts": 17,
+      "jobs": 19,
+      "messages": 551,
+      "outbox": 22,
+      "published_indexes": 1,
+      "qq_events": 0,
+      "runs": 277,
+      "sessions": 251,
+      "tool_calls": 566,
+      "usage_records": 274,
+      "users": 2,
+      "vector_chunks": 8679
+    },
+    "budget": {
+      "id": 1,
+      "spent": 5.762454000000001,
+      "reserved": 0.0
+    },
+    "charged_sum": 5.762454,
+    "unsettled": 0,
+    "qq_disabled": true
+  },
+  "source_spent_cny": 5.682864,
+  "additional_estimate_cny": 0.0795900000000005,
+  "new_live_usage_records": 7,
+  "primary": "docker",
+  "package_version": "1.5.0",
+  "qq_active_scope_removed": true,
+  "private_configs_contain_no_qq_entries": true,
+  "scope": "Final actual Docker primary, all original data initially matched; new validation records and paid usage retained"
+}

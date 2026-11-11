@@ -1,0 +1,14 @@
+# Migrated primary deployment; private configuration is generated locally.
+services:
+  migrate:
+    image: qinggui-assessment-migrate:latest
+  api:
+    image: qinggui-assessment-api:latest
+    environment:
+      ENABLE_TEST_FAULTS: 'false'
+  worker:
+    image: qinggui-assessment-worker:latest
+    environment:
+      ENABLE_TEST_FAULTS: 'false'
+  web:
+    image: qinggui-assessment-web:latest

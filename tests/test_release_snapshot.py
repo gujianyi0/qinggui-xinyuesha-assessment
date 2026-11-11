@@ -22,7 +22,8 @@ def test_complete_same_round_keeps_original_tags_and_next_round_sequence():
 
 def test_snapshot_excludes_runtime_secrets_and_the_repository_itself(tmp_path):
     for name in [".env", ".env.example", "README.md", "git/old.md", ".local/state.json", ".venv/python.exe",
-                 "frontend/node_modules/big.js", "backend/app.py", "local.sqlite3", "docs/evidence/result.log"]:
+                 "frontend/node_modules/big.js", "backend/app.py", "local.sqlite3", "docs/evidence/result.log",
+                 ".env.docker-live", "generated.egg-info/PKG-INFO", "generated.dist-info/METADATA"]:
         path = tmp_path/name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("fixture", encoding="utf-8")

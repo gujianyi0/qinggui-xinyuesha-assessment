@@ -1,0 +1,32 @@
+{
+  "passed": true,
+  "at": "2026-11-11T20:33:43.606985+00:00",
+  "health_before_paid_queries": {
+    "status": "ok",
+    "cache": "available",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 5.682864,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "model_configuration_matches_native": true,
+  "configuration": {
+    "model_id": "deepseek-flash",
+    "base_url": "https://api.deepseek.com",
+    "input_rate": 2.0,
+    "output_rate": 8.0,
+    "qq_disabled": true
+  },
+  "source_budget_preserved": true,
+  "primary": "docker",
+  "scope": "Key compared by digest in memory only; not stored in evidence, no paid query yet"
+}

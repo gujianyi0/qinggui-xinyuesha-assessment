@@ -1,6 +1,9 @@
 param([switch]$EvaluationFaults)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$python = Join-Path $projectRoot '.venv\Scripts\python.exe'
+& $python -c 'from backend.app.deployment import require_native_primary; require_native_primary()'
+if ($LASTEXITCODE -ne 0) { throw 'Native startup blocked by the primary-database handoff guard.' }
 $stateDir = Join-Path $projectRoot '.local\native-demo'
 $stateFile = Join-Path $stateDir 'status.json'
 if (Test-Path -LiteralPath $stateFile) {
@@ -14,7 +17,6 @@ if (Test-Path -LiteralPath $stateFile) {
     }
 }
 New-Item -ItemType Directory -Path $stateDir -Force | Out-Null
-$python = Join-Path $projectRoot '.venv\Scripts\python.exe'
 $nativeArgs = @('-u','scripts/native_demo.py')
 if ($EvaluationFaults) { $nativeArgs += '--evaluation-faults' }
 $process = Start-Process -FilePath $python -ArgumentList $nativeArgs -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $stateDir 'supervisor.log') -RedirectStandardError (Join-Path $stateDir 'supervisor-error.log')

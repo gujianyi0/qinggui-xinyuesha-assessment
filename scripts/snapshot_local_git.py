@@ -6,6 +6,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from dotenv import dotenv_values
+
 from backend.app.config import ROOT, Settings
 
 EXCLUDED = {"git", ".git", ".venv", ".local", "node_modules", "dist", "__pycache__", ".pytest_cache", ".ruff_cache", "coverage", "htmlcov"}
@@ -18,7 +20,7 @@ def next_version(tags):
 
 def release_files(root):
     for folder, directories, filenames in root.walk():
-        directories[:] = [name for name in directories if name not in EXCLUDED]
+        directories[:] = [name for name in directories if name not in EXCLUDED and not name.endswith((".egg-info", ".dist-info"))]
         for name in filenames:
             path = folder / name
             if path.is_symlink() or (name.startswith(".env") and name != ".env.example"):
@@ -69,9 +71,13 @@ def snapshot(version=None, *, complete_current=False):
         raise ValueError("Update VERSION and release notes before taking a snapshot")
     selected = list(release_files(ROOT))
     # Compare the actual local model credential without printing its value.
-    secret = Settings().model_api_key.encode()
+    secrets = [Settings().model_api_key]
+    live_config = ROOT / ".env.docker-live"
+    if live_config.is_file():
+        private = dotenv_values(live_config, interpolate=False)
+        secrets.extend(private.get(key) or "" for key in ("MODEL_API_KEY", "POSTGRES_PASSWORD"))
     for path in selected:
-        if secret and secret in path.read_bytes():
+        if any(secret and secret.encode() in path.read_bytes() for secret in secrets):
             raise ValueError(f"Credential found in {path.relative_to(ROOT)}; release stopped")
     relative = {path.relative_to(ROOT).as_posix() for path in selected}
     tracked = git("ls-files", "-z").split("\0")

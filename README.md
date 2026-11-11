@@ -2,21 +2,22 @@
 
 面向普通新月杀玩家：查武将、卡牌和技能资料，核对有明确前提的复杂结算，整理并确认问题反馈。所有实现均位于本目录，未修改原轻归或原游戏工程。
 
-**当前版本1.4（2026-11-11）：Compose启动与故障验证完成。** 137项Python、4项前端、17组真实Linux容器和7项网页流程通过；修复Kafka卷权限、Windows端口、数据库停机500。容器聊天为替身，真实模型历史另列；原生15174已恢复真实问答。测试容器/Docker Desktop已停止并保留卷，使用Docker前先启动Desktop。[本轮报告](docs/1.4-Compose集成与故障恢复验证-20261111.md) · [验收矩阵](docs/验收矩阵.md) · [差距](docs/验证与差距.md)。真人试用按1.2决定移除。
+**当前版本1.5（2026-11-12）：Docker真实问答与主库迁移完成。** 18张表的内容/行数与账本一致后切换；原有246个会话、270次运行及267条费用记录保留，累计费用从5.682864元继续记账。147项Python、4项前端、6组迁移/冷启动检查、7项真实网页流程通过。QQ接入已移出当前交付，运行配置清理，历史实现及证据归档。[本轮报告](docs/1.5-Docker真实问答与主库迁移-20261112.md) · [当前进度](docs/进度同步-20261112.md) · [验收矩阵](docs/验收矩阵.md)。
 
-## 快速运行（不需要模型密钥或Docker）
+## 本机当前入口：Docker真实问答
 
-### 已接通真实基础设施的本机预览
-
-本机已准备便携依赖时执行：
+打开 http://127.0.0.1:15174 ，账号alice或bob，演示密码以本机私有配置为准。会话、索引和费用账本均来自原生库完整迁移，现由Docker中的PostgreSQL持久保存；模型服务继续使用获授权的deepseek-flash，Redis、Kafka、BGE及独立Worker实际运行。
 
 ```powershell
-pwsh -File F:\Work\Biteagle\入职考核\scripts\start_native.ps1
+pwsh -File scripts/start_docker_live.ps1
+pwsh -File scripts/stop_docker_live.ps1
 ```
 
-打开 http://127.0.0.1:15174 ，账号 `alice` 或 `bob`，演示密码 `local-demo-change-me`。这个预览实际连接 PostgreSQL、pgvector、Kafka、独立 Worker 和本地 BGE；聊天模式读取本项目 `.env`，当前已按用户授权接通轻归的 `deepseek-flash`。Redis 已接通，故障时自动回源。首次问答会加载 CPU 模型，可能需要更长等待。网页可以实际导入、取消和确认反馈。
+启动脚本先启动Docker Desktop，再等待服务就绪；停止保留全部命名卷和主库标记。私有配置是`.env.docker-live`，不进入Git。本机普通`.env`已改为mock，避免误用普通Compose另开空库并重置付费额度；当前真实服务只使用专用配置。`.local/deployment.json`记录Docker为主库，旧`start_native.ps1`及直接native_demo入口会拒绝启动旧副本。
 
-停止时执行 `pwsh -File scripts/stop_native.ps1`，只停止此预览拥有的进程并保留数据库。状态位于 `.local/native-demo/status.json`。本轮[集成网页证据](docs/evidence/browser-native-20261110-resume-03/summary.json)包含 7 项通过流程，另有[真实导入结果](docs/evidence/browser-native-20261110-resume-03/published-job.json)。
+原生数据库、只读导出的source.dump及备份清单位于`.local`，保留但不进入Git。切换后不能把旧库直接当主库运行；如需回切，先迁回最新Docker数据与费用账本并验证，再调整主库标记。当前不自动回退到旧费用副本。[迁移、启动及恢复手册](docs/Docker主库迁移与运行手册.md)。
+
+## 无模型密钥的隔离流程演示
 
 ### 轻量替身预览
 
@@ -47,9 +48,9 @@ npm run dev
 
 这个启动方式明确使用SQLite、测试向量和模型替身，仅用于本机流程验证。资料查询在未建索引时显示`lexical_unindexed`；真正RAG验收必须使用下述PostgreSQL、锁定的BGE模型与后台导入。没有启动Worker时后台任务会保持排队，可查询或取消。
 
-## 完整技术栈（Compose）
+## 全新目录／新库的Compose启动
 
-先启动Docker服务。Windows使用Docker Desktop时可运行`docker desktop start`并等待引擎就绪，再执行下列命令。
+以下用于全新目录或新库。本机已经迁移的真实主库使用上面的专用启动脚本，不在此另建付费库。先启动Docker服务。Windows使用Docker Desktop时可运行`docker desktop start`并等待引擎就绪，再执行下列命令。
 
 ```powershell
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
@@ -99,7 +100,7 @@ Remove-Item Env:ASSESSMENT_ENV_FILE
 
 ### 已完成的本机真实依赖验证
 
-在Docker安装前，使用项目`.local`中的便携原生依赖验证，未注册Windows服务；这套启动方式继续保留。PostgreSQL 17.11、pgvector 0.8.7、Kafka 3.9.1与锁定的BGE权重已实际执行。原生验证和Compose验收分别报告。
+在Docker安装前，使用项目`.local`中的便携原生依赖验证，未注册Windows服务；历史验证工具继续保留，当前迁移主库不再直接启动原生副本。PostgreSQL 17.11、pgvector 0.8.7、Kafka 3.9.1与锁定的BGE权重已实际执行。原生验证和Compose验收分别报告。
 
 ```powershell
 uv sync --frozen --extra dev --extra embeddings
@@ -143,7 +144,7 @@ BGE仅使用CPU轮子，依赖锁已移除CUDA运行库。模型文件按固定r
 - `/catalog/entities`、`/catalog/rulings`、`/catalog/snapshots`：公共资料。
 - `/feedback-drafts`：创建/修订草稿，确认接口需匹配revision；正式反馈以draft_id唯一约束防重复。
 - `/jobs`：任务与Outbox同事务入库；按身份和幂等键去重；状态、失败、尝试、取消持久化。
-- `/internal/qq/*`：专用桥接token和试用白名单；[适配器说明](integrations/onebot/README.md)。默认dry-run，真实发送不作为此README启动的副作用。
+- 历史`/internal/qq/*`与适配器代码仅保留作归档和协议证据，当前无桥接凭据、白名单或真实QQ连接；[归档说明](integrations/onebot/README.md)。
 
 PostgreSQL是业务状态权威；Redis仅缓存公共检索，默认TTL300秒，故障回源。索引分批写暂存区，最后与任务完成同事务切换发布指针。Worker手动提交Kafka位点，持久化结果或重试安排后才确认；处理异常回退本地消费位置，租约/代次阻止旧实例回写。临时失败最多3次、退避10/30秒，坏输入直接结束。
 
@@ -167,9 +168,9 @@ uv run python -m evaluations.run --mode mock --label mock-01
 
 GitHub Actions配置已落盘，尚未上传或在GitHub执行。它执行本机契约测试和构建，不替代Kafka/PostgreSQL集成验收。
 
-最新 Python 记录为 137 项通过，其中 11 项 Agno 协议夹具覆盖工具、裁定引用、前提保护、用户反馈来源、用量、超时、供应商错误、空正文和连接关闭。协议夹具不是实际供应商调用；真实模型记录保存在 `evaluations/results/live-*`，语义审查状态单独标识。Redis原下载502阻碍已解除；1.1实际命中、300秒自然失效、停机回源与重连验证通过，详见本轮报告。
+最新 Python 记录为 147 项通过，其中 11 项 Agno 协议夹具覆盖工具、裁定引用、前提保护、用户反馈来源、用量、超时、供应商错误、空正文和连接关闭。协议夹具不是实际供应商调用；真实模型记录保存在 `evaluations/results/live-*`，语义审查状态单独标识。Redis原下载502阻碍已解除；1.1实际命中、300秒自然失效、停机回源与重连验证通过，详见本轮报告。
 
-完整实模评测可用 `python -m evaluations.run --api-url http://127.0.0.1:15174/api --mode live --label 唯一标签 --concurrency 2`。并发仅限1或2，记录在元数据中。F01需要明确启用故障模式：先停止本机预览，再 `pwsh -File scripts/start_native.ps1 -EvaluationFaults`；评测结束停止后不带参数重新启动，恢复默认禁用故障注入。未启用时该条明确记录为blocked。
+当前Docker实模可用 `python -m evaluations.run --api-url http://127.0.0.1:15174/api --mode live --label 唯一标签 --concurrency 1`，费用计入迁移后的原账本。并发仅限1或2，记录在元数据中。历史F01由明确故障模式验证。当前真实主库不启用故障注入，也不为复测启动旧原生库；故障评测应在独立替身实例运行。未启用时该条明确记录为blocked。
 
 ## 项目材料
 
@@ -179,10 +180,12 @@ GitHub Actions配置已落盘，尚未上传或在GitHub执行。它执行本机
 
 J01/J02/J04/J05/J08/M02原输入已逐条核对来源并完成6条、7回合真实复测，详见[定向核对记录](docs/裁定与多轮问题核对-20261110.md)。工具get_verified_ruling支持reference=True读取固定记录，默认按conditions匹配当前局面；两者适用范围分开。已验证裁定正文直接从记录呈现，保留前提、步骤、牌面和证据，不由模型重写数值断言。SC04新增一次实际离线执行的SC04V对照；原场景证据保留。
 
-后续已完整重跑32条真实评测并继续修复，最终`live-full-regression-20261110-05`的35轮均完成。Codex逐条对照答案、工具回执与本地来源，129处引用完整性检查0项不一致，详见[完整核对报告](docs/完整32条真实回归核对-20261110.md)。输入和预期未更改；全部中间失败记录保留，最终公司验收仍待进行；真人试用执行环节已按1.2决定移除。正常预览15174已恢复且故障注入关闭。本机曾发生Worker退出导致整组停止，一小时稳定性与恢复验证现已通过，见[最新报告](docs/Worker一小时稳定性验证与1.0交付-20261111.md)；历史[中断记录](docs/evidence/native-preview-outage-20261110.json)保留。
+后续已完整重跑32条真实评测并继续修复，最终`live-full-regression-20261110-05`的35轮均完成。Codex逐条对照答案、工具回执与本地来源，129处引用完整性检查0项不一致，详见[完整核对报告](docs/完整32条真实回归核对-20261110.md)。输入和预期未更改；全部中间失败记录保留，最终公司验收仍待进行；真人试用执行环节已按1.2决定移除。正常预览15174已恢复且故障注入关闭。本机曾发生Worker退出导致整组停止，一小时稳定性与恢复验证现已通过，见[历史1.0报告](docs/Worker一小时稳定性验证与1.0交付-20261111.md)；历史[中断记录](docs/evidence/native-preview-outage-20261110.json)保留。
 
 
-## 1.1 Redis本机集成
+## 历史：1.1 Redis本机集成
+
+以下保留当时的原生验证方式。当前主库已迁入Docker，不再执行旧预览的重启；使用当前专用Docker启动脚本。
 
 先执行`python scripts/prepare_native_redis.py`准备锁定哈希的7.4.11社区Windows构建（不安装系统服务），再重启原生预览。准备成功后`start_native.ps1`会自动在127.0.0.1:16379启动本项目Redis；未准备时保持回源。正在运行的旧预览需停止并重新启动才加载新配置。
 

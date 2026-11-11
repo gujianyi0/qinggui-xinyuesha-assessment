@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    from backend.app.deployment import require_native_primary; require_native_primary()
+                                                               ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "F:\Work\Biteagle\ÈëÖ°¿¼ºË\backend\app\deployment.py", line 24, in require_native_primary
+    raise RuntimeError("Ô­Éú¿âÒÑ¶³½á»òÒÑÇ¨µ½Docker¡£ÇëÊ¹ÓÃDockerÈë¿Ú£»»ØÇĞÇ°±ØĞëÇ¨»Ø×îĞÂ»á»°ºÍ·ÑÓÃÕË±¾£¬²»ÄÜÆô¶¯¾É¿â¡£")
+RuntimeError: Ô­Éú¿âÒÑ¶³½á»òÒÑÇ¨µ½Docker¡£ÇëÊ¹ÓÃDockerÈë¿Ú£»»ØÇĞÇ°±ØĞëÇ¨»Ø×îĞÂ»á»°ºÍ·ÑÓÃÕË±¾£¬²»ÄÜÆô¶¯¾É¿â¡£
+Exception: F:\Work\Biteagle\å…¥èŒè€ƒæ ¸\scripts\start_native.ps1:6
+Line |
+   6 |  â€¦ DE -ne 0) { throw 'Native startup blocked by the primary-database han â€¦
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Native startup blocked by the primary-database handoff guard.

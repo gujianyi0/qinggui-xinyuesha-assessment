@@ -1,0 +1,33 @@
+{
+  "label": "live-docker-v1.5-20261112-01",
+  "mode": "live",
+  "backend": {
+    "status": "ok",
+    "cache": "available",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 5.682864,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "started_at": "2026-11-11T20:33:45.082145+00:00",
+  "case_set": "xinyuesha-fixed-32-v1",
+  "cases_sha256": "63d7c970e34124273725c2099e538d012cc715d20050d683ec8f13282a114cb3",
+  "selected_cases": [
+    "R05",
+    "D02",
+    "J03",
+    "M02"
+  ],
+  "concurrency": 1,
+  "checker_version": "lexical-alias-v2",
+  "semantic_status": "awaiting_human_review"
+}

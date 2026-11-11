@@ -18,6 +18,7 @@ import asyncpg
 import httpx
 
 from backend.app.config import ROOT, Settings
+from backend.app.deployment import require_native_primary
 from backend.app.embedding_assets import pinned_model_path
 from backend.app.native_process import WindowsJob, java_executable, stop_owned
 from backend.app.redis_assets import prepared_redis
@@ -31,6 +32,7 @@ PORTS = {"web":15174, "api":18081, "postgres":15433, "kafka":19094, "controller"
 
 
 async def run(*, evaluation_faults=False):
+    require_native_primary()
     settings = Settings()
     redis_server = prepared_redis()
     if not (pinned_model_path(settings) / "download-manifest.json").is_file():

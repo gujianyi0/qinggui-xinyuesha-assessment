@@ -1,0 +1,11 @@
+{
+  "case_set": "xinyuesha-fixed-32-v1",
+  "mode": "live",
+  "case_count": 4,
+  "status_counts": {
+    "recorded": 4
+  },
+  "semantic_status": "awaiting_human_review",
+  "billing_status": "see_recorded_usage",
+  "notice": "机械检查仅辅助核对；尚未完成逐条语义/来源人工审查，不代表真实模型通过。"
+}

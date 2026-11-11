@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "version": "1.5",
+  "python_tests": 147,
+  "frontend_tests": 4,
+  "migration_cutover_checks": 6,
+  "browser_live_checks": 7,
+  "live_question_rounds": 7,
+  "citation_integrity_checks": 36,
+  "citation_integrity_issues": 0,
+  "local_links_checked": 64,
+  "missing_links": [],
+  "private_configs_and_backups_excluded": true,
+  "actual_model_and_db_secrets_absent_from_release_files": true,
+  "generated_install_metadata_excluded": true,
+  "qq_removed_from_active_scope_and_config": true,
+  "ruff": "All checks passed!",
+  "lock_check_exit": 0,
+  "github_actions_executed": false,
+  "remote_push": false,
+  "delivery_file_count_before_this_record": 1299
+}

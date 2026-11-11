@@ -1,0 +1,99 @@
+{
+  "started_at": "2026-11-11T20:38:56.630104+00:00",
+  "checks": [
+    {
+      "name": "migrated_history_and_original_two_identities",
+      "passed": true,
+      "session_id": "333cb5cd-3896-4091-bb2a-8cc69b942953",
+      "old_messages": 2,
+      "old_run_id": "3ceac2e3-c3ad-42e2-a7ed-6569e45edfac",
+      "cross_identity_status": 404
+    },
+    {
+      "name": "stale_native_writer_blocked_and_source_postgres_stopped",
+      "passed": true
+    },
+    {
+      "name": "old_migrated_session_live_continuation_preserves_old_messages",
+      "passed": true,
+      "run_id": "0bf54cab-dae7-423c-986b-574115ffe431",
+      "citation_count": 3,
+      "citation_issues": 0
+    },
+    {
+      "name": "new_live_kafka_worker_import_after_migration",
+      "passed": true,
+      "job_id": "e7f41840-1e33-4467-999b-8c61ba1df0ad",
+      "result": {
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "documents": 198,
+        "chunks": 659,
+        "chunk_size": 320,
+        "chunk_overlap": 64,
+        "embedding_mode": "local",
+        "embedding_model": "BAAI/bge-small-zh-v1.5",
+        "embedding_revision": "7999e1d3359715c523056ef9478215996d62a620"
+      },
+      "attempts": 1
+    },
+    {
+      "name": "new_job_cancel_and_outbox_progress_after_migration",
+      "passed": true,
+      "job_id": "5916a7e6-90c8-41fa-b190-027f4d32db19"
+    },
+    {
+      "name": "cold_down_up_preserves_all_current_tables_history_and_fees",
+      "passed": true,
+      "tables": 18,
+      "ledger": {
+        "budget": {
+          "id": 1,
+          "spent": 5.754518000000001,
+          "reserved": 0.0
+        },
+        "charged_sum": 5.754518,
+        "usage_count": 273,
+        "unsettled": 0,
+        "outbox_pending": 0
+      },
+      "database_content_equal": true
+    }
+  ],
+  "source_budget": {
+    "id": 1,
+    "spent": 5.682864,
+    "reserved": 0.0
+  },
+  "scope": "Actual Docker primary, one additional paid continuation in an old migrated session; raw secret/backup not published",
+  "passed": true,
+  "final_health": {
+    "status": "ok",
+    "cache": "available",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 5.754518000000001,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "ledger": {
+    "budget": {
+      "id": 1,
+      "spent": 5.754518000000001,
+      "reserved": 0.0
+    },
+    "charged_sum": 5.754518,
+    "usage_count": 273,
+    "unsettled": 0,
+    "outbox_pending": 0
+  },
+  "additional_estimate_cny": 0.07165400000000055,
+  "finished_at": "2026-11-11T20:41:43.171157+00:00"
+}
