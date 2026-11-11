@@ -1,0 +1,13 @@
+initializing_postgres
+starting_kafka
+starting_api_worker_web
+running
+degraded
+running
+warning: status file write failed at stage running
+warning: status file write failed at stage running
+warning: status file write failed at stage running
+degraded
+running
+degraded
+running

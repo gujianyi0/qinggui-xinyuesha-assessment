@@ -1,0 +1,86 @@
+{
+  "elapsed_seconds": 3599.676,
+  "samples": 1757,
+  "probe_failures": 0,
+  "checks": [
+    {
+      "name": "worker_replaced_website_preserved",
+      "old_pid": 15240,
+      "new_pid": 34268,
+      "elapsed_seconds": 82.23,
+      "passed": true
+    },
+    {
+      "name": "active_job_lease_recovery",
+      "attempts": 2,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62160896,
+      "elapsed_seconds": 194.91,
+      "passed": true
+    },
+    {
+      "name": "status_file_real_lock_survived_and_resumed",
+      "lock_seconds": 12,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62853120,
+      "elapsed_seconds": 300.79,
+      "passed": true
+    },
+    {
+      "name": "broker_crash_outbox_delivery_website_preserved",
+      "old_pid": 43984,
+      "new_pid": 33516,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62828544,
+      "elapsed_seconds": 654.6,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 63881216,
+      "elapsed_seconds": 1848.19,
+      "passed": true
+    },
+    {
+      "name": "cancel_releases_model_and_preserves_publication",
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 63881216,
+      "elapsed_seconds": 2420.6,
+      "passed": true
+    },
+    {
+      "name": "worker_replaced_website_preserved",
+      "old_pid": 34268,
+      "new_pid": 35392,
+      "elapsed_seconds": 3002.92,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 58740736,
+      "elapsed_seconds": 3005.95,
+      "passed": true
+    }
+  ],
+  "worker": {
+    "state": "running",
+    "pid": 35392,
+    "restart_count": 2,
+    "last_exit": {
+      "pid": 34268,
+      "code": 1
+    }
+  }
+}

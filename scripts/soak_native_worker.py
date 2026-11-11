@@ -4,6 +4,7 @@ Intentionally kills only this preview's Worker, while probing web/API continuous
 """
 import argparse
 import asyncio
+import ctypes
 import json
 import subprocess
 import time
@@ -65,7 +66,7 @@ async def run(args):
                         current = state()
                         row.update(worker=current.get("worker"), processes=process_tree(current["worker_pid"]), system=system_memory())
                         assert web.status_code == api.status_code == 200
-                        assert all(current[key] == initial[key] for key in ("web_pid", "api_pid", "postgres_pid", "kafka_pid"))
+                        assert all(current[key] == initial[key] for key in ("web_pid", "api_pid", "postgres_pid"))
                     except Exception as error:
                         row["error_type"] = type(error).__name__
                         report["probe_failures"].append(row.copy())
@@ -110,6 +111,45 @@ async def run(args):
             report["checks"].append({"name": "worker_replaced_website_preserved", "old_pid": pid,
                                      "new_pid": restored["worker_pid"], "elapsed_seconds": round(time.monotonic()-start, 2), "passed": True})
 
+        async def lock_status():
+            # Real Windows sharing denial, reproducing the failed 02 run without stopping services.
+            from ctypes import wintypes
+            kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+                                          wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+            kernel.CreateFileW.restype = wintypes.HANDLE
+            kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+            handle = kernel.CreateFileW(str(STATE), 0x80000000, 1, None, 3, 0, None)
+            if handle == ctypes.c_void_p(-1).value:
+                raise ctypes.WinError(ctypes.get_last_error())
+            before = state()["updated_at"]
+            try:
+                await asyncio.sleep(12)
+                assert state()["updated_at"] == before, "lock did not deny replacement"
+            finally:
+                kernel.CloseHandle(handle)
+            async def resumed():
+                return state()["updated_at"] != before
+            await until(resumed, 15)
+            report["checks"].append({"name": "status_file_real_lock_survived_and_resumed", "lock_seconds": 12, "passed": True})
+
+        async def restart_broker():
+            current = state()
+            old = current["kafka_pid"]
+            killed = await asyncio.to_thread(subprocess.run, ["taskkill", "/PID", str(old), "/T", "/F"],
+                                            capture_output=True, timeout=20)
+            assert killed.returncode == 0
+            queued = await new_job("broker-restart")
+            async def replaced():
+                new = state()
+                return new if new["kafka_pid"] != old and new["kafka"]["state"] == "running" else None
+            new = await until(replaced, 30)
+            queued = await until(lambda: get_job(queued["id"], wanted={"succeeded"}), 180)
+            report["jobs"].append(queued)
+            await released()
+            report["checks"].append({"name": "broker_crash_outbox_delivery_website_preserved", "old_pid": old,
+                                     "new_pid": new["kafka_pid"], "passed": True})
+
         async def released():
             await asyncio.sleep(3)
             rows = process_tree(state()["worker_pid"])
@@ -140,6 +180,11 @@ async def run(args):
             report["checks"].append({"name": "active_job_lease_recovery", "attempts": first["attempts"], "passed": True})
             await released()
             print("PASS active Worker crash, lease recovery and model memory release", flush=True)
+
+            await lock_status()
+            print("PASS real status-file sharing lock without website shutdown", flush=True)
+            await restart_broker()
+            print("PASS Kafka crash/restart and durable queued import", flush=True)
 
             for number, fraction in enumerate((1/6, 1/2), 1):
                 await wait_at(fraction)

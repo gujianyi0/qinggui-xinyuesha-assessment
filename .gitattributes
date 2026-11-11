@@ -1,0 +1,3 @@
+# Frozen sources and evidence include byte hashes. Preserve exact bytes across
+# Windows/Linux checkouts instead of changing line endings during Git filters.
+* -text

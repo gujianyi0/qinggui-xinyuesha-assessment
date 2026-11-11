@@ -1,0 +1,103 @@
+{
+  "label": "worker-soak-20261111-01",
+  "passed": true,
+  "actual_seconds": 3600.784,
+  "start_beijing": "2026-11-11T11:37:53.302172+08:00",
+  "finish_beijing": "2026-11-11T12:37:54.084959+08:00",
+  "pairs": 1757,
+  "successful_http_probes": 3514,
+  "failures": 0,
+  "max_sample_gap_seconds": 3.489,
+  "worker_tree_peak_private_bytes": 1788878848,
+  "released_private_bytes": [
+    62160896,
+    62853120,
+    62828544,
+    63881216,
+    63881216,
+    58740736
+  ],
+  "final_private_bytes": 59551744,
+  "checks": [
+    {
+      "name": "worker_replaced_website_preserved",
+      "old_pid": 15240,
+      "new_pid": 34268,
+      "elapsed_seconds": 82.23,
+      "passed": true
+    },
+    {
+      "name": "active_job_lease_recovery",
+      "attempts": 2,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62160896,
+      "elapsed_seconds": 194.91,
+      "passed": true
+    },
+    {
+      "name": "status_file_real_lock_survived_and_resumed",
+      "lock_seconds": 12,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62853120,
+      "elapsed_seconds": 300.79,
+      "passed": true
+    },
+    {
+      "name": "broker_crash_outbox_delivery_website_preserved",
+      "old_pid": 43984,
+      "new_pid": 33516,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62828544,
+      "elapsed_seconds": 654.6,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 63881216,
+      "elapsed_seconds": 1848.19,
+      "passed": true
+    },
+    {
+      "name": "cancel_releases_model_and_preserves_publication",
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 63881216,
+      "elapsed_seconds": 2420.6,
+      "passed": true
+    },
+    {
+      "name": "worker_replaced_website_preserved",
+      "old_pid": 34268,
+      "new_pid": 35392,
+      "elapsed_seconds": 3002.92,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 58740736,
+      "elapsed_seconds": 3005.95,
+      "passed": true
+    }
+  ],
+  "job_ids": [
+    "ec34a748-4042-42b2-a51b-b14425e6be39",
+    "f70f77f9-ca3a-4923-b8cf-830665c6d6f6",
+    "75cb1eaf-3e43-44db-bcac-965fc025529e",
+    "fd3c553c-e11a-4302-b6d9-5e46525fceb7",
+    "abaa6388-d313-4518-abad-e657f3bae6c7"
+  ],
+  "code_hashes_match": true,
+  "scope": "Real native PostgreSQL/Kafka/Worker/local BGE; web/API probes; no paid model calls",
+  "notice": "One observed hour, not an unlimited uptime or leak-free guarantee; no deliberate host memory exhaustion"
+}

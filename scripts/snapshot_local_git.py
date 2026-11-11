@@ -29,7 +29,22 @@ def release_files(root):
             yield path
 
 
-def snapshot(version=None):
+def release_target(version, tags, *, complete_current=False):
+    expected = next_version(tags)
+    version = version or expected
+    if complete_current:
+        if version not in tags or expected != f"1.{int(version.split('.')[1])+1}":
+            raise ValueError("Only the existing latest 1.x release can be completed")
+        target = version + "-verified"
+        if target in tags:
+            raise ValueError("Verified release tag already exists; tags are never rewritten")
+        return version, target
+    if version != expected:
+        raise ValueError(f"Next release must be {expected}; existing tags are never rewritten")
+    return version, version
+
+
+def snapshot(version=None, *, complete_current=False):
     if (ROOT / ".git").exists():
         raise ValueError("Run the snapshot command from the source workspace, not from inside its published Git copy")
     repository = ROOT / "git"
@@ -48,10 +63,7 @@ def snapshot(version=None):
         git("config", "core.quotepath", "false")
     if git("status", "--porcelain"):
         raise ValueError("Local repository has uncommitted changes; preserved")
-    expected = next_version(git("tag", "--list").splitlines())
-    version = version or expected
-    if version != expected:
-        raise ValueError(f"Next release must be {expected}; existing tags are never rewritten")
+    version, tag = release_target(version, git("tag", "--list").splitlines(), complete_current=complete_current)
     if (ROOT/"VERSION").read_text(encoding="utf-8").strip() != version:
         raise ValueError("Update VERSION and release notes before taking a snapshot")
     selected = list(release_files(ROOT))
@@ -81,7 +93,7 @@ def snapshot(version=None):
             git("config", key, value)
     git("add", "--all")
     git("commit", "-m", f"Release {version}: verified onboarding assistant")
-    git("tag", "-a", version, "-m", f"Local release {version}")
+    git("tag", "-a", tag, "-m", f"Local release {version}: validation complete" if complete_current else f"Local release {version}")
     if git("status", "--porcelain"):
         raise ValueError("Snapshot committed but working tree is not clean")
     print(json.dumps({"version": version, "repository": str(repository), "commit": git("rev-parse", "HEAD"),
@@ -91,4 +103,6 @@ def snapshot(version=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version")
-    snapshot(parser.parse_args().version)
+    parser.add_argument("--complete-current", action="store_true", help="Complete the latest existing release with a new -verified tag, preserving all existing tags")
+    arguments = parser.parse_args()
+    snapshot(arguments.version, complete_current=arguments.complete_current)

@@ -69,6 +69,17 @@ async def test_failed_spawn_also_consumes_restart_budget():
     assert supervisor.status["state"] == "circuit_open"
 
 
+async def test_broker_restart_uses_its_own_budget_and_diagnostics():
+    events = []
+    async def stop(_):
+        raise AssertionError("dead process does not need stopping")
+    broker = WorkerSupervisor(Process(7, 1), lambda: Process(8), stop, events.append, name="kafka")
+    await broker.tick(0)
+    await broker.tick(1)
+    assert broker.status["pid"] == 8
+    assert [e["event"] for e in events] == ["kafka_exited", "kafka_restarted"]
+
+
 async def test_embedding_child_returns_same_vectors_and_closes_after_each_job():
     settings = Settings(_env_file=None, embedding_mode="test")
     isolated = IsolatedEmbedder(settings)

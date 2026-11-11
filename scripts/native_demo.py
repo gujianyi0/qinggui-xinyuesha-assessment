@@ -111,7 +111,7 @@ async def run(*, evaluation_faults=False):
         async with httpx.AsyncClient(trust_env=False, timeout=2) as client:
             while time.monotonic() < deadline:
                 for name, process in processes.items():
-                    if name != "worker" and process.poll() is not None:
+                    if name not in {"worker", "kafka"} and process.poll() is not None:
                         raise RuntimeError(f"{name} exited; inspect .local/native-demo/{name}.log")
                 try:
                     response = await client.get(url)
@@ -177,9 +177,13 @@ async def run(*, evaluation_faults=False):
             "log.dirs":(STATE / "kafka-data").as_posix(), "num.partitions":"1",
             "offsets.topic.replication.factor":"1", "transaction.state.log.replication.factor":"1",
             "transaction.state.log.min.isr":"1", "group.initial.rebalance.delay.ms":"0",
-            "auto.create.topics.enable":"true", "num.network.threads":"2", "num.io.threads":"2"}
+            "auto.create.topics.enable":"true", "num.network.threads":"2", "num.io.threads":"2",
+            # The default 128MiB dedupe map exhausted the old 256MiB heap on log recovery.
+            # Keep compaction enabled for __consumer_offsets, with an explicit local budget.
+            "log.cleaner.dedupe.buffer.size":str(32 * 1024**2), "log.cleaner.io.buffer.size":str(512 * 1024),
+            "log.cleaner.threads":"1", "background.threads":"2"}
         config.write_text("\n".join(f"{key}={json.dumps(value, ensure_ascii=True)[1:-1]}" for key,value in properties.items()), encoding="ascii")
-        base = [str(java), "-Xms128m", "-Xmx256m", f"-Dkafka.logs.dir={STATE / 'kafka-logs'}",
+        base = [str(java), "-Xms128m", "-Xmx512m", f"-Dkafka.logs.dir={STATE / 'kafka-logs'}",
                 f"-Dlog4j.configuration={(kafka / 'config/log4j.properties').as_uri()}", "-cp", str(kafka / "libs/*")]
         if not (STATE / "kafka-data/meta.properties").is_file():
             identifier = base64.urlsafe_b64encode(uuid.uuid4().bytes).decode().rstrip("=")
@@ -187,7 +191,11 @@ async def run(*, evaluation_faults=False):
             (STATE / "kafka-format.log").write_bytes(result.stdout + result.stderr)
             if result.returncode:
                 raise RuntimeError("Kafka storage formatting failed")
-        spawn("kafka", [*base, "kafka.Kafka", str(config)])
+        def spawn_kafka():
+            return spawn("kafka", [*base, "kafka.Kafka", str(config)])
+        async def stop_kafka(process):
+            await asyncio.to_thread(stop_owned, process)
+        broker = WorkerSupervisor(spawn_kafka(), spawn_kafka, stop_kafka, diagnostic, name="kafka")
         report("starting_api_worker_web")
         spawn("api", [sys.executable, "-m", "uvicorn", "backend.app.main:app", "--host", "127.0.0.1", "--port", str(PORTS["api"])], env=env)
         await http_ready(f"http://127.0.0.1:{PORTS['api']}/health")
@@ -215,7 +223,7 @@ async def run(*, evaluation_faults=False):
         while not stop_file.exists():
             sampled = False
             for name, process in processes.items():
-                if name != "worker" and process.poll() is not None:
+                if name not in {"worker", "kafka"} and process.poll() is not None:
                     raise RuntimeError(f"{name} exited; inspect .local/native-demo/{name}.log")
             if time.monotonic() >= next_sample:
                 entries = windows_processes()
@@ -225,12 +233,15 @@ async def run(*, evaluation_faults=False):
                 next_sample = time.monotonic() + 5
                 sampled = True
             previous_worker = (worker.status["state"], worker.status["pid"])
+            previous_broker = (broker.status["state"], broker.status["pid"])
             await worker.tick(time.monotonic(), private_bytes=worker_private)
+            await broker.tick(time.monotonic())
             state["worker"] = worker.status
+            state["kafka"] = broker.status
             if worker.status["pid"] != previous_worker[1]:
                 worker_private = 0
-            if sampled or previous_worker != (worker.status["state"], worker.status["pid"]):
-                report("running" if worker.status["state"] == "running" else "degraded")
+            if sampled or previous_worker != (worker.status["state"], worker.status["pid"]) or previous_broker != (broker.status["state"], broker.status["pid"]):
+                report("running" if worker.status["state"] == broker.status["state"] == "running" else "degraded")
             await asyncio.sleep(0.5)
     except Exception as error:
         state["error"] = str(error)
