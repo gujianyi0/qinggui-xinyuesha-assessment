@@ -1,5 +1,6 @@
 """Copy a reviewed release into the user's local Git repository, without pushing."""
 import argparse
+import hashlib
 import json
 import shutil
 import subprocess
@@ -92,6 +93,18 @@ def snapshot(version=None, *, complete_current=False):
         if result.returncode:
             git("config", key, value)
     git("add", "--all")
+    # Existing indexes may still contain blobs normalized before .gitattributes
+    # was introduced. Re-apply attributes, then verify the actual committed bytes.
+    git("add", "--renormalize", ".")
+    algorithm = git("rev-parse", "--show-object-format")
+    for entry in git("ls-files", "--stage", "-z").split("\0"):
+        if not entry:
+            continue
+        header, name = entry.split("\t", 1)
+        raw = (ROOT / name).read_bytes()
+        expected_oid = hashlib.new(algorithm, b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
+        if header.split()[1] != expected_oid:
+            raise ValueError(f"Git index changed source bytes: {name}; no commit or tag created")
     git("commit", "-m", f"Release {version}: verified onboarding assistant")
     git("tag", "-a", tag, "-m", f"Local release {version}: validation complete" if complete_current else f"Local release {version}")
     if git("status", "--porcelain"):
