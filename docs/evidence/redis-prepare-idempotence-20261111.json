@@ -1,0 +1,16 @@
+{
+  "before_observation": "Before member-hash skip fix, preparing an active Redis attempted to overwrite cygcrypto-3.dll and raised PermissionError [Errno 13]",
+  "after_exit_code": 0,
+  "after_stdout": "Prepared checksum-verified Redis 7.4.11 community Windows build; no service installed.",
+  "redis_pid_unchanged": true,
+  "actual_redis_pid": 37820,
+  "dependency": {
+    "version": "7.4.11",
+    "source": "https://github.com/redis-windows/redis-windows/releases/download/7.4.11/Redis-7.4.11-Windows-x64-cygwin.zip",
+    "sha256": "835999942bbef27e2b01f4a36955522cf19fff6511e67bbfe3fee322f6586705",
+    "server": "F:\\Work\\Biteagle\\入职考核\\.local\\native-redis\\7.4.11\\Redis-7.4.11-Windows-x64-cygwin\\redis-server.exe",
+    "server_sha256": "0716d5b3c3f69d2228f09d08e1b822b329150ef365651072d4eb49a38da4356f",
+    "provenance": "redis-windows community Cygwin build, not the official Linux container",
+    "windows_service_installed": false
+  }
+}

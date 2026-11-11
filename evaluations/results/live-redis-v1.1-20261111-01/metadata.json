@@ -1,0 +1,33 @@
+{
+  "label": "live-redis-v1.1-20261111-01",
+  "mode": "live",
+  "backend": {
+    "status": "ok",
+    "cache": "available",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 5.624106,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "started_at": "2026-11-11T05:00:06.322428+00:00",
+  "case_set": "xinyuesha-fixed-32-v1",
+  "cases_sha256": "63d7c970e34124273725c2099e538d012cc715d20050d683ec8f13282a114cb3",
+  "selected_cases": [
+    "R05",
+    "J03",
+    "M02",
+    "I02"
+  ],
+  "concurrency": 2,
+  "checker_version": "lexical-alias-v2",
+  "semantic_status": "awaiting_human_review"
+}

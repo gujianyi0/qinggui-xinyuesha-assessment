@@ -10,6 +10,7 @@ from sqlalchemy import select, text
 from .config import Settings
 from .embedding_assets import pinned_model_path
 from .models import IndexedChunk, Job, PublishedIndex
+from .retrieval_cache import valid_cached_result
 
 
 def read_json(path: Path, default=None):
@@ -170,10 +171,15 @@ class KnowledgeSearch:
                 }.items()):
                     raise ValueError("已发布索引的向量模型配置已变化，请重新导入资料")
         key = "retrieval:" + hashlib.sha256(f"policy-v2:{snapshot_id}:{index_version}:{self.settings.embedding_mode}:{self.settings.embedding_revision}:{query}:{top_k}".encode()).hexdigest()
+        expected_mode = "lexical_unindexed" if not published else (
+            "pgvector" if self.database.engine.dialect.name == "postgresql" else
+            "test_vectors" if self.settings.embedding_mode == "test" else "sqlite_vectors")
         try:
             cached = await self.cache.get(key)
             if cached:
-                return json.loads(cached)
+                result = json.loads(cached)
+                if valid_cached_result(result, snapshot_id=snapshot_id, top_k=top_k, mode=expected_mode):
+                    return result
         except Exception:
             pass
         vector_docs = []

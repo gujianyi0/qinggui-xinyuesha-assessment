@@ -1,0 +1,10 @@
+419:C 11 Nov 2026 12:47:41.525 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+419:C 11 Nov 2026 12:47:41.527 * Redis version=7.4.11, bits=64, commit=17fd6675, modified=0, pid=419, just started
+419:C 11 Nov 2026 12:47:41.528 * Configuration loaded
+419:M 11 Nov 2026 12:47:41.528 # You requested maxclients of 10000 requiring at least 10032 max file descriptors.
+419:M 11 Nov 2026 12:47:41.528 # Server can't set maximum open files to 10032 because of OS error: Operation not permitted.
+419:M 11 Nov 2026 12:47:41.528 # Current maximum open files is 3200. maxclients has been reduced to 3168 to compensate for low ulimit. If you need higher maxclients increase 'ulimit -n'.
+419:M 11 Nov 2026 12:47:41.528 * monotonic clock: POSIX clock_gettime
+419:M 11 Nov 2026 12:47:41.529 * Running mode=standalone, port=16479.
+419:M 11 Nov 2026 12:47:41.534 * Server initialized
+419:M 11 Nov 2026 12:47:41.534 * Ready to accept connections tcp

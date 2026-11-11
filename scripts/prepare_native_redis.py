@@ -9,10 +9,8 @@ import httpx
 import truststore
 
 from backend.app.config import ROOT
+from backend.app.redis_assets import ARCHIVE, SHA256, VERSION
 
-VERSION = "7.4.11"
-ARCHIVE = f"Redis-{VERSION}-Windows-x64-cygwin.zip"
-SHA256 = "835999942bbef27e2b01f4a36955522cf19fff6511e67bbfe3fee322f6586705"
 URL = f"https://github.com/redis-windows/redis-windows/releases/download/{VERSION}/{ARCHIVE}"
 
 
@@ -42,11 +40,17 @@ def main():
     home.mkdir(exist_ok=True)
     with zipfile.ZipFile(archive) as source:
         for item in source.infolist():
-            if not (home / item.filename).resolve().is_relative_to(home.resolve()):
+            target = (home / item.filename).resolve()
+            if not target.is_relative_to(home.resolve()):
                 raise ValueError("Unsafe archive path")
+            # Running Windows executables/DLLs cannot be overwritten. An already
+            # verified identical member requires no write and remains usable.
+            if not item.is_dir() and target.is_file() and hashlib.sha256(target.read_bytes()).digest() == hashlib.sha256(source.read(item)).digest():
+                continue
             source.extract(item, home)
     server = next(home.rglob("redis-server.exe"))
     record = {"version": VERSION, "source": URL, "sha256": digest, "server": str(server),
+              "server_sha256": hashlib.sha256(server.read_bytes()).hexdigest(),
               "provenance": "redis-windows community Cygwin build, not the official Linux container", "windows_service_installed": False}
     (folder / "dependency.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     print("Prepared checksum-verified Redis 7.4.11 community Windows build; no service installed.")

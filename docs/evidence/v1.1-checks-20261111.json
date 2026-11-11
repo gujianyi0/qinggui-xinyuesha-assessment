@@ -1,0 +1,27 @@
+{
+  "python": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "133",
+    "time": "79.029",
+    "timestamp": "2026-11-11T12:51:54.643135+08:00",
+    "hostname": "gujianyi"
+  },
+  "frontend_tests": {
+    "passed": 4,
+    "files": 3,
+    "package_version": "1.1.0"
+  },
+  "frontend_build": {
+    "passed": true,
+    "typescript": true,
+    "vite": true,
+    "modules": 1736
+  },
+  "ruff_all_scopes": "passed",
+  "uv_lock_offline": "passed",
+  "native_preview_recovery": "redis-only restart, other service PIDs unchanged",
+  "scope": "Program tests/build and native Redis proofs, not Docker or human acceptance"
+}

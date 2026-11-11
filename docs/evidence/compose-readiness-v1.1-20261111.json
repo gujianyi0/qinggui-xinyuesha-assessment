@@ -1,0 +1,16 @@
+{
+  "docker_executable": null,
+  "podman_executable": null,
+  "wsl_distributions_output": "",
+  "compose_yaml_services": [
+    "postgres",
+    "redis",
+    "kafka",
+    "migrate",
+    "api",
+    "worker",
+    "web"
+  ],
+  "container_runtime_verified": false,
+  "notice": "YAML structure check only; no Docker/Podman CLI or installed WSL distro found, no system installation performed"
+}

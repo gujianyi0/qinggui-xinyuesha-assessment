@@ -1,0 +1,14 @@
+{
+  "phase": "natural_300_second_ttl",
+  "elapsed_seconds": 299.737839100002,
+  "ttl": 0,
+  "query_embedding_calls": 1,
+  "checks": [
+    {
+      "name": "postgres_bge_miss_then_real_redis_hit",
+      "passed": true,
+      "ttl": 298,
+      "query_embedding_calls": 1
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 .env.*
 .venv
 .local
+git
+.git
 **/__pycache__
 frontend
 .pytest_cache

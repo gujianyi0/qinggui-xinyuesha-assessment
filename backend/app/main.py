@@ -168,7 +168,11 @@ def create_app(settings: Settings | None = None):
             await db.execute(text("SELECT 1"))
             budget = await db.get(BudgetAccount, 1)
             published = await db.get(PublishedIndex, catalog.active_id) if catalog.active_id else None
-        return {"status": "ok", "model_mode": config.model_mode, "model_id": config.model_id, "snapshot_id": catalog.active_id, "embedding_mode": config.embedding_mode, "index_published": published is not None, "database": database.engine.dialect.name, "fault_injection_enabled": config.enable_test_faults, "budget": {"spent_cny": budget.spent, "reserved_cny": budget.reserved, "limit_cny": config.total_budget_cny, "warning": budget.spent + budget.reserved >= config.budget_warning_cny}}
+        try:
+            cache_status = "available" if await search.cache.ping() else "unavailable_fallback"
+        except Exception:
+            cache_status = "unavailable_fallback"
+        return {"status": "ok", "cache": cache_status, "model_mode": config.model_mode, "model_id": config.model_id, "snapshot_id": catalog.active_id, "embedding_mode": config.embedding_mode, "index_published": published is not None, "database": database.engine.dialect.name, "fault_injection_enabled": config.enable_test_faults, "budget": {"spent_cny": budget.spent, "reserved_cny": budget.reserved, "limit_cny": config.total_budget_cny, "warning": budget.spent + budget.reserved >= config.budget_warning_cny}}
 
     @app.post("/auth/token")
     async def login(body: Login):

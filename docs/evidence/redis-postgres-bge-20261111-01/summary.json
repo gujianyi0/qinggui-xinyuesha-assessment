@@ -1,0 +1,17 @@
+{
+  "phase": "natural_300_second_ttl",
+  "elapsed_seconds": 68.0003183000008,
+  "ttl": 228,
+  "query_embedding_calls": 1,
+  "checks": [
+    {
+      "name": "postgres_bge_miss_then_real_redis_hit",
+      "passed": true,
+      "ttl": 296,
+      "query_embedding_calls": 1
+    }
+  ],
+  "passed": false,
+  "status": "interrupted_before_preview_redis_switch",
+  "reason": "Restart preview with actual Redis before measuring complete natural TTL. Also move TTL clock to immediately after cache publication, before embedding-child cleanup. This partial record is not counted as a completed expiry test."
+}

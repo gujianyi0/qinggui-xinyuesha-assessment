@@ -1,0 +1,33 @@
+{
+  "passed": true,
+  "checked_at": "2026-11-11T04:51:51.194291+00:00",
+  "old_redis_pid": 28252,
+  "new_redis_pid": 37820,
+  "web_api_and_other_service_pids_unchanged": true,
+  "samples": [
+    {
+      "elapsed_seconds": 1.929,
+      "web": 200,
+      "api": 200,
+      "cache": "unavailable_fallback",
+      "redis_pid": 28252,
+      "redis_state": "backoff"
+    },
+    {
+      "elapsed_seconds": 2.364,
+      "web": 200,
+      "api": 200,
+      "cache": "unavailable_fallback",
+      "redis_pid": 37820,
+      "redis_state": "running"
+    },
+    {
+      "elapsed_seconds": 2.48,
+      "web": 200,
+      "api": 200,
+      "cache": "available",
+      "redis_pid": 37820,
+      "redis_state": "running"
+    }
+  ]
+}

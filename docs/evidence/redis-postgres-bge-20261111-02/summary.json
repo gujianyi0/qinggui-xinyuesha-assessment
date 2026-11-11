@@ -1,0 +1,414 @@
+{
+  "started_at": "2026-11-11T04:50:50.468445+00:00",
+  "database": "assessment_cache_8ec855b071",
+  "dependency": {
+    "version": "7.4.11",
+    "source": "https://github.com/redis-windows/redis-windows/releases/download/7.4.11/Redis-7.4.11-Windows-x64-cygwin.zip",
+    "sha256": "835999942bbef27e2b01f4a36955522cf19fff6511e67bbfe3fee322f6586705",
+    "server": "F:\\Work\\Biteagle\\入职考核\\.local\\native-redis\\7.4.11\\Redis-7.4.11-Windows-x64-cygwin\\redis-server.exe",
+    "server_sha256": "0716d5b3c3f69d2228f09d08e1b822b329150ef365651072d4eb49a38da4356f",
+    "provenance": "redis-windows community Cygwin build, not the official Linux container",
+    "windows_service_installed": false
+  },
+  "scope": "Actual community Windows Redis 7.4.11, isolated PostgreSQL/pgvector and CPU BGE; no paid model or QQ calls",
+  "checks": [
+    {
+      "name": "postgres_bge_miss_then_real_redis_hit",
+      "passed": true,
+      "ttl": 298,
+      "query_embedding_calls": 1
+    },
+    {
+      "name": "natural_default_300_second_expiry_then_pgvector_read",
+      "passed": true,
+      "observed_seconds": 300.001,
+      "query_embedding_calls": 2
+    },
+    {
+      "name": "bad_json_or_wrong_shape_or_foreign_snapshot_repaired",
+      "passed": true,
+      "variants": 4
+    },
+    {
+      "name": "new_publish_bypasses_live_old_index_cache",
+      "passed": true,
+      "old_job_id": "2fb41578-1d3a-405d-955b-63cf8f5be9b3",
+      "new_job_id": "6791bae0-ca48-40fa-a073-2db4f2f147a4"
+    },
+    {
+      "name": "redis_shutdown_pgvector_fallback_and_postgres_job_authority",
+      "passed": true,
+      "cancelled_job_id": "588af208-b13e-4808-b704-68003bd8befd"
+    },
+    {
+      "name": "redis_restart_reconnect_repopulate_then_hit",
+      "passed": true
+    }
+  ],
+  "ttl_samples": [
+    {
+      "elapsed_seconds": 3.004,
+      "ttl": 297,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 8.092,
+      "ttl": 292,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 13.122,
+      "ttl": 287,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 18.143,
+      "ttl": 282,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 23.167,
+      "ttl": 277,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 28.202,
+      "ttl": 272,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 33.232,
+      "ttl": 267,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 38.263,
+      "ttl": 262,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 43.293,
+      "ttl": 257,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 48.318,
+      "ttl": 252,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 53.349,
+      "ttl": 247,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 58.374,
+      "ttl": 242,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 63.417,
+      "ttl": 237,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 68.446,
+      "ttl": 232,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 73.482,
+      "ttl": 227,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 78.502,
+      "ttl": 221,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 83.53,
+      "ttl": 216,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 88.558,
+      "ttl": 211,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 93.585,
+      "ttl": 206,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 98.622,
+      "ttl": 201,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 103.655,
+      "ttl": 196,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 108.681,
+      "ttl": 191,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 113.713,
+      "ttl": 186,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 118.737,
+      "ttl": 181,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 123.763,
+      "ttl": 176,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 128.791,
+      "ttl": 171,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 133.827,
+      "ttl": 166,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 138.85,
+      "ttl": 161,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 143.89,
+      "ttl": 156,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 148.915,
+      "ttl": 151,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 153.943,
+      "ttl": 146,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 158.974,
+      "ttl": 141,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 163.998,
+      "ttl": 136,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 169.031,
+      "ttl": 131,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 174.058,
+      "ttl": 126,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 179.081,
+      "ttl": 121,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 184.102,
+      "ttl": 116,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 189.131,
+      "ttl": 111,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 194.151,
+      "ttl": 106,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 199.182,
+      "ttl": 101,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 204.209,
+      "ttl": 96,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 209.239,
+      "ttl": 91,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 214.266,
+      "ttl": 86,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 219.295,
+      "ttl": 81,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 224.324,
+      "ttl": 76,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 229.342,
+      "ttl": 71,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 234.368,
+      "ttl": 66,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 239.399,
+      "ttl": 61,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 244.421,
+      "ttl": 56,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 249.464,
+      "ttl": 51,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 254.506,
+      "ttl": 45,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 259.536,
+      "ttl": 40,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 264.555,
+      "ttl": 35,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 269.571,
+      "ttl": 30,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 274.603,
+      "ttl": 25,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 279.635,
+      "ttl": 20,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 284.661,
+      "ttl": 15,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 289.695,
+      "ttl": 10,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 294.716,
+      "ttl": 5,
+      "web": 200,
+      "api": 200
+    },
+    {
+      "elapsed_seconds": 299.738,
+      "ttl": 0,
+      "web": 200,
+      "api": 200
+    }
+  ],
+  "passed": true,
+  "query_embedding_calls": 9,
+  "actual_redis_version": "7.4.11",
+  "finished_at": "2026-11-11T04:58:55.185164+00:00"
+}

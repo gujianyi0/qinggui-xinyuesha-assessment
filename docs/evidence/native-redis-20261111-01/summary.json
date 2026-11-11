@@ -1,0 +1,46 @@
+{
+  "started_at": "2026-11-11T04:42:49.961285+00:00",
+  "checks": [
+    {
+      "name": "real_cache_miss_then_hit",
+      "embedding_calls": 1,
+      "ttl_seconds": 300,
+      "passed": true
+    },
+    {
+      "name": "real_ttl_expiry_then_source_read",
+      "expiry_for_test_seconds": 1,
+      "production_default_seconds": 300,
+      "passed": true
+    },
+    {
+      "name": "publish_generation_bypasses_old_live_cache",
+      "new_job_id": "a5649072-ed6f-4fa1-8649-85a7bfbb6f2b",
+      "old_key_still_exists": true,
+      "passed": true
+    },
+    {
+      "name": "malformed_cache_value_recovers",
+      "passed": true
+    },
+    {
+      "name": "redis_process_stopped_search_falls_back_jobs_remain_authoritative",
+      "pending_job_id": "b45920c8-7542-474e-a982-9b8907977251",
+      "passed": true
+    },
+    {
+      "name": "redis_process_restart_reconnect_and_repopulate",
+      "passed": true
+    }
+  ],
+  "dependency": {
+    "version": "7.4.11",
+    "source": "https://github.com/redis-windows/redis-windows/releases/download/7.4.11/Redis-7.4.11-Windows-x64-cygwin.zip",
+    "sha256": "835999942bbef27e2b01f4a36955522cf19fff6511e67bbfe3fee322f6586705",
+    "provenance": "redis-windows community Cygwin build, not the official Linux container"
+  },
+  "scope": "Actual community Redis 7.4.11 Windows process, SQLite persistent job state and test vectors; Linux Compose and live chat model remain separate",
+  "actual_redis_version": "7.4.11",
+  "passed": true,
+  "finished_at": "2026-11-11T04:42:56.218788+00:00"
+}

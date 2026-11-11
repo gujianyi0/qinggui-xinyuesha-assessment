@@ -20,6 +20,7 @@ import httpx
 from backend.app.config import ROOT, Settings
 from backend.app.embedding_assets import pinned_model_path
 from backend.app.native_process import WindowsJob, java_executable, stop_owned
+from backend.app.redis_assets import prepared_redis
 from backend.app.resource_metrics import process_tree, system_memory, windows_processes
 from backend.app.service_supervisor import WorkerSupervisor
 from backend.app.status_file import atomic_write_json
@@ -31,6 +32,7 @@ PORTS = {"web":15174, "api":18081, "postgres":15433, "kafka":19094, "controller"
 
 async def run(*, evaluation_faults=False):
     settings = Settings()
+    redis_server = prepared_redis()
     if not (pinned_model_path(settings) / "download-manifest.json").is_file():
         raise RuntimeError("Prepare the pinned BGE model first")
     pg = ROOT / ".local/native-postgres/pgsql"
@@ -41,7 +43,8 @@ async def run(*, evaluation_faults=False):
     java = java_executable(shutil.which("java"))
     if not node:
         raise RuntimeError("Node.js is required")
-    for port in PORTS.values():
+    ports = {**PORTS, **({"redis": 16379} if redis_server else {})}
+    for port in ports.values():
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", port))
     STATE.mkdir(parents=True, exist_ok=True)
@@ -49,7 +52,7 @@ async def run(*, evaluation_faults=False):
     stop_file.unlink(missing_ok=True)
     status_file = STATE / "status.json"
     state = {"owner":OWNER, "project":str(ROOT), "supervisor_pid":os.getpid(),
-             "started_at":datetime.now(timezone.utc).isoformat(), "ports":PORTS,
+             "started_at":datetime.now(timezone.utc).isoformat(), "ports":ports,
              "url":f"http://127.0.0.1:{PORTS['web']}", "stage":"starting",
              "model_mode":settings.model_mode, "embedding_mode":"local", "database":"postgresql", "redis":"unavailable_fallback",
              "evaluation_faults":evaluation_faults}
@@ -78,7 +81,7 @@ async def run(*, evaluation_faults=False):
         handles[name] = log
         process = subprocess.Popen(arguments, cwd=cwd, env=env, stdout=log, stderr=subprocess.STDOUT,
                                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
-        if name == "worker":
+        if name in {"worker", "redis"}:
             container = WindowsJob()
             try:
                 container.assign(process.pid)
@@ -111,7 +114,7 @@ async def run(*, evaluation_faults=False):
         async with httpx.AsyncClient(trust_env=False, timeout=2) as client:
             while time.monotonic() < deadline:
                 for name, process in processes.items():
-                    if name not in {"worker", "kafka"} and process.poll() is not None:
+                    if name not in {"worker", "kafka", "redis"} and process.poll() is not None:
                         raise RuntimeError(f"{name} exited; inspect .local/native-demo/{name}.log")
                 try:
                     response = await client.get(url)
@@ -155,7 +158,7 @@ async def run(*, evaluation_faults=False):
         env = {**os.environ, "DATABASE_URL":f"postgresql+asyncpg://assessment@127.0.0.1:{PORTS['postgres']}/assessment",
                "MODEL_MODE":settings.model_mode, "EMBEDDING_MODE":"local", "EMBEDDING_THREADS":"2",
                "CREATE_SCHEMA":"false", "SEED_USERS":"true", "DEMO_PASSWORD":"local-demo-change-me",
-               "ENABLE_TEST_FAULTS":str(evaluation_faults).lower(), "REDIS_URL":"redis://127.0.0.1:1/0",
+               "ENABLE_TEST_FAULTS":str(evaluation_faults).lower(), "REDIS_URL":f"redis://127.0.0.1:{ports.get('redis', 1)}/0",
                "KAFKA_BOOTSTRAP_SERVERS":f"127.0.0.1:{PORTS['kafka']}",
                "KAFKA_TOPIC":"assessment.native.imports", "KAFKA_CONSUMER_GROUP":"assessment-native-worker",
                "PYTHONUNBUFFERED":"1", "PYTHONIOENCODING":"utf-8"}
@@ -196,6 +199,15 @@ async def run(*, evaluation_faults=False):
         async def stop_kafka(process):
             await asyncio.to_thread(stop_owned, process)
         broker = WorkerSupervisor(spawn_kafka(), spawn_kafka, stop_kafka, diagnostic, name="kafka")
+        cache = None
+        if redis_server:
+            def spawn_redis():
+                return spawn("redis", [str(redis_server), "--bind", "127.0.0.1", "--port", str(ports["redis"]),
+                             "--protected-mode", "yes", "--save", "", "--appendonly", "no", "--daemonize", "no"], cwd=STATE)
+            async def stop_redis(process):
+                containers["redis"].close()
+                await asyncio.to_thread(stop_owned, process)
+            cache = WorkerSupervisor(spawn_redis(), spawn_redis, stop_redis, diagnostic, name="redis")
         report("starting_api_worker_web")
         spawn("api", [sys.executable, "-m", "uvicorn", "backend.app.main:app", "--host", "127.0.0.1", "--port", str(PORTS["api"])], env=env)
         await http_ready(f"http://127.0.0.1:{PORTS['api']}/health")
@@ -223,7 +235,7 @@ async def run(*, evaluation_faults=False):
         while not stop_file.exists():
             sampled = False
             for name, process in processes.items():
-                if name not in {"worker", "kafka"} and process.poll() is not None:
+                if name not in {"worker", "kafka", "redis"} and process.poll() is not None:
                     raise RuntimeError(f"{name} exited; inspect .local/native-demo/{name}.log")
             if time.monotonic() >= next_sample:
                 entries = windows_processes()
@@ -234,14 +246,21 @@ async def run(*, evaluation_faults=False):
                 sampled = True
             previous_worker = (worker.status["state"], worker.status["pid"])
             previous_broker = (broker.status["state"], broker.status["pid"])
+            previous_cache = (cache.status["state"], cache.status["pid"]) if cache else None
             await worker.tick(time.monotonic(), private_bytes=worker_private)
             await broker.tick(time.monotonic())
+            if cache:
+                await cache.tick(time.monotonic())
+                state["redis_service"] = cache.status
+                state["redis"] = cache.status["state"]
             state["worker"] = worker.status
             state["kafka"] = broker.status
             if worker.status["pid"] != previous_worker[1]:
                 worker_private = 0
-            if sampled or previous_worker != (worker.status["state"], worker.status["pid"]) or previous_broker != (broker.status["state"], broker.status["pid"]):
-                report("running" if worker.status["state"] == broker.status["state"] == "running" else "degraded")
+            changed_cache = cache and previous_cache != (cache.status["state"], cache.status["pid"])
+            if sampled or changed_cache or previous_worker != (worker.status["state"], worker.status["pid"]) or previous_broker != (broker.status["state"], broker.status["pid"]):
+                healthy = worker.status["state"] == broker.status["state"] == "running" and (not cache or cache.status["state"] == "running")
+                report("running" if healthy else "degraded")
             await asyncio.sleep(0.5)
     except Exception as error:
         state["error"] = str(error)
@@ -249,7 +268,7 @@ async def run(*, evaluation_faults=False):
         raise
     finally:
         report("stopping")
-        for name in ("web", "worker", "api", "kafka"):
+        for name in ("web", "worker", "api", "redis", "kafka"):
             if name in containers:
                 containers.pop(name).close()
             if name in processes:
