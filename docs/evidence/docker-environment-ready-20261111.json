@@ -1,0 +1,33 @@
+{
+  "checked_at": "2026-11-11T09:14:16.279557+00:00",
+  "desktop_version": "4.99.0",
+  "client_version": "29.9.3",
+  "engine_version": "29.9.3",
+  "engine_os": "linux",
+  "architecture": "amd64",
+  "compose": "Docker Compose version v5.7.0",
+  "install_scope": "current user",
+  "reboot_required": false,
+  "hello_world_passed": true,
+  "compose_config_passed": true,
+  "project_containers_built_or_started": false,
+  "native_preview_web_status": 200,
+  "native_preview_health": {
+    "status": "ok",
+    "cache": "available",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 5.682864,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "process_path_refreshed_for_test": true
+}

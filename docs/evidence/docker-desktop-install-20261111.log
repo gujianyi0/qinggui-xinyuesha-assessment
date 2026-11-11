@@ -1,0 +1,42 @@
+-------------------------------------------------------------------------------->8
+Version: 4.99.0 (245822)
+Sha1: 
+Started on: 2026/11/11 09:02:34.669
+Resources: C:\Users\c2115\AppData\Local\Temp\DockerDesktopInstallers\1794387751453151600\resources
+OS: Windows 10 Pro
+Edition: Professional
+Id: 2009
+Build: 26200
+BuildLabName: 26100.1.amd64fre.ge_release.240331-1435
+File: C:\Users\c2115\AppData\Local\Docker\install-log.txt
+CommandLine: "C:\Users\c2115\AppData\Local\Temp\DockerDesktopInstallers\1794387751453151600\Docker Desktop Installer.exe" install -package C:\Users\c2115\AppData\Local\Temp\DockerDesktopInstallers\1794387751453151600\DockerDesktop.d4w --user --quiet --accept-license --backend=wsl-2 --no-windows-containers -vm-package C:\Users\c2115\AppData\Local\Temp\DockerDesktopInstallers\1794387751453151600\DockerDesktopVM.d4w
+You can send feedback, including this log file, at https://dockr.ly/desktop-feedback
+[2026-11-11T09:02:34.823270200Z][Installer][I] No installation found
+[2026-11-11T09:02:34.844437000Z][PerUserInstallHandler][I] Running per user installation
+[2026-11-11T09:02:34.870664700Z][InstallWorkflow][I] Using package: C:\Users\c2115\AppData\Local\Temp\DockerDesktopInstallers\1794387751453151600\DockerDesktop.d4w
+[2026-11-11T09:02:35.085220300Z][InstallWorkflow][I] Phase 0: Pre-check
+[2026-11-11T09:02:36.968426300Z][InstallWorkflow][I] Checking prerequisites
+[2026-11-11T09:02:38.889062200Z][InstallWorkflow][I] Selected backend mode: wsl-2
+[2026-11-11T09:02:39.076840600Z][InstallWorkflow][I] Phase 1: Staging
+[2026-11-11T09:02:39.088432300Z][DeployArtifacts][I] Unpacking C:\Users\c2115\AppData\Local\Temp\DockerDesktopInstallers\1794387751453151600\DockerDesktop.d4w to C:\Users\c2115\AppData\Local\Programs\DockerDesktop.staging
+[2026-11-11T09:02:39.093290900Z][DeployArtifacts][I] Unpacking with C:\Users\c2115\AppData\Local\Temp\DockerDesktopInstallers\1794387751453151600\7zr.exe
+[2026-11-11T09:02:50.814658300Z][DeployArtifacts][I] Unpacking C:\Users\c2115\AppData\Local\Temp\DockerDesktopInstallers\1794387751453151600\DockerDesktopVM.d4w to C:\Users\c2115\AppData\Local\Programs\DockerDesktop.staging
+[2026-11-11T09:02:50.814658300Z][DeployArtifacts][I] Unpacking with C:\Users\c2115\AppData\Local\Temp\DockerDesktopInstallers\1794387751453151600\7zr.exe
+[2026-11-11T09:02:58.866456500Z][InstallWorkflow][I] Phase 3: Activation (file-by-file move)
+[2026-11-11T09:04:19.345384900Z][InstallWorkflow][I] Moved 169 file(s) from 'C:\Users\c2115\AppData\Local\Programs\DockerDesktop.staging' to 'C:\Users\c2115\AppData\Local\Programs\DockerDesktop'
+[2026-11-11T09:04:19.391505100Z][InstallWorkflow][I] Phase 4: Components
+[2026-11-11T09:04:19.394023900Z][InstallWorkflow][I] Saving C:\Users\c2115\AppData\Roaming\Docker\install-settings.json
+[2026-11-11T09:04:19.412448500Z][InstallWorkflow][I] Deploying component Docker.Installer.ShortcutAction
+[2026-11-11T09:04:19.585295300Z][InstallWorkflow-ShortcutAction][I] Creating shortcut: C:\Users\c2115\AppData\Roaming\Microsoft\Windows\Start Menu\Docker Desktop.lnk/Docker Desktop
+[2026-11-11T09:04:19.626741200Z][InstallWorkflow][I] Deploying component Docker.Installer.ShortcutAction
+[2026-11-11T09:04:19.645209500Z][InstallWorkflow-ShortcutAction][I] Creating shortcut: C:\Users\c2115\Desktop\Docker Desktop.lnk/Docker Desktop
+[2026-11-11T09:04:19.652067000Z][InstallWorkflow][I] Deploying component Docker.Installer.AutoStartAction
+[2026-11-11T09:04:19.654414700Z][InstallWorkflow][I] Deploying component Docker.Installer.PathAction
+[2026-11-11T09:04:21.747829200Z][InstallWorkflow][I] Deploying component Docker.Installer.ExecAction
+[2026-11-11T09:04:21.751809700Z][InstallWorkflow-ExecAction][I] Running: C:\Users\c2115\AppData\Local\Programs\DockerDesktop\InstallerCli.exe --user -i with timeout=-1
+[2026-11-11T09:04:22.487772600Z][InstallWorkflow][I] Registering new product
+[2026-11-11T09:04:22.489772700Z][RegisterProductStep][I] Registering product information
+[2026-11-11T09:04:22.527234300Z][RegisterProductStep][I] Registering docker-desktop url-protocol
+[2026-11-11T09:04:22.532076300Z][InstallWorkflow][I] Phase 5: Validation
+[2026-11-11T09:04:22.534073300Z][InstallWorkflow][I] Phase 6: Cleanup
+[2026-11-11T09:04:22.535123900Z][InstallWorkflow][I] Installation succeeded

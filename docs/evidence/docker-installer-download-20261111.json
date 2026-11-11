@@ -1,0 +1,10 @@
+{
+  "version": "4.99.0",
+  "url": "https://desktop.docker.com/win/main/amd64/245822/Docker%20Desktop%20Installer.exe",
+  "sha256": "a5e299131c9c53d60f3f752b162078945eb5faf6eedcf0be20a214c6e6cea444",
+  "bytes": 623969712,
+  "downloaded_at": "2026-11-11T09:01:52.190183+00:00",
+  "elapsed_seconds": 101.08,
+  "installer": "F:\\Work\\Biteagle\\入职考核\\.local\\docker-install\\Docker Desktop Installer.exe",
+  "checksum_source": "https://desktop.docker.com/win/main/amd64/245822/checksums.txt"
+}

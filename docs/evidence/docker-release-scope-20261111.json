@@ -1,0 +1,7 @@
+{
+  "version": "1.3",
+  "application_code_files_unchanged": 96,
+  "doc_links_valid": true,
+  "scope": "Official Docker environment installation and actual container smoke test, not project Compose application deployment",
+  "new_program_tests_run": false
+}

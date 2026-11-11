@@ -1,0 +1,8 @@
+{
+  "exit_code": 127,
+  "stdout": "",
+  "stderr": "Unable to find image 'hello-world:latest' locally\ndocker: error getting credentials - err: exec: \"docker-credential-desktop\": executable file not found in %PATH%, out: ``\n\nRun 'docker run --help' for more information\n",
+  "checked_at": "2026-11-11T09:11:44.231884+00:00",
+  "elapsed_seconds": 0.306,
+  "command": "docker run --rm hello-world"
+}
