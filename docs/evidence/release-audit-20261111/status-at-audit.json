@@ -1,0 +1,34 @@
+{
+  "owner": "qinggui-assessment-native-demo",
+  "project": "F:\\Work\\Biteagle\\入职考核",
+  "supervisor_pid": 37472,
+  "started_at": "2026-11-10T14:08:03.645445+00:00",
+  "ports": {
+    "web": 15174,
+    "api": 18081,
+    "postgres": 15433,
+    "kafka": 19094,
+    "controller": 19095
+  },
+  "url": "http://127.0.0.1:15174",
+  "stage": "stopped",
+  "model_mode": "live",
+  "embedding_mode": "local",
+  "database": "postgresql",
+  "redis": "unavailable_fallback",
+  "evaluation_faults": false,
+  "updated_at": "2026-11-10T14:08:12.743890+00:00",
+  "temporary_dos_drive": "R:",
+  "postgres_pid": 31980,
+  "kafka_pid": 25728,
+  "api_pid": 37016,
+  "worker_pid": 28376,
+  "web_pid": 26708,
+  "worker": {
+    "state": "running",
+    "pid": 28376,
+    "restart_count": 0,
+    "last_exit": null
+  },
+  "error": "kafka exited; inspect .local/native-demo/kafka.log"
+}

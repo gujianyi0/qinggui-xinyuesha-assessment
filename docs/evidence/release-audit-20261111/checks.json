@@ -1,0 +1,35 @@
+{
+  "checked_at": "2026-11-11T00:31:09.610128+00:00",
+  "python": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "114",
+    "time": "78.093",
+    "timestamp": "2026-11-11T08:28:20.730163+08:00",
+    "hostname": "gujianyi"
+  },
+  "ruff": {
+    "command": "python -m ruff check backend tests scripts migrations",
+    "exit_code": 0,
+    "result": "All checks passed"
+  },
+  "frontend_tests": {
+    "command": "npm test",
+    "exit_code": 0,
+    "files_passed": 3,
+    "tests_passed": 4
+  },
+  "frontend_build": {
+    "command": "npm run build",
+    "exit_code": 0,
+    "typescript": "passed",
+    "vite": "passed",
+    "modules": 1736
+  },
+  "one_hour_soak": "not completed; historical run failed at 1804.155 seconds",
+  "current_web_api": "ConnectError",
+  "paid_model_calls_this_audit": 0,
+  "pushed": false
+}

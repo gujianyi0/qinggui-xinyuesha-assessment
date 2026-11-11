@@ -1,0 +1,39 @@
+Traceback (most recent call last):
+  File "F:\Work\Biteagle\入职考核\scripts\native_demo.py", line 251, in <module>
+    asyncio.run(run(evaluation_faults=parser.parse_args().evaluation_faults))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Apps\Python\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "F:\Apps\Python\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "F:\Apps\Python\Lib\asyncio\base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "F:\Work\Biteagle\入职考核\scripts\native_demo.py", line 224, in run
+    report("running" if worker.status["state"] == "running" else "degraded")
+    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Work\Biteagle\入职考核\scripts\native_demo.py", line 62, in report
+    temporary.replace(status_file)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "F:\Apps\Python\Lib\pathlib\_local.py", line 780, in replace
+    os.replace(self, target)
+    ~~~~~~~~~~^^^^^^^^^^^^^^
+PermissionError: [WinError 5] 拒绝访问。: 'F:\\Work\\Biteagle\\入职考核\\.local\\native-demo\\status.tmp' -> 'F:\\Work\\Biteagle\\入职考核\\.local\\native-demo\\status.json'
+Traceback (most recent call last):
+  File "F:\Work\Biteagle\��ְ����\scripts\native_demo.py", line 260, in <module>
+    asyncio.run(run(evaluation_faults=parser.parse_args().evaluation_faults))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Apps\Python\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "F:\Apps\Python\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "F:\Apps\Python\Lib\asyncio\base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "F:\Work\Biteagle\��ְ����\scripts\native_demo.py", line 219, in run
+    raise RuntimeError(f"{name} exited; inspect .local/native-demo/{name}.log")
+RuntimeError: kafka exited; inspect .local/native-demo/kafka.log

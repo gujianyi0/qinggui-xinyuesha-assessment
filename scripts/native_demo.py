@@ -22,6 +22,7 @@ from backend.app.embedding_assets import pinned_model_path
 from backend.app.native_process import WindowsJob, java_executable, stop_owned
 from backend.app.resource_metrics import process_tree, system_memory, windows_processes
 from backend.app.service_supervisor import WorkerSupervisor
+from backend.app.status_file import atomic_write_json
 
 STATE = ROOT / ".local/native-demo"
 OWNER = "qinggui-assessment-native-demo"
@@ -57,9 +58,10 @@ async def run(*, evaluation_faults=False):
         changed = state["stage"] != stage
         state["stage"] = stage
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        temporary = status_file.with_suffix(".tmp")
-        temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        temporary.replace(status_file)
+        # 状态文件只是可观测性，不是存活条件。Windows 上偶发 WinError 5
+        # 不能再让监督进程退出、连带停掉网页/API/PG/Kafka。
+        if not atomic_write_json(status_file, state):
+            print(f"warning: status file write failed at stage {stage}", flush=True)
         if changed:
             print(stage, flush=True)
 
@@ -92,10 +94,17 @@ async def run(*, evaluation_faults=False):
     def diagnostic(event):
         event = {"at": datetime.now(timezone.utc).isoformat(), **event}
         path = STATE / "resources.jsonl"
-        if path.exists() and path.stat().st_size > 10 * 1024**2:
-            path.replace(STATE / "resources.previous.jsonl")
-        with path.open("a", encoding="utf-8") as log:
-            log.write(json.dumps(event, ensure_ascii=False) + "\n")
+        try:
+            if path.exists() and path.stat().st_size > 10 * 1024**2:
+                # 轮转失败只保留增长中的当前文件，不能中断采样循环。
+                try:
+                    path.replace(STATE / "resources.previous.jsonl")
+                except OSError:
+                    pass
+            with path.open("a", encoding="utf-8") as log:
+                log.write(json.dumps(event, ensure_ascii=False) + "\n")
+        except OSError:
+            pass
 
     async def http_ready(url, seconds=50):
         deadline = time.monotonic() + seconds

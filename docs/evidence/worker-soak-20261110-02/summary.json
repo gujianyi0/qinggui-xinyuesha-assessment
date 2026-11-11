@@ -1,0 +1,477 @@
+{
+  "started_at": "2026-11-10T13:08:45.081738+00:00",
+  "planned_seconds": 3600,
+  "scope": "Real native PostgreSQL/Kafka/Worker/local BGE; web/API probes; no paid model calls",
+  "initial_state": {
+    "owner": "qinggui-assessment-native-demo",
+    "project": "F:\\Work\\Biteagle\\入职考核",
+    "supervisor_pid": 35644,
+    "started_at": "2026-11-10T13:08:38.965023+00:00",
+    "ports": {
+      "web": 15174,
+      "api": 18081,
+      "postgres": 15433,
+      "kafka": 19094,
+      "controller": 19095
+    },
+    "url": "http://127.0.0.1:15174",
+    "stage": "running",
+    "model_mode": "live",
+    "embedding_mode": "local",
+    "database": "postgresql",
+    "redis": "unavailable_fallback",
+    "evaluation_faults": false,
+    "updated_at": "2026-11-10T13:08:44.474461+00:00",
+    "temporary_dos_drive": "R:",
+    "postgres_pid": 8116,
+    "kafka_pid": 7552,
+    "api_pid": 34848,
+    "worker_pid": 38740,
+    "web_pid": 35648,
+    "worker": {
+      "state": "running",
+      "pid": 38740,
+      "restart_count": 0,
+      "last_exit": null
+    }
+  },
+  "checks": [
+    {
+      "name": "worker_replaced_website_preserved",
+      "old_pid": 38740,
+      "new_pid": 35480,
+      "elapsed_seconds": 37.68,
+      "passed": true
+    },
+    {
+      "name": "active_job_lease_recovery",
+      "attempts": 2,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62185472,
+      "elapsed_seconds": 139.89,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62386176,
+      "elapsed_seconds": 645.05,
+      "passed": true
+    }
+  ],
+  "probe_failures": [
+    {
+      "at": "2026-11-10T13:34:56.063599+00:00",
+      "elapsed_seconds": 1570.983,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:00.121395+00:00",
+      "elapsed_seconds": 1575.041,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:04.186805+00:00",
+      "elapsed_seconds": 1579.107,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:08.212740+00:00",
+      "elapsed_seconds": 1583.133,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:12.276646+00:00",
+      "elapsed_seconds": 1587.197,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:16.329963+00:00",
+      "elapsed_seconds": 1591.25,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:20.383790+00:00",
+      "elapsed_seconds": 1595.304,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:24.441363+00:00",
+      "elapsed_seconds": 1599.361,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:28.487378+00:00",
+      "elapsed_seconds": 1603.407,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:32.553191+00:00",
+      "elapsed_seconds": 1607.473,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:36.596616+00:00",
+      "elapsed_seconds": 1611.517,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:40.660862+00:00",
+      "elapsed_seconds": 1615.581,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:44.729137+00:00",
+      "elapsed_seconds": 1619.649,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:48.781961+00:00",
+      "elapsed_seconds": 1623.702,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:52.854805+00:00",
+      "elapsed_seconds": 1627.775,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:35:56.894364+00:00",
+      "elapsed_seconds": 1631.814,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:00.928266+00:00",
+      "elapsed_seconds": 1635.848,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:04.984144+00:00",
+      "elapsed_seconds": 1639.904,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:09.043969+00:00",
+      "elapsed_seconds": 1643.964,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:13.104217+00:00",
+      "elapsed_seconds": 1648.024,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:17.169754+00:00",
+      "elapsed_seconds": 1652.09,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:21.220603+00:00",
+      "elapsed_seconds": 1656.14,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:25.280193+00:00",
+      "elapsed_seconds": 1660.2,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:29.335717+00:00",
+      "elapsed_seconds": 1664.256,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:33.395878+00:00",
+      "elapsed_seconds": 1668.316,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:37.420478+00:00",
+      "elapsed_seconds": 1672.34,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:41.480236+00:00",
+      "elapsed_seconds": 1676.4,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:45.538818+00:00",
+      "elapsed_seconds": 1680.459,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:49.590358+00:00",
+      "elapsed_seconds": 1684.51,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:53.643041+00:00",
+      "elapsed_seconds": 1688.563,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:36:57.695092+00:00",
+      "elapsed_seconds": 1692.615,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:01.762850+00:00",
+      "elapsed_seconds": 1696.683,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:05.835079+00:00",
+      "elapsed_seconds": 1700.755,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:09.895726+00:00",
+      "elapsed_seconds": 1704.816,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:13.939769+00:00",
+      "elapsed_seconds": 1708.86,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:18.001503+00:00",
+      "elapsed_seconds": 1712.921,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:22.054851+00:00",
+      "elapsed_seconds": 1716.975,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:26.107101+00:00",
+      "elapsed_seconds": 1721.027,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:30.150280+00:00",
+      "elapsed_seconds": 1725.07,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:34.212118+00:00",
+      "elapsed_seconds": 1729.132,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:38.261218+00:00",
+      "elapsed_seconds": 1733.181,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:42.320914+00:00",
+      "elapsed_seconds": 1737.241,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:46.366787+00:00",
+      "elapsed_seconds": 1741.287,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:50.423152+00:00",
+      "elapsed_seconds": 1745.343,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:54.446934+00:00",
+      "elapsed_seconds": 1749.367,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:37:58.506199+00:00",
+      "elapsed_seconds": 1753.426,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:38:02.570200+00:00",
+      "elapsed_seconds": 1757.49,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:38:06.621633+00:00",
+      "elapsed_seconds": 1761.542,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:38:10.676786+00:00",
+      "elapsed_seconds": 1765.597,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:38:14.722688+00:00",
+      "elapsed_seconds": 1769.643,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:38:18.755643+00:00",
+      "elapsed_seconds": 1773.676,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:38:22.824586+00:00",
+      "elapsed_seconds": 1777.744,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:38:26.889474+00:00",
+      "elapsed_seconds": 1781.809,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:38:30.953906+00:00",
+      "elapsed_seconds": 1785.874,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:38:34.989714+00:00",
+      "elapsed_seconds": 1789.91,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:38:39.055890+00:00",
+      "elapsed_seconds": 1793.976,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:38:43.120515+00:00",
+      "elapsed_seconds": 1798.04,
+      "error_type": "ConnectError"
+    },
+    {
+      "at": "2026-11-10T13:38:47.190080+00:00",
+      "elapsed_seconds": 1802.11,
+      "error_type": "ConnectError"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "9a3c989c-e1fd-462e-a77d-49ff0d26df53",
+      "user_id": "89387b7f-19d0-4758-bb32-86f7dd701470",
+      "idempotency_key": "worker-soak-20261110-02:crash-running",
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "status": "succeeded",
+      "attempts": 2,
+      "generation": 3,
+      "progress": 100,
+      "error": null,
+      "result": {
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "documents": 198,
+        "chunks": 659,
+        "chunk_size": 320,
+        "chunk_overlap": 64,
+        "embedding_mode": "local",
+        "embedding_model": "BAAI/bge-small-zh-v1.5",
+        "embedding_revision": "7999e1d3359715c523056ef9478215996d62a620"
+      },
+      "lease_until": null,
+      "retry_at": null,
+      "created_at": "2026-11-10T13:08:46.545492",
+      "attempt_records": [
+        {
+          "id": "10fdbffe-3254-4052-a65e-a847665567d5",
+          "job_id": "9a3c989c-e1fd-462e-a77d-49ff0d26df53",
+          "generation": 1,
+          "status": "interrupted",
+          "error": "执行租约过期",
+          "created_at": "2026-11-10T13:09:01.241182"
+        },
+        {
+          "id": "e185fdf6-cd8c-48ed-8c18-30062c19bc2b",
+          "job_id": "9a3c989c-e1fd-462e-a77d-49ff0d26df53",
+          "generation": 3,
+          "status": "succeeded",
+          "error": null,
+          "created_at": "2026-11-10T13:10:21.670472"
+        }
+      ]
+    },
+    {
+      "id": "8ea74427-9624-45f4-8152-b568d645087d",
+      "user_id": "89387b7f-19d0-4758-bb32-86f7dd701470",
+      "idempotency_key": "worker-soak-20261110-02:repeat-1",
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "status": "succeeded",
+      "attempts": 1,
+      "generation": 1,
+      "progress": 100,
+      "error": null,
+      "result": {
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "documents": 198,
+        "chunks": 659,
+        "chunk_size": 320,
+        "chunk_overlap": 64,
+        "embedding_mode": "local",
+        "embedding_model": "BAAI/bge-small-zh-v1.5",
+        "embedding_revision": "7999e1d3359715c523056ef9478215996d62a620"
+      },
+      "lease_until": null,
+      "retry_at": null,
+      "created_at": "2026-11-10T13:18:45.468297",
+      "attempt_records": [
+        {
+          "id": "dfe56bee-9d4a-42bc-a874-78daf124bb07",
+          "job_id": "8ea74427-9624-45f4-8152-b568d645087d",
+          "generation": 1,
+          "status": "succeeded",
+          "error": null,
+          "created_at": "2026-11-10T13:18:45.973552"
+        }
+      ]
+    }
+  ],
+  "passed": false,
+  "error_type": "ConnectError",
+  "error": "All connection attempts failed",
+  "finished_at": "2026-11-10T13:38:49.235561+00:00",
+  "actual_seconds": 1804.155,
+  "sample_count": 826,
+  "final_state": {
+    "owner": "qinggui-assessment-native-demo",
+    "project": "F:\\Work\\Biteagle\\入职考核",
+    "supervisor_pid": 35644,
+    "started_at": "2026-11-10T13:08:38.965023+00:00",
+    "ports": {
+      "web": 15174,
+      "api": 18081,
+      "postgres": 15433,
+      "kafka": 19094,
+      "controller": 19095
+    },
+    "url": "http://127.0.0.1:15174",
+    "stage": "stopped",
+    "model_mode": "live",
+    "embedding_mode": "local",
+    "database": "postgresql",
+    "redis": "unavailable_fallback",
+    "evaluation_faults": false,
+    "updated_at": "2026-11-10T13:34:54.353639+00:00",
+    "temporary_dos_drive": "R:",
+    "postgres_pid": 8116,
+    "kafka_pid": 7552,
+    "api_pid": 34848,
+    "worker_pid": 35480,
+    "web_pid": 35648,
+    "worker": {
+      "state": "running",
+      "pid": 35480,
+      "restart_count": 1,
+      "last_exit": {
+        "pid": 38740,
+        "code": 1
+      }
+    },
+    "error": "[WinError 5] 拒绝访问。: 'F:\\\\Work\\\\Biteagle\\\\入职考核\\\\.local\\\\native-demo\\\\status.tmp' -> 'F:\\\\Work\\\\Biteagle\\\\入职考核\\\\.local\\\\native-demo\\\\status.json'"
+  }
+}

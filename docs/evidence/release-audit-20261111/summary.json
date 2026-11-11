@@ -1,0 +1,171 @@
+{
+  "audited_at": "2026-11-11T00:28:48.765056+00:00",
+  "scope": "Audit of completed evidence and current read-only probes; no new one-hour run; no paid calls",
+  "soak": {
+    "planned_seconds": 3600,
+    "actual_seconds": 1804.155,
+    "summary_passed": false,
+    "recorded_samples": 826,
+    "verified_sample_lines": 826,
+    "error_counts": {
+      "ConnectError": 58
+    },
+    "web_status_counts": {
+      "200": 768,
+      "null": 58
+    },
+    "api_status_counts": {
+      "200": 768,
+      "null": 58
+    },
+    "first_failure": {
+      "at": "2026-11-10T13:34:56.063599+00:00",
+      "elapsed_seconds": 1570.983,
+      "error_type": "ConnectError"
+    },
+    "last_sample_elapsed_seconds": 1802.11,
+    "max_sample_gap_seconds": 4.073,
+    "worker_private_bytes_min": 77824,
+    "worker_private_bytes_peak": 1786552320,
+    "last_valid_worker_private_bytes": 62234624,
+    "checks": [
+      {
+        "name": "worker_replaced_website_preserved",
+        "old_pid": 38740,
+        "new_pid": 35480,
+        "elapsed_seconds": 37.68,
+        "passed": true
+      },
+      {
+        "name": "active_job_lease_recovery",
+        "attempts": 2,
+        "passed": true
+      },
+      {
+        "name": "job_memory_released",
+        "private_bytes": 62185472,
+        "elapsed_seconds": 139.89,
+        "passed": true
+      },
+      {
+        "name": "job_memory_released",
+        "private_bytes": 62386176,
+        "elapsed_seconds": 645.05,
+        "passed": true
+      }
+    ],
+    "job_results": [
+      {
+        "id": "9a3c989c-e1fd-462e-a77d-49ff0d26df53",
+        "status": "succeeded",
+        "attempts": 2,
+        "chunks": 659
+      },
+      {
+        "id": "8ea74427-9624-45f4-8152-b568d645087d",
+        "status": "succeeded",
+        "attempts": 1,
+        "chunks": 659
+      }
+    ]
+  },
+  "current_status": {
+    "owner": "qinggui-assessment-native-demo",
+    "project": "F:\\Work\\Biteagle\\入职考核",
+    "supervisor_pid": 37472,
+    "started_at": "2026-11-10T14:08:03.645445+00:00",
+    "ports": {
+      "web": 15174,
+      "api": 18081,
+      "postgres": 15433,
+      "kafka": 19094,
+      "controller": 19095
+    },
+    "url": "http://127.0.0.1:15174",
+    "stage": "stopped",
+    "model_mode": "live",
+    "embedding_mode": "local",
+    "database": "postgresql",
+    "redis": "unavailable_fallback",
+    "evaluation_faults": false,
+    "updated_at": "2026-11-10T14:08:12.743890+00:00",
+    "temporary_dos_drive": "R:",
+    "postgres_pid": 31980,
+    "kafka_pid": 25728,
+    "api_pid": 37016,
+    "worker_pid": 28376,
+    "web_pid": 26708,
+    "worker": {
+      "state": "running",
+      "pid": 28376,
+      "restart_count": 0,
+      "last_exit": null
+    },
+    "error": "kafka exited; inspect .local/native-demo/kafka.log"
+  },
+  "current_system_memory": {
+    "available": true,
+    "physical_load_percent": 87,
+    "physical_total_bytes": 17024741376,
+    "physical_free_bytes": 2183581696,
+    "commit_limit_bytes": 53531963392,
+    "commit_free_bytes": 19127644160
+  },
+  "current_http_probes": [
+    {
+      "url": "http://127.0.0.1:15174/",
+      "at": "2026-11-11T00:28:49.849189+00:00",
+      "passed": false,
+      "error_type": "ConnectError"
+    },
+    {
+      "url": "http://127.0.0.1:15174/api/health",
+      "at": "2026-11-11T00:28:52.296858+00:00",
+      "passed": false,
+      "error_type": "ConnectError"
+    },
+    {
+      "url": "http://127.0.0.1:18081/health",
+      "at": "2026-11-11T00:28:54.337876+00:00",
+      "passed": false,
+      "error_type": "ConnectError"
+    }
+  ],
+  "input_sha256": {
+    "docs/evidence/worker-soak-20261110-02/summary.json": "94ba86ad9464e8c7ccc62296b9ad9eb115ca596bc5f7756253df59051169759c",
+    "docs/evidence/worker-soak-20261110-02/samples.jsonl": "0c09becdd483c24f74f228b1713fbd84040e76c85e11bc4a16dac13737fcb8f1",
+    "docs/evidence/worker-memory-fatal-a854e36a/summary.json": "731ebab7adfef3450e8f58a193c3d3e40d6ef8410cd7a534f2276057b313ed24",
+    "docs/evidence/worker-memory-20261110/embedding-owner-exit.json": "d58239040e167d3d98df667eaff6ebe756acc56d98d555b22faaf8b1a7c384d2",
+    "docs/evidence/browser-native-20261110-resume-03/summary.json": "6b98693535e53bd937d105e918db2ce7acf310f0482fdfc641ab223c7e4b3682",
+    "docs/evidence/browser-live-20261110/summary.json": "f55b3f404c77259037e921477a3111eb6fa6dcfb2924d20494fc5d2db9d20a14"
+  },
+  "memory_error_fixture": {
+    "started_at": "2026-11-10T13:03:08.616636+00:00",
+    "job_id": "55128992-f440-4da0-8360-39bc82f532ac",
+    "scope": "Real Kafka, independent Worker; isolated SQLite/test vectors, explicit MemoryError without real memory exhaustion",
+    "fatal_exit_code": 75,
+    "passed": true,
+    "status": "succeeded",
+    "attempts": 2,
+    "generation": 3,
+    "finished_at": "2026-11-10T13:03:17.250954+00:00"
+  },
+  "owner_cleanup": {
+    "owner_pid": 29768,
+    "owned_pids": [
+      8020,
+      29468,
+      33556
+    ],
+    "remaining": [],
+    "owner_exit_code": 75,
+    "passed": true,
+    "scope": "Real Windows Job Object cleanup after abrupt owning-process exit; test vectors, no actual memory exhaustion"
+  },
+  "limits": [
+    "Historical soak failed and stopped before one hour",
+    "Cancellation and idle Worker crash stages were not reached in soak -02",
+    "Current HTTP probes do not constitute browser interaction testing",
+    "Java heap OOM at -Xmx256m is not proof of host physical memory exhaustion"
+  ]
+}
