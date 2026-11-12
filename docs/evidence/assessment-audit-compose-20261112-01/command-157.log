@@ -1,0 +1,4 @@
+{"mode": "pgvector", "sources": ["9937b633d1dd2e694755:passage:standard:text:kongcheng:0", "39f9f6063af8b29f439f:chunk:4:passage:implementation:standard:ganglie:0:chunk:4", "18b5f04d6bd91666d743:chunk:0:passage:implementation:standard:tuxi:0:chunk:0", "18b5f04d6bd91666d743:chunk:4:passage:implementation:standard:tuxi:0:chunk:4", "f594d8e707f4e643dd16:chunk:4:passage:implementation:standard_cards:peach:0:chunk:4"], "encode_calls": 1, "ttl": null, "cache_key": "retrieval:b45fa31583541ffaf0fcef5a6a4ab0eef38203968db24376c9c79bab635633f5"}
+
+Loading weights:   0%|          | 0/71 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 71/71 [00:00<00:00, 1803.68it/s]

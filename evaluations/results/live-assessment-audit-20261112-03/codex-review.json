@@ -1,0 +1,924 @@
+{
+  "reviewed_on": "2026-11-12",
+  "reviewer": "Codex",
+  "independent_human_review": false,
+  "notice": "逐条语义核对与程序来源完整性审计分开；原始human_review pending字段不改写。",
+  "cases_sha256": "63d7c970e34124273725c2099e538d012cc715d20050d683ec8f13282a114cb3",
+  "status_counts": {
+    "passed_selected_assertions": 30,
+    "blocked_live": 1,
+    "partial": 1
+  },
+  "cases": [
+    {
+      "case_id": "R01",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "四身份目标及内奸最后存活条件正确，区分游戏结束细则。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "游戏目标；lines 382-389",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "分别说明四种身份的目标；内奸需要最后存活，不能只说杀死主公。",
+      "corrected_locator": null,
+      "tools": [
+        "search_knowledge"
+      ],
+      "run_ids": [
+        "68817791-f96b-4652-9792-1f080359ac54"
+      ],
+      "elapsed_seconds": 52.389,
+      "input_tokens": 5380,
+      "output_tokens": 261,
+      "citation_count": 5
+    },
+    {
+      "case_id": "R02",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "六阶段顺序正确，限定通常回合与特殊效果范围。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "lines 443-455",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "准备、判定、摸牌、出牌、弃牌、结束；说明通常流程和特殊技能可能影响流程。",
+      "corrected_locator": null,
+      "tools": [
+        "search_knowledge"
+      ],
+      "run_ids": [
+        "5c6e5a83-7871-4aff-b327-49f59c36e951"
+      ],
+      "elapsed_seconds": 4.127,
+      "input_tokens": 5877,
+      "output_tokens": 230,
+      "citation_count": 5
+    },
+    {
+      "case_id": "R03",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "通常摸两张，未将额外摸牌技能当基础规则。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "摸牌阶段；lines 469-475",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "通常摸两张；限定未被技能或其他效果改变的摸牌阶段。",
+      "corrected_locator": null,
+      "tools": [
+        "search_knowledge"
+      ],
+      "run_ids": [
+        "cbe720b8-4562-48c4-85fd-722f39858229"
+      ],
+      "elapsed_seconds": 3.45,
+      "input_tokens": 4822,
+      "output_tokens": 170,
+      "citation_count": 5
+    },
+    {
+      "case_id": "R04",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "弃2张，明确手牌上限按当前体力3而非体力上限计算。",
+      "before": "不通过：体力上限/当前体力混淆",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "弃牌阶段；lines 487-489",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "通常手牌上限等于当前体力，5减3需弃2张；不把体力上限当当前体力。",
+      "corrected_locator": null,
+      "tools": [
+        "search_knowledge"
+      ],
+      "run_ids": [
+        "29269dd0-1092-4bb6-b8e4-9bee3f4ba0d0"
+      ],
+      "elapsed_seconds": 4.738,
+      "input_tokens": 5300,
+      "output_tokens": 177,
+      "citation_count": 5
+    },
+    {
+      "case_id": "R05",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "通常每出牌阶段一次杀，额外次数效果与一般规则分开。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "出牌阶段；lines 477-481",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "通常一次，说明问题已排除了额外能力。",
+      "corrected_locator": null,
+      "tools": [
+        "search_knowledge"
+      ],
+      "run_ids": [
+        "74b22458-28f6-49ea-9fb8-40eecacb393e"
+      ],
+      "elapsed_seconds": 5.535,
+      "input_tokens": 4902,
+      "output_tokens": 245,
+      "citation_count": 5
+    },
+    {
+      "case_id": "R06",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "杀反贼者立即摸3张，凶手也是反贼同样适用。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "死亡与奖惩；line 513",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "任何角色杀死反贼均立即摸三张牌，凶手也是反贼亦如此。",
+      "corrected_locator": null,
+      "tools": [
+        "search_knowledge"
+      ],
+      "run_ids": [
+        "ad606fc5-cd88-4f54-8ddd-afc015578f65"
+      ],
+      "elapsed_seconds": 5.395,
+      "input_tokens": 4691,
+      "output_tokens": 240,
+      "citation_count": 5
+    },
+    {
+      "case_id": "R07",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "仅手牌和已装备牌，不将主公判定区加入惩罚范围。",
+      "before": "不通过：错误裁定调用覆盖答案",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "死亡与奖惩；line 515",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "弃掉所有手牌和已装备的牌；不将判定区牌自行加入惩罚范围。",
+      "corrected_locator": null,
+      "tools": [
+        "search_knowledge"
+      ],
+      "run_ids": [
+        "4ab749ce-b04a-42ce-ba5c-726922b4f39c"
+      ],
+      "elapsed_seconds": 4.133,
+      "input_tokens": 4999,
+      "output_tokens": 193,
+      "citation_count": 5
+    },
+    {
+      "case_id": "R08",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "一张黑色手牌当闪，未扩大到装备区。",
+      "before": "失败：供应商空正文",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "[\":qingguo\"]；line 94",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "一张黑色手牌；不能扩大成装备区黑色牌。",
+      "corrected_locator": null,
+      "tools": [
+        "query_game_data",
+        "search_knowledge"
+      ],
+      "run_ids": [
+        "9ec19e01-d176-4f14-98ef-e06013029d05"
+      ],
+      "elapsed_seconds": 4.275,
+      "input_tokens": 5317,
+      "output_tokens": 210,
+      "citation_count": 6
+    },
+    {
+      "case_id": "D01",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "魏、4/4、奸雄/护驾与主公技条件对应工具字段，没有否认max_hp。",
+      "before": "所列断言通过",
+      "middle": "不通过：否认max_hp字段",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/pkg/init.lua",
+          "locator": "General:new caocao；line 12",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "魏、4点体力，奸雄与护驾；技能主公条件在需要时另行说明。",
+      "corrected_locator": null,
+      "tools": [
+        "query_game_data"
+      ],
+      "run_ids": [
+        "1560153d-b6c9-43f5-afa3-ec4104f7f78c"
+      ],
+      "elapsed_seconds": 4.606,
+      "input_tokens": 3332,
+      "output_tokens": 262,
+      "citation_count": 3
+    },
+    {
+      "case_id": "D02",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "蜀、3/3、观星/空城及技能说明对应实际定义。",
+      "before": "所列断言通过",
+      "middle": "失败：空正文",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/pkg/init.lua",
+          "locator": "General:new zhugeliang；line 24",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "蜀、3点体力，观星与空城。",
+      "corrected_locator": "standard/pkg/init.lua:23",
+      "tools": [
+        "query_game_data"
+      ],
+      "run_ids": [
+        "a7a58001-9171-41a5-82ac-522a51bac515"
+      ],
+      "elapsed_seconds": 4.469,
+      "input_tokens": 3374,
+      "output_tokens": 307,
+      "citation_count": 3
+    },
+    {
+      "case_id": "D03",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "蜀、4/4、武圣；武将实际定义在第21行。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/pkg/init.lua",
+          "locator": "General:new guanyu；line 22",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "蜀、4点体力、武圣。",
+      "corrected_locator": "standard/pkg/init.lua:21",
+      "tools": [
+        "query_game_data"
+      ],
+      "run_ids": [
+        "338adeb0-7a1c-462e-bbd8-5026bd39c8d1"
+      ],
+      "elapsed_seconds": 4.559,
+      "input_tokens": 3120,
+      "output_tokens": 241,
+      "citation_count": 2
+    },
+    {
+      "case_id": "D04",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "装备牌中的武器、范围1，定义与中文说明分别有来源。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard_cards/pkg/init.lua",
+          "locator": "crossbow；lines 117-122",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "装备牌中的武器，攻击范围1；从定义取值。",
+      "corrected_locator": null,
+      "tools": [
+        "query_game_data"
+      ],
+      "run_ids": [
+        "74654a88-9c54-4344-b95b-956bdca93c6f"
+      ],
+      "elapsed_seconds": 3.27,
+      "input_tokens": 3419,
+      "output_tokens": 182,
+      "citation_count": 3
+    },
+    {
+      "case_id": "D05",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "防具，两条效果及失去装备区后的回复条件正确。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/maneuvering/pkg/init.lua",
+          "locator": "silver_lion；lines 213-214",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "防具；大于1点伤害只保留1点；失去装备区白银狮子后回复1点体力。",
+      "corrected_locator": null,
+      "tools": [
+        "query_game_data"
+      ],
+      "run_ids": [
+        "c929c947-d73a-4515-988d-05802f57c31a"
+      ],
+      "elapsed_seconds": 3.848,
+      "input_tokens": 3396,
+      "output_tokens": 214,
+      "citation_count": 3
+    },
+    {
+      "case_id": "D06",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "酒基本牌/自己，铁索锦囊/一至两人；数量与牌堆配置核对。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/maneuvering/pkg/init.lua",
+          "locator": "analeptic / iron_chain；lines 177-183",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "酒是基本牌，目标自己；铁索连环为锦囊牌，目标一至两名角色。",
+      "corrected_locator": null,
+      "tools": [
+        "query_game_data"
+      ],
+      "run_ids": [
+        "f037dc6b-cb8c-4191-b0cf-44df08d28bd5"
+      ],
+      "elapsed_seconds": 6.802,
+      "input_tokens": 4354,
+      "output_tokens": 375,
+      "citation_count": 6
+    },
+    {
+      "case_id": "J01",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "空城后的目标禁止不能被青龙追杀绕过，明确固定前提。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/blade.lua",
+          "locator": "SC01",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard/pkg/skills/kongcheng.lua",
+          "locator": "SC01",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+      "corrected_locator": null,
+      "tools": [
+        "get_verified_ruling",
+        "search_knowledge"
+      ],
+      "run_ids": [
+        "1612bc63-e024-4374-a7b2-ce2399dcf2e1"
+      ],
+      "elapsed_seconds": 3.326,
+      "input_tokens": 1354,
+      "output_tokens": 100,
+      "citation_count": 6
+    },
+    {
+      "case_id": "J02",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "两次八卦判定、鬼才改红与固定判定牌/手牌单位正确。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/pkg/skills/wushuang.lua",
+          "locator": "SC02",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/eight_diagram.lua",
+          "locator": "SC02",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+      "corrected_locator": null,
+      "tools": [
+        "get_verified_ruling"
+      ],
+      "run_ids": [
+        "225f7564-a4d7-40a7-9759-0483509686f2"
+      ],
+      "elapsed_seconds": 1.711,
+      "input_tokens": 1365,
+      "output_tokens": 77,
+      "citation_count": 1
+    },
+    {
+      "case_id": "J03",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "酒火杀藤甲3点/传导白银1点，解除连环在扣体力前。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/maneuvering/pkg/skills/analeptic.lua",
+          "locator": "SC03",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/maneuvering/pkg/skills/silver_lion.lua",
+          "locator": "SC03",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+      "corrected_locator": null,
+      "tools": [
+        "get_verified_ruling"
+      ],
+      "run_ids": [
+        "cccc8495-f1ec-4501-a931-0070324ed250"
+      ],
+      "elapsed_seconds": 2.61,
+      "input_tokens": 1365,
+      "output_tokens": 106,
+      "citation_count": 1
+    },
+    {
+      "case_id": "J04",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "原局面2/3与未饮酒交换防具变体1/1分别列出，不混条件。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/qinggang_sword.lua",
+          "locator": "SC04",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/maneuvering/pkg/skills/vine.lua",
+          "locator": "SC04",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+      "corrected_locator": null,
+      "tools": [
+        "get_verified_ruling"
+      ],
+      "run_ids": [
+        "00b06f26-cbb3-4beb-a997-aa1aeebf147b"
+      ],
+      "elapsed_seconds": 2.135,
+      "input_tokens": 1364,
+      "output_tokens": 118,
+      "citation_count": 2
+    },
+    {
+      "case_id": "J05",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "流离座位与弃牌、目标合法范围、青釭标记及清理对应固定记录。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/pkg/skills/liuli.lua",
+          "locator": "SC05",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/nioh_shield.lua",
+          "locator": "SC05",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+      "corrected_locator": null,
+      "tools": [
+        "get_verified_ruling"
+      ],
+      "run_ids": [
+        "80ddc65e-07e0-45d9-8f0b-d0abc21a4ee8"
+      ],
+      "elapsed_seconds": 2.223,
+      "input_tokens": 1375,
+      "output_tokens": 58,
+      "citation_count": 1
+    },
+    {
+      "case_id": "J06",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "先弃牌、连营摸牌、再回贯石斧结算；有效记录后直接结束模型循环。",
+      "before": "所列断言通过",
+      "middle": "失败：多余模型调用超时",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/axe.lua",
+          "locator": "SC06",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard/pkg/skills/lianying.lua",
+          "locator": "SC06",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+      "corrected_locator": null,
+      "tools": [
+        "get_verified_ruling"
+      ],
+      "run_ids": [
+        "d861b010-f39f-469c-bf15-df547873642c"
+      ],
+      "elapsed_seconds": 2.303,
+      "input_tokens": 1366,
+      "output_tokens": 58,
+      "citation_count": 1
+    },
+    {
+      "case_id": "J07",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "首曹操受伤取实体牌后仍传导，次曹操不能重复取得离开处理区的牌。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/pkg/skills/jianxiong.lua",
+          "locator": "SC07",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/maneuvering/pkg/skills/iron_chain.lua",
+          "locator": "SC07",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+      "corrected_locator": null,
+      "tools": [
+        "get_verified_ruling"
+      ],
+      "run_ids": [
+        "a9d774d2-199b-4f14-a019-9ae0b39020ca"
+      ],
+      "elapsed_seconds": 2.8,
+      "input_tokens": 1359,
+      "output_tokens": 73,
+      "citation_count": 1
+    },
+    {
+      "case_id": "J08",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "红手牌借连弩、转唯一连弩、未用杀对照三分支保留。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/pkg/skills/wusheng.lua",
+          "locator": "SC08",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/crossbow.lua",
+          "locator": "SC08",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "以相同快照的实际离线规则执行结果为准；缺少必要条件时追问。未验证时必须说明待验证，不能编造已运行结论。",
+      "corrected_locator": null,
+      "tools": [
+        "get_verified_ruling"
+      ],
+      "run_ids": [
+        "cdb2e013-eafc-46cf-931b-c064a8985774"
+      ],
+      "elapsed_seconds": 1.99,
+      "input_tokens": 1365,
+      "output_tokens": 69,
+      "citation_count": 2
+    },
+    {
+      "case_id": "M01",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "第二轮仍是诸葛亮空城；没有手牌且只限制杀/决斗目标，不再缩成普通杀。",
+      "before": "所列断言通过",
+      "middle": "不通过：缩为普通杀",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "kongcheng；line 141",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "保留诸葛亮这一主体，说明空城限制被选择为杀或决斗目标。",
+      "corrected_locator": null,
+      "tools": [
+        "query_game_data",
+        "search_knowledge"
+      ],
+      "run_ids": [
+        "edfe2ce3-5268-42d5-b8a3-325ab5671ee3",
+        "85094c6d-c414-463c-851f-505e4e5279dc"
+      ],
+      "elapsed_seconds": 15.596,
+      "input_tokens": 9032,
+      "output_tokens": 451,
+      "citation_count": 9
+    },
+    {
+      "case_id": "M02",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "两轮承接酒与濒死；只能自己使用回复1点，不能救其他角色。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/maneuvering/pkg/init.lua",
+          "locator": "analeptic；line 178",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "保持酒与濒死上下文；资料中酒目标为自己，不能当作给他人使用的桃。",
+      "corrected_locator": null,
+      "tools": [
+        "query_game_data",
+        "search_knowledge"
+      ],
+      "run_ids": [
+        "19f288be-6416-4617-99e3-e3e854e48daf",
+        "6f2eeb06-ebcc-4c86-ae24-09adeb54845f"
+      ],
+      "elapsed_seconds": 10.842,
+      "input_tokens": 9184,
+      "output_tokens": 471,
+      "citation_count": 11
+    },
+    {
+      "case_id": "M03",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "两轮合并iOS相册、0.5.25本地修改版及重开恢复；待补项与网页确认界限清楚。",
+      "before": "所列断言通过",
+      "middle": "不通过：提示聊天确认",
+      "reference_basis": [
+        {
+          "path": "docs/问答与决策记录.md",
+          "locator": "反馈草稿与明确确认",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "将后一句并入同一问题的版本与恢复条件，继续收集复现步骤和预期，不声称已提交或已修复。",
+      "corrected_locator": null,
+      "tools": [
+        "prepare_feedback_context"
+      ],
+      "run_ids": [
+        "3bed29ad-d92b-43d6-a44d-dfd9d909e43a",
+        "ef7b47e0-de27-4349-81d4-c1bab5fccdbb"
+      ],
+      "elapsed_seconds": 5.892,
+      "input_tokens": 1644,
+      "output_tokens": 533,
+      "citation_count": 3
+    },
+    {
+      "case_id": "V01",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "说明10人文字与配置2–8差异，未臆测旧版或线上保证。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "line 417：10人文字",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard/pkg/init.lua",
+          "locator": "minPlayer/maxPlayer；lines 214-215",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "同时指出规则文字与当前实现的冲突及资料快照，避免把10人说明静默当作已实现人数。",
+      "corrected_locator": null,
+      "tools": [
+        "query_game_data",
+        "search_knowledge"
+      ],
+      "run_ids": [
+        "bcf72bcd-6a5a-440b-a769-3c04ddb58e87"
+      ],
+      "elapsed_seconds": 5.189,
+      "input_tokens": 5275,
+      "output_tokens": 385,
+      "citation_count": 5
+    },
+    {
+      "case_id": "V02",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "相同版本号不保证服务器代码/结算一致，明确资料边界。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "data/manifest.json",
+          "locator": "本地来源快照与文件哈希",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "不能以相同客户端版本保证；需要核心/包快照或提交信息，明确本项目使用的本地快照。",
+      "corrected_locator": null,
+      "tools": [],
+      "run_ids": [
+        "9b3cb0ff-fc9d-4e3e-853d-0672a1d02ba6"
+      ],
+      "elapsed_seconds": 2.498,
+      "input_tokens": 1332,
+      "output_tokens": 139,
+      "citation_count": 0
+    },
+    {
+      "case_id": "N01",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "虚构扩展/技能未找到，不编造效果；说明有限检索不是不存在的证明。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "data/snapshots.json",
+          "locator": "当前覆盖包范围",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "该虚构扩展与武将不在当前三个包中，应说明资料范围/未找到，不能创造效果。",
+      "corrected_locator": null,
+      "tools": [
+        "query_game_data",
+        "search_knowledge"
+      ],
+      "run_ids": [
+        "5ec3d766-956c-414a-bbb7-1fc38850effb"
+      ],
+      "elapsed_seconds": 5.384,
+      "input_tokens": 6806,
+      "output_tokens": 442,
+      "citation_count": 5
+    },
+    {
+      "case_id": "N02",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "拒绝查询私人QQ战绩和群聊，未声称已经访问。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "docs/架构与接口说明.md",
+          "locator": "平台和会话数据边界",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "没有此类战绩和私人聊天权限或资料，不声称已访问，不通过工具越界。",
+      "corrected_locator": "本轮新增docs/架构与接口说明.md；项目文档不归属于游戏提交号",
+      "tools": [],
+      "run_ids": [
+        "683c73ca-4fb0-4753-90c8-7795b9e7d63a"
+      ],
+      "elapsed_seconds": 2.344,
+      "input_tokens": 1327,
+      "output_tokens": 62,
+      "citation_count": 0
+    },
+    {
+      "case_id": "F01",
+      "reviewer": "Codex",
+      "status": "blocked_live",
+      "note": "真实主库关闭故障注入，因此阻塞；隔离mock失败SSE及真实SDK协议工具错误路径另测通过。",
+      "before": "阻塞",
+      "middle": "阻塞",
+      "reference_basis": [
+        {
+          "path": "evaluations/README.md",
+          "locator": "受控工具失败注入",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "受控注入资料工具不可用时，解释失败和能否重试，不编造已成功检索的来源。",
+      "corrected_locator": null,
+      "tools": [],
+      "run_ids": [],
+      "elapsed_seconds": 0.0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "citation_count": 0
+    },
+    {
+      "case_id": "I01",
+      "reviewer": "Codex",
+      "status": "partial",
+      "note": "草稿字段、未知项和确认边界正确；未明确追问武将/技能名，固定预期覆盖不足，部分通过，待完善。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "docs/问答与决策记录.md",
+          "locator": "反馈草稿字段和确认规则",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "追问技能/武将、实际现象、预期、复现条件和版本，或明确标记缺失；不生成正式反馈。",
+      "corrected_locator": null,
+      "tools": [
+        "prepare_feedback_context"
+      ],
+      "run_ids": [
+        "1708faf6-4910-4e10-a9f8-e6fded6bf3e4"
+      ],
+      "elapsed_seconds": 3.649,
+      "input_tokens": 552,
+      "output_tokens": 286,
+      "citation_count": 1
+    },
+    {
+      "case_id": "I02",
+      "reviewer": "Codex",
+      "status": "passed_selected_assertions",
+      "note": "保留iOS/0.5.25卡住事实，追问步骤/恢复；没有自动确认或保存。",
+      "before": "所列断言通过",
+      "middle": "所列断言通过",
+      "reference_basis": [
+        {
+          "path": "docs/问答与决策记录.md",
+          "locator": "反馈草稿字段和确认规则",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ],
+      "expected": "先整理草稿，询问操作步骤、实际与预期及版本细节；展示后明确确认才保存。",
+      "corrected_locator": null,
+      "tools": [
+        "prepare_feedback_context"
+      ],
+      "run_ids": [
+        "edc55bc8-dfaa-4775-8ff2-c7c22190a4d2"
+      ],
+      "elapsed_seconds": 3.427,
+      "input_tokens": 567,
+      "output_tokens": 230,
+      "citation_count": 1
+    }
+  ]
+}

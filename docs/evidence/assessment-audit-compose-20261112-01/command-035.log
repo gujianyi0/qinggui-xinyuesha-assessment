@@ -1,0 +1,5 @@
+time="2026-11-12T16:00:22+08:00" level=warning msg="volume \"qinggui-assessment-verify-audit-20261112_models\" already exists but was not created by Docker Compose. Use `external: true` to use an existing volume"
+ Container qinggui-assessment-verify-audit-20261112-worker-1 Recreate 
+ Container qinggui-assessment-verify-audit-20261112-worker-1 Recreated 
+ Container qinggui-assessment-verify-audit-20261112-worker-1 Starting 
+ Container qinggui-assessment-verify-audit-20261112-worker-1 Started 

@@ -1,0 +1,4 @@
+{"mode": "pgvector", "sources": ["17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:9", "9937b633d1dd2e694755:passage:standard:text:kongcheng:0", "14d2f742973285f1cf46:passage:standard:text:paoxiao:0", "19c317c0215d757be97c:passage:standard:text:liuli:0", "223bc8069fe86ce07e43:chunk:0:passage:implementation:standard:renegade_wild:0:chunk:0"], "encode_calls": 1, "ttl": 300, "cache_key": "retrieval:86a9474b9c3288d86432d323445b6363254524da51ae390d6cd673a338bb7a78"}
+
+Loading weights:   0%|          | 0/71 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 71/71 [00:00<00:00, 1603.18it/s]

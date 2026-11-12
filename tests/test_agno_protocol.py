@@ -35,7 +35,9 @@ def protocol_model(app, monkeypatch):
         settings.model_id = "protocol-fixture"
         settings.model_api_key = "fixture-not-a-real-key"
         settings.model_input_cny_per_million = settings.model_output_cny_per_million = 1
-        settings.model_timeout_seconds = 20
+        # Non-timing protocol assertions use the production request bound. The
+        # explicit timeout test below still overrides this with 0.05 seconds.
+        settings.model_timeout_seconds = 60
         transport = httpx.MockTransport(handler)
         http = httpx.AsyncClient(transport=transport)
         client = AsyncOpenAI(api_key=settings.model_api_key, base_url=settings.model_base_url, http_client=http, max_retries=0)
@@ -45,9 +47,10 @@ def protocol_model(app, monkeypatch):
     yield install
 
 
-async def run_question(client, message):
+async def run_question(client, message, *, fault=None):
     session = (await client.post("/sessions", json={})).json()
-    response = await client.post(f"/sessions/{session['id']}/runs", json={"message":message})
+    headers = {"X-Assessment-Fault": fault} if fault is not None else {}
+    response = await client.post(f"/sessions/{session['id']}/runs", json={"message": message}, headers=headers)
     assert response.status_code == 200
     records = [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith("data: ")]
     stored = await client.get(f"/runs/{records[0]['run_id']}")
@@ -70,6 +73,7 @@ async def test_real_agno_tool_stream_usage_and_context(client, app, protocol_mod
         stream, run = await run_question(client, "诸葛亮的势力、体力和技能是什么？")
         assert "event: completed" in stream
         assert run["status"] == "completed"
+        assert run["prompt_version"].startswith("grounded-") and run["prompt_version"] != "grounded-v1"
         assert len(requests) == 2
         assert run["tool_calls"][0]["name"] == "query_game_data"
         assert run["tool_calls"][0]["status"] == "succeeded"
@@ -231,5 +235,96 @@ async def test_empty_provider_body_is_retryable_failure_not_completed(client, pr
         _, run = await run_question(client, "通常摸几张牌")
         assert run["status"] == "failed" and "未返回正文" in run["error"]
         assert run["retryable"] and run["usage"]["settled"]
+    finally:
+        await sdk.close()
+
+
+async def test_invalid_ruling_id_cannot_override_grounded_basic_rule(client, protocol_model):
+    requests = []
+
+    def handler(request):
+        body = json.loads(request.content)
+        requests.append(body)
+        if len(requests) == 1:
+            return sse_response(tool="get_verified_ruling", arguments={"scene_id": "SC01-08"})
+        if len(requests) == 2:
+            return sse_response(tool="search_knowledge", arguments={"query": "主公杀死忠臣"})
+        return sse_response(answer="主公杀死忠臣须立即弃置所有手牌和已装备的牌。")
+
+    sdk = protocol_model(handler)
+    try:
+        stream, run = await run_question(client, "主公误杀忠臣需要弃哪些牌？")
+        assert run["status"] == "completed", run.get("error")
+        assert "所有手牌和已装备的牌" in run["text"]
+        assert "暂不能判断" not in stream
+        assert run["citations"]
+        assert all(call["name"] != "get_verified_ruling" for call in run["tool_calls"])
+        tool = next(t for t in requests[0]["tools"] if t["function"]["name"] == "get_verified_ruling")
+        assert tool["function"]["parameters"]["properties"]["scene_id"]["enum"] == [f"SC{i:02}" for i in range(1, 9)]
+    finally:
+        await sdk.close()
+
+
+async def test_prompt_revision_tracks_instructions_not_player_text(client, protocol_model):
+    runs = []
+    for question in ("诸葛亮的势力是什么？", "曹操的技能是什么？", "iOS页面卡住，帮我整理反馈"):
+        sdk = protocol_model(lambda _: sse_response(answer="仅用于协议测试的正文。"))
+        try:
+            _, run = await run_question(client, question)
+            assert run["status"] == "completed", run.get("error")
+            runs.append(run)
+        finally:
+            await sdk.close()
+    assert runs[0]["prompt_version"] == runs[1]["prompt_version"]
+    assert runs[0]["prompt_version"] != runs[2]["prompt_version"]
+
+
+async def test_real_agno_tool_failure_retains_error_without_fabricated_citation(client, protocol_model):
+    calls = 0
+
+    def handler(request):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return sse_response(tool="search_knowledge", arguments={"query": "未收录技能"})
+        body = json.loads(request.content)
+        assert any(m["role"] == "tool" and "error" in m["content"] for m in body["messages"])
+        return sse_response(answer="资料查询工具暂时不可用，请稍后重试，当前无法确认技能效果。")
+
+    sdk = protocol_model(handler)
+    try:
+        stream, run = await run_question(client, "请核对未收录技能", fault="tool_unavailable")
+        assert run["status"] == "completed", run.get("error")
+        assert "稍后重试" in stream and not run["citations"]
+        assert run["tool_calls"][0]["status"] == "failed"
+        assert run["tool_calls"][0]["result"].get("error")
+        assert calls == 2 and sdk.is_closed() and run["usage"]["settled"]
+    finally:
+        await sdk.close()
+
+
+@pytest.mark.parametrize("clarify_first", [False, True])
+async def test_verified_ruling_finishes_without_second_model_request(client, app, protocol_model, clarify_first):
+    calls = 0
+    expected_calls = 2 if clarify_first else 1
+    scene = next(s for s in app.state.catalog.rulings() if s["id"] == "SC06")
+
+    def handler(request):
+        nonlocal calls
+        calls += 1
+        if clarify_first and calls == 1:
+            return sse_response(tool="get_verified_ruling", arguments={"scene_id": "SC06", "conditions": {}})
+        if calls == expected_calls:
+            return sse_response(tool="get_verified_ruling", arguments={"scene_id": "SC06", "reference": not clarify_first, "conditions": scene["conditions"] if clarify_first else {}})
+        return httpx.Response(503, json={"error": {"message": "unnecessary second request", "type": "server_error"}})
+
+    sdk = protocol_model(handler)
+    try:
+        _, run = await run_question(client, "核对SC06，已明确提供全部条件：" + json.dumps(scene["conditions"], ensure_ascii=False))
+        assert run["status"] == "completed", run.get("error")
+        assert calls == expected_calls and "连营" in run["text"] and run["citations"]
+        assert run["input_tokens"] == 12 * expected_calls and run["output_tokens"] == 4 * expected_calls
+        assert not run["usage"]["estimated"] and run["usage"]["settled"]
+        assert sdk.is_closed()
     finally:
         await sdk.close()

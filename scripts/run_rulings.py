@@ -87,7 +87,7 @@ def prepare(source: Path, archive: Path, sevenzip: Path) -> dict:
     return manifest
 
 
-def run_test(label: str, arguments: list[str], timeout: int = 90) -> dict:
+def run_test(label: str, arguments: list[str], timeout: int = 90, output_dir: Path | None = None) -> dict:
     engine = inside(LOCAL, ROOT)
     exe = engine / "FreeKill.exe"
     if not exe.is_file():
@@ -123,7 +123,7 @@ def run_test(label: str, arguments: list[str], timeout: int = 90) -> dict:
         result["scenario_sha256"] = sha256(scene)
         result["common_sha256"] = sha256(scene.parent / "common.lua")
     # A process exit of zero by itself is deliberately not a verified ruling.
-    out = ROOT / "rulings/evidence" / f"{label}.json"
+    out = inside(output_dir or ROOT / "rulings/evidence", ROOT) / f"{label}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     return result
@@ -136,6 +136,7 @@ def main():
     parser.add_argument("--archive", type=Path)
     parser.add_argument("--sevenzip", type=Path, default=Path("F:/Apps/7-Zip/7z.exe"))
     parser.add_argument("--baseline", action="store_true")
+    parser.add_argument("--output-dir", type=Path, help="Write a new evidence run without replacing catalog evidence")
     parser.add_argument("--scene", choices=[f"SC{i:02}" for i in range(1, 9)] + ["SC04V"])
     args = parser.parse_args()
     if args.prepare:
@@ -144,7 +145,7 @@ def main():
         manifest = prepare(args.source.resolve(), args.archive.resolve(), args.sevenzip)
         print(json.dumps({"prepared": True, "rule_files": len(manifest["rule_files"]), "binary_sha256": manifest["binary_sha256"]}))
     if args.baseline:
-        result = run_test("baseline", ["--testskills", "jianxiong,#eight_diagram_skill"])
+        result = run_test("baseline", ["--testskills", "jianxiong,#eight_diagram_skill"], output_dir=args.output_dir)
         print(json.dumps({"label": "baseline", "exit_code": result["exit_code"], "passed": result["passed"], "tests_run": result["tests_run"]}))
         return 0 if result["passed"] else 1
     if args.scene:
@@ -155,7 +156,7 @@ def main():
         dest.parent.mkdir(parents=True, exist_ok=True)
         for script in source_file.parent.glob("*.lua"):
             shutil.copy2(script, dest.parent / script.name)
-        result = run_test(args.scene, ["--testfile", dest.relative_to(LOCAL).as_posix()])
+        result = run_test(args.scene, ["--testfile", dest.relative_to(LOCAL).as_posix()], output_dir=args.output_dir)
         print(json.dumps({"label": args.scene, "exit_code": result["exit_code"], "passed": result["passed"], "tests_run": result["tests_run"], "tail": result["stdout"][-2500:] if not result["passed"] else ""}))
         return 0 if result["passed"] else 1
     return 0

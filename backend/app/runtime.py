@@ -3,6 +3,7 @@ import contextlib
 import hashlib
 import json
 import time
+from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field
@@ -166,7 +167,7 @@ class Runtime:
                 add_citations(result.get("items", []))
                 return json.dumps(result, ensure_ascii=False)
 
-            async def get_verified_ruling(scene_id: str, conditions: dict | None = None, reference: bool = False) -> str:
+            async def get_verified_ruling(scene_id: Literal["SC01", "SC02", "SC03", "SC04", "SC05", "SC06", "SC07", "SC08"], conditions: dict | None = None, reference: bool = False) -> str:
                 """核对固定裁定。reference=True查看测试记录/牌/顺序/对照，不要求玩家补齐记录；默认按conditions匹配玩家局面。"""
                 nonlocal ruling_result
                 async def get_ruling():
@@ -219,6 +220,7 @@ class Runtime:
                 reserved = True
                 from agno.agent import Agent
                 from agno.models.openai.like import OpenAILike
+                from agno.tools.function import Function
                 user_history = [m for m in reversed(history) if m.role == "user"]
                 feedback_mode = is_feedback_request([m.content for m in user_history])
                 feedback_context = None
@@ -240,6 +242,9 @@ class Runtime:
                     "你是轻归的新月杀游戏资料与反馈助手。用中文，先说明结论，再给必要的依据与条件。",
                     f"当前仅可依据资料快照 {run.snapshot_id}。开始回答前必须调用检索或数据工具。",
                     "查武将、牌和技能属性使用query_game_data；解释规则使用search_knowledge。",
+                    "基础规则查询不需要离线交互裁定。裁定编号只允许工具枚举中的单个SC编号，SC01-08是范围说明，不能作为编号传入。",
+                    "当前体力与体力上限是不同字段；普通弃牌阶段手牌上限依据当前体力，不得把当前体力值写成体力上限。所有数量、区域与限定词都要逐句核对直接来源。",
+                    "严格按工具已返回的字段陈述，若有max_hp等字段，不得声称未提供。不得擅自在来源牌名上增加普通等限定词而缩小适用范围。",
                     "SC01-08复杂交互必须调用get_verified_ruling，只有status=verified且前提匹配才能给确定裁定。",
                     "裁定工具的conditions使用场景的规范字段与内部ID。若不知道字段，先以空conditions查询，按返回required_conditions将玩家已明确给出的等价中文前提映射后立即重试。不能把期望条件当成玩家事实。",
                     "取得verified后直接依据裁定结果和执行证据回答，不必继续调用无关的基础工具。若仍为needs_clarification或unverified，必须追问，禁止给出确定或倾向性裁定。",
@@ -262,9 +267,21 @@ class Runtime:
                         "多轮补充版本和恢复情况须并入同一问题，勿重复索要已提供信息。只追问仍缺少的关键条件。",
                         "明确这是尚未保存/提交的文字草稿。用户可到本项目网页‘我的反馈’核对保存草稿，再明确确认写入本项目记录；不要求外部官方工单入口。",
                         "实际保存方式：复制文字到网页‘我的反馈’填写并保存草稿，再点‘核对并确认’和‘确认保存反馈’。文字聊天不会自动填写网页，也不能只靠回复好的就视为已保存。",
+                        "不要引导用户在聊天里告诉你确认来保存；即使文字明确确认，也必须由用户在网页核对指定修订后点击确认按钮。",
                         "引用来源为本会话用户陈述，尚未独立核验；不要引用游戏技能当作客户端问题依据，不声称已保存、已提交或已修复。",
                     ]
-                agent = Agent(model=model, tools=[] if feedback_mode else [search_knowledge, query_game_data, get_verified_ruling], instructions=instructions, tool_call_limit=6, markdown=True)
+                prompt_version = "grounded-" + hashlib.sha256(json.dumps(instructions, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()[:16]
+                async with self.database.sessions.begin() as db:
+                    await db.execute(update(Run).where(Run.id == run_id, Run.status == "running").values(prompt_version=prompt_version))
+                def finish_verified_ruling(fc):
+                    # The SDK copies Function objects. Its public post-hook gets
+                    # the executed copy, so only this run's successful ruling
+                    # stops further model calls; clarification can still retry.
+                    fc.function.stop_after_tool_call = bool(ruling_result and ruling_result.get("status") in {"verified", "reference"})
+
+                ruling_tool = Function.from_callable(get_verified_ruling)
+                ruling_tool.post_hook = finish_verified_ruling
+                agent = Agent(model=model, tools=[] if feedback_mode else [search_knowledge, query_game_data, ruling_tool], instructions=instructions, tool_call_limit=6, markdown=True)
                 context = "\n".join(f"{m.role}: {m.content[:2000]}" for m in reversed(history[1:]))[-14000:]
                 prompt = f"隔离的最近历史：\n{context}\n\n当前玩家问题：{message}"
                 if feedback_context is not None:

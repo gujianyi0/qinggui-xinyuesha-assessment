@@ -1,0 +1,66 @@
+[
+  {
+    "case_id": "J01",
+    "status": "completed",
+    "same_as_verified_record_renderer": true,
+    "elapsed_ms": 3326,
+    "tool_count": 2,
+    "estimated_usage": false
+  },
+  {
+    "case_id": "J02",
+    "status": "completed",
+    "same_as_verified_record_renderer": true,
+    "elapsed_ms": 1711,
+    "tool_count": 1,
+    "estimated_usage": false
+  },
+  {
+    "case_id": "J03",
+    "status": "completed",
+    "same_as_verified_record_renderer": true,
+    "elapsed_ms": 2610,
+    "tool_count": 2,
+    "estimated_usage": false
+  },
+  {
+    "case_id": "J04",
+    "status": "completed",
+    "same_as_verified_record_renderer": true,
+    "elapsed_ms": 2135,
+    "tool_count": 2,
+    "estimated_usage": false
+  },
+  {
+    "case_id": "J05",
+    "status": "completed",
+    "same_as_verified_record_renderer": true,
+    "elapsed_ms": 2223,
+    "tool_count": 1,
+    "estimated_usage": false
+  },
+  {
+    "case_id": "J06",
+    "status": "completed",
+    "same_as_verified_record_renderer": true,
+    "elapsed_ms": 2303,
+    "tool_count": 1,
+    "estimated_usage": false
+  },
+  {
+    "case_id": "J07",
+    "status": "completed",
+    "same_as_verified_record_renderer": true,
+    "elapsed_ms": 2800,
+    "tool_count": 1,
+    "estimated_usage": false
+  },
+  {
+    "case_id": "J08",
+    "status": "completed",
+    "same_as_verified_record_renderer": true,
+    "elapsed_ms": 1990,
+    "tool_count": 1,
+    "estimated_usage": false
+  }
+]

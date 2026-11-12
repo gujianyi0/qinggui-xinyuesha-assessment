@@ -1,0 +1,12 @@
+{
+  "version": "1.6",
+  "source_files_selected": 1595,
+  "actual_credentials_found": false,
+  "runtime_env_files_selected": false,
+  "fixed_cases_unchanged": true,
+  "new_document_links_checked": 54,
+  "report_sha256": "5092a84feef34cf808d6cbd3640db22d24c95b204a1c56a73b214dbdda10b95d",
+  "final_runtime_proof": "assessment-audit-20261112-runtime-final.json",
+  "final_pytest": "assessment-audit-20261112-pytest-final-04.xml",
+  "no_push": true
+}

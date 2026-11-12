@@ -1,0 +1,90 @@
+{
+  "tables": {
+    "alembic_version": {
+      "rows": 1,
+      "sha256": "2d099a2ddff959788ba258694acf0dfcb2ac9f2719df95d7033621fb8b80b266"
+    },
+    "auth_tokens": {
+      "rows": 33,
+      "sha256": "e4351964914109ba405619c31739a1f5be692f41b9c515fd06707dc83109bdb8"
+    },
+    "budget_account": {
+      "rows": 1,
+      "sha256": "1898f81b1fd15e1244622785e26986bb7f17df925074071ad8b10fb8ec68d5c0"
+    },
+    "feedback": {
+      "rows": 4,
+      "sha256": "30d87eafee7e94dc0f7601181094861529fcc5da7e775e3f6cd3ce5fdf35b497"
+    },
+    "feedback_drafts": {
+      "rows": 4,
+      "sha256": "bf73c3ec079d2ddf70b4ce18b01e8bd6958b5d01b4ff783cf010ef59528919ea"
+    },
+    "indexed_chunks": {
+      "rows": 8679,
+      "sha256": "752dd5168df9667927adcf1250e64243d2c0b4885eacedd95281aed5987d4552"
+    },
+    "job_attempts": {
+      "rows": 17,
+      "sha256": "9e9813e547b86ebbf9dd83e344dbf990dbb5b91cf9fe329f13563d3efcdf52e5"
+    },
+    "jobs": {
+      "rows": 19,
+      "sha256": "cd3013cda9a70cc061497e0dfd5e589785fd231993134d8c15e44cf5490ba587"
+    },
+    "messages": {
+      "rows": 618,
+      "sha256": "ddec8bc55ffda83eb5094ec33e7e89356918d3d28fb4e2fc3dafa424cc7dc2c8"
+    },
+    "outbox": {
+      "rows": 22,
+      "sha256": "0a1a45e611c55182edb9eeb52233f62256dd1a3a965e69cc77f3ecb944302e09"
+    },
+    "published_indexes": {
+      "rows": 1,
+      "sha256": "6a5781a931a9fd3590854922b455af091c466e967b4380d28077651851357325"
+    },
+    "qq_events": {
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs": {
+      "rows": 311,
+      "sha256": "634f7818fb5d89cd68c427b91c356715ae852e43c1e3f97d80a1c9d1a071cfce"
+    },
+    "sessions": {
+      "rows": 282,
+      "sha256": "a1fff4a2d966969810672926ddd13e65b528a8934b7623c1c201f8f1d1355175"
+    },
+    "tool_calls": {
+      "rows": 609,
+      "sha256": "e2571692f887a77f451a27dc5ad45ecd3fe8e659e5321b273f525b2802cdf301"
+    },
+    "usage_records": {
+      "rows": 308,
+      "sha256": "98d3e24ebaa9dbacab7fe2a5a9d88724651fe3f64f5d36fc98132ae3766c146f"
+    },
+    "users": {
+      "rows": 2,
+      "sha256": "0994800cb01b5793cad07acdb029b5e4d89a9c82c71724080b989e73ee048d32"
+    },
+    "vector_chunks": {
+      "rows": 8679,
+      "sha256": "314d70d29333f7950741e80f0e47a76221866f062b3694770c816feb4cac3778"
+    }
+  },
+  "active": {
+    "runs": 0,
+    "jobs": 0,
+    "usage": 0,
+    "outbox": 0
+  },
+  "budget": {
+    "id": 1,
+    "spent": 7.092556000000002,
+    "reserved": 0.0
+  },
+  "migration": "0001",
+  "pgvector": "0.8.7",
+  "postgres": "17.11 (Debian 17.11-1.pgdg12+2)"
+}

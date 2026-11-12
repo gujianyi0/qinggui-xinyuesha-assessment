@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="3.857" timestamp="2026-11-12T16:01:10.309273+08:00" hostname="gujianyi"><testcase classname="tests.test_agno_protocol" name="test_real_agno_tool_failure_retains_error_without_fabricated_citation" time="1.724"><failure message="assert 422 == 200&#10; +  where 422 = &lt;Response [422 Unprocessable Entity]&gt;.status_code">tests\test_agno_protocol.py:298: in test_real_agno_tool_failure_retains_error_without_fabricated_citation
+    stream, run = await run_question(client, "请核对未收录技能", fault="tool_unavailable")
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_agno_protocol.py:56: in run_question
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = &lt;Response [422 Unprocessable Entity]&gt;.status_code</failure></testcase></testsuite></testsuites>

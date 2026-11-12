@@ -1,0 +1,48 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from assessment-audit-20261112-overlay.Dockerfile
+#1 transferring dockerfile: 191B 0.0s done
+#1 DONE 0.1s
+
+#2 [internal] load metadata for docker.io/library/qinggui-assessment-audit-base:1.6
+#2 DONE 0.7s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 139B 0.0s done
+#3 DONE 0.1s
+
+#4 [internal] load build context
+#4 ...
+
+#5 [1/4] FROM docker.io/library/qinggui-assessment-audit-base:1.6@sha256:fff2a9c7dd356146a588e7842eca11c3eeec5b6e19c3cb7bc44b22f368886831
+#5 resolve docker.io/library/qinggui-assessment-audit-base:1.6@sha256:fff2a9c7dd356146a588e7842eca11c3eeec5b6e19c3cb7bc44b22f368886831 0.1s done
+#5 DONE 0.1s
+
+#4 [internal] load build context
+#4 transferring context: 827.80kB 0.1s done
+#4 DONE 0.1s
+
+#5 [1/4] FROM docker.io/library/qinggui-assessment-audit-base:1.6@sha256:fff2a9c7dd356146a588e7842eca11c3eeec5b6e19c3cb7bc44b22f368886831
+#5 CACHED
+
+#6 [2/4] COPY backend ./backend
+#6 DONE 0.3s
+
+#7 [3/4] COPY scripts ./scripts
+#7 DONE 0.3s
+
+#8 [4/4] COPY evaluations ./evaluations
+#8 DONE 0.9s
+
+#9 exporting to image
+#9 exporting layers
+#9 exporting layers 0.7s done
+#9 exporting manifest sha256:2aeacf27eb1eff1564aaaf41f24749c7d0dd4e7cb518342a2bae48c59ac8e1f1 0.1s done
+#9 exporting config sha256:3f4caf2f2529d590692871ee22a5e75d96dc058a009b126d0260c00e00b72746 0.1s done
+#9 exporting attestation manifest sha256:c33d3e55ae37e5cf7e38b40e4523ab15a481dccd0fbb1ea19ddfdbf461531491 0.1s done
+#9 exporting manifest list sha256:d49ef2db4dd4ff126ff459f1eafb738f4c19bab1ce035f82b521102c435aa20f
+#9 exporting manifest list sha256:d49ef2db4dd4ff126ff459f1eafb738f4c19bab1ce035f82b521102c435aa20f 0.1s done
+#9 naming to docker.io/library/qinggui-assessment-api:latest done
+#9 unpacking to docker.io/library/qinggui-assessment-api:latest
+#9 unpacking to docker.io/library/qinggui-assessment-api:latest 0.3s done
+#9 DONE 1.6s

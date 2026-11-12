@@ -1,0 +1,34 @@
+{
+  "executed_at": "2026-11-12T08:27:34.547474+00:00",
+  "url": "http://127.0.0.1:15174",
+  "checks": [
+    "login",
+    "chat_stream_and_citations",
+    "draft_edit_revision_confirm",
+    "job_submit_and_cancel",
+    "real_worker_import_and_publish",
+    "catalog",
+    "mobile_no_horizontal_overflow"
+  ],
+  "page_errors": [],
+  "passed": true,
+  "backend": {
+    "status": "ok",
+    "cache": "available",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 9.721822000000007,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "imported_job_id": "2c721afd-74e1-452b-8abc-06a3c0d44d11",
+  "scope": "Edge browser using the recorded backend health; model mocks are not live model evidence"
+}

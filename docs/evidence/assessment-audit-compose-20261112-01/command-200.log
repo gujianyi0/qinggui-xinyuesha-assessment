@@ -1,0 +1,19 @@
+api-1  | INFO:     Started server process [1]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+api-1  | INFO:     127.0.0.1:48296 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.23.0.7:47356 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.23.0.7:47360 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.23.0.7:47446 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.23.0.7:47460 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.23.0.7:47464 - "GET /sessions/cc9c0044-a371-473b-8733-0784f7445f02/messages HTTP/1.1" 200 OK
+api-1  | INFO:     172.23.0.7:47478 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.23.0.7:47474 - "GET /runs/1ff37325-9fc8-4ee5-b593-63957f7867bf HTTP/1.1" 200 OK
+api-1  | INFO:     172.23.0.7:47486 - "GET /feedback HTTP/1.1" 200 OK
+api-1  | INFO:     172.23.0.7:47500 - "GET /jobs/c0a492f6-829f-439c-ae77-f8f087df24c1 HTTP/1.1" 200 OK
+api-1  | INFO:     172.23.0.7:47510 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.23.0.7:47522 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.23.0.7:47528 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.23.0.7:47532 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:58750 - "GET /health HTTP/1.1" 200 OK

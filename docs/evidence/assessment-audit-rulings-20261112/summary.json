@@ -1,0 +1,79 @@
+{
+  "runtime_rule_files_checked": 307,
+  "runtime_hash_issues": [],
+  "original_ruling_evidence_changed": [],
+  "runs": [
+    {
+      "scene": "SC01",
+      "tests": 1,
+      "passed": true,
+      "failures": 0,
+      "trace_passed": true,
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8"
+    },
+    {
+      "scene": "SC02",
+      "tests": 1,
+      "passed": true,
+      "failures": 0,
+      "trace_passed": true,
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8"
+    },
+    {
+      "scene": "SC03",
+      "tests": 1,
+      "passed": true,
+      "failures": 0,
+      "trace_passed": true,
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8"
+    },
+    {
+      "scene": "SC04",
+      "tests": 1,
+      "passed": true,
+      "failures": 0,
+      "trace_passed": true,
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8"
+    },
+    {
+      "scene": "SC04V",
+      "tests": 1,
+      "passed": true,
+      "failures": 0,
+      "trace_passed": true,
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8"
+    },
+    {
+      "scene": "SC05",
+      "tests": 1,
+      "passed": true,
+      "failures": 0,
+      "trace_passed": true,
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8"
+    },
+    {
+      "scene": "SC06",
+      "tests": 1,
+      "passed": true,
+      "failures": 0,
+      "trace_passed": true,
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8"
+    },
+    {
+      "scene": "SC07",
+      "tests": 1,
+      "passed": true,
+      "failures": 0,
+      "trace_passed": true,
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8"
+    },
+    {
+      "scene": "SC08",
+      "tests": 1,
+      "passed": true,
+      "failures": 0,
+      "trace_passed": true,
+      "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8"
+    }
+  ]
+}

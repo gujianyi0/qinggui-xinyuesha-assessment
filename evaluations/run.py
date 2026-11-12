@@ -135,6 +135,11 @@ async def execute(args):
                     "case_set": suite["case_set"], "cases_sha256": hashlib.sha256(case_bytes).hexdigest(),
                     "selected_cases": [row["id"] for row in cases], "concurrency": args.concurrency,
                     "checker_version": "lexical-alias-v2", "semantic_status": "awaiting_human_review"}
+        metadata["local_implementation_sha256"] = {
+            name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+            for name in ("backend/app/runtime.py", "backend/app/catalog.py", "backend/app/ruling_text.py", "backend/app/feedback_context.py")
+        }
+        metadata["implementation_notice"] = "Local source hashes; verify container hashes separately. Each run records its actual prompt revision."
         (output_dir / "metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
         records = []
         with (output_dir / "results.jsonl").open("w", encoding="utf-8") as file:
