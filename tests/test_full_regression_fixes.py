@@ -4,7 +4,7 @@ import pytest
 
 from backend.app.catalog import Catalog
 from backend.app.config import Settings
-from backend.app.feedback_context import is_feedback_request
+from backend.app.feedback_context import is_feedback_request, rules_feedback_checklist
 from scripts.audit_eval_sources import audit_citation, fingerprint
 
 
@@ -41,6 +41,26 @@ async def test_base_slash_rule_is_not_crowded_out_by_exceptions(app):
 ])
 def test_feedback_intent_does_not_confuse_skill_or_a_new_topic(messages, expected):
     assert is_feedback_request(messages) is expected
+
+
+@pytest.mark.parametrize("messages,expected", [
+    (["技能没生效，帮我反馈。"], True),
+    (["技能没生效，帮我反馈。", "武将是曹操，技能是奸雄"], True),
+    (["技能没生效，帮我反馈。", "我是曹操，技能是奸雄，受伤后没提示"], True),
+    (["iOS页面卡住，帮我提交反馈", "版本0.5.25，重开恢复"], False),
+    (["技能没生效，帮我反馈。", "我想反馈：iOS点相册画面不动"], False),
+    (["技能没生效，帮我反馈。", "诸葛亮有哪些技能？"], False),
+    (["技能没生效，帮我反馈。", "我是谁？"], False),
+    (["司马懿的反馈技能是什么？"], False),
+])
+def test_rule_feedback_checklist_scope_and_topic_continuation(messages, expected):
+    result = rules_feedback_checklist(messages)
+    assert bool(result) is expected
+    if expected:
+        assert is_feedback_request(messages)
+        assert all(word in result for word in ("武将", "技能名称", "卡牌名称", "触发阶段", "关键局面"))
+        assert "已说明的信息无需重复提供" in result
+        assert "曹操" not in result and "奸雄" not in result
 
 
 def test_user_statement_citations_must_match_own_session_and_recorded_input(tmp_path):

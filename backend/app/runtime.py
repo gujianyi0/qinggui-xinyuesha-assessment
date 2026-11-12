@@ -11,7 +11,7 @@ from sqlalchemy import select, update
 
 from .catalog import Catalog, KnowledgeSearch
 from .config import Settings
-from .feedback_context import is_feedback_request
+from .feedback_context import is_feedback_request, rules_feedback_checklist
 from .models import BudgetAccount, Message, Run, ToolCall, UsageRecord
 from .ruling_text import render_ruling
 
@@ -103,6 +103,7 @@ class Runtime:
         reserved = False
         text_parts, citations = [], []
         ruling_result = None
+        feedback_checklist = ""
         acquired = False
         model = None
 
@@ -225,8 +226,9 @@ class Runtime:
                 feedback_mode = is_feedback_request([m.content for m in user_history])
                 feedback_context = None
                 if feedback_mode:
+                    feedback_checklist = rules_feedback_checklist([m.content for m in user_history])
                     async def user_facts():
-                        return {"persisted": False, "items": [{"source": {
+                        return {"persisted": False, "clarification_checklist": feedback_checklist, "items": [{"source": {
                             "id": f"user-statement:{m.id}", "title": "本会话用户陈述（尚未独立核验）",
                             "path": f"conversation/{run.session_id}/{m.id}", "snapshot_id": run.snapshot_id,
                             "evidence_type": "user_statement", "excerpt": m.content,
@@ -265,6 +267,7 @@ class Runtime:
                         "分列实际现象、预期、复现步骤/条件、平台版本、恢复情况、缺失信息；未提供的写待补充，不猜原因，不诊断数据损坏。",
                         "严格保留用户原话的事实范围：只说技能没生效时，不能擅自写成已使用或已发动技能。没有给操作步骤，写待补充，不将你建议的步骤记成实际复现。",
                         "多轮补充版本和恢复情况须并入同一问题，勿重复索要已提供信息。只追问仍缺少的关键条件。",
+                        "结算或技能反馈须明确核对武将、具体技能或卡牌名称、触发阶段/时机、目标及关键局面；已给信息保留，只追问缺项。纯客户端问题不要索要无关武将/技能。核对清单是程序要求，不是用户提供的事实。",
                         "明确这是尚未保存/提交的文字草稿。用户可到本项目网页‘我的反馈’核对保存草稿，再明确确认写入本项目记录；不要求外部官方工单入口。",
                         "实际保存方式：复制文字到网页‘我的反馈’填写并保存草稿，再点‘核对并确认’和‘确认保存反馈’。文字聊天不会自动填写网页，也不能只靠回复好的就视为已保存。",
                         "不要引导用户在聊天里告诉你确认来保存；即使文字明确确认，也必须由用户在网页核对指定修订后点击确认按钮。",
@@ -322,6 +325,10 @@ class Runtime:
             final_text = "".join(text_parts).strip()
             if not final_text:
                 raise ModelFailure("模型未返回正文，可能达到输出限制；请重试", True)
+            if feedback_checklist:
+                suffix = "\n\n" + feedback_checklist
+                final_text += suffix
+                await emit("delta", {"text": suffix})
             answer = ValidatedAnswer(text=final_text, citations=citations)
             async with self.database.sessions.begin() as db:
                 result = await db.execute(update(Run).where(Run.id == run_id, Run.status == "running").values(status="completed", text=answer.text, citations=citations, input_tokens=input_tokens, output_tokens=output_tokens, elapsed_ms=int((time.perf_counter() - started) * 1000)))

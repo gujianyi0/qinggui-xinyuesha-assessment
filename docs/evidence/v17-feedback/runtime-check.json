@@ -1,0 +1,34 @@
+{
+  "package_version": "1.7.0",
+  "files": {
+    "backend/__init__.py": "529314979f40510ab3651634d46685a0a74d4ec2354052a591b011c8dba42508",
+    "backend/app/db.py": "836b0a47447f36f9c641eae056072c14c3be017ca52a5280ed13fb6a4eecc699",
+    "backend/app/database_transfer.py": "4038b52d6ad47f1a86ed7dca6a76e77185fd08528ea86ea7b4e0e9d2e731f40c",
+    "backend/app/chunking.py": "8d5cc40114c9600d628a5bc520ee9a73033ac0f6152e599fbc94d76a9e08ec45",
+    "backend/app/schemas.py": "84d15f3504c12468244945623a8db960306c3f2e2b266327229d324f9744fca7",
+    "backend/app/embedding_child.py": "9e575f9193247bb188a6ecb12b6d9720ea4c5d975fa2e2fb800005e120c8e8b0",
+    "backend/app/security.py": "7a59cb2a670a53a1d8737e1698e6cf7684f729fa25b45b1cbf851c1414c5f8d6",
+    "backend/app/resource_metrics.py": "19968a51a78f770613bd6d78feb4bc1c423982a49e37214a196ccb13bcf1ab54",
+    "backend/app/native_process.py": "589f37609940715d60f6c587fe8c4eae852c35953404566673a9c30a31b454c3",
+    "backend/app/feedback_context.py": "2eb9c5f01434aa68a6c3d47d96b1e87b1bacc3e04dd8d62e94e5a53bf2e09941",
+    "backend/app/catalog.py": "7ed57c4da92df9c44ece3f68d479b319215beef072203e266977bd2d3fdb1ea5",
+    "backend/app/status_file.py": "fd07524e7df70a8724b273c68171533685851a8dfe89a6a92affd51e10e9ddff",
+    "backend/app/isolated_embedding.py": "a672515af75e4a5f39f15914402a451f0b0c2a25e7729d3a9d5a2af256fba2c2",
+    "backend/app/retrieval_cache.py": "3591c977ebd352961c798bc3abfca75161865c9ad26541035a6438365689ce27",
+    "backend/app/redis_assets.py": "d8a4e8e5a116764da7ad133c85a9a87f6fdd62714ffa0b9d3ca23754f881f1d6",
+    "backend/app/embedding_assets.py": "30fd86e28ac3c4ba4b903c0264b4c92e1c5ece3a94b7b4d83e37d0478af63a8e",
+    "backend/app/service_supervisor.py": "197fa1efff342c56eb4a5bdd59f843f852b36128bbf2adc16d2bebc3cd3da700",
+    "backend/app/__init__.py": "25dc7b500b30e8d174bd470f66c202ed1d786cbff034c8ecbf3ea508ee2435f3",
+    "backend/app/jobs.py": "7052fed6accdb0c7321b5327ec0c53f34c56a2e21bb2b708ee73e630d593b0f1",
+    "backend/app/main.py": "dce11d8327126c029b948d8f3905e73ba935b4c3a281eae56094e0fc88702ca8",
+    "backend/app/ruling_text.py": "a27e96e10fd9ad167f060f4f237b13be5f492fd725f103f5e702d33070912015",
+    "backend/app/config.py": "4ed2daf0c237d1b3742bd5ff87b8dad6634b490fea3b07bdb9228168f241b33a",
+    "backend/app/worker.py": "bd4a49ce93e886c0e450a233144bfc33399aa5a2979799c3780eab99e67fee93",
+    "backend/app/runtime.py": "d1b61ddf03b9389cb48793fbd82f4c87ecda0fb3139e73507a55092fa1b079d1",
+    "backend/app/models.py": "c182ae2f9e1ed59e1a4791aa2479784049fd0f31bc52db0a67234e1e52c0d053",
+    "backend/app/deployment.py": "aa82f2bd20bd16695446a40a203418442e1f8bdacb92ed5ee30f6c7191e29efc"
+  },
+  "mismatches": [
+    "backend/app/feedback_context.py"
+  ]
+}

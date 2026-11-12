@@ -1,0 +1,48 @@
+2026/11/12 16:54:25 http2: server: error reading preface from client //./pipe/dockerDesktopLinuxEngine: file has already been closed
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from final-application.Dockerfile
+#1 transferring dockerfile:
+#1 transferring dockerfile: 169B 0.3s done
+#1 DONE 0.7s
+
+#2 [internal] load metadata for docker.io/library/qinggui-assessment-base:1.7
+#2 DONE 2.1s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 139B 0.1s done
+#3 DONE 0.2s
+
+#4 [1/4] FROM docker.io/library/qinggui-assessment-base:1.7@sha256:37651b4b0c01bb1ec57d22a44d9d566bea0a6ea5be9d5c2edbacadd46bbe402e
+#4 resolve docker.io/library/qinggui-assessment-base:1.7@sha256:37651b4b0c01bb1ec57d22a44d9d566bea0a6ea5be9d5c2edbacadd46bbe402e
+#4 resolve docker.io/library/qinggui-assessment-base:1.7@sha256:37651b4b0c01bb1ec57d22a44d9d566bea0a6ea5be9d5c2edbacadd46bbe402e 0.2s done
+#4 DONE 1.1s
+
+#5 [internal] load build context
+#5 transferring context: 14.12kB 1.7s done
+#5 DONE 1.9s
+
+#6 [2/4] COPY backend ./backend
+#6 DONE 1.8s
+
+#7 [3/4] COPY scripts ./scripts
+#7 DONE 1.0s
+
+#8 [4/4] COPY evaluations ./evaluations
+#8 DONE 4.7s
+
+#9 exporting to image
+#9 exporting layers
+#9 exporting layers 1.3s done
+#9 exporting manifest sha256:b5ddfe86185b3c221c38bf93e6f5de82f43ca32d5c2bbb8b4c1390c91a041104 0.1s done
+#9 exporting config sha256:178010c67c899f8cf9f001a2afce12b281dae0ba5e687055dcc5b0bc053051ac
+#9 exporting config sha256:178010c67c899f8cf9f001a2afce12b281dae0ba5e687055dcc5b0bc053051ac 0.1s done
+#9 exporting attestation manifest sha256:37cd0669db7dffdbdc95a0c9fd57d75132f67f5f46a24994cffc714806f00c72
+#9 exporting attestation manifest sha256:37cd0669db7dffdbdc95a0c9fd57d75132f67f5f46a24994cffc714806f00c72 0.2s done
+#9 exporting manifest list sha256:aa7742eafc492332a20c0685484fed54f798690b9b819175549707220301b4c5
+#9 exporting manifest list sha256:aa7742eafc492332a20c0685484fed54f798690b9b819175549707220301b4c5 0.2s done
+#9 naming to docker.io/library/qinggui-assessment-api:latest
+#9 naming to docker.io/library/qinggui-assessment-api:latest 0.0s done
+#9 unpacking to docker.io/library/qinggui-assessment-api:latest
+#9 unpacking to docker.io/library/qinggui-assessment-api:latest 0.5s done
+#9 DONE 2.9s

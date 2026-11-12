@@ -4,6 +4,7 @@ import type { FormEvent } from 'react';
 import { displayError, request } from '../api';
 import type { Auth } from '../types';
 import { ErrorNotice, Spinner } from './ui';
+import { focusTextControlSurface } from './inputSurface';
 
 export default function Login({ onLogin }: { onLogin: (auth: Auth) => void }) {
   const [username, setUsername] = useState('alice');
@@ -25,7 +26,7 @@ export default function Login({ onLogin }: { onLogin: (auth: Auth) => void }) {
       <div className="story-foot"><Quote size={18} /><span>资料检索 · 复杂裁定 · 玩家反馈</span><span className="story-index">01 — 03</span></div>
     </section>
     <section className="login-form-region"><div className="login-form-card"><span className="section-kicker">欢迎回来</span><h2>开启一段有依据的对话</h2><p className="muted">使用本地测试身份进入你的独立工作区</p>
-      <form onSubmit={submit} className="login-form">
+      <form onSubmit={submit} className="login-form" onMouseDown={focusTextControlSurface}>
         <label htmlFor="username">测试身份</label><div className="account-switch" role="group" aria-label="选择测试身份">{['alice', 'bob'].map(name => <button key={name} type="button" className={username === name ? 'selected' : ''} onClick={() => setUsername(name)} disabled={busy}><span className={`avatar avatar-${name}`}>{name[0].toUpperCase()}</span><span>{name}<small>独立会话与记录</small></span>{username === name && <CheckCircle2 size={16} />}</button>)}</div>
         <input id="username" className="sr-only" value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" />
         <label htmlFor="password">登录密码</label><input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="输入本地演示密码" autoComplete="current-password" required disabled={busy} />

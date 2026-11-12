@@ -1,0 +1,37 @@
+{
+  "label": "live-feedback-followup-v17-20261112-01",
+  "mode": "live",
+  "backend": {
+    "status": "ok",
+    "cache": "available",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 9.789632000000006,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "started_at": "2026-11-12T08:58:20.739340+00:00",
+  "case_set": "feedback-followup-v17-synthetic-v1",
+  "cases_sha256": "b5328e445e89c5b604c9a63dc1ac6cd8f01d714db98066124b2139eb5af1db2c",
+  "selected_cases": [
+    "FI01"
+  ],
+  "concurrency": 1,
+  "checker_version": "lexical-alias-v2",
+  "semantic_status": "awaiting_human_review",
+  "local_implementation_sha256": {
+    "backend/app/runtime.py": "d1b61ddf03b9389cb48793fbd82f4c87ecda0fb3139e73507a55092fa1b079d1",
+    "backend/app/catalog.py": "7ed57c4da92df9c44ece3f68d479b319215beef072203e266977bd2d3fdb1ea5",
+    "backend/app/ruling_text.py": "a27e96e10fd9ad167f060f4f237b13be5f492fd725f103f5e702d33070912015",
+    "backend/app/feedback_context.py": "4a49f5bf5b22c1f84a1329c190005b11521129b63d3ba05ed0646860f6898327"
+  },
+  "implementation_notice": "Local source hashes; verify container hashes separately. Each run records its actual prompt revision."
+}

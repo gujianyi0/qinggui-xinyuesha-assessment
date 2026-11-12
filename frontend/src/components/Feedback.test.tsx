@@ -14,6 +14,12 @@ it('edits a stored draft using its revision without changing session ownership',
   vi.stubGlobal('fetch', fetchMock);
   render(<FeedbackPanel token="test" sessionId="session-1" />);
   fireEvent.click(await screen.findByText('技能没有生效'));
+  const actual = screen.getByLabelText(/实际现象/);
+  fireEvent.mouseDown(actual.closest('.form-field')!);
+  expect(actual).toHaveFocus();
+  const version = screen.getByLabelText('客户端版本');
+  fireEvent.mouseDown(version.closest('.form-field')!);
+  expect(version).toHaveFocus();
   fireEvent.change(screen.getByLabelText(/预期结果/), { target: { value: '正常结算' } });
   fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
   await waitFor(() => expect(fetchMock.mock.calls.some(([, options]) => options?.method === 'PATCH')).toBe(true));

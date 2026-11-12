@@ -1,0 +1,10 @@
+{
+  "passed": false,
+  "failure": "test locator used 新建草稿 while the real UI button is 新建反馈",
+  "product_assertions_before_failure": [
+    "composer padding focuses textarea",
+    "answer selection available",
+    "Shift+Enter does not submit, Enter submits"
+  ],
+  "classification": "test script locator error; not a product failure"
+}

@@ -202,7 +202,41 @@ async def test_feedback_context_uses_own_statements_without_game_skill_search(cl
         assert run["status"] == "completed"
         assert [c["name"] for c in run["tool_calls"]] == ["prepare_feedback_context"]
         assert run["tool_calls"][0]["result"]["persisted"] is False
+        assert run["tool_calls"][0]["result"]["clarification_checklist"] == ""
+        assert "结算反馈核对清单" not in run["text"]
         assert all(s["evidence_type"] == "user_statement" and s["path"].startswith(f"conversation/{run['session_id']}/") for s in run["citations"])
+    finally:
+        await sdk.close()
+
+
+async def test_rule_feedback_keeps_concrete_questions_in_stream_history_and_audit(client, protocol_model):
+    def handler(request):
+        assert not json.loads(request.content).get("tools")
+        return sse_response(answer="文字草稿：技能没生效。预期、步骤和版本待补充。尚未保存。")
+
+    sdk = protocol_model(handler)
+    try:
+        stream, run = await run_question(client, "技能没生效，帮我反馈。")
+        assert run["status"] == "completed", run.get("error")
+        assert all(word in run["text"] for word in ("武将", "技能名称", "卡牌名称", "触发阶段", "关键局面"))
+        result = run["tool_calls"][0]["result"]
+        assert result["clarification_checklist"] in run["text"]
+        assert result["persisted"] is False
+        deltas = [json.loads(line[6:])["text"] for event in stream.split("\n\n") if event.startswith("event: delta") for line in event.splitlines() if line.startswith("data: ")]
+        assert "".join(deltas) == run["text"]
+        messages = (await client.get(f"/sessions/{run['session_id']}/messages")).json()
+        assert messages[-1]["content"] == run["text"]
+        assert (await client.get("/feedback")).json() == []
+    finally:
+        await sdk.close()
+
+
+async def test_rule_feedback_checklist_does_not_turn_empty_model_body_into_success(client, protocol_model):
+    sdk = protocol_model(lambda _: sse_response(answer=""))
+    try:
+        _, run = await run_question(client, "技能没生效，帮我反馈。")
+        assert run["status"] == "failed" and "未返回正文" in run["error"]
+        assert not run["text"] and run["usage"]["settled"]
     finally:
         await sdk.close()
 

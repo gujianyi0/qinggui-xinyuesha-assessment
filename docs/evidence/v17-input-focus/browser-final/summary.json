@@ -1,0 +1,26 @@
+{
+  "executed_at": "2026-11-12T09:22:13.957875+00:00",
+  "url": "http://127.0.0.1:15174",
+  "scope": "served production frontend, API fixtures, no model requests/database writes; separate from live-model evaluations",
+  "checks": [
+    "login_background_focus_and_submit",
+    "six_answer_then_blank_clicks_keep_native_textarea_focus",
+    "answer_text_selection_remains_available",
+    "shift_enter_newline_and_enter_submit",
+    "six_feedback_fields_focus_their_own_control",
+    "search_surface_focus",
+    "mobile_has_no_horizontal_overflow"
+  ],
+  "page_errors": [],
+  "passed": true,
+  "textarea": {
+    "height": 60,
+    "lineHeight": "21.6px",
+    "display": "block",
+    "active": true
+  },
+  "web_assets": [
+    "http://127.0.0.1:15174/assets/index-BRXwD8U0.js",
+    "http://127.0.0.1:15174/assets/index-Cml1dYb1.css"
+  ]
+}

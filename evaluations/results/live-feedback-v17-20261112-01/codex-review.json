@@ -1,0 +1,31 @@
+{
+  "reviewer": "Codex",
+  "independent_human_review": false,
+  "cases": [
+    {
+      "case_id": "M01",
+      "status": "passed_selected_assertions",
+      "note": "两轮承接诸葛亮，空城只限制杀/决斗且无普通杀缩窄，手牌前提保留。"
+    },
+    {
+      "case_id": "M02",
+      "status": "passed_selected_assertions",
+      "note": "酒濒死自救与不能救他人的上下文正确。"
+    },
+    {
+      "case_id": "M03",
+      "status": "passed_selected_assertions",
+      "note": "iOS相册反馈两轮保留0.5.25本地修改版与重开恢复，不附结算核对清单；未编造成因。"
+    },
+    {
+      "case_id": "I01",
+      "status": "passed_selected_assertions",
+      "note": "明确武将、技能/卡牌名称、触发时机、目标和关键局面，程序核对清单补漏；没有假设已经发动。"
+    },
+    {
+      "case_id": "I02",
+      "status": "passed_selected_assertions",
+      "note": "保留iOS/0.5.25及卡住现象，只追问客户端复现信息，不要求无关武将技能。"
+    }
+  ]
+}

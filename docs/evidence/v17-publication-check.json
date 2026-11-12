@@ -1,0 +1,13 @@
+{
+  "version": "1.7",
+  "current_files_scanned": 1638,
+  "git_history_blobs_scanned": 1194,
+  "largest_history_blob_bytes": 3933348,
+  "actual_credential_matches": 0,
+  "oversized_current_files": [],
+  "local_document_links_checked": 98,
+  "fixed_cases_unchanged": true,
+  "github_target": "gujianyi0/qinggui-xinyuesha-assessment",
+  "visibility": "private",
+  "report_sha256": "b64c5aa0b17935e707bcc6ba3d003b5f7c7ac92850ae5a69f9a4c6408a3a31cb"
+}

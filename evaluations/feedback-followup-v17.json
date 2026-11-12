@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "case_set": "feedback-followup-v17-synthetic-v1",
+  "source_commit": "b9dc701220bc04afe70cfbb40d729626fd33c147",
+  "status": "specified_not_executed",
+  "cases": [
+    {
+      "id": "FI01",
+      "category": "feedback_followup",
+      "messages": [
+        "技能没生效，帮我反馈。",
+        "武将是曹操，技能是奸雄，身份模式。受到一次杀的伤害后没提示，平台Windows，客户端0.5.25本地修改版。"
+      ],
+      "preconditions": {
+        "personal_data": "synthetic_only"
+      },
+      "expected": {
+        "judgment": "保持同一结算反馈，保留曹操/奸雄/身份模式/Windows/0.5.25用户事实；不猜测原因或断言技能已发动；继续收集预期和复现局面，已说明信息无需重复提供，不自动保存。",
+        "tools_any": [],
+        "terms_all": [],
+        "citations_required": true,
+        "human_review_required": true
+      },
+      "sources": [
+        {
+          "path": "docs/问答与决策记录.md",
+          "locator": "反馈草稿与明确确认；本会话用户陈述"
+        }
+      ]
+    }
+  ]
+}
