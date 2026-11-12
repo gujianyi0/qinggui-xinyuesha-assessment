@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="7.088" timestamp="2026-11-12T18:59:10.039809+08:00" hostname="gujianyi"><testcase classname="tests.test_agno_protocol" name="test_followup_without_new_tool_preserves_checked_history_source" time="4.554"><failure message="AssertionError: assert [] == ['96bba9031035d3b9b12e']&#10;  &#10;  Right contains one more item: '96bba9031035d3b9b12e'&#10;  Use -v to get more diff">tests\test_agno_protocol.py:74: in test_followup_without_new_tool_preserves_checked_history_source
+    assert [citation['id'] for citation in run['citations']] == [source['id']]
+E   AssertionError: assert [] == ['96bba9031035d3b9b12e']
+E     
+E     Right contains one more item: '96bba9031035d3b9b12e'
+E     Use -v to get more diff</failure></testcase></testsuite></testsuites>

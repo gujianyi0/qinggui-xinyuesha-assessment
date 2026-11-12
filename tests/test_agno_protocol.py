@@ -57,6 +57,27 @@ async def run_question(client, message, *, fault=None):
     return response.text, stored.json()
 
 
+async def test_followup_without_new_tool_preserves_checked_history_source(client, app, protocol_model):
+    from backend.app.models import Message
+    source = next(entity['source'] for entity in app.state.catalog.entities if entity['id'] == 'standard:skill:jianxiong')
+    session = (await client.post('/sessions', json={})).json()
+    async with app.state.database.sessions.begin() as db:
+        previous = Message(session_id=session['id'], role='assistant', content='曹操的奸雄在受到伤害后发动。', citations=[source])
+        db.add(previous)
+        await db.flush()
+        previous_id = previous.id
+    model = protocol_model(lambda _: sse_response(answer='奸雄：当你受到伤害后，可以获得对你造成伤害的牌。'))
+    response = await client.post(f"/sessions/{session['id']}/runs", json={'message':'继续解释刚才的奸雄时机'})
+    events = [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith('data: ')]
+    run = (await client.get('/runs/' + events[0]['run_id'])).json()
+    assert run['status'] == 'completed'
+    assert [citation['id'] for citation in run['citations']] == [source['id']]
+    receipt = next(call for call in run['tool_calls'] if call['name'] == 'reuse_conversation_sources')
+    assert receipt['result']['items'][0]['from_message_id'] == previous_id
+    assert events[-1]['text'] == run['text'] and '来源沿用本会话' in run['text']
+    assert model.is_closed()
+
+
 async def test_real_agno_tool_stream_usage_and_context(client, app, protocol_model):
     requests = []
 

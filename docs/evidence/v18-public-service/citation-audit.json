@@ -1,0 +1,8 @@
+{
+  "runs": 3,
+  "completed": 2,
+  "failed": 1,
+  "citations": 9,
+  "integrity_issues": [],
+  "semantic_review": "Two completed answers correctly describe Cao Cao skills and Jianxiong after-damage trigger for the frozen snapshot; retrieval also carries extra nearby skill/rule citations that do not directly support the final conclusion."
+}

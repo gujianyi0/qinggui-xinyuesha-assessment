@@ -1,6 +1,6 @@
 import { BookOpen, ChevronRight, CircleHelp, Database, FolderClock, LogOut, Menu, MessageCircle, MoonStar, Plus, ShieldCheck, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { displayError, listResult, request } from './api';
+import { displayError, listResult, publicMode, request } from './api';
 import type { Auth, Health, Session, Snapshot } from './types';
 import Login from './components/Login';
 import Chat from './components/Chat';
@@ -9,7 +9,7 @@ import FeedbackPanel from './components/Feedback';
 import JobsPanel from './components/Jobs';
 import { ErrorNotice, relativeDate } from './components/ui';
 
-const STORAGE_KEY = 'qinggui-assessment-auth';
+const STORAGE_KEY = publicMode ? 'qinggui-public-auth' : 'qinggui-assessment-auth';
 type Page = 'chat' | 'library' | 'feedback' | 'jobs';
 const navigation = [
   { id: 'chat' as const, label: '问答工作台', icon: MessageCircle, sub: '规则与结算' },
@@ -80,13 +80,13 @@ function Workspace({ auth, onLogout }: { auth: Auth; onLogout: () => void }) {
       <button className="brand brand-button" onClick={() => { navigate('chat'); setSelected(null); }}><span className="brand-mark"><MoonStar size={25} strokeWidth={1.4} /></span><span>轻归<small>新月杀 · 资料与反馈</small></span><span className="brand-badge">LAB</span></button>
       <button className="new-chat-button" onClick={() => { setSelected(null); navigate('chat'); }}><Plus size={18} />开始新对话<span>＋</span></button>
       <div className="nav-label">工作区</div>
-      <nav className="primary-nav" aria-label="主要导航">{navigation.map(item => <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => navigate(item.id)} aria-current={page === item.id ? 'page' : undefined}><item.icon size={18} strokeWidth={1.6} /><span>{item.label}</span>{page === item.id && <ChevronRight size={14} />}</button>)}</nav>
+      <nav className="primary-nav" aria-label="主要导航">{navigation.filter(item => !publicMode || item.id !== 'jobs').map(item => <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => navigate(item.id)} aria-current={page === item.id ? 'page' : undefined}><item.icon size={18} strokeWidth={1.6} /><span>{item.label}</span>{page === item.id && <ChevronRight size={14} />}</button>)}</nav>
       <div className="history-heading"><span className="nav-label">最近对话</span><span>{sessions.length}</span></div>
       <div className="session-list">{sessions.length ? sessions.map(session => <button key={session.id} className={selected === session.id && page === 'chat' ? 'selected' : ''} onClick={() => { setSelected(session.id); navigate('chat'); }} title={session.title}><MessageCircle size={14} /><span>{session.title || '未命名对话'}<small>{relativeDate(session.created_at)}</small></span></button>) : <p className="sidebar-empty">新的疑问，值得好好聊聊</p>}</div>
-      <div className="sidebar-bottom"><div className="scope-card"><ShieldCheck size={17} /><div>独立身份 · 独立记录<p>当前工作区属于 {auth.user.username}</p></div></div><div className="account-row"><span className={`avatar avatar-${auth.user.username}`}>{auth.user.username[0]?.toUpperCase()}</span><span>{auth.user.username}<small>本地测试身份</small></span><button className="icon-button" onClick={onLogout} aria-label="退出登录" title="退出登录"><LogOut size={16} /></button></div></div>
+      <div className="sidebar-bottom"><div className="scope-card"><ShieldCheck size={17} /><div>独立身份 · 独立记录<p>当前工作区属于 {auth.user.username}</p></div></div><div className="account-row"><span className={`avatar avatar-${auth.user.username}`}>{auth.user.username[0]?.toUpperCase()}</span><span>{auth.user.username}<small>{publicMode ? '独立访客身份' : '本地测试身份'}</small></span><button className="icon-button" onClick={onLogout} aria-label="退出登录" title="退出登录"><LogOut size={16} /></button></div></div>
     </aside>
     <main className="workspace-main">
-      <header className="workspace-header"><div className="breadcrumb"><button className="icon-button mobile-menu" aria-label="打开导航" onClick={() => setMobileNav(true)}><Menu size={20} /></button><span>我的工作区</span><ChevronRight size={13} /><strong>{navigation.find(item => item.id === page)?.label}</strong></div><div className="header-actions"><span className={`connection-label ${health ? 'connected' : ''}`}><span className="status-dot" />{health ? '本机服务已连接' : '等待服务连接'}</span>{mockMode && <span className="mode-badge">模型替身模式</span>}<a className="help-link" href="/api/docs" target="_blank" rel="noreferrer" title="打开 API 文档"><CircleHelp size={17} /><span>API 文档</span></a></div></header>
+      <header className="workspace-header"><div className="breadcrumb"><button className="icon-button mobile-menu" aria-label="打开导航" onClick={() => setMobileNav(true)}><Menu size={20} /></button><span>我的工作区</span><ChevronRight size={13} /><strong>{navigation.find(item => item.id === page)?.label}</strong></div><div className="header-actions"><span className={`connection-label ${health ? 'connected' : ''}`}><span className="status-dot" />{health ? (publicMode ? '真实问答服务已连接' : '本机服务已连接') : '等待服务连接'}</span>{mockMode && <span className="mode-badge">模型替身模式</span>}{!publicMode && <a className="help-link" href="/api/docs" target="_blank" rel="noreferrer" title="打开 API 文档"><CircleHelp size={17} /><span>API 文档</span></a>}</div></header>
       {error && <div className="global-notice"><ErrorNotice message={error} onRetry={() => void load()} onDismiss={() => setError('')} /></div>}
       <div className="page-content">
         {page === 'chat' && <Chat token={token} sessionId={selected} onCreate={createSession} snapshots={snapshots} snapshotId={snapshotId} onSnapshotChange={setSnapshotId} mockMode={Boolean(mockMode)} onFeedback={actual => { setFeedbackActual(actual); navigate('feedback'); }} />}

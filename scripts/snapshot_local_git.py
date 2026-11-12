@@ -10,7 +10,7 @@ from dotenv import dotenv_values
 
 from backend.app.config import ROOT, Settings
 
-EXCLUDED = {"git", ".git", ".venv", ".local", "node_modules", "dist", "__pycache__", ".pytest_cache", ".ruff_cache", "coverage", "htmlcov"}
+EXCLUDED = {"git", ".git", ".venv", ".local", ".wrangler", "node_modules", "dist", "__pycache__", ".pytest_cache", ".ruff_cache", "coverage", "htmlcov"}
 
 
 def next_version(tags):
@@ -75,7 +75,11 @@ def snapshot(version=None, *, complete_current=False):
     live_config = ROOT / ".env.docker-live"
     if live_config.is_file():
         private = dotenv_values(live_config, interpolate=False)
-        secrets.extend(private.get(key) or "" for key in ("MODEL_API_KEY", "POSTGRES_PASSWORD"))
+        secrets.extend(private.get(key) or "" for key in ("MODEL_API_KEY", "POSTGRES_PASSWORD", "PUBLIC_SERVICE_TOKEN"))
+    gateway_config = ROOT / ".local/public-entry/config.json"
+    if gateway_config.is_file():
+        gateway_private = json.loads(gateway_config.read_text(encoding="utf-8"))
+        secrets.extend(gateway_private.get(key) or "" for key in ("edge_token", "service_token", "signing_key", "control_token"))
     for path in selected:
         if any(secret and secret.encode() in path.read_bytes() for secret in secrets):
             raise ValueError(f"Credential found in {path.relative_to(ROOT)}; release stopped")

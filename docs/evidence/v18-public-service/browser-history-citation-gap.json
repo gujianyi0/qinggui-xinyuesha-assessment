@@ -1,0 +1,50 @@
+{
+  "requests": [
+    {
+      "path": "auth/guest",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "health",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "sessions",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "catalog/snapshots",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/runs",
+      "method": "POST",
+      "status": 202
+    },
+    {
+      "path": "runs/baa8bbc9-d5f6-5a90-84de-9ba196a3e026",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/baa8bbc9-d5f6-5a90-84de-9ba196a3e026",
+      "method": "GET",
+      "status": 200
+    }
+  ],
+  "answer": "结论：**只有当你受到伤害后，才可以发动奸雄，并获得对你造成该伤害的牌。**\n\n**依据**\n- 技能原文：“当你受到伤害后，你可以获得对你造成伤害的牌。”（资料快照 `freekill-local-b9dc701220bc`，standard 包「奸雄」说明，`runtime/packages/standard/i18n/zh_CN.lua` 第17行）\n- 结构化技能条 `standard:skill:jianxiong` 的 description 与上述原文一致。\n\n**前提**：该说明只限定了“受到伤害后”和“对你造成伤害的牌”这两个条件，没有在该条说明中另外列出牌所在区域或例外情形，因此不作推断。",
+  "errors": [],
+  "page_errors": [],
+  "run_ids": [
+    "baa8bbc9-d5f6-5a90-84de-9ba196a3e026"
+  ]
+}

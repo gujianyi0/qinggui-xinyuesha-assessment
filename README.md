@@ -2,9 +2,23 @@
 
 面向普通新月杀玩家：查武将、卡牌和技能资料，核对有明确前提的复杂结算，整理并确认问题反馈。所有实现均位于本目录，未修改原轻归或原游戏工程。
 
-**当前版本1.7（2026-11-12）：I01追问补全、输入区域空白点击长竖线修复。** 162项Python、7项前端及构建通过，7项焦点浏览器检查通过；5条相关固定样例8回合＋新增多轮2回合全部完成，33处引用完整性问题0，Codex逐条核对通过。当前累计费用约9.800032元（估算）。QQ与真人试用保持移除，本轮没有重跑全部32条或一小时稳定性。[1.7报告](docs/1.7-I01追问与输入焦点修复-20261112.md) · [逐条历史反馈](docs/项目实战测试反馈-20261112.md) · [当前进度](docs/进度同步-20261112.md)。
+**当前版本1.8（2026-11-12）：本机提供真实问答，别人通过公网网页或下载版客户端使用，模型密钥保留本机、费用由提供者承担。** 不设置问答次数或频率配额，保留原200元总预算和身份隔离。184项Python、11项前端及构建通过；公网实际回答、失败追问及复测、连接恢复分别记录。[1.8报告](docs/1.8-本机共享真实问答与验证-20261112.md) · [使用与运维](docs/本机对外服务.md) · [逐条历史反馈](docs/项目实战测试反馈-20261112.md) · [当前进度](docs/进度同步-20261112.md)。QQ与真人试用仍移除，本轮未重跑全部32条或一小时稳定性。
 
 项目公开仓库（按用户要求开放，任何人可访问）：[gujianyi0/qinggui-xinyuesha-assessment](https://github.com/gujianyi0/qinggui-xinyuesha-assessment)。托管检查结果见[GitHub Actions](https://github.com/gujianyi0/qinggui-xinyuesha-assessment/actions)。实际凭据、数据库、运行卷和下载缓存均排除提交。
+
+## 别人如何真实对话
+
+直接打开[真实问答网页](https://qinggui-assessment.c2115259095.workers.dev/)，点击“进入工作区”，不需要API密钥或密码。
+
+拉取后只在自己电脑运行客户端：
+
+```powershell
+git clone https://github.com/gujianyi0/qinggui-xinyuesha-assessment.git
+cd qinggui-xinyuesha-assessment
+docker compose -f compose.client.yaml up -d --build
+```
+
+打开 <http://127.0.0.1:15176/>。此命令只启动界面，连接提供者电脑上的同一个真实后端与费用账本；不需要复制`.env`。提供者电脑须保持开机联网并运行服务。下面的完整Compose自托管方式仍默认mock，与下载版客户端命令不同。
 
 ## 本机当前入口：Docker真实问答
 

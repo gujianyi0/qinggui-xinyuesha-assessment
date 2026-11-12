@@ -1,0 +1,173 @@
+{
+  "finished_utc": "2026-11-12T10:54:54.594265+00:00",
+  "duration_seconds": 135.35,
+  "recovery_seconds_including_setup": 6.865,
+  "probes": [
+    {
+      "elapsed_seconds": 4.863,
+      "phase": "recovering",
+      "status": 503
+    },
+    {
+      "elapsed_seconds": 6.865,
+      "phase": "recovering",
+      "status": 200
+    },
+    {
+      "elapsed_seconds": 8.507,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 18.988,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 27.135,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 33.814,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 40.39,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 46.973,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 53.568,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 60.16,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 66.72,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 73.273,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 84.538,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 92.371,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 98.96,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 105.689,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 112.242,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 118.899,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 127.532,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    }
+  ],
+  "budget_before": {
+    "spent_cny": 11.841986000000006,
+    "reserved_cny": 0.0,
+    "limit_cny": 200.0,
+    "warning": false
+  },
+  "budget_after": {
+    "spent_cny": 11.841986000000006,
+    "reserved_cny": 0.0,
+    "limit_cny": 200.0,
+    "warning": false
+  },
+  "sessions_unchanged": true,
+  "state_before": {
+    "state": "online",
+    "public_url": "https://qinggui-assessment.c2115259095.workers.dev",
+    "reconnects": 0,
+    "transport": "https-pull-443",
+    "gateway_pid": 6800,
+    "updated_at": "2026-11-12T10:52:42.740786+00:00",
+    "pid": 50592
+  },
+  "state_after": {
+    "state": "online",
+    "public_url": "https://qinggui-assessment.c2115259095.workers.dev",
+    "reconnects": 1,
+    "transport": "https-pull-443",
+    "gateway_pid": 6800,
+    "updated_at": "2026-11-12T10:54:53.021630+00:00",
+    "pid": 50592
+  },
+  "remote_status": {
+    "connected": true,
+    "pending": 0
+  },
+  "paid_requests": 0,
+  "passed": true
+}

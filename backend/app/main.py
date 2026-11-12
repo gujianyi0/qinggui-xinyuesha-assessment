@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 import secrets
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
@@ -34,6 +35,7 @@ from .models import (
     User,
     now,
 )
+from .public_schemas import PublicIdentity, PublicRunInput
 from .runtime import Runtime
 from .schemas import (
     ConfirmInput,
@@ -102,6 +104,10 @@ def create_app(settings: Settings | None = None):
     async def bridge_auth(x_bridge_token: str = Header(default="")):
         if not config.bridge_token or not secrets.compare_digest(x_bridge_token, config.bridge_token):
             raise HTTPException(401, "桥接服务身份无效")
+
+    async def public_service_auth(x_public_service: str = Header(default="")):
+        if not config.public_service_token or not secrets.compare_digest(x_public_service, config.public_service_token):
+            raise HTTPException(401, "公共网关身份无效")
 
     async def owned(model, identifier: str, user_id: str):
         async with database.sessions() as db:
@@ -183,6 +189,51 @@ def create_app(settings: Settings | None = None):
             raw = secrets.token_urlsafe(32)
             db.add(Token(digest=token_digest(raw), user_id=user.id, expires_at=now() + dt.timedelta(hours=12)))
             return {"access_token": raw, "token_type": "bearer", "user": {"id": user.id, "username": user.username}}
+
+    @app.post("/internal/public/identity", dependencies=[Depends(public_service_auth)])
+    async def public_identity(body: PublicIdentity):
+        digest = hashlib.sha256(body.client_secret.encode()).hexdigest()
+        identifier = "public:" + digest
+        # A fixed ID plus conflict recovery handles two simultaneous logins.
+        try:
+            async with database.sessions.begin() as db:
+                if await db.get(User, identifier) is None:
+                    db.add(User(id=identifier, username=identifier, password_hash=password_hash(secrets.token_urlsafe(48))))
+        except IntegrityError:
+            pass
+        raw = secrets.token_urlsafe(32)
+        async with database.sessions.begin() as db:
+            db.add(Token(digest=token_digest(raw), user_id=identifier, expires_at=now() + dt.timedelta(hours=12)))
+        return {"access_token": raw, "token_type": "bearer", "user": {"id": identifier, "username": "访客 " + digest[:8]}}
+
+    @app.post("/internal/public/sessions/{identifier}/runs", status_code=202, dependencies=[Depends(public_service_auth)])
+    async def public_run(identifier: str, body: PublicRunInput, user_id: str = Depends(current_user)):
+        if not user_id.startswith("public:"):
+            raise HTTPException(403, "公共入口需要访客身份")
+        await owned(ChatSession, identifier, user_id)
+        try:
+            snapshot_id = catalog.validate_snapshot(body.snapshot_id)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        run_id = str(uuid.uuid5(uuid.NAMESPACE_URL, user_id + ":" + str(body.request_id)))
+        async with database.sessions.begin() as db:
+            # The existing ledger serializes public request deduplication and admission.
+            # reserve_budget still owns the monetary reservation before any paid call.
+            await db.scalar(select(BudgetAccount).where(BudgetAccount.id == 1).with_for_update())
+            existing = await db.get(Run, run_id)
+            if existing:
+                if existing.session_id != identifier:
+                    raise HTTPException(409, "请求编号已用于其他会话")
+                return {"run_id": run_id, "duplicate": True}
+            await db.scalar(select(ChatSession).where(ChatSession.id == identifier).with_for_update())
+            if await db.scalar(select(Run.id).where(Run.session_id == identifier, Run.status == "running")):
+                raise HTTPException(409, "此会话正在回答，请等待或先取消")
+            run = Run(id=run_id, session_id=identifier, user_id=user_id, model_mode=config.model_mode,
+                      model_id=config.model_id if config.model_mode == "live" else "deterministic-test-double", snapshot_id=snapshot_id)
+            db.add(run)
+            db.add(Message(session_id=identifier, role="user", content=body.message))
+        runtime.start(run_id, body.message, discard_events=True)
+        return {"run_id": run_id, "duplicate": False}
 
     @app.get("/sessions")
     async def list_sessions(user_id: str = Depends(current_user)):

@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     create_schema: bool = False
     seed_users: bool = True
     enable_test_faults: bool = False
+    public_service_token: str = Field(default="", repr=False)
 
     @property
     def qq_allowlist(self) -> set[str]:

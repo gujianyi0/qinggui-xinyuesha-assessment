@@ -12,6 +12,7 @@ from sqlalchemy import select, update
 from .catalog import Catalog, KnowledgeSearch
 from .config import Settings
 from .feedback_context import is_feedback_request, rules_feedback_checklist
+from .history_sources import checked_history_sources
 from .models import BudgetAccount, Message, Run, ToolCall, UsageRecord
 from .ruling_text import render_ruling
 
@@ -20,6 +21,13 @@ class ModelFailure(Exception):
     def __init__(self, message: str, retryable: bool = True):
         super().__init__(message)
         self.retryable = retryable
+
+
+class DiscardEvents(asyncio.Queue):
+    """Polling clients read persisted results; do not accumulate unused SSE events."""
+
+    async def put(self, item):
+        return None
 
 
 class ValidatedAnswer(BaseModel):
@@ -104,6 +112,7 @@ class Runtime:
         text_parts, citations = [], []
         ruling_result = None
         feedback_checklist = ""
+        history_reuse_enabled = False
         acquired = False
         model = None
 
@@ -224,6 +233,7 @@ class Runtime:
                 from agno.tools.function import Function
                 user_history = [m for m in reversed(history) if m.role == "user"]
                 feedback_mode = is_feedback_request([m.content for m in user_history])
+                history_reuse_enabled = not feedback_mode
                 feedback_context = None
                 if feedback_mode:
                     feedback_checklist = rules_feedback_checklist([m.content for m in user_history])
@@ -325,6 +335,16 @@ class Runtime:
             final_text = "".join(text_parts).strip()
             if not final_text:
                 raise ModelFailure("模型未返回正文，可能达到输出限制；请重试", True)
+            if history_reuse_enabled and not citations:
+                reused = checked_history_sources(history[1:], final_text, run.snapshot_id, self.settings.data_dir)
+                if reused:
+                    async def reuse_sources():
+                        return {"snapshot_id": run.snapshot_id, "items": reused, "fresh_lookup": False}
+                    result = await self._audit(run_id, "reuse_conversation_sources", {"session_id": run.session_id}, reuse_sources)
+                    add_citations(result["items"])
+                    suffix = "\n\n来源沿用本会话已核验的静态资料，资料快照未变。"
+                    final_text += suffix
+                    await emit("delta", {"text": suffix})
             if feedback_checklist:
                 suffix = "\n\n" + feedback_checklist
                 final_text += suffix
@@ -363,8 +383,8 @@ class Runtime:
             self.tasks.pop(run_id, None)
             await queue.put(None)
 
-    def start(self, run_id: str, message: str) -> asyncio.Queue:
-        queue = asyncio.Queue()
+    def start(self, run_id: str, message: str, *, discard_events: bool = False) -> asyncio.Queue:
+        queue = DiscardEvents() if discard_events else asyncio.Queue()
         self.cancellations[run_id] = asyncio.Event()
         self.tasks[run_id] = asyncio.create_task(self.execute(run_id, message, queue))
         return queue

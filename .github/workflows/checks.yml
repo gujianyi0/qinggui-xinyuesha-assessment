@@ -11,7 +11,7 @@ jobs:
         with:
           version: '0.9.8'
       - run: uv sync --frozen --extra dev
-      - run: uv run ruff check backend tests migrations scripts/local_demo.py scripts/prepare_embedding.py scripts/prepare_native_kafka.py scripts/verify_native_kafka.py scripts/verify_embeddings.py scripts/prepare_native_postgres.py scripts/verify_native_postgres.py scripts/verify_compose.py scripts/backup_native_database.py scripts/fingerprint_database.py scripts/docker_live.py scripts/restore_docker_database.py scripts/verify_docker_cutover.py
+      - run: uv run ruff check backend tests migrations scripts/local_demo.py scripts/prepare_embedding.py scripts/prepare_native_kafka.py scripts/verify_native_kafka.py scripts/verify_embeddings.py scripts/prepare_native_postgres.py scripts/verify_native_postgres.py scripts/verify_compose.py scripts/backup_native_database.py scripts/fingerprint_database.py scripts/docker_live.py scripts/restore_docker_database.py scripts/verify_docker_cutover.py scripts/public_service.py scripts/prepare_public_service.py scripts/deploy_public_entry.py scripts/verify_public_service.py scripts/verify_public_recovery.py
       - run: uv run pytest -q
       - name: Verify migration roundtrip on a disposable database
         env:
@@ -35,3 +35,18 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+  public-entry:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: public-entry
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: public-entry/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm test

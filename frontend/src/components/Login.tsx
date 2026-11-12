@@ -1,7 +1,7 @@
 import { ArrowRight, BookOpen, CheckCircle2, Fingerprint, MoonStar, Quote, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { displayError, request } from '../api';
+import { displayError, publicMode, request } from '../api';
 import type { Auth } from '../types';
 import { ErrorNotice, Spinner } from './ui';
 import { focusTextControlSurface } from './inputSurface';
@@ -13,7 +13,13 @@ export default function Login({ onLogin }: { onLogin: (auth: Auth) => void }) {
   const [error, setError] = useState('');
   async function submit(event: FormEvent) {
     event.preventDefault(); setError(''); setBusy(true);
-    try { onLogin(await request<Auth>('/auth/token', undefined, { method: 'POST', body: JSON.stringify({ username, password }) })); }
+    try {
+      if (publicMode) {
+        let secret = localStorage.getItem('qinggui-visitor-secret');
+        if (!secret) { secret = Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join(''); localStorage.setItem('qinggui-visitor-secret', secret); }
+        onLogin(await request<Auth>('/auth/guest', undefined, { method: 'POST', body: JSON.stringify({ client_secret: secret }) }));
+      } else onLogin(await request<Auth>('/auth/token', undefined, { method: 'POST', body: JSON.stringify({ username, password }) }));
+    }
     catch (error) { setError(displayError(error)); }
     finally { setBusy(false); }
   }
@@ -25,15 +31,15 @@ export default function Login({ onLogin }: { onLogin: (auth: Auth) => void }) {
       </div>
       <div className="story-foot"><Quote size={18} /><span>资料检索 · 复杂裁定 · 玩家反馈</span><span className="story-index">01 — 03</span></div>
     </section>
-    <section className="login-form-region"><div className="login-form-card"><span className="section-kicker">欢迎回来</span><h2>开启一段有依据的对话</h2><p className="muted">使用本地测试身份进入你的独立工作区</p>
+    <section className="login-form-region"><div className="login-form-card"><span className="section-kicker">欢迎回来</span><h2>开启一段有依据的对话</h2><p className="muted">{publicMode ? '直接使用真实问答，模型费用由服务提供者承担' : '使用本地测试身份进入你的独立工作区'}</p>
       <form onSubmit={submit} className="login-form" onMouseDown={focusTextControlSurface}>
-        <label htmlFor="username">测试身份</label><div className="account-switch" role="group" aria-label="选择测试身份">{['alice', 'bob'].map(name => <button key={name} type="button" className={username === name ? 'selected' : ''} onClick={() => setUsername(name)} disabled={busy}><span className={`avatar avatar-${name}`}>{name[0].toUpperCase()}</span><span>{name}<small>独立会话与记录</small></span>{username === name && <CheckCircle2 size={16} />}</button>)}</div>
+        {!publicMode && <><label htmlFor="username">测试身份</label><div className="account-switch" role="group" aria-label="选择测试身份">{['alice', 'bob'].map(name => <button key={name} type="button" className={username === name ? 'selected' : ''} onClick={() => setUsername(name)} disabled={busy}><span className={`avatar avatar-${name}`}>{name[0].toUpperCase()}</span><span>{name}<small>独立会话与记录</small></span>{username === name && <CheckCircle2 size={16} />}</button>)}</div>
         <input id="username" className="sr-only" value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" />
-        <label htmlFor="password">登录密码</label><input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="输入本地演示密码" autoComplete="current-password" required disabled={busy} />
+        <label htmlFor="password">登录密码</label><input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="输入本地演示密码" autoComplete="current-password" required disabled={busy} /></>}
         {error && <ErrorNotice message={error} />}
-        <button className="button primary login-submit" type="submit" disabled={busy || !password}>{busy ? <Spinner label="正在登录" /> : <>进入工作区<ArrowRight size={18} /></>}</button>
+        <button className="button primary login-submit" type="submit" disabled={busy || (!publicMode && !password)}>{busy ? <Spinner label="正在登录" /> : <>进入工作区<ArrowRight size={18} /></>}</button>
       </form>
-      <div className="privacy-note"><Fingerprint size={19} /><p>不同身份的数据分别保存<br /><span>密码由本地环境配置，登录不会连接旧轻归记忆</span></p></div>
-    </div><footer className="login-footer"><span className="status-dot" />本地独立运行<span>新月杀学习项目</span></footer></section>
+      <div className="privacy-note"><Fingerprint size={19} /><p>不同身份的数据分别保存<br /><span>{publicMode ? '本浏览器保存访客身份；对话保存在提供者电脑。无需填写模型密钥。' : '密码由本地环境配置，登录不会连接旧轻归记忆'}</span></p></div>
+    </div><footer className="login-footer"><span className="status-dot" />{publicMode ? '提供者电脑运行 · 内部考核测试' : '本地独立运行'}<span>新月杀学习项目</span></footer></section>
   </div>;
 }

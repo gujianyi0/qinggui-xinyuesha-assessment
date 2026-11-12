@@ -1,0 +1,8 @@
+{
+  "name": "qinggui-owner-public-entry",
+  "version": "1.8.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test", "check": "tsc --noEmit", "deploy": "wrangler deploy", "types": "wrangler types" },
+  "devDependencies": { "wrangler": "4.160.1", "typescript": "^5.9.3", "@cloudflare/workers-types": "latest" }
+}

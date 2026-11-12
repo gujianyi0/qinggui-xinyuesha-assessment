@@ -1,0 +1,32 @@
+
+ ⛅️ wrangler 4.160.1
+────────────────────
+🌀 Building list of assets...
+✨ Read 5 files from the assets directory F:\Work\Biteagle\入职考核\.local\public-entry\assets
+🌀 Starting asset upload...
+🌀 Found 4 new or modified static assets to upload. Proceeding with upload...
++ /moon.svg
++ /assets/index-DMnLj-7B.js
++ /index.html
++ /assets/index-Cml1dYb1.css
+Uploaded 1 of 4 assets
+Uploaded 2 of 4 assets
+Uploaded 4 of 4 assets
+✨ Success! Uploaded 4 files (5.82 sec)
+
+Total Upload: 5.59 KiB / gzip: 2.13 KiB
+Worker Startup Time: 2 ms
+Your Worker has access to the following bindings:
+Binding                                             Resource          
+env.ORIGINS (c4f2eb4363e14e1bbb94792e66e42b89)      KV Namespace      
+env.ASSETS                                          Assets            
+
+Uploaded qinggui-assessment (10.69 sec)
+Deployed qinggui-assessment triggers (1.31 sec)
+  https://qinggui-assessment.c2115259095.workers.dev
+Current Version ID: a10cd600-f954-46ac-abdc-82480e60ba7c
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mBecause your 'workers.dev' route is enabled and your 'preview_urls' setting is not in your wrangler.jsonc, Preview URLs will be enabled for this deployment by default.[0m
+
+  To override this setting, you can disable Preview URLs by explicitly setting 'preview_urls = false' in your wrangler.jsonc.
+
+

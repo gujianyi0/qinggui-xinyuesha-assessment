@@ -1,0 +1,10 @@
+# Downloaded client only: no model key, database, Kafka or owner configuration.
+name: qinggui-remote-client
+services:
+  client:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.client
+    ports:
+      - '127.0.0.1:${CLIENT_PORT:-15176}:80'
+    restart: unless-stopped

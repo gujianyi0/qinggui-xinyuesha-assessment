@@ -1,0 +1,1901 @@
+{
+  "events": [
+    {
+      "id": "79bc4fd4-453c-4a17-8048-c04cbe309236",
+      "path": "/api/auth/guest",
+      "stage": "received",
+      "time": "2026-11-12T10:35:56.877538+00:00"
+    },
+    {
+      "id": "79bc4fd4-453c-4a17-8048-c04cbe309236",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 724
+    },
+    {
+      "id": "3e0ed178-a6bc-41ef-aabd-e05933b1ecef",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:35:58.656849+00:00"
+    },
+    {
+      "id": "d310d29f-50a4-4042-88c7-1f17ba895283",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T10:35:58.658175+00:00"
+    },
+    {
+      "id": "a778e3cb-8ab0-4902-928e-d1d0e2b96c5b",
+      "path": "/api/catalog/snapshots",
+      "stage": "received",
+      "time": "2026-11-12T10:35:58.659272+00:00"
+    },
+    {
+      "id": "3e0ed178-a6bc-41ef-aabd-e05933b1ecef",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 2245
+    },
+    {
+      "id": "a778e3cb-8ab0-4902-928e-d1d0e2b96c5b",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 2271
+    },
+    {
+      "id": "d310d29f-50a4-4042-88c7-1f17ba895283",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 2426
+    },
+    {
+      "id": "488cb902-d9a6-467e-a145-32bc230e6fc0",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T10:36:02.438169+00:00"
+    },
+    {
+      "id": "488cb902-d9a6-467e-a145-32bc230e6fc0",
+      "status": 201,
+      "stage": "replied",
+      "elapsed_ms": 482
+    },
+    {
+      "id": "64e271c7-964c-47cf-b42f-b61016c8150f",
+      "path": "/api/sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/runs",
+      "stage": "received",
+      "time": "2026-11-12T10:36:04.526187+00:00"
+    },
+    {
+      "id": "64e271c7-964c-47cf-b42f-b61016c8150f",
+      "status": 202,
+      "stage": "replied",
+      "elapsed_ms": 453
+    },
+    {
+      "id": "b6d32a1c-09c5-4803-9c92-8af62745d514",
+      "path": "/api/runs/16c603e7-2b31-5b28-946b-b7b417f3d25a",
+      "stage": "received",
+      "time": "2026-11-12T10:36:05.833361+00:00"
+    },
+    {
+      "id": "b6d32a1c-09c5-4803-9c92-8af62745d514",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1349
+    },
+    {
+      "id": "f0e22c8d-b5d6-453c-95ea-a7cc5327a654",
+      "path": "/api/runs/16c603e7-2b31-5b28-946b-b7b417f3d25a",
+      "stage": "received",
+      "time": "2026-11-12T10:36:09.337152+00:00"
+    },
+    {
+      "id": "f0e22c8d-b5d6-453c-95ea-a7cc5327a654",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 61
+    },
+    {
+      "id": "fde81c48-dc97-46a7-970b-e8e0f6ac0e2c",
+      "path": "/api/runs/16c603e7-2b31-5b28-946b-b7b417f3d25a",
+      "stage": "received",
+      "time": "2026-11-12T10:36:11.870989+00:00"
+    },
+    {
+      "id": "fde81c48-dc97-46a7-970b-e8e0f6ac0e2c",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 80
+    },
+    {
+      "id": "97087d8e-fe8c-4437-a86a-bd013cd66c3a",
+      "path": "/api/runs/16c603e7-2b31-5b28-946b-b7b417f3d25a",
+      "stage": "received",
+      "time": "2026-11-12T10:36:14.080499+00:00"
+    },
+    {
+      "id": "97087d8e-fe8c-4437-a86a-bd013cd66c3a",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 38
+    },
+    {
+      "id": "b15e6ea1-fb90-40e9-ab4f-a0f8fd18b4a0",
+      "path": "/api/sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/runs",
+      "stage": "received",
+      "time": "2026-11-12T10:36:16.265193+00:00"
+    },
+    {
+      "id": "b15e6ea1-fb90-40e9-ab4f-a0f8fd18b4a0",
+      "status": 202,
+      "stage": "replied",
+      "elapsed_ms": 47
+    },
+    {
+      "id": "9197a452-31e3-46b8-9d92-32709ebfd564",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:17.252543+00:00"
+    },
+    {
+      "id": "9197a452-31e3-46b8-9d92-32709ebfd564",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 22
+    },
+    {
+      "id": "c4e5a8b2-7e93-46c2-8056-6226292b90fc",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:19.448558+00:00"
+    },
+    {
+      "id": "c4e5a8b2-7e93-46c2-8056-6226292b90fc",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 125
+    },
+    {
+      "id": "87a5b106-01ec-4b1c-ad99-8a25b8cf5e74",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:22.327230+00:00"
+    },
+    {
+      "id": "87a5b106-01ec-4b1c-ad99-8a25b8cf5e74",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 537
+    },
+    {
+      "id": "edb13bc7-31e1-4465-85f7-7c0d47f2d768",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:24.719780+00:00"
+    },
+    {
+      "id": "edb13bc7-31e1-4465-85f7-7c0d47f2d768",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 280
+    },
+    {
+      "id": "a15f530d-5164-4404-99f6-1b2586041f09",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:27.107476+00:00"
+    },
+    {
+      "id": "a15f530d-5164-4404-99f6-1b2586041f09",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 32
+    },
+    {
+      "id": "f6ec2d02-90bb-4139-b56f-3c54dc459e9a",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:29.229234+00:00"
+    },
+    {
+      "id": "f6ec2d02-90bb-4139-b56f-3c54dc459e9a",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 76
+    },
+    {
+      "id": "bea2e87f-26c0-4286-8e9e-630a0ef542dd",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:31.641144+00:00"
+    },
+    {
+      "id": "bea2e87f-26c0-4286-8e9e-630a0ef542dd",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 65
+    },
+    {
+      "id": "1322d257-1797-4c82-beb4-c65216188b9a",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:33.773159+00:00"
+    },
+    {
+      "id": "1322d257-1797-4c82-beb4-c65216188b9a",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 77
+    },
+    {
+      "id": "49821244-ab7b-4e39-9188-9ebb77833d92",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:36.171422+00:00"
+    },
+    {
+      "id": "49821244-ab7b-4e39-9188-9ebb77833d92",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 64
+    },
+    {
+      "id": "67725a92-82bd-464d-9d57-53dd24c9719a",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:38.843745+00:00"
+    },
+    {
+      "id": "67725a92-82bd-464d-9d57-53dd24c9719a",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 32
+    },
+    {
+      "id": "14c07875-84ef-44b7-9a0e-9c585d141090",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:40.931228+00:00"
+    },
+    {
+      "id": "14c07875-84ef-44b7-9a0e-9c585d141090",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 44
+    },
+    {
+      "id": "4dfe47f3-59e5-442e-9ff6-4b08cc8029cc",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:43.040813+00:00"
+    },
+    {
+      "id": "4dfe47f3-59e5-442e-9ff6-4b08cc8029cc",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 2617
+    },
+    {
+      "id": "ebdbf008-9fe0-465d-a625-8b8e9350fb42",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:48.266431+00:00"
+    },
+    {
+      "id": "ebdbf008-9fe0-465d-a625-8b8e9350fb42",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 325
+    },
+    {
+      "id": "215e7498-a164-4f69-895a-735b58e1cb98",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:50.477846+00:00"
+    },
+    {
+      "id": "215e7498-a164-4f69-895a-735b58e1cb98",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 162
+    },
+    {
+      "id": "7df9045d-67ac-4bb8-bd06-6ac611e1d879",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:52.688007+00:00"
+    },
+    {
+      "id": "7df9045d-67ac-4bb8-bd06-6ac611e1d879",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 157
+    },
+    {
+      "id": "c7a4456a-da04-4c71-8b94-640eed1d229d",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:55.031954+00:00"
+    },
+    {
+      "id": "c7a4456a-da04-4c71-8b94-640eed1d229d",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 43
+    },
+    {
+      "id": "9be6454a-3d81-4ebb-8f88-fcbe5950e54c",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:57.136298+00:00"
+    },
+    {
+      "id": "9be6454a-3d81-4ebb-8f88-fcbe5950e54c",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 28
+    },
+    {
+      "id": "eef13076-23ab-4291-88ee-e06ccdb87d18",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:36:59.232633+00:00"
+    },
+    {
+      "id": "eef13076-23ab-4291-88ee-e06ccdb87d18",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 31
+    },
+    {
+      "id": "972f3b33-2739-4cb1-9198-7e91b1b104fd",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:37:01.602057+00:00"
+    },
+    {
+      "id": "972f3b33-2739-4cb1-9198-7e91b1b104fd",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 34
+    },
+    {
+      "id": "1d660952-e0dd-4b49-beff-b4191fec5c1a",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:37:03.696737+00:00"
+    },
+    {
+      "id": "1d660952-e0dd-4b49-beff-b4191fec5c1a",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 29
+    },
+    {
+      "id": "76271f7c-fe03-417d-918c-a1cd489ecf32",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:37:05.790518+00:00"
+    },
+    {
+      "id": "76271f7c-fe03-417d-918c-a1cd489ecf32",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 38
+    },
+    {
+      "id": "785362ee-543b-4f2d-a5ad-2063c2227813",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:37:08.332885+00:00"
+    },
+    {
+      "id": "785362ee-543b-4f2d-a5ad-2063c2227813",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 49
+    },
+    {
+      "id": "ead69fc0-1f27-4262-bc07-226a5750790d",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:37:10.835397+00:00"
+    },
+    {
+      "id": "ead69fc0-1f27-4262-bc07-226a5750790d",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 186
+    },
+    {
+      "id": "10812359-9505-45ca-961a-5fa05b3cac08",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:37:14.934236+00:00"
+    },
+    {
+      "id": "10812359-9505-45ca-961a-5fa05b3cac08",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 33
+    },
+    {
+      "id": "4a5223d5-8dd5-4ef5-af92-94ea4c1bb591",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:37:17.297529+00:00"
+    },
+    {
+      "id": "4a5223d5-8dd5-4ef5-af92-94ea4c1bb591",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 31
+    },
+    {
+      "id": "43c91a07-0ed9-4540-9ea5-a2fcaa9cf891",
+      "path": "/api/auth/guest",
+      "stage": "received",
+      "time": "2026-11-12T10:37:40.238806+00:00"
+    },
+    {
+      "id": "43c91a07-0ed9-4540-9ea5-a2fcaa9cf891",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 46
+    },
+    {
+      "id": "a39aad50-5696-46d4-8a6e-8a979a28e997",
+      "path": "/api/runs/16c603e7-2b31-5b28-946b-b7b417f3d25a",
+      "stage": "received",
+      "time": "2026-11-12T10:37:41.455545+00:00"
+    },
+    {
+      "id": "a39aad50-5696-46d4-8a6e-8a979a28e997",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 28
+    },
+    {
+      "id": "9e006c98-2365-4874-8050-db41bf91aa22",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:37:42.462455+00:00"
+    },
+    {
+      "id": "9e006c98-2365-4874-8050-db41bf91aa22",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 22
+    },
+    {
+      "id": "1d7aac76-44e8-4853-bbe3-64cf179cd732",
+      "path": "/api/auth/guest",
+      "stage": "received",
+      "time": "2026-11-12T10:38:41.324764+00:00"
+    },
+    {
+      "id": "1d7aac76-44e8-4853-bbe3-64cf179cd732",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 766
+    },
+    {
+      "id": "7188f7bb-690f-4761-b38d-71771ddf0a97",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T10:38:44.269100+00:00"
+    },
+    {
+      "id": "4c9b427b-87a3-4bc2-94df-e4b600d37a77",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:38:44.273609+00:00"
+    },
+    {
+      "id": "2830fb82-580b-4fb3-8977-e48af0e50e0c",
+      "path": "/api/catalog/snapshots",
+      "stage": "received",
+      "time": "2026-11-12T10:38:44.274713+00:00"
+    },
+    {
+      "id": "7188f7bb-690f-4761-b38d-71771ddf0a97",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1148
+    },
+    {
+      "id": "4c9b427b-87a3-4bc2-94df-e4b600d37a77",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 35
+    },
+    {
+      "id": "2830fb82-580b-4fb3-8977-e48af0e50e0c",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 36
+    },
+    {
+      "id": "ab0edf8d-2a3d-4849-b14f-9bf8e8443572",
+      "path": "/api/sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/messages",
+      "stage": "received",
+      "time": "2026-11-12T10:38:45.316565+00:00"
+    },
+    {
+      "id": "ab0edf8d-2a3d-4849-b14f-9bf8e8443572",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 31
+    },
+    {
+      "id": "e6b59efa-e490-4d5a-8077-30f5c7cca193",
+      "path": "/api/sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/runs",
+      "stage": "received",
+      "time": "2026-11-12T10:38:46.976210+00:00"
+    },
+    {
+      "id": "e6b59efa-e490-4d5a-8077-30f5c7cca193",
+      "status": 202,
+      "stage": "replied",
+      "elapsed_ms": 41
+    },
+    {
+      "id": "b27b6e12-5cbb-4ca0-adae-95a20faad7c5",
+      "path": "/api/runs/72f2529a-df31-58d1-8a7c-1948466ada00",
+      "stage": "received",
+      "time": "2026-11-12T10:38:48.600011+00:00"
+    },
+    {
+      "id": "b27b6e12-5cbb-4ca0-adae-95a20faad7c5",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 31
+    },
+    {
+      "id": "efe35bdd-ea50-465e-a9e1-8c15746ffec7",
+      "path": "/api/runs/72f2529a-df31-58d1-8a7c-1948466ada00",
+      "stage": "received",
+      "time": "2026-11-12T10:38:51.127063+00:00"
+    },
+    {
+      "id": "efe35bdd-ea50-465e-a9e1-8c15746ffec7",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 27
+    },
+    {
+      "id": "ef70b2c5-103d-43e2-aeef-2ce59dc61b95",
+      "path": "/api/runs/72f2529a-df31-58d1-8a7c-1948466ada00",
+      "stage": "received",
+      "time": "2026-11-12T10:38:53.238606+00:00"
+    },
+    {
+      "id": "ef70b2c5-103d-43e2-aeef-2ce59dc61b95",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 28
+    },
+    {
+      "id": "c83f1930-e0ae-4058-8646-54f91fbb9521",
+      "path": "/api/runs/72f2529a-df31-58d1-8a7c-1948466ada00",
+      "stage": "received",
+      "time": "2026-11-12T10:38:55.659655+00:00"
+    },
+    {
+      "id": "c83f1930-e0ae-4058-8646-54f91fbb9521",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 40
+    },
+    {
+      "id": "616d157c-8181-4cef-b523-05629b8e4477",
+      "path": "/api/runs/72f2529a-df31-58d1-8a7c-1948466ada00",
+      "stage": "received",
+      "time": "2026-11-12T10:38:58.448612+00:00"
+    },
+    {
+      "id": "616d157c-8181-4cef-b523-05629b8e4477",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 20
+    },
+    {
+      "id": "0d7b8d6f-814b-406d-9f8c-6522e83e8ac2",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T10:39:00.279715+00:00"
+    },
+    {
+      "id": "0d7b8d6f-814b-406d-9f8c-6522e83e8ac2",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 21
+    },
+    {
+      "id": "88908e03-bdb2-4eed-abfb-b49d43485738",
+      "path": "/api/auth/guest",
+      "stage": "received",
+      "time": "2026-11-12T10:39:00.940113+00:00"
+    },
+    {
+      "id": "88908e03-bdb2-4eed-abfb-b49d43485738",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 152
+    },
+    {
+      "id": "ac8109c1-55f5-4511-94e8-2320b839b4c3",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T10:39:01.711999+00:00"
+    },
+    {
+      "id": "ac8109c1-55f5-4511-94e8-2320b839b4c3",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 24
+    },
+    {
+      "id": "343a22aa-4a2c-40eb-b87d-7c22aac97a08",
+      "path": "/api/runs/72f2529a-df31-58d1-8a7c-1948466ada00",
+      "stage": "received",
+      "time": "2026-11-12T10:39:02.345631+00:00"
+    },
+    {
+      "id": "343a22aa-4a2c-40eb-b87d-7c22aac97a08",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 16
+    },
+    {
+      "id": "38cc45c8-b020-4238-8b1e-af2d9c44b5b7",
+      "path": "/api/sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/messages",
+      "stage": "received",
+      "time": "2026-11-12T10:39:02.994771+00:00"
+    },
+    {
+      "id": "38cc45c8-b020-4238-8b1e-af2d9c44b5b7",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 14
+    },
+    {
+      "id": "d2371095-da0b-4a48-a7a9-be68314c3378",
+      "path": "/api/runs/72f2529a-df31-58d1-8a7c-1948466ada00/cancel",
+      "stage": "received",
+      "time": "2026-11-12T10:39:03.645755+00:00"
+    },
+    {
+      "id": "d2371095-da0b-4a48-a7a9-be68314c3378",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 14
+    },
+    {
+      "id": "2e888132-69cc-48e2-9cd0-60b296dc1389",
+      "path": "/api/jobs",
+      "stage": "received",
+      "time": "2026-11-12T10:39:04.269690+00:00"
+    },
+    {
+      "id": "2e888132-69cc-48e2-9cd0-60b296dc1389",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 4
+    },
+    {
+      "id": "df00dbaa-57f7-423c-b3b7-d24a13faf82a",
+      "path": "/api/jobs",
+      "stage": "received",
+      "time": "2026-11-12T10:39:04.896645+00:00"
+    },
+    {
+      "id": "df00dbaa-57f7-423c-b3b7-d24a13faf82a",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 4
+    },
+    {
+      "id": "573e5ac2-6de5-407e-8933-5e058fe2608a",
+      "path": "/api/auth/token",
+      "stage": "received",
+      "time": "2026-11-12T10:39:05.540708+00:00"
+    },
+    {
+      "id": "573e5ac2-6de5-407e-8933-5e058fe2608a",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 4
+    },
+    {
+      "id": "975f9546-ab93-4b5d-b356-23e0293b917e",
+      "path": "/api/docs",
+      "stage": "received",
+      "time": "2026-11-12T10:39:06.168976+00:00"
+    },
+    {
+      "id": "975f9546-ab93-4b5d-b356-23e0293b917e",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 4
+    },
+    {
+      "id": "00fbffa4-3c68-4c1a-ad90-58b99a1aae8b",
+      "path": "/api/internal/qq/events",
+      "stage": "received",
+      "time": "2026-11-12T10:39:06.781519+00:00"
+    },
+    {
+      "id": "00fbffa4-3c68-4c1a-ad90-58b99a1aae8b",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 4
+    },
+    {
+      "id": "909eeb93-0d10-4dbc-b0c1-5bd3c64d3710",
+      "path": "/api/sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/messages",
+      "stage": "received",
+      "time": "2026-11-12T10:39:08.597199+00:00"
+    },
+    {
+      "id": "909eeb93-0d10-4dbc-b0c1-5bd3c64d3710",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 22
+    },
+    {
+      "id": "69c1823b-386d-4a08-8b5d-e19b6f2151e2",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T10:39:10.022896+00:00"
+    },
+    {
+      "id": "b20097eb-ca06-4df9-88d3-16a43e2e5509",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:39:10.023969+00:00"
+    },
+    {
+      "id": "69c1823b-386d-4a08-8b5d-e19b6f2151e2",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 20
+    },
+    {
+      "id": "b20097eb-ca06-4df9-88d3-16a43e2e5509",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 21
+    },
+    {
+      "id": "5fd1d009-5040-4a3c-9515-c4ad4b4fa6e4",
+      "path": "/api/catalog/snapshots",
+      "stage": "received",
+      "time": "2026-11-12T10:39:10.057861+00:00"
+    },
+    {
+      "id": "5fd1d009-5040-4a3c-9515-c4ad4b4fa6e4",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 12
+    },
+    {
+      "id": "6dcd2ece-3bb9-4b3b-9078-2f795b951c04",
+      "path": "/api/auth/guest",
+      "stage": "received",
+      "time": "2026-11-12T10:41:17.342825+00:00"
+    },
+    {
+      "id": "6dcd2ece-3bb9-4b3b-9078-2f795b951c04",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1572
+    },
+    {
+      "id": "66561264-cd4a-4c49-83e5-9ddaff3ef827",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T10:41:19.514061+00:00"
+    },
+    {
+      "id": "66561264-cd4a-4c49-83e5-9ddaff3ef827",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 16
+    },
+    {
+      "stage": "disconnected",
+      "type": "ConnectionClosedOK",
+      "detail": "received 1000 (OK) Owner reconnect check; then sent 1000 (OK) Owner reconnect check",
+      "time": "2026-11-12T10:41:21.288041+00:00"
+    },
+    {
+      "id": "6165f5db-b1a8-4b75-a255-402ee8686d6d",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:41:24.329513+00:00"
+    },
+    {
+      "id": "6165f5db-b1a8-4b75-a255-402ee8686d6d",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 20
+    },
+    {
+      "id": "4e9eb1a4-bd23-4ffd-8171-bf5e0de1c58e",
+      "path": "/api/auth/guest",
+      "stage": "received",
+      "time": "2026-11-12T10:41:24.607571+00:00"
+    },
+    {
+      "id": "4e9eb1a4-bd23-4ffd-8171-bf5e0de1c58e",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 197
+    },
+    {
+      "id": "0713a6ad-f13b-4b67-8253-cc4e351c0fc8",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:41:24.952918+00:00"
+    },
+    {
+      "id": "0713a6ad-f13b-4b67-8253-cc4e351c0fc8",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 17
+    },
+    {
+      "id": "18dbaf63-cfa9-45bc-b600-cee8d1cc815b",
+      "path": "/api/runs/16c603e7-2b31-5b28-946b-b7b417f3d25a",
+      "stage": "received",
+      "time": "2026-11-12T10:41:26.560139+00:00"
+    },
+    {
+      "id": "18dbaf63-cfa9-45bc-b600-cee8d1cc815b",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1606
+    },
+    {
+      "id": "b421956e-d4a4-405d-9d03-6ce1f0e12218",
+      "path": "/api/runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "stage": "received",
+      "time": "2026-11-12T10:41:28.957315+00:00"
+    },
+    {
+      "id": "b421956e-d4a4-405d-9d03-6ce1f0e12218",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 32
+    },
+    {
+      "id": "6a03c87b-65a3-4f5c-be41-3958d9277f6d",
+      "path": "/api/runs/72f2529a-df31-58d1-8a7c-1948466ada00",
+      "stage": "received",
+      "time": "2026-11-12T10:41:29.742616+00:00"
+    },
+    {
+      "id": "6a03c87b-65a3-4f5c-be41-3958d9277f6d",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 128
+    },
+    {
+      "id": "32d2375a-b783-4e1a-80d5-4b4a9a70109e",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:41:31.758855+00:00"
+    },
+    {
+      "id": "32d2375a-b783-4e1a-80d5-4b4a9a70109e",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 15
+    },
+    {
+      "id": "9a01da47-73ae-49e5-be82-5e5ad978cd8d",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:41:40.189894+00:00"
+    },
+    {
+      "id": "9a01da47-73ae-49e5-be82-5e5ad978cd8d",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 22
+    },
+    {
+      "id": "70eac84d-ef40-40f4-8924-9cd4cef425ba",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:41:47.027906+00:00"
+    },
+    {
+      "id": "70eac84d-ef40-40f4-8924-9cd4cef425ba",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 21
+    },
+    {
+      "id": "a6089998-23a1-4c47-a186-ea6bff02fb8b",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:42:15.875943+00:00"
+    },
+    {
+      "id": "a6089998-23a1-4c47-a186-ea6bff02fb8b",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 17
+    },
+    {
+      "stage": "disconnected",
+      "type": "ConnectionClosedError",
+      "detail": "no close frame received or sent",
+      "time": "2026-11-12T10:42:35.063209+00:00"
+    },
+    {
+      "id": "7f13f2ef-5a1c-462a-b4c2-246bb2be6d61",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:42:45.708142+00:00"
+    },
+    {
+      "id": "7f13f2ef-5a1c-462a-b4c2-246bb2be6d61",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 21
+    },
+    {
+      "id": "bebc0f5c-533a-4843-9b9a-efbdcdd8e96f",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:42:53.855106+00:00"
+    },
+    {
+      "id": "bebc0f5c-533a-4843-9b9a-efbdcdd8e96f",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 19
+    },
+    {
+      "id": "6f38f629-38d4-472f-ab1c-cf648d189836",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:43:01.167879+00:00"
+    },
+    {
+      "id": "6f38f629-38d4-472f-ab1c-cf648d189836",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 17
+    },
+    {
+      "id": "943a7247-4a3a-4121-97bd-7cefaf01ab3a",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:43:07.971641+00:00"
+    },
+    {
+      "id": "943a7247-4a3a-4121-97bd-7cefaf01ab3a",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 16
+    },
+    {
+      "id": "a8c6bd36-fed6-4f84-b18a-1f3026e1f974",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:43:14.733285+00:00"
+    },
+    {
+      "id": "a8c6bd36-fed6-4f84-b18a-1f3026e1f974",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 18
+    },
+    {
+      "id": "447d8b98-fb5b-4a75-b975-cdb3196314d4",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:43:22.617229+00:00"
+    },
+    {
+      "id": "447d8b98-fb5b-4a75-b975-cdb3196314d4",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 20
+    },
+    {
+      "id": "887205db-e4a9-440a-9e7a-feba03adf2c6",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T10:43:29.479613+00:00"
+    },
+    {
+      "id": "887205db-e4a9-440a-9e7a-feba03adf2c6",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 57
+    },
+    {
+      "id": "16a73c59-0d07-45a9-a0fb-426f246e23ce",
+      "path": "/api/auth/guest",
+      "stage": "received",
+      "time": "2026-11-12T10:45:06.813950+00:00"
+    },
+    {
+      "id": "16a73c59-0d07-45a9-a0fb-426f246e23ce",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 65
+    },
+    {
+      "id": "13b6192d-b939-4027-94d7-9f56e15d803f",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T10:45:07.468768+00:00"
+    },
+    {
+      "id": "13b6192d-b939-4027-94d7-9f56e15d803f",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 38
+    },
+    {
+      "stage": "disconnected",
+      "type": "ConnectionClosedOK",
+      "detail": "received 1000 (OK) Owner reconnect check; then sent 1000 (OK) Owner reconnect check",
+      "time": "2026-11-12T10:45:08.340527+00:00"
+    },
+    {
+      "id": "8bfbfe93-32db-4364-a864-b449bcc7e1e7",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:45:10.926283+00:00"
+    },
+    {
+      "id": "8bfbfe93-32db-4364-a864-b449bcc7e1e7",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 16
+    },
+    {
+      "id": "dbadaa3a-e8a9-4daa-b331-1603d045d223",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:45:11.530684+00:00"
+    },
+    {
+      "id": "dbadaa3a-e8a9-4daa-b331-1603d045d223",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 15
+    },
+    {
+      "id": "f4ccc12e-23c7-4f1f-bd50-0fa3f2e9cfec",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:45:18.005139+00:00"
+    },
+    {
+      "id": "f4ccc12e-23c7-4f1f-bd50-0fa3f2e9cfec",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 15
+    },
+    {
+      "id": "d60992a0-8df2-41d1-acef-5a90b36590d1",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:45:24.625528+00:00"
+    },
+    {
+      "id": "d60992a0-8df2-41d1-acef-5a90b36590d1",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 26
+    },
+    {
+      "id": "2752c96f-773f-44fc-824a-738d986a1500",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:45:31.225751+00:00"
+    },
+    {
+      "id": "2752c96f-773f-44fc-824a-738d986a1500",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 26
+    },
+    {
+      "id": "f24b2aea-c60a-4f7d-9d66-9f3fd70ab07c",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:45:37.800099+00:00"
+    },
+    {
+      "id": "f24b2aea-c60a-4f7d-9d66-9f3fd70ab07c",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 18
+    },
+    {
+      "id": "0ad93309-6d3f-4bb7-ae31-34015e76bec5",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:45:44.303726+00:00"
+    },
+    {
+      "id": "0ad93309-6d3f-4bb7-ae31-34015e76bec5",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 18
+    },
+    {
+      "id": "110e9173-5e7c-46e1-9620-90f10b259df8",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:45:51.193213+00:00"
+    },
+    {
+      "id": "110e9173-5e7c-46e1-9620-90f10b259df8",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 20
+    },
+    {
+      "id": "5000e984-b0e2-4990-9432-1ffa22c71f0b",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:46:19.801319+00:00"
+    },
+    {
+      "id": "5000e984-b0e2-4990-9432-1ffa22c71f0b",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 44
+    },
+    {
+      "stage": "disconnected",
+      "type": "ConnectionClosedError",
+      "detail": "no close frame received or sent",
+      "time": "2026-11-12T10:46:38.981369+00:00"
+    },
+    {
+      "id": "4def880e-6add-45ee-b47c-4032324ed8d5",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:47:06.398416+00:00"
+    },
+    {
+      "id": "4def880e-6add-45ee-b47c-4032324ed8d5",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 18
+    },
+    {
+      "stage": "disconnected",
+      "type": "ConnectionClosedError",
+      "detail": "no close frame received or sent",
+      "time": "2026-11-12T10:47:25.564022+00:00"
+    },
+    {
+      "id": "7b113071-fe86-43bc-acf6-a456a722b1a9",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T10:47:32.132929+00:00"
+    },
+    {
+      "id": "7b113071-fe86-43bc-acf6-a456a722b1a9",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 33
+    },
+    {
+      "id": "df09facc-c061-4351-b3f0-fa5fbb1ad54f",
+      "path": "/api/auth/guest",
+      "stage": "received",
+      "time": "2026-11-12T10:52:41.622816+00:00"
+    },
+    {
+      "id": "df09facc-c061-4351-b3f0-fa5fbb1ad54f",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 793
+    },
+    {
+      "id": "5e0f3abd-b13d-43b8-acb7-7e80df03c731",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T10:52:42.743831+00:00"
+    },
+    {
+      "id": "5e0f3abd-b13d-43b8-acb7-7e80df03c731",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 692
+    },
+    {
+      "stage": "disconnected",
+      "type": "ConnectionError",
+      "detail": "Owner reconnect check",
+      "time": "2026-11-12T10:52:43.796831+00:00"
+    },
+    {
+      "id": "5de9320c-8a78-4b55-8a3d-ac0b20e82f79",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:52:45.480020+00:00"
+    },
+    {
+      "id": "5de9320c-8a78-4b55-8a3d-ac0b20e82f79",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 635
+    },
+    {
+      "id": "40b9f4dd-5b14-4ce2-9b61-de50dfc358f5",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:52:46.526142+00:00"
+    },
+    {
+      "id": "40b9f4dd-5b14-4ce2-9b61-de50dfc358f5",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1657
+    },
+    {
+      "id": "efc462d5-4d52-4eed-873c-c26b41dda57a",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:52:54.799396+00:00"
+    },
+    {
+      "id": "efc462d5-4d52-4eed-873c-c26b41dda57a",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 619
+    },
+    {
+      "id": "2c253ad7-5e20-4b60-aba4-0208a2c839e4",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:53:04.836106+00:00"
+    },
+    {
+      "id": "2c253ad7-5e20-4b60-aba4-0208a2c839e4",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 706
+    },
+    {
+      "id": "12a717d4-65c3-4154-9bf0-3bd2f08697ce",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:53:12.013172+00:00"
+    },
+    {
+      "id": "12a717d4-65c3-4154-9bf0-3bd2f08697ce",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 753
+    },
+    {
+      "id": "a12de74b-4db6-4b04-b38e-57e55df27e28",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:53:18.694156+00:00"
+    },
+    {
+      "id": "a12de74b-4db6-4b04-b38e-57e55df27e28",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 621
+    },
+    {
+      "id": "7eb7bb45-dd22-40cd-b411-6389fb5091fd",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:53:25.280772+00:00"
+    },
+    {
+      "id": "7eb7bb45-dd22-40cd-b411-6389fb5091fd",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 623
+    },
+    {
+      "id": "c7c3e249-46e9-4036-9ae0-5cb627d222dd",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:53:31.838762+00:00"
+    },
+    {
+      "id": "c7c3e249-46e9-4036-9ae0-5cb627d222dd",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 644
+    },
+    {
+      "id": "3e9c32f7-969d-4eeb-8ca8-7b8bee9be260",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:53:38.436975+00:00"
+    },
+    {
+      "id": "3e9c32f7-969d-4eeb-8ca8-7b8bee9be260",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 636
+    },
+    {
+      "id": "d5b7d0e2-cf00-4998-ad3c-29a95bc9b89b",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:53:45.021934+00:00"
+    },
+    {
+      "id": "d5b7d0e2-cf00-4998-ad3c-29a95bc9b89b",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 623
+    },
+    {
+      "id": "6ac439f1-365f-4601-99d4-e9387e4ce6d4",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:53:51.588238+00:00"
+    },
+    {
+      "id": "6ac439f1-365f-4601-99d4-e9387e4ce6d4",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 632
+    },
+    {
+      "id": "e4ee423c-b9d4-41a2-9890-1ffb2c1aabf0",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:53:58.169588+00:00"
+    },
+    {
+      "id": "e4ee423c-b9d4-41a2-9890-1ffb2c1aabf0",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 4182
+    },
+    {
+      "id": "fdf27a9f-6e41-4fea-87b1-770f90c05596",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:54:09.729282+00:00"
+    },
+    {
+      "id": "fdf27a9f-6e41-4fea-87b1-770f90c05596",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1548
+    },
+    {
+      "id": "a2505bd2-3088-4cee-b7ec-dd8d43d01fc3",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:54:17.296191+00:00"
+    },
+    {
+      "id": "a2505bd2-3088-4cee-b7ec-dd8d43d01fc3",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 598
+    },
+    {
+      "id": "231ad4a6-c064-4dee-852b-aa35aafe9f8c",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:54:23.891085+00:00"
+    },
+    {
+      "id": "231ad4a6-c064-4dee-852b-aa35aafe9f8c",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 717
+    },
+    {
+      "id": "cde2bb69-6239-4ee4-bf30-f31bee577048",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:54:30.563778+00:00"
+    },
+    {
+      "id": "cde2bb69-6239-4ee4-bf30-f31bee577048",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 628
+    },
+    {
+      "id": "69be4403-f7ba-4f65-98fa-838be5f5da90",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:54:37.189122+00:00"
+    },
+    {
+      "id": "69be4403-f7ba-4f65-98fa-838be5f5da90",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 636
+    },
+    {
+      "id": "46fcef6a-1896-4d84-8a1c-4d3db30343e1",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:54:43.815165+00:00"
+    },
+    {
+      "id": "46fcef6a-1896-4d84-8a1c-4d3db30343e1",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 608
+    },
+    {
+      "id": "15864761-8495-404a-b793-260d189cf135",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T10:54:53.024701+00:00"
+    },
+    {
+      "id": "15864761-8495-404a-b793-260d189cf135",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 822
+    },
+    {
+      "id": "370b3632-f9d2-491f-bc7e-4bb57b7baeb0",
+      "path": "/api/auth/guest",
+      "stage": "received",
+      "time": "2026-11-12T10:55:23.811216+00:00"
+    },
+    {
+      "id": "370b3632-f9d2-491f-bc7e-4bb57b7baeb0",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 2575
+    },
+    {
+      "id": "acc8c207-908d-4d4b-b24d-552dc6b7b086",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T10:55:26.547296+00:00"
+    },
+    {
+      "id": "acc8c207-908d-4d4b-b24d-552dc6b7b086",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1426
+    },
+    {
+      "id": "a0be6f4b-6dff-4cda-8811-5997e8143172",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T10:55:27.973848+00:00"
+    },
+    {
+      "id": "8ab763e7-f6c2-4bf6-8522-5f7404a571e5",
+      "path": "/api/catalog/snapshots",
+      "stage": "received",
+      "time": "2026-11-12T10:55:27.978445+00:00"
+    },
+    {
+      "id": "a0be6f4b-6dff-4cda-8811-5997e8143172",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1957
+    },
+    {
+      "id": "8ab763e7-f6c2-4bf6-8522-5f7404a571e5",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1967
+    },
+    {
+      "id": "e3491d7d-d009-4b4f-a108-b344877c32d2",
+      "path": "/api/sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/messages",
+      "stage": "received",
+      "time": "2026-11-12T10:55:30.876292+00:00"
+    },
+    {
+      "id": "e3491d7d-d009-4b4f-a108-b344877c32d2",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 835
+    },
+    {
+      "id": "c88fb274-4501-4e83-b0f8-9ebc70d265d2",
+      "path": "/api/sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/runs",
+      "stage": "received",
+      "time": "2026-11-12T10:55:33.380724+00:00"
+    },
+    {
+      "id": "c88fb274-4501-4e83-b0f8-9ebc70d265d2",
+      "status": 202,
+      "stage": "replied",
+      "elapsed_ms": 2155
+    },
+    {
+      "id": "6a57c82b-4dce-451c-a0ea-6d15ca367e73",
+      "path": "/api/runs/baa8bbc9-d5f6-5a90-84de-9ba196a3e026",
+      "stage": "received",
+      "time": "2026-11-12T10:55:36.607770+00:00"
+    },
+    {
+      "id": "6a57c82b-4dce-451c-a0ea-6d15ca367e73",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 890
+    },
+    {
+      "id": "f8a290d7-2114-4532-b5c5-2273b7063bf4",
+      "path": "/api/runs/baa8bbc9-d5f6-5a90-84de-9ba196a3e026",
+      "stage": "received",
+      "time": "2026-11-12T10:55:39.484824+00:00"
+    },
+    {
+      "id": "f8a290d7-2114-4532-b5c5-2273b7063bf4",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 653
+    },
+    {
+      "stage": "disconnected",
+      "type": "ReadTimeout",
+      "detail": "",
+      "time": "2026-11-12T10:58:46.910743+00:00"
+    },
+    {
+      "id": "eba3e6b1-443b-4923-8970-0aca991c5472",
+      "path": "/api/auth/guest",
+      "stage": "received",
+      "time": "2026-11-12T11:04:31.157870+00:00"
+    },
+    {
+      "id": "eba3e6b1-443b-4923-8970-0aca991c5472",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 977
+    },
+    {
+      "id": "ad40c352-0ac7-415b-8408-a96c4d6eeb27",
+      "path": "/api/catalog/snapshots",
+      "stage": "received",
+      "time": "2026-11-12T11:04:33.139528+00:00"
+    },
+    {
+      "id": "7a3c4cb4-afd6-4b3b-b4ff-491244de0912",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T11:04:33.853922+00:00"
+    },
+    {
+      "id": "943048b2-2cc3-4412-873c-a39c4fec1066",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T11:04:33.864488+00:00"
+    },
+    {
+      "id": "7a3c4cb4-afd6-4b3b-b4ff-491244de0912",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 650
+    },
+    {
+      "id": "ad40c352-0ac7-415b-8408-a96c4d6eeb27",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 2512
+    },
+    {
+      "id": "943048b2-2cc3-4412-873c-a39c4fec1066",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1788
+    },
+    {
+      "id": "1c862e31-6ff0-4bdf-a2d1-261eadda38dc",
+      "path": "/api/sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/messages",
+      "stage": "received",
+      "time": "2026-11-12T11:04:36.194925+00:00"
+    },
+    {
+      "id": "1c862e31-6ff0-4bdf-a2d1-261eadda38dc",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 3844
+    },
+    {
+      "id": "8b9226ad-5958-4578-aac1-4c4895aef0bf",
+      "path": "/api/sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/runs",
+      "stage": "received",
+      "time": "2026-11-12T11:04:56.129480+00:00"
+    },
+    {
+      "id": "8b9226ad-5958-4578-aac1-4c4895aef0bf",
+      "status": 202,
+      "stage": "replied",
+      "elapsed_ms": 811
+    },
+    {
+      "id": "c5a27835-db31-4aef-aa6e-f95aac8b037b",
+      "path": "/api/runs/e21849c5-e158-56b6-8efa-a1fe853d7998",
+      "stage": "received",
+      "time": "2026-11-12T11:04:57.629897+00:00"
+    },
+    {
+      "id": "c5a27835-db31-4aef-aa6e-f95aac8b037b",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 4692
+    },
+    {
+      "id": "5fffcf87-44c2-47ab-9c4d-5f390cccd109",
+      "path": "/api/runs/e21849c5-e158-56b6-8efa-a1fe853d7998",
+      "stage": "received",
+      "time": "2026-11-12T11:05:05.034788+00:00"
+    },
+    {
+      "id": "5fffcf87-44c2-47ab-9c4d-5f390cccd109",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1763
+    },
+    {
+      "id": "e1025953-7bd9-44ba-b14a-87d648a061cd",
+      "path": "/api/runs/e21849c5-e158-56b6-8efa-a1fe853d7998",
+      "stage": "received",
+      "time": "2026-11-12T11:05:09.144557+00:00"
+    },
+    {
+      "id": "e1025953-7bd9-44ba-b14a-87d648a061cd",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1091
+    },
+    {
+      "id": "f54b3532-9461-4c13-8919-fbc8c295e396",
+      "path": "/api/runs/e21849c5-e158-56b6-8efa-a1fe853d7998",
+      "stage": "received",
+      "time": "2026-11-12T11:05:12.899876+00:00"
+    },
+    {
+      "id": "f54b3532-9461-4c13-8919-fbc8c295e396",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1148
+    },
+    {
+      "id": "c28f4a66-a296-4687-bfbb-a99e1a6341c8",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T11:05:16.070461+00:00"
+    },
+    {
+      "id": "c28f4a66-a296-4687-bfbb-a99e1a6341c8",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1019
+    },
+    {
+      "id": "ce7ad22f-0775-4923-a90b-050cd9690a71",
+      "path": "/api/auth/guest",
+      "stage": "received",
+      "time": "2026-11-12T11:05:17.419397+00:00"
+    },
+    {
+      "id": "ce7ad22f-0775-4923-a90b-050cd9690a71",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1617
+    },
+    {
+      "id": "744540c6-73be-41a4-afd5-9f7dddf9150e",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T11:05:19.825162+00:00"
+    },
+    {
+      "id": "744540c6-73be-41a4-afd5-9f7dddf9150e",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 676
+    },
+    {
+      "id": "0a321a23-9929-4ceb-9606-73232ddd8f88",
+      "path": "/api/runs/e21849c5-e158-56b6-8efa-a1fe853d7998",
+      "stage": "received",
+      "time": "2026-11-12T11:05:20.965802+00:00"
+    },
+    {
+      "id": "0a321a23-9929-4ceb-9606-73232ddd8f88",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 1124
+    },
+    {
+      "id": "622aec64-7b1b-4dfa-a71c-1e0f3b203c68",
+      "path": "/api/sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/messages",
+      "stage": "received",
+      "time": "2026-11-12T11:05:22.523987+00:00"
+    },
+    {
+      "id": "622aec64-7b1b-4dfa-a71c-1e0f3b203c68",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 1214
+    },
+    {
+      "id": "72c47021-f14f-48b2-a910-ae3a1951a6da",
+      "path": "/api/runs/e21849c5-e158-56b6-8efa-a1fe853d7998/cancel",
+      "stage": "received",
+      "time": "2026-11-12T11:05:24.630331+00:00"
+    },
+    {
+      "id": "72c47021-f14f-48b2-a910-ae3a1951a6da",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 1536
+    },
+    {
+      "id": "3b4d6290-2e99-4c49-a6c9-41654ac97aeb",
+      "path": "/api/jobs",
+      "stage": "received",
+      "time": "2026-11-12T11:05:26.948905+00:00"
+    },
+    {
+      "id": "3b4d6290-2e99-4c49-a6c9-41654ac97aeb",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 1140
+    },
+    {
+      "id": "d04a7ae3-a09b-4cff-852a-1199e7ee5a71",
+      "path": "/api/jobs",
+      "stage": "received",
+      "time": "2026-11-12T11:05:28.484999+00:00"
+    },
+    {
+      "id": "d04a7ae3-a09b-4cff-852a-1199e7ee5a71",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 1094
+    },
+    {
+      "id": "d20f4a2c-5cc6-4d12-8893-34546e449b98",
+      "path": "/api/auth/token",
+      "stage": "received",
+      "time": "2026-11-12T11:05:30.420766+00:00"
+    },
+    {
+      "id": "d20f4a2c-5cc6-4d12-8893-34546e449b98",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 1386
+    },
+    {
+      "id": "c8e979b4-2072-4fa6-be30-e010d7839fca",
+      "path": "/api/docs",
+      "stage": "received",
+      "time": "2026-11-12T11:05:32.518011+00:00"
+    },
+    {
+      "id": "c8e979b4-2072-4fa6-be30-e010d7839fca",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 1322
+    },
+    {
+      "id": "b12a62ec-a078-4b67-b4fb-d5d4443e66d4",
+      "path": "/api/internal/qq/events",
+      "stage": "received",
+      "time": "2026-11-12T11:05:35.238337+00:00"
+    },
+    {
+      "id": "b12a62ec-a078-4b67-b4fb-d5d4443e66d4",
+      "status": 404,
+      "stage": "replied",
+      "elapsed_ms": 2286
+    },
+    {
+      "id": "cd5a97bf-e299-4a44-b4bf-50d768966c71",
+      "path": "/api/sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/messages",
+      "stage": "received",
+      "time": "2026-11-12T11:05:38.876261+00:00"
+    },
+    {
+      "id": "cd5a97bf-e299-4a44-b4bf-50d768966c71",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1768
+    },
+    {
+      "id": "8aaf21dc-ec2f-4855-816b-36215d2fe2e6",
+      "path": "/api/sessions",
+      "stage": "received",
+      "time": "2026-11-12T11:05:41.445271+00:00"
+    },
+    {
+      "id": "8aaf21dc-ec2f-4855-816b-36215d2fe2e6",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1276
+    },
+    {
+      "id": "00967ae5-ce63-4b6d-a518-277cdb03370a",
+      "path": "/api/health",
+      "stage": "received",
+      "time": "2026-11-12T11:05:42.822497+00:00"
+    },
+    {
+      "id": "00363b26-7a14-494b-9edd-20e5c087e1a4",
+      "path": "/api/catalog/snapshots",
+      "stage": "received",
+      "time": "2026-11-12T11:05:42.823721+00:00"
+    },
+    {
+      "id": "00363b26-7a14-494b-9edd-20e5c087e1a4",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 812
+    },
+    {
+      "id": "00967ae5-ce63-4b6d-a518-277cdb03370a",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 2175
+    },
+    {
+      "stage": "disconnected",
+      "type": "ReadTimeout",
+      "detail": "",
+      "time": "2026-11-12T11:07:54.116521+00:00"
+    },
+    {
+      "id": "99da9d66-5314-46c2-a362-75de8d8f610c",
+      "path": "/api/auth/guest",
+      "stage": "received",
+      "time": "2026-11-12T11:09:07.374682+00:00"
+    },
+    {
+      "id": "99da9d66-5314-46c2-a362-75de8d8f610c",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 1517
+    },
+    {
+      "id": "c04ab57f-5359-401a-b04d-723aa80afbb5",
+      "path": "/api/runs/baa8bbc9-d5f6-5a90-84de-9ba196a3e026",
+      "stage": "received",
+      "time": "2026-11-12T11:09:10.165425+00:00"
+    },
+    {
+      "id": "c04ab57f-5359-401a-b04d-723aa80afbb5",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 661
+    },
+    {
+      "id": "0b057f3b-5cee-4404-9bdb-3a308182a1ce",
+      "path": "/api/runs/e21849c5-e158-56b6-8efa-a1fe853d7998",
+      "stage": "received",
+      "time": "2026-11-12T11:09:11.475293+00:00"
+    },
+    {
+      "id": "0b057f3b-5cee-4404-9bdb-3a308182a1ce",
+      "status": 200,
+      "stage": "replied",
+      "elapsed_ms": 667
+    }
+  ],
+  "boundary": "Request path, status and elapsed time only. No bodies, tokens, guest secrets or provider credentials. Includes the preserved failed WSS trials and the final HTTPS run."
+}
