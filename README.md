@@ -4,7 +4,7 @@
 
 **当前版本1.7（2026-11-12）：I01追问补全、输入区域空白点击长竖线修复。** 162项Python、7项前端及构建通过，7项焦点浏览器检查通过；5条相关固定样例8回合＋新增多轮2回合全部完成，33处引用完整性问题0，Codex逐条核对通过。当前累计费用约9.800032元（估算）。QQ与真人试用保持移除，本轮没有重跑全部32条或一小时稳定性。[1.7报告](docs/1.7-I01追问与输入焦点修复-20261112.md) · [逐条历史反馈](docs/项目实战测试反馈-20261112.md) · [当前进度](docs/进度同步-20261112.md)。
 
-项目私有仓库：[gujianyi0/qinggui-xinyuesha-assessment](https://github.com/gujianyi0/qinggui-xinyuesha-assessment)。托管检查结果见[GitHub Actions](https://github.com/gujianyi0/qinggui-xinyuesha-assessment/actions)。实际凭据、数据库、运行卷和下载缓存均排除提交。
+项目公开仓库（按用户要求开放，任何人可访问）：[gujianyi0/qinggui-xinyuesha-assessment](https://github.com/gujianyi0/qinggui-xinyuesha-assessment)。托管检查结果见[GitHub Actions](https://github.com/gujianyi0/qinggui-xinyuesha-assessment/actions)。实际凭据、数据库、运行卷和下载缓存均排除提交。
 
 ## 本机当前入口：Docker真实问答
 
