@@ -63,6 +63,7 @@ class Run(Base):
     model_id: Mapped[str] = mapped_column(String(120), default="")
     prompt_version: Mapped[str] = mapped_column(String(40), default="grounded-v1")
     snapshot_id: Mapped[str] = mapped_column(String(160), default="")
+    request_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     fault: Mapped[str | None] = mapped_column(String(40), nullable=True)
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
@@ -173,6 +174,17 @@ class BudgetAccount(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     spent: Mapped[float] = mapped_column(Float, default=0)
     reserved: Mapped[float] = mapped_column(Float, default=0)
+
+
+class BudgetGrant(Base):
+    __tablename__ = 'budget_grants'
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    amount: Mapped[float] = mapped_column(Float)
+    charged: Mapped[float] = mapped_column(Float, default=0)
+    status: Mapped[str] = mapped_column(String(24), default='reserved')
+    details: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[dt.datetime] = mapped_column(default=now)
+    settled_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class UsageRecord(Base):

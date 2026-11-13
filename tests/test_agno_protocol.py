@@ -361,7 +361,8 @@ async def test_real_agno_tool_failure_retains_error_without_fabricated_citation(
 @pytest.mark.parametrize("clarify_first", [False, True])
 async def test_verified_ruling_finishes_without_second_model_request(client, app, protocol_model, clarify_first):
     calls = 0
-    expected_calls = 2 if clarify_first else 1
+    # Complete player-provided JSON is authoritative even if the model omits fields.
+    expected_calls = 1
     scene = next(s for s in app.state.catalog.rulings() if s["id"] == "SC06")
 
     def handler(request):

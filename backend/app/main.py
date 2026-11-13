@@ -72,6 +72,7 @@ def create_app(settings: Settings | None = None):
     search = KnowledgeSearch(catalog, database, embedder, config)
     runtime = Runtime(config, database, catalog, search)
     jobs = Jobs(config, database, catalog, embedder)
+    admission_lock = asyncio.Lock()
 
     @asynccontextmanager
     async def lifespan(app):
@@ -117,21 +118,37 @@ def create_app(settings: Settings | None = None):
             return value
 
     async def create_run(session_id: str, user_id: str, body: RunInput, fault: str | None = None):
+        async with admission_lock:
+            return await create_run_locked(session_id, user_id, body, fault)
+
+    async def create_run_locked(session_id: str, user_id: str, body: RunInput, fault: str | None = None):
         await owned(ChatSession, session_id, user_id)
         try:
             snapshot_id = catalog.validate_snapshot(body.snapshot_id)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
+        payload = body.model_dump(mode='json', exclude={'request_id'}) | {'snapshot_id': snapshot_id}
+        run_id = str(uuid.uuid5(uuid.NAMESPACE_URL, user_id + ':' + str(body.request_id))) if body.request_id else str(uuid.uuid4())
         async with database.sessions.begin() as db:
-            # Lock the parent to serialize creation of active runs on PostgreSQL.
+            if body.request_id:
+                await db.scalar(select(BudgetAccount).where(BudgetAccount.id == 1).with_for_update())
+                existing = await db.get(Run, run_id)
+                if existing:
+                    if existing.session_id != session_id or existing.request_data != payload:
+                        raise HTTPException(409, '请求编号已用于不同内容，不能覆盖原请求')
+                    existing._duplicate = True
+                    return existing
             await db.scalar(select(ChatSession).where(ChatSession.id == session_id).with_for_update())
             active = await db.scalar(select(Run.id).where(Run.session_id == session_id, Run.status == "running"))
             if active:
                 raise HTTPException(409, "此会话正在回答，请等待或先取消")
-            run = Run(session_id=session_id, user_id=user_id, model_mode=config.model_mode, model_id=config.model_id if config.model_mode == "live" else "deterministic-test-double", snapshot_id=snapshot_id, fault=fault)
+            run = Run(id=run_id, session_id=session_id, user_id=user_id, request_data=payload,
+                      model_mode=config.model_mode, model_id=config.model_id if config.model_mode == "live" else "deterministic-test-double",
+                      snapshot_id=snapshot_id, fault=fault)
             db.add(run)
             db.add(Message(session_id=session_id, role="user", content=body.message))
             await db.flush()
+        run._duplicate = False
         return run
 
     async def new_draft(user_id: str, body: DraftInput):
@@ -211,29 +228,36 @@ def create_app(settings: Settings | None = None):
         if not user_id.startswith("public:"):
             raise HTTPException(403, "公共入口需要访客身份")
         await owned(ChatSession, identifier, user_id)
-        try:
-            snapshot_id = catalog.validate_snapshot(body.snapshot_id)
-        except ValueError as exc:
-            raise HTTPException(422, str(exc)) from None
-        run_id = str(uuid.uuid5(uuid.NAMESPACE_URL, user_id + ":" + str(body.request_id)))
-        async with database.sessions.begin() as db:
-            # The existing ledger serializes public request deduplication and admission.
-            # reserve_budget still owns the monetary reservation before any paid call.
-            await db.scalar(select(BudgetAccount).where(BudgetAccount.id == 1).with_for_update())
-            existing = await db.get(Run, run_id)
-            if existing:
-                if existing.session_id != identifier:
-                    raise HTTPException(409, "请求编号已用于其他会话")
-                return {"run_id": run_id, "duplicate": True}
-            await db.scalar(select(ChatSession).where(ChatSession.id == identifier).with_for_update())
-            if await db.scalar(select(Run.id).where(Run.session_id == identifier, Run.status == "running")):
-                raise HTTPException(409, "此会话正在回答，请等待或先取消")
-            run = Run(id=run_id, session_id=identifier, user_id=user_id, model_mode=config.model_mode,
-                      model_id=config.model_id if config.model_mode == "live" else "deterministic-test-double", snapshot_id=snapshot_id)
-            db.add(run)
-            db.add(Message(session_id=identifier, role="user", content=body.message))
-        runtime.start(run_id, body.message, discard_events=True)
-        return {"run_id": run_id, "duplicate": False}
+        run = await create_run(identifier, user_id, body)
+        if not run._duplicate:
+            runtime.start(run.id, body.message, discard_events=True)
+        return {'run_id': run.id, 'duplicate': run._duplicate}
+
+    @app.post('/sessions/{identifier}/submissions', status_code=202)
+    async def submit_run(identifier: str, body: PublicRunInput, user_id: str = Depends(current_user)):
+        run = await create_run(identifier, user_id, body)
+        if not run._duplicate:
+            runtime.start(run.id, body.message, discard_events=True)
+        return {'run_id': run.id, 'duplicate': run._duplicate}
+
+    @app.get('/sessions/{identifier}/requests/{request_id}')
+    async def recover_request(identifier: str, request_id: uuid.UUID, user_id: str = Depends(current_user)):
+        await owned(ChatSession, identifier, user_id)
+        run_id = str(uuid.uuid5(uuid.NAMESPACE_URL, user_id + ':' + str(request_id)))
+        run = await owned(Run, run_id, user_id)
+        if run.session_id != identifier:
+            raise HTTPException(404, '记录不存在')
+        return {'run_id': run.id, 'status': run.status, 'request_data': run.request_data}
+
+    @app.post('/sessions/{identifier}/requests/{request_id}/cancel')
+    async def cancel_request(identifier: str, request_id: uuid.UUID, body: PublicRunInput, user_id: str = Depends(current_user)):
+        if body.request_id != request_id:
+            raise HTTPException(422, '请求编号不一致')
+        # Creating a never-executed cancelled run is a durable cancellation marker.
+        # A delayed submission of this same ID will find it and cannot start a model.
+        run = await create_run(identifier, user_id, body)
+        await runtime.cancel(run.id)
+        return {'run_id': run.id, 'status': (await owned(Run, run.id, user_id)).status}
 
     @app.get("/sessions")
     async def list_sessions(user_id: str = Depends(current_user)):
@@ -259,6 +283,14 @@ def create_app(settings: Settings | None = None):
         if x_assessment_fault and (not config.enable_test_faults or x_assessment_fault != "tool_unavailable"):
             raise HTTPException(400, "故障注入未启用或故障类型无效")
         run = await create_run(identifier, user_id, body, x_assessment_fault)
+        if getattr(run, '_duplicate', False):
+            if run.status == 'running':
+                raise HTTPException(409, '请求已接收，请按原请求编号查询运行结果')
+            async def replay():
+                yield f"event: started\ndata: {json.dumps({'run_id': run.id})}\n\n"
+                payload = {'run_id': run.id, 'text': run.text, 'citations': run.citations, 'error': run.error, 'retryable': run.retryable}
+                yield f"event: {run.status}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+            return StreamingResponse(replay(), media_type='text/event-stream')
         queue = runtime.start(run.id, body.message)
 
         async def events():
@@ -288,6 +320,29 @@ def create_app(settings: Settings | None = None):
             calls = list(await db.scalars(select(ToolCall).where(ToolCall.run_id == identifier).order_by(ToolCall.created_at)))
             usage = await db.get(UsageRecord, identifier)
         return fields(run) | {"tool_calls": [fields(c) for c in calls], "usage": fields(usage) if usage else {"input_tokens": run.input_tokens, "output_tokens": run.output_tokens, "estimated": True, "charged_cny": 0}}
+
+    @app.get('/runs/{identifier}/events')
+    async def run_events(identifier: str, request: Request, user_id: str = Depends(current_user)):
+        run = await owned(Run, identifier, user_id)
+
+        async def stream():
+            position = 0
+            if identifier not in runtime.event_logs:
+                yield f"event: started\ndata: {json.dumps({'run_id': identifier})}\n\n"
+                payload = {'run_id': identifier, 'text': run.text, 'citations': run.citations, 'error': run.error, 'retryable': run.retryable}
+                yield f"event: {run.status}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                return
+            while True:
+                items = runtime.event_logs.get(identifier, [])
+                for event, payload in items[position:]:
+                    position += 1
+                    yield f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                    if event in ('completed', 'failed', 'cancelled'):
+                        return
+                if await request.is_disconnected():
+                    return
+                await asyncio.sleep(.1)
+        return StreamingResponse(stream(), media_type='text/event-stream', headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
     @app.post("/runs/{identifier}/cancel")
     async def cancel_run(identifier: str, user_id: str = Depends(current_user)):

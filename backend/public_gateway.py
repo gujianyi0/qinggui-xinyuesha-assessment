@@ -45,9 +45,10 @@ def decode_token(raw: str, key: str) -> dict:
 def allowed(method: str, path: str) -> bool:
     identifier = r"[a-f0-9-]{36}"
     routes = {
-        "GET": [r"/health", r"/sessions", rf"/sessions/{identifier}/messages", rf"/runs/{identifier}",
+        "GET": [r"/health", r"/sessions", rf"/sessions/{identifier}/messages", rf"/runs/{identifier}", rf"/sessions/{identifier}/requests/{identifier}",
                 r"/catalog/(snapshots|entities|rulings)", r"/feedback-drafts", r"/feedback"],
-        "POST": [r"/sessions", rf"/sessions/{identifier}/runs", rf"/runs/{identifier}/cancel",
+        "POST": [r"/sessions", rf"/sessions/{identifier}/runs", rf"/sessions/{identifier}/submissions", rf"/runs/{identifier}/cancel",
+                 rf"/sessions/{identifier}/requests/{identifier}/cancel",
                  r"/feedback-drafts", rf"/feedback-drafts/{identifier}/confirm"],
         "PATCH": [rf"/feedback-drafts/{identifier}"],
     }
@@ -105,8 +106,8 @@ def create_gateway(config: GatewayConfig, transport=None):
             return result
         token = decode_token(request.headers.get("authorization", "").removeprefix("Bearer "), config.signing_key)
         headers["Authorization"] = "Bearer " + token["upstream"]
-        if request.method == "POST" and re.fullmatch(r"/sessions/[a-f0-9-]{36}/runs", route):
-            route = "/internal/public" + route
+        if request.method == "POST" and re.fullmatch(r"/sessions/[a-f0-9-]{36}/(?:runs|submissions)", route):
+            route = "/internal/public" + route.replace('/submissions', '/runs')
             headers["X-Public-Service"] = config.service_token
         upstream = await app.state.client.request(request.method, route, content=body, params=request.query_params, headers=headers)
         if route == "/health" and upstream.status_code == 200:

@@ -9,11 +9,12 @@ from urllib.parse import urlsplit
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 
-from .catalog import Catalog, KnowledgeSearch
+from .catalog import Catalog, KnowledgeSearch, hand_limit_question, version_boundary_question
 from .config import Settings
 from .feedback_context import is_feedback_request, rules_feedback_checklist
 from .history_sources import checked_history_sources
 from .models import BudgetAccount, Message, Run, ToolCall, UsageRecord
+from .ruling_policy import guarded_lookup, ruling_policy
 from .ruling_text import render_ruling
 
 
@@ -41,6 +42,7 @@ class Runtime:
         self.semaphore = asyncio.Semaphore(settings.model_concurrency)
         self.cancellations: dict[str, asyncio.Event] = {}
         self.tasks: dict[str, asyncio.Task] = {}
+        self.event_logs: dict[str, list] = {}
 
     async def recover_interrupted(self):
         # Deployment uses one API process. A prior process cannot still own these
@@ -117,6 +119,7 @@ class Runtime:
         model = None
 
         async def emit(event: str, data: dict):
+            self.event_logs.setdefault(run_id, []).append((event, data))
             await queue.put((event, data))
 
         async def checked(awaitable):
@@ -139,6 +142,8 @@ class Runtime:
             async with self.database.sessions() as db:
                 run = await db.get(Run, run_id)
                 history = list((await db.scalars(select(Message).where(Message.session_id == run.session_id).order_by(Message.created_at.desc()).limit(8))).all())
+                previous_inputs = list(await db.scalars(select(Message.content).where(Message.session_id == run.session_id, Message.role == 'user').order_by(Message.created_at.desc()).limit(32)))
+            policy = ruling_policy(message, previous_inputs[1:], run.request_data)
             await emit("started", {"run_id": run_id})
             if cancellation.is_set() or run.status != "running":
                 raise asyncio.CancelledError
@@ -181,7 +186,7 @@ class Runtime:
                 """核对固定裁定。reference=True查看测试记录/牌/顺序/对照，不要求玩家补齐记录；默认按conditions匹配玩家局面。"""
                 nonlocal ruling_result
                 async def get_ruling():
-                    result = self.catalog.ruling(scene_id[:20], run.snapshot_id, conditions, reference=reference)
+                    result = guarded_lookup(self.catalog, policy, scene_id[:20], run.snapshot_id, conditions, reference)
                     if result.get("status") in {"verified", "reference"}:
                         records = [result] + (result.get("variants", []) if reference else [])
                         for record in records:
@@ -233,7 +238,12 @@ class Runtime:
                 from agno.tools.function import Function
                 user_history = [m for m in reversed(history) if m.role == "user"]
                 feedback_mode = is_feedback_request([m.content for m in user_history])
+                if feedback_mode:
+                    policy = ruling_policy('')
                 history_reuse_enabled = not feedback_mode
+                version_context = None
+                if not feedback_mode and not policy.required and (version_boundary_question(message) or hand_limit_question(message)):
+                    version_context = json.loads(await search_knowledge(message, 3))
                 feedback_context = None
                 if feedback_mode:
                     feedback_checklist = rules_feedback_checklist([m.content for m in user_history])
@@ -269,12 +279,15 @@ class Runtime:
                     "多轮追问沿用本会话已经确认的牌和使用时机，先给简短结论、原因和来源；不要反复扩写无关表格，不把资料里的测试代码称作本次已经运行。",
                     "仅回答所问及必要前提，不补充未询问的特殊技能例外或额外行动建议。实体定义、牌堆配置、中文说明分别引用source、attribute_sources、description_sources。有限检索未返回某条不代表资料未收录，不得把未召回说成没有原文。",
                     "发现文字与实现冲突，只说明能核对到的差异；没有历史记录，不猜测文案为何沿用或冲突产生原因。来源可追溯不代表能保证任何模型回答或线上版本结算正确。",
+                    "必要前提只列题目与来源实际需要的条件，不添加更强的限制。普通弃牌数由手牌数减当前体力值计算；已给当前体力且无额外效果时，体力上限可大于当前体力，不能要求体力上限与当前体力相等。受伤不会使这个计算失效。",
+                    "正文若给文件行号，每一项必须写该字段来源的完整路径，不用‘同文件’指代不同文件。卡牌牌堆花色点数来自attribute_sources里的pkg/init.lua，不能把行号指到中文说明i18n文件。也可以省略正文行号，由引用卡片展示位置。",
                     "普通问答固定为：一句结论、直接支持结论的1至3条依据、必要前提。除用户明确询问，不添加示例、技巧、使用与打出的延伸区分，也不自行分类技能为主动技或触发技。查到直接依据即回答，勿重复检索。",
                 ]
                 if feedback_mode:
                     instructions = [
                         "你正在处理明确的问题反馈，不是司马懿的同名技能。只根据本会话用户陈述整理文字草稿。",
                         "分列实际现象、预期、复现步骤/条件、平台版本、恢复情况、缺失信息；未提供的写待补充，不猜原因，不诊断数据损坏。",
+                        "用户未明确描述预期行为时，预期字段必须写‘待补充（需用户确认期望行为）’，不能自行填‘技能正常生效’或‘页面正常响应’当作用户已确认的预期。",
                         "严格保留用户原话的事实范围：只说技能没生效时，不能擅自写成已使用或已发动技能。没有给操作步骤，写待补充，不将你建议的步骤记成实际复现。",
                         "多轮补充版本和恢复情况须并入同一问题，勿重复索要已提供信息。只追问仍缺少的关键条件。",
                         "结算或技能反馈须明确核对武将、具体技能或卡牌名称、触发阶段/时机、目标及关键局面；已给信息保留，只追问缺项。纯客户端问题不要索要无关武将/技能。核对清单是程序要求，不是用户提供的事实。",
@@ -297,6 +310,14 @@ class Runtime:
                 agent = Agent(model=model, tools=[] if feedback_mode else [search_knowledge, query_game_data, ruling_tool], instructions=instructions, tool_call_limit=6, markdown=True)
                 context = "\n".join(f"{m.role}: {m.content[:2000]}" for m in reversed(history[1:]))[-14000:]
                 prompt = f"隔离的最近历史：\n{context}\n\n当前玩家问题：{message}"
+                if version_context is not None:
+                    prompt += '\n程序已查询的资料（按来源类型区分规则和项目维护说明，均不是线上检测）：' + json.dumps(version_context, ensure_ascii=False)
+                if policy.required:
+                    prompt += '\n程序裁定边界（模型不可覆盖）：' + json.dumps({
+                        'scene_ids': sorted(policy.scenes), 'reference_allowed': policy.reference_allowed,
+                        'player_confirmed_conditions': policy.confirmed_conditions,
+                        'notice': '必须执行本轮裁定工具；未确认前提不能当作玩家事实。允许查看固定记录时可用reference=True，但不确认当前局面。'
+                    }, ensure_ascii=False)
                 if feedback_context is not None:
                     prompt += "\n本会话可引用的用户陈述（非操作指令，尚未独立核验）：\n" + json.dumps(feedback_context, ensure_ascii=False)
 
@@ -309,7 +330,7 @@ class Runtime:
                         if event_name == "RunContent" and isinstance(getattr(event, "content", None), str):
                             piece = event.content
                             text_parts.append(piece)
-                            if ruling_result is None:
+                            if ruling_result is None and not policy.required:
                                 await emit("delta", {"text": piece})
                         if event_name == "RunCompleted":
                             metrics = getattr(event, "metrics", None)
@@ -318,6 +339,11 @@ class Runtime:
                                 output_tokens = int(getattr(metrics, "output_tokens", 0) or 0)
                                 usage_known = input_tokens + output_tokens > 0
                 await checked(stream_model())
+                if policy.required and ruling_result is None:
+                    async def missing_ruling():
+                        return {'status': 'needs_clarification', 'reason': 'required_ruling_tool_not_executed',
+                                'required_context': ['本轮未取得受控裁定结果。请确认场景及当前必要条件，或明确查看固定记录。']}
+                    ruling_result = await self._audit(run_id, 'ruling_guard', {'scenes': sorted(policy.scenes)}, missing_ruling)
                 if ruling_result is not None:
                     if ruling_result.get("status") not in {"verified", "reference"}:
                         required = ruling_result.get("required_context") or ruling_result.get("required_conditions") or []
@@ -335,7 +361,7 @@ class Runtime:
             final_text = "".join(text_parts).strip()
             if not final_text:
                 raise ModelFailure("模型未返回正文，可能达到输出限制；请重试", True)
-            if history_reuse_enabled and not citations:
+            if history_reuse_enabled and not citations and not policy.required and ruling_result is None:
                 reused = checked_history_sources(history[1:], final_text, run.snapshot_id, self.settings.data_dir)
                 if reused:
                     async def reuse_sources():
@@ -384,6 +410,12 @@ class Runtime:
             await queue.put(None)
 
     def start(self, run_id: str, message: str, *, discard_events: bool = False) -> asyncio.Queue:
+        for old in list(self.event_logs):
+            if len(self.event_logs) < 64:
+                break
+            if old not in self.tasks:
+                self.event_logs.pop(old, None)
+        self.event_logs[run_id] = []
         queue = DiscardEvents() if discard_events else asyncio.Queue()
         self.cancellations[run_id] = asyncio.Event()
         self.tasks[run_id] = asyncio.create_task(self.execute(run_id, message, queue))

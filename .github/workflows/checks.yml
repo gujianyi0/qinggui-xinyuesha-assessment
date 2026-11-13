@@ -11,8 +11,9 @@ jobs:
         with:
           version: '0.9.8'
       - run: uv sync --frozen --extra dev
-      - run: uv run ruff check backend tests migrations scripts/local_demo.py scripts/prepare_embedding.py scripts/prepare_native_kafka.py scripts/verify_native_kafka.py scripts/verify_embeddings.py scripts/prepare_native_postgres.py scripts/verify_native_postgres.py scripts/verify_compose.py scripts/backup_native_database.py scripts/fingerprint_database.py scripts/docker_live.py scripts/restore_docker_database.py scripts/verify_docker_cutover.py scripts/public_service.py scripts/prepare_public_service.py scripts/deploy_public_entry.py scripts/verify_public_service.py scripts/verify_public_recovery.py
+      - run: uv run ruff check backend tests migrations scripts/local_demo.py scripts/prepare_embedding.py scripts/prepare_native_kafka.py scripts/verify_native_kafka.py scripts/verify_embeddings.py scripts/prepare_native_postgres.py scripts/verify_native_postgres.py scripts/verify_compose.py scripts/backup_native_database.py scripts/fingerprint_database.py scripts/docker_live.py scripts/restore_docker_database.py scripts/verify_docker_cutover.py scripts/public_service.py scripts/prepare_public_service.py scripts/deploy_public_entry.py scripts/verify_public_service.py scripts/verify_public_recovery.py scripts/backup_docker_primary.py scripts/isolated_real_eval.py scripts/prepare_isolated_eval.py scripts/verify_restored_service.py
       - run: uv run pytest -q
+      - run: uv run ruff check evaluations/run.py scripts/verify_browser_request_recovery.py scripts/verify_runtime_source.py
       - name: Verify migration roundtrip on a disposable database
         env:
           DATABASE_URL: sqlite+aiosqlite:///migration-check.sqlite3

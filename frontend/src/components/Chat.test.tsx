@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import Chat from './Chat';
 
@@ -6,6 +6,21 @@ vi.mock('../api', async importOriginal => ({
   ...await importOriginal<typeof import('../api')>(),
   streamRun: vi.fn(async () => {}),
 }));
+
+it('keeps recovery disabled until the selected session history has loaded', async () => {
+  localStorage.setItem('qinggui-pending:test-workspace:pending-session', JSON.stringify({
+    request_id:'original',session_id:'pending-session',message:'原问题',snapshot_id:'test',
+  }));
+  let finish!: (response: Response) => void;
+  vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(resolve => { finish = resolve; })));
+  try {
+    render(<Chat token="test" sessionId="pending-session" onCreate={vi.fn()} snapshots={[]} snapshotId="test"
+      onSnapshotChange={vi.fn()} mockMode onFeedback={vi.fn()} />);
+    expect(screen.getByRole('button',{name:'恢复原请求'})).toBeDisabled();
+    await act(async () => { finish(new Response('[]')); });
+    await waitFor(() => expect(screen.getByRole('button',{name:'恢复原请求'})).toBeEnabled());
+  } finally { localStorage.clear(); vi.unstubAllGlobals(); }
+});
 
 it('focuses the real textarea when the composer padding is pressed', () => {
   render(<Chat token="test" sessionId={null} onCreate={vi.fn()} snapshots={[]} snapshotId="test"

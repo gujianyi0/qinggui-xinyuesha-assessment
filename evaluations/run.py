@@ -110,9 +110,26 @@ async def run_case(client, case, snapshot_id, *, fault_enabled=False):
                              "source_checks": case["sources"]}}
 
 
+def validate_suite(suite):
+    if not isinstance(suite, dict) or not isinstance(suite.get('cases'), list) or not suite.get('case_set'):
+        raise ValueError('Invalid case suite')
+    identifiers = set()
+    for case in suite['cases']:
+        if not isinstance(case, dict) or not {'id', 'category', 'messages', 'expected', 'sources'} <= case.keys():
+            raise ValueError('Each case must provide id, category, messages, expected and sources before paid requests')
+        if case['id'] in identifiers:
+            raise ValueError('Duplicate case ID')
+        identifiers.add(case['id'])
+        if not isinstance(case['messages'], list) or not case['messages'] or any(not isinstance(m,str) or not m.strip() for m in case['messages']):
+            raise ValueError('Each case needs nonempty messages')
+        if not isinstance(case['expected'], dict) or not isinstance(case['expected'].get('judgment'), str) or not isinstance(case['sources'], list):
+            raise ValueError('Invalid expected judgment or sources')
+
+
 async def execute(args):
     case_bytes = args.cases.read_bytes()
     suite = json.loads(case_bytes)
+    validate_suite(suite)
     selected = set(args.only.split(",")) if args.only else None
     cases = [row for row in suite["cases"] if not selected or row["id"] in selected]
     if not cases:
@@ -137,7 +154,7 @@ async def execute(args):
                     "checker_version": "lexical-alias-v2", "semantic_status": "awaiting_human_review"}
         metadata["local_implementation_sha256"] = {
             name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
-            for name in ("backend/app/runtime.py", "backend/app/catalog.py", "backend/app/ruling_text.py", "backend/app/feedback_context.py")
+            for name in ("backend/app/runtime.py", "backend/app/catalog.py", "backend/app/ruling_text.py", "backend/app/feedback_context.py", "backend/app/ruling_policy.py", "backend/app/main.py")
         }
         metadata["implementation_notice"] = "Local source hashes; verify container hashes separately. Each run records its actual prompt revision."
         (output_dir / "metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")

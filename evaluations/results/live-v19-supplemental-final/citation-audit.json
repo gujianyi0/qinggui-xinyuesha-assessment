@@ -1,0 +1,69 @@
+{
+  "scope": "Citation file/hash/line/tool-binding integrity only; semantic review is separate",
+  "case_count": 3,
+  "citation_count": 4,
+  "issues_count": 0,
+  "cases": [
+    {
+      "case_id": "AR01",
+      "turns": [
+        {
+          "run_id": "5390fe74-1ebf-4308-a5b4-aea16189a3c6",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:6",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "ee93d3615e1fe080ee90:passage:standard:text:qingnang:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "5a88864711e35e515547:passage:standard:text:jieyin:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "AR02",
+      "turns": [
+        {
+          "run_id": "e221c04a-f5c8-472e-ad68-c5f6bcedfcb8",
+          "run_status": "completed",
+          "citations": [],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "AR03",
+      "turns": [
+        {
+          "run_id": "4859a87c-e634-486d-8141-64babdb58b72",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "verified-ruling:freekill-local-b9dc701220bc:SC03",
+              "path": "rulings/evidence/SC03.json",
+              "issues": []
+            }
+          ],
+          "issues": []
+        },
+        {
+          "run_id": "8bd31f22-14fb-42f3-b130-a633419da6da",
+          "run_status": "completed",
+          "citations": [],
+          "issues": []
+        }
+      ]
+    }
+  ]
+}

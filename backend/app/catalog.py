@@ -22,6 +22,14 @@ def grams(value: str) -> set[str]:
     return {clean[i:i + 2] for i in range(max(0, len(clean) - 1))} | set(re.findall(r"[a-z_]{3,}", value.lower()))
 
 
+def version_boundary_question(message: str) -> bool:
+    return bool(re.search(r'版本|快照|0\.5\.25', message) and re.search(r'一致|保证|服务器|线上|本地修改', message))
+
+
+def hand_limit_question(message: str) -> bool:
+    return bool('弃' in message and '体力' in message and re.search(r'手牌|手上', message) and re.search(r'几|多少', message))
+
+
 class Catalog:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -158,6 +166,19 @@ class KnowledgeSearch:
 
     async def search(self, query: str, snapshot_id: str, top_k: int = 5) -> dict:
         top_k = min(max(top_k, 1), 8)
+        if version_boundary_question(query):
+            # Maintained capability facts are separate from upstream game rules.
+            self.catalog.validate_snapshot(snapshot_id)
+            path = self.settings.data_dir / 'knowledge-boundaries.md'
+            if path.is_file() and snapshot_id == 'freekill-local-b9dc701220bc':
+                raw = path.read_bytes()
+                document = raw.decode('utf-8')
+                source = {'id': 'project-scope:' + snapshot_id, 'title': '当前资料与版本核对范围',
+                          'path': 'data/knowledge-boundaries.md', 'snapshot_id': snapshot_id,
+                          'evidence_type': 'project_scope', 'line_start': 1, 'line_end': len(document.splitlines()),
+                          'excerpt': document, 'sha256': hashlib.sha256(raw).hexdigest()}
+                return {'mode': 'maintained_project_scope', 'snapshot_id': snapshot_id,
+                        'items': [{'id': source['id'], 'title': source['title'], 'text': document, 'source': source}]}
         async with self.database.sessions() as db:
             published = await db.get(PublishedIndex, snapshot_id)
             index_version = f"{published.job_id}:{published.generation}" if published else "unindexed"

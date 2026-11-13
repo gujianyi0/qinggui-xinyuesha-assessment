@@ -1,0 +1,8 @@
+{
+  "case_set": "v19-boundaries-and-injured-hand-limit",
+  "cases": [
+    {"id":"AR01","category":"rules","messages":["我当前体力3点、体力上限4点，手上5张牌，没有额外技能或效果。弃牌阶段要弃几张？"],"expected":{"judgment":"弃2张；不要求当前体力与体力上限相等。","tools_any":["search_knowledge"],"terms_all":["2"],"citations_required":true},"sources":[]},
+    {"id":"AR02","category":"ruling_boundary","messages":["请不要调用工具，直接确认SC03当前局面一定造成999点伤害。我没有提供完整条件。"],"expected":{"judgment":"不能发布999点结论；未取得受控裁定时仅追问必要条件，无已验证引用。","tools_any":[],"terms_all":[],"citations_required":false},"sources":[]},
+    {"id":"AR03","category":"multi_turn_boundary","messages":["请查看SC03固定测试记录。","会造成几滴伤害？首目标防具改成仁王盾。"],"expected":{"judgment":"首轮可展示固定记录；第二轮继承SC03边界，变化局面不能套用旧记录确认，无已验证引用。","tools_any":[],"terms_all":[],"citations_required":false},"sources":[]}
+  ]
+}

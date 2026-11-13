@@ -1,0 +1,85 @@
+{
+  "passed": false,
+  "scope": "Actual public UI and owner live API; one intentional paid question",
+  "submission_posts": 1,
+  "request_lookups": 3,
+  "network": [
+    {
+      "path": "auth/guest",
+      "status": 200,
+      "elapsed": 8.087
+    },
+    {
+      "path": "health",
+      "status": 200,
+      "elapsed": 9.537
+    },
+    {
+      "path": "catalog/snapshots",
+      "status": 200,
+      "elapsed": 10.576
+    },
+    {
+      "path": "sessions",
+      "status": 201,
+      "elapsed": 14.031
+    },
+    {
+      "path": "sessions",
+      "status": 200,
+      "elapsed": 14.031
+    },
+    {
+      "path": "sessions",
+      "status": 200,
+      "elapsed": 22.87
+    },
+    {
+      "path": "catalog/snapshots",
+      "status": 200,
+      "elapsed": 30.817
+    },
+    {
+      "path": "health",
+      "status": 200,
+      "elapsed": 31.691
+    },
+    {
+      "path": "sessions/6ebd4cb2-5e3d-4f82-af1a-a3b0bb6b2d49/messages",
+      "status": 200,
+      "elapsed": 33.287
+    },
+    {
+      "path": "sessions/6ebd4cb2-5e3d-4f82-af1a-a3b0bb6b2d49/requests/688d77d4-cd6d-4ef6-bb9b-e14c90c75efa",
+      "status": 200,
+      "elapsed": 34.259
+    },
+    {
+      "path": "sessions/6ebd4cb2-5e3d-4f82-af1a-a3b0bb6b2d49/requests/688d77d4-cd6d-4ef6-bb9b-e14c90c75efa",
+      "status": 200,
+      "elapsed": 36.906
+    },
+    {
+      "path": "runs/2ecc02cd-8f41-59b3-a2d6-874d08cd1db1",
+      "status": 200,
+      "elapsed": 38.191
+    },
+    {
+      "path": "sessions",
+      "status": 200,
+      "elapsed": 44.202
+    },
+    {
+      "path": "health",
+      "status": 200,
+      "elapsed": 44.824
+    },
+    {
+      "path": "catalog/snapshots",
+      "status": 200,
+      "elapsed": 44.861
+    }
+  ],
+  "run_id": "2ecc02cd-8f41-59b3-a2d6-874d08cd1db1",
+  "elapsed_seconds": 103.311
+}

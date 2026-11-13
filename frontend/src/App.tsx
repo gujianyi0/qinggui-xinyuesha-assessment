@@ -1,6 +1,6 @@
 import { BookOpen, ChevronRight, CircleHelp, Database, FolderClock, LogOut, Menu, MessageCircle, MoonStar, Plus, ShieldCheck, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { displayError, listResult, publicMode, request } from './api';
+import { displayError, listResult, pendingSession, publicMode, request } from './api';
 import type { Auth, Health, Session, Snapshot } from './types';
 import Login from './components/Login';
 import Chat from './components/Chat';
@@ -50,7 +50,7 @@ function Workspace({ auth, onLogout }: { auth: Auth; onLogout: () => void }) {
       request<Snapshot[] | { items: Snapshot[] }>('/catalog/snapshots', token),
       request<Health>('/health', token),
     ]);
-    if (result[0].status === 'fulfilled') setSessions(listResult(result[0].value));
+    if (result[0].status === 'fulfilled') { const items = listResult(result[0].value); setSessions(items); const pending = pendingSession(auth.user.id); if (pending && items.some(item => item.id === pending)) setSelected(current => current || pending); }
     if (result[1].status === 'fulfilled') {
       const items = listResult(result[1].value); setSnapshots(items);
       setSnapshotId(current => current || items.find(item => item.active)?.id || items[0]?.id || '');
@@ -89,7 +89,7 @@ function Workspace({ auth, onLogout }: { auth: Auth; onLogout: () => void }) {
       <header className="workspace-header"><div className="breadcrumb"><button className="icon-button mobile-menu" aria-label="打开导航" onClick={() => setMobileNav(true)}><Menu size={20} /></button><span>我的工作区</span><ChevronRight size={13} /><strong>{navigation.find(item => item.id === page)?.label}</strong></div><div className="header-actions"><span className={`connection-label ${health ? 'connected' : ''}`}><span className="status-dot" />{health ? (publicMode ? '真实问答服务已连接' : '本机服务已连接') : '等待服务连接'}</span>{mockMode && <span className="mode-badge">模型替身模式</span>}{!publicMode && <a className="help-link" href="/api/docs" target="_blank" rel="noreferrer" title="打开 API 文档"><CircleHelp size={17} /><span>API 文档</span></a>}</div></header>
       {error && <div className="global-notice"><ErrorNotice message={error} onRetry={() => void load()} onDismiss={() => setError('')} /></div>}
       <div className="page-content">
-        {page === 'chat' && <Chat token={token} sessionId={selected} onCreate={createSession} snapshots={snapshots} snapshotId={snapshotId} onSnapshotChange={setSnapshotId} mockMode={Boolean(mockMode)} onFeedback={actual => { setFeedbackActual(actual); navigate('feedback'); }} />}
+        {page === 'chat' && <Chat userId={auth.user.id} token={token} sessionId={selected} onCreate={createSession} snapshots={snapshots} snapshotId={snapshotId} onSnapshotChange={setSnapshotId} mockMode={Boolean(mockMode)} onFeedback={actual => { setFeedbackActual(actual); navigate('feedback'); }} />}
         {page === 'library' && <Library token={token} snapshots={snapshots} snapshotId={snapshotId} onSnapshotChange={setSnapshotId} onAsk={question => { setSelected(null); navigate('chat'); sessionStorage.setItem('qinggui-next-question', question); }} />}
         {page === 'feedback' && <FeedbackPanel token={token} sessionId={selected} initialActual={feedbackActual} />}
         {page === 'jobs' && <JobsPanel token={token} snapshots={snapshots} snapshotId={snapshotId} />}

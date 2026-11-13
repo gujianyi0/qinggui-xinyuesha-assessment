@@ -1,0 +1,93 @@
+{
+  "passed": true,
+  "scope": "Actual public UI and owner live API; one intentional paid question",
+  "submission_posts": 1,
+  "request_lookups": 3,
+  "network": [
+    {
+      "path": "auth/guest",
+      "status": 200,
+      "elapsed": 4.309
+    },
+    {
+      "path": "sessions",
+      "status": 200,
+      "elapsed": 5.361
+    },
+    {
+      "path": "catalog/snapshots",
+      "status": 200,
+      "elapsed": 5.919
+    },
+    {
+      "path": "health",
+      "status": 200,
+      "elapsed": 5.945
+    },
+    {
+      "path": "sessions",
+      "status": 201,
+      "elapsed": 6.235
+    },
+    {
+      "path": "sessions",
+      "status": 200,
+      "elapsed": 9.424
+    },
+    {
+      "path": "catalog/snapshots",
+      "status": 200,
+      "elapsed": 10.012
+    },
+    {
+      "path": "health",
+      "status": 200,
+      "elapsed": 10.043
+    },
+    {
+      "path": "sessions/e807bbd5-8ebe-48cd-97da-d9e18cc32d9a/messages",
+      "status": 200,
+      "elapsed": 10.958
+    },
+    {
+      "path": "sessions/e807bbd5-8ebe-48cd-97da-d9e18cc32d9a/requests/ce980bf8-8f01-4a6e-b03d-413e70407b82",
+      "status": 200,
+      "elapsed": 12.186
+    },
+    {
+      "path": "sessions/e807bbd5-8ebe-48cd-97da-d9e18cc32d9a/requests/ce980bf8-8f01-4a6e-b03d-413e70407b82",
+      "status": 200,
+      "elapsed": 13.107
+    },
+    {
+      "path": "runs/bc6b3aa7-85bf-5192-acf7-41465686a066",
+      "status": 200,
+      "elapsed": 14.002
+    },
+    {
+      "path": "sessions",
+      "status": 200,
+      "elapsed": 16.071
+    },
+    {
+      "path": "catalog/snapshots",
+      "status": 200,
+      "elapsed": 16.671
+    },
+    {
+      "path": "health",
+      "status": 200,
+      "elapsed": 16.735
+    },
+    {
+      "path": "sessions/e807bbd5-8ebe-48cd-97da-d9e18cc32d9a/messages",
+      "status": 200,
+      "elapsed": 17.919
+    }
+  ],
+  "run_id": "bc6b3aa7-85bf-5192-acf7-41465686a066",
+  "duplicate_paid_submission": false,
+  "answer_persisted_after_reload": true,
+  "page_errors": [],
+  "elapsed_seconds": 18.307
+}

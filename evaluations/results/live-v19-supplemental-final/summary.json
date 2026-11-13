@@ -1,0 +1,11 @@
+{
+  "case_set": "v19-boundaries-and-injured-hand-limit",
+  "mode": "live",
+  "case_count": 3,
+  "status_counts": {
+    "recorded": 3
+  },
+  "semantic_status": "awaiting_human_review",
+  "billing_status": "see_recorded_usage",
+  "notice": "机械检查仅辅助核对；尚未完成逐条语义/来源人工审查，不代表真实模型通过。"
+}

@@ -1,0 +1,11 @@
+{
+  "primary_and_evaluation_match": true,
+  "sha256": {
+    "backend/app/runtime.py": "7b275352a24d66ca4ca2e4d7c0b55e233f8190711859c067a926c2d6d383f4b4",
+    "backend/app/ruling_policy.py": "37d8d39d6f84e6957e3c6665b0949d7b84161ff8793664d2f74c00ab5b6bfdd6",
+    "backend/app/main.py": "6282b38ca4fa35199bfa70cf1e54832068ac1461c4af69fbba0bf8db26c105b5",
+    "backend/app/catalog.py": "fc0665241fc2445331951fe72d4a44ce79edbadf69934fdf59c45d136c5cb0b4",
+    "data/knowledge-boundaries.md": "728a26d6bed0e73f618ee6d0213149ba8fb39524efc12f27f4cd7cd86272ab69"
+  },
+  "model_timeout_seconds": 90
+}

@@ -1,0 +1,53 @@
+{
+  "scope": "Citation file/hash/line/tool-binding integrity only; semantic review is separate",
+  "case_count": 3,
+  "citation_count": 1,
+  "issues_count": 0,
+  "cases": [
+    {
+      "case_id": "AR01",
+      "turns": [
+        {
+          "run_id": "7a029bb0-b5b1-4e0e-83e5-3466560b5028",
+          "run_status": "completed",
+          "citations": [],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "AR02",
+      "turns": [
+        {
+          "run_id": "ed12ac54-519d-41f2-af7e-3aa5cab23470",
+          "run_status": "completed",
+          "citations": [],
+          "issues": []
+        }
+      ]
+    },
+    {
+      "case_id": "AR03",
+      "turns": [
+        {
+          "run_id": "edf9eb90-8e27-4f9e-adec-ff32d238c16f",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "verified-ruling:freekill-local-b9dc701220bc:SC03",
+              "path": "rulings/evidence/SC03.json",
+              "issues": []
+            }
+          ],
+          "issues": []
+        },
+        {
+          "run_id": "bb9e63c1-3847-4db0-b7e5-cea9cbecf48f",
+          "run_status": "completed",
+          "citations": [],
+          "issues": []
+        }
+      ]
+    }
+  ]
+}

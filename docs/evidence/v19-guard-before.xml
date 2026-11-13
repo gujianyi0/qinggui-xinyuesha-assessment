@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="8.767" timestamp="2026-11-13T09:49:49.237009+08:00" hostname="gujianyi"><testcase classname="tests.test_v19_ruling_guard" name="test_no_tool_cannot_publish_a_ruling" time="4.152"><failure message="assert ('999' not in 'event: star...ns&quot;: []}\n\n'&#10;  &#10;  '999' is contained here:&#10;    SC03局面必定造成999点伤害。&quot;}&#10;  ?           +++&#10;    &#10;    : keep-alive&#10;    ...&#10;  &#10;  ...Full output truncated, use '-vv' to show)">tests\test_v19_ruling_guard.py:12: in test_no_tool_cannot_publish_a_ruling
+    assert '999' not in stream and '999' not in run['text']
+E   assert ('999' not in 'event: star...ns": []}\n\n'
+E     
+E     '999' is contained here:
+E       SC03局面必定造成999点伤害。"}
+E     ?           +++
+E       
+E       : keep-alive
+E       ...
+E     
+E     ...Full output truncated, use '-vv' to show)</failure></testcase><testcase classname="tests.test_v19_ruling_guard" name="test_model_conditions_are_not_player_confirmation" time="2.644"><failure message="assert ('999' not in 'event: star...0ed5&quot;}]}\n\n'&#10;  &#10;  '999' is contained here:&#10;    b8d9-4770-9995-57aaa1844e71&quot;}&#10;  ?           +++&#10;    &#10;    event: progress&#10;    data: {&quot;message&quot;: &quot;正在查找当前快照的资料与依据&quot;}...&#10;  &#10;  ...Full output truncated, use '-vv' to show)">tests\test_v19_ruling_guard.py:29: in test_model_conditions_are_not_player_confirmation
+    assert '999' not in stream and not run['citations']
+E   assert ('999' not in 'event: star...0ed5"}]}\n\n'
+E     
+E     '999' is contained here:
+E       b8d9-4770-9995-57aaa1844e71"}
+E     ?           +++
+E       
+E       event: progress
+E       data: {"message": "正在查找当前快照的资料与依据"}...
+E     
+E     ...Full output truncated, use '-vv' to show)</failure></testcase></testsuite></testsuites>

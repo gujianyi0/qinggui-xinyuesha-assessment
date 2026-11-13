@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -19,6 +20,10 @@ class SessionInput(StrictModel):
 class RunInput(StrictModel):
     message: str = Field(min_length=1, max_length=8000)
     snapshot_id: str | None = Field(default=None, max_length=160)
+    request_id: UUID | None = None
+    ruling_scene_id: Literal['SC01', 'SC02', 'SC03', 'SC04', 'SC05', 'SC06', 'SC07', 'SC08'] | None = None
+    ruling_mode: Literal['actual', 'reference'] = 'actual'
+    ruling_conditions: dict = Field(default_factory=dict, max_length=20)
 
 
 class DraftInput(StrictModel):
