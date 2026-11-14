@@ -1,0 +1,21 @@
+{
+  "version": "1.12",
+  "date": "2026-11-14",
+  "frontend_tests": 29,
+  "test_failures": 0,
+  "served_js": "/assets/index-BwlQUC6z.js",
+  "served_asset_matches_build": true,
+  "js_sha256": "da285474f74156cc4f20ed3d2c9ac22161f00cf8ddc7c9823004e368ffec49d3",
+  "health": 200,
+  "source_citations_checked": 5,
+  "max_button_shift_px": 0,
+  "desktop_text_font": "14px",
+  "desktop_text_line_height": "26.6px",
+  "new_direct_dependencies": {
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
+  },
+  "paid_model_calls_by_assistant": 0,
+  "backend_restarted": false,
+  "scope": "Local Docker web updated; existing backend business unchanged; no public static entry redeploy"
+}

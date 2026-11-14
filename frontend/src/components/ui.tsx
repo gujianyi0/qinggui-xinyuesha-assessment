@@ -1,6 +1,7 @@
 import { AlertCircle, BookOpen, Check, ChevronDown, FileText, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useId, useState } from 'react';
 import type { Citation } from '../types';
+import SourceExcerpt from './SourceExcerpt';
 
 export function Spinner({ label = '加载中' }: { label?: string }) {
   return <span className="inline-loading"><LoaderCircle size={16} className="spin" aria-hidden="true" />{label}</span>;
@@ -43,7 +44,11 @@ export function CitationList({ items, compact = false, onInteract }: { items: Ci
   const button = (item: Citation, index: number) => <button type="button" className="citation-trigger" onClick={() => { onInteract?.(); setExpanded(expanded === `${item.id}-${index}` ? null : `${item.id}-${index}`); }} aria-label={`查看来源 ${index + 1}：${item.title || '资料'}`} aria-controls={`${id}-${index}`} aria-expanded={expanded === `${item.id}-${index}`}>
         <span className="citation-number">{index + 1}</span><span className="citation-name">{item.title || (compact ? `资料 ${index + 1}` : item.path)}<small>{evidenceLabels[item.evidence_type ?? ''] ?? item.evidence_type ?? '资料来源'}</small></span><ChevronDown size={14} className={expanded === `${item.id}-${index}` ? 'rotated' : ''} />
       </button>;
-  const detail = (item: Citation, index: number) => <div className="citation-detail" id={`${id}-${index}`} role="region" aria-label={`来源 ${index + 1}详情`}><p><FileText size={12} />{item.path}{item.line_start ? `:${item.line_start}${item.line_end && item.line_end !== item.line_start ? `–${item.line_end}` : ''}` : ''}</p><p className="mono">快照 {item.snapshot_id}</p>{item.excerpt && <blockquote>{item.excerpt}</blockquote>}</div>;
+  const detail = (item: Citation, index: number) => <div className="citation-detail" id={`${id}-${index}`} role="region" aria-label={`来源 ${index + 1}详情`}>
+    <div className="source-detail-heading"><strong>{item.title || `资料 ${index + 1}`}</strong><span>{evidenceLabels[item.evidence_type ?? ''] ?? '资料来源'}</span></div>
+    <div className="source-metadata"><p><FileText size={12} /><span>{item.path}{item.line_start ? `:${item.line_start}${item.line_end && item.line_end !== item.line_start ? `–${item.line_end}` : ''}` : ''}</span></p><p>资料快照 <span className="mono">{item.snapshot_id}</span></p></div>
+    {item.excerpt && <SourceExcerpt text={item.excerpt} code={['implementation','code'].includes(item.evidence_type ?? '')} />}
+  </div>;
   const active = items.findIndex((item, index) => expanded === `${item.id}-${index}`);
   return <div className={`citation-list ${compact ? 'compact' : ''}`}>
     <div className="eyebrow citation-heading"><BookOpen size={13} />{compact ? '参考来源' : '依据与来源'} <span>{items.length}</span></div>
