@@ -1,0 +1,19 @@
+{
+  "version": "1.10",
+  "date": "2026-11-14",
+  "backend_tests": 49,
+  "frontend_tests": 22,
+  "canonical_live32_rerun": false,
+  "real_probes": {
+    "unique_questions": 3,
+    "runs": 4,
+    "initial_semantic_pass": 2,
+    "initial_semantic_fail": 1,
+    "retry_pass": 1,
+    "charged_cny": 0.03211
+  },
+  "owner_url": "http://127.0.0.1:15174/",
+  "deployment": "Docker primary 1.10.0, local web updated",
+  "browser_whole_process_freeze_fixed": false,
+  "limitation": "Strong evidence of host memory pressure; exact freeze root cause not proven. Public static entry/client not redeployed."
+}

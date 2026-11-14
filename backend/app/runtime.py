@@ -280,7 +280,7 @@ class Runtime:
                     "仅回答所问及必要前提，不补充未询问的特殊技能例外或额外行动建议。实体定义、牌堆配置、中文说明分别引用source、attribute_sources、description_sources。有限检索未返回某条不代表资料未收录，不得把未召回说成没有原文。",
                     "发现文字与实现冲突，只说明能核对到的差异；没有历史记录，不猜测文案为何沿用或冲突产生原因。来源可追溯不代表能保证任何模型回答或线上版本结算正确。",
                     "必要前提只列题目与来源实际需要的条件，不添加更强的限制。普通弃牌数由手牌数减当前体力值计算；已给当前体力且无额外效果时，体力上限可大于当前体力，不能要求体力上限与当前体力相等。受伤不会使这个计算失效。",
-                    "正文若给文件行号，每一项必须写该字段来源的完整路径，不用‘同文件’指代不同文件。卡牌牌堆花色点数来自attribute_sources里的pkg/init.lua，不能把行号指到中文说明i18n文件。也可以省略正文行号，由引用卡片展示位置。",
+                    "卡牌牌堆花色点数依据attribute_sources，技能中文说明依据description_sources，实体定义依据source；不得混淆字段来源。文件位置由回答末尾的来源按钮展示，正文不抄写源码路径、行号或工具调用过程。",
                     "普通问答固定为：一句结论、直接支持结论的1至3条依据、必要前提。除用户明确询问，不添加示例、技巧、使用与打出的延伸区分，也不自行分类技能为主动技或触发技。查到直接依据即回答，勿重复检索。",
                 ]
                 if feedback_mode:
@@ -296,6 +296,7 @@ class Runtime:
                         "不要引导用户在聊天里告诉你确认来保存；即使文字明确确认，也必须由用户在网页核对指定修订后点击确认按钮。",
                         "引用来源为本会话用户陈述，尚未独立核验；不要引用游戏技能当作客户端问题依据，不声称已保存、已提交或已修复。",
                     ]
+                instructions.append("面向玩家直接作答，简洁自然、分段清楚；正文不使用星号加粗、Markdown标题或反引号，不显示runtime/packages等源码路径。必要时提资料标题和适用版本，完整来源与位置由网页末尾的来源按钮展示；不能因此省略必要条件、冲突或未核验说明。")
                 prompt_version = "grounded-" + hashlib.sha256(json.dumps(instructions, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()[:16]
                 async with self.database.sessions.begin() as db:
                     await db.execute(update(Run).where(Run.id == run_id, Run.status == "running").values(prompt_version=prompt_version))
@@ -307,7 +308,7 @@ class Runtime:
 
                 ruling_tool = Function.from_callable(get_verified_ruling)
                 ruling_tool.post_hook = finish_verified_ruling
-                agent = Agent(model=model, tools=[] if feedback_mode else [search_knowledge, query_game_data, ruling_tool], instructions=instructions, tool_call_limit=6, markdown=True)
+                agent = Agent(model=model, tools=[] if feedback_mode else [search_knowledge, query_game_data, ruling_tool], instructions=instructions, tool_call_limit=6, markdown=False)
                 context = "\n".join(f"{m.role}: {m.content[:2000]}" for m in reversed(history[1:]))[-14000:]
                 prompt = f"隔离的最近历史：\n{context}\n\n当前玩家问题：{message}"
                 if version_context is not None:
@@ -347,7 +348,7 @@ class Runtime:
                 if ruling_result is not None:
                     if ruling_result.get("status") not in {"verified", "reference"}:
                         required = ruling_result.get("required_context") or ruling_result.get("required_conditions") or []
-                        context_text = json.dumps(required, ensure_ascii=False)
+                        context_text = '\n'.join(f'- {item}' for item in required) if isinstance(required, list) else '请说明武将、卡牌、装备、当前状态与动作顺序，以便核对必要条件。'
                         text_parts[:] = ["当前未取得与这些前提匹配的已验证裁定，暂不能判断结算结果。请核对或补充以下条件：\n" + context_text]
                         citations.clear()
                     else:

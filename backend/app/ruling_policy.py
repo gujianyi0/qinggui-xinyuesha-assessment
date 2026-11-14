@@ -60,7 +60,10 @@ def ruling_policy(message: str, previous_user_messages=(), request_data=None) ->
             if NEW_TOPIC.search(previous):
                 break
     reference = bool(re.search(r'固定|记录|已验证场景|对照|裁定场景\s*SC0[1-8]', message, re.I))
-    if re.search(r'没有提供|未提供|条件不全|缺少条件|实际局面|当前局面|(?:不要|不能|不是|别用).{0,12}(?:固定|对照|记录)', message):
+    # A final disclaimer excludes applying the record to a player position;
+    # it must not turn an explicit record request into an actual-position query.
+    scope_message = re.sub(r'[，,；;。]\s*不代表(?:我的|我)?(?:实际|当前)局面[。.!！]?\s*$', '', message)
+    if re.search(r'没有提供|未提供|条件不全|缺少条件|实际局面|当前局面|(?:不要|不能|不是|别用).{0,12}(?:固定|对照|记录)', scope_message):
         reference = False
     if body.get('ruling_scene_id'):
         reference = body.get('ruling_mode') == 'reference'

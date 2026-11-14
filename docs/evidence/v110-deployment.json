@@ -1,0 +1,50 @@
+{
+  "passed": true,
+  "before": {
+    "counts": {
+      "sessions": 358,
+      "messages": 800,
+      "runs": 404,
+      "feedback_drafts": 5,
+      "feedback": 5,
+      "jobs": 21,
+      "usage_records": 401
+    },
+    "active_runs": 0,
+    "budget": [
+      {
+        "spent": 15.234288000000006,
+        "reserved": 0.0
+      }
+    ],
+    "version": "1.9.0",
+    "runtime_sha256": "ae53a3c4722e8e94d95c47b295177a2ebf9c2d7492529a81ad971996fe6bca74"
+  },
+  "after": {
+    "counts": {
+      "sessions": 358,
+      "messages": 800,
+      "runs": 404,
+      "feedback_drafts": 5,
+      "feedback": 5,
+      "jobs": 21,
+      "usage_records": 401
+    },
+    "active_runs": 0,
+    "budget": [
+      {
+        "spent": 15.234288000000006,
+        "reserved": 0.0
+      }
+    ],
+    "version": "1.10.0",
+    "runtime_sha256": "ea16a39f0e45f8d0904f1b3b15fadf0930f1c0e70ccc5466836f09ad64f99d4e"
+  },
+  "database_and_budget_preserved": true,
+  "migration": "unchanged 0002",
+  "rebuilt": [
+    "api",
+    "worker",
+    "web"
+  ]
+}

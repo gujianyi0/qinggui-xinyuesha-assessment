@@ -30,6 +30,25 @@ it('focuses the real textarea when the composer padding is pressed', () => {
   expect(input).toHaveFocus();
 });
 
+it('cleans only assistant display text and keeps source details available at the answer end', async () => {
+  const path = 'runtime/packages/standard/pkg/init.lua';
+  vi.stubGlobal('fetch',vi.fn(async () => new Response(JSON.stringify([
+    {id:'question',role:'user',content:`查看 ${path}`,citations:[]},
+    {id:'answer',role:'assistant',content:`**曹操体力4。** 依据：\`${path}\`。`,
+      citations:[{id:'source',title:'曹操',path,snapshot_id:'test',line_start:17,excerpt:'体力4。'}]},
+  ]))));
+  try {
+    render(<Chat token="test" sessionId="history" onCreate={vi.fn()} snapshots={[]} snapshotId="test"
+      onSnapshotChange={vi.fn()} mockMode={false} onFeedback={vi.fn()} />);
+    const answer = await screen.findByLabelText('轻归的回答');
+    expect(answer.querySelector('.message-text')).toHaveTextContent('曹操体力4。 依据：《曹操》。');
+    expect(answer.querySelector('.message-text')).not.toHaveTextContent(path);
+    expect(screen.getByLabelText('你的问题')).toHaveTextContent(path);
+    fireEvent.click(screen.getByRole('button',{name:'查看来源 1：曹操'}));
+    expect(screen.getByRole('region',{name:'来源 1详情'})).toHaveTextContent(`${path}:17`);
+  } finally { vi.unstubAllGlobals(); }
+});
+
 it('preserves native text selection and does not intercept right clicks', () => {
   render(<Chat token="test" sessionId={null} onCreate={vi.fn()} snapshots={[]} snapshotId="test"
     onSnapshotChange={vi.fn()} mockMode onFeedback={vi.fn()} />);

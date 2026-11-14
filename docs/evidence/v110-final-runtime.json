@@ -1,0 +1,35 @@
+{
+  "api": {
+    "version": "1.10.0",
+    "files": {
+      "backend/app/runtime.py": "41fc4289d8dda10171344077172a8582de1495720d7b2b0773e82200eb24d93e",
+      "backend/app/ruling_policy.py": "462b4e4e8154b9164fee4911228deacb5dd49c454923353090dbbcf31c44098f",
+      "pyproject.toml": "febd2fb97c26d5052f5131a981c76482920497234c7e97868f9e3eed66406942",
+      "uv.lock": "227abb38c0ef654995a5145570b9d6e76a38efce02d40a23c4d9400f466c854d"
+    }
+  },
+  "worker": {
+    "version": "1.10.0",
+    "files": {
+      "backend/app/runtime.py": "41fc4289d8dda10171344077172a8582de1495720d7b2b0773e82200eb24d93e",
+      "backend/app/ruling_policy.py": "462b4e4e8154b9164fee4911228deacb5dd49c454923353090dbbcf31c44098f",
+      "pyproject.toml": "febd2fb97c26d5052f5131a981c76482920497234c7e97868f9e3eed66406942",
+      "uv.lock": "227abb38c0ef654995a5145570b9d6e76a38efce02d40a23c4d9400f466c854d"
+    }
+  },
+  "health": {
+    "15174": {
+      "code": 200,
+      "database": "postgresql",
+      "model_mode": "live",
+      "index_published": true
+    },
+    "18081": {
+      "code": 200,
+      "database": "postgresql",
+      "model_mode": "live",
+      "index_published": true
+    }
+  },
+  "passed": true
+}
