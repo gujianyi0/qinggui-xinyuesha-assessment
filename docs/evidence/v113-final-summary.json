@@ -1,0 +1,17 @@
+{
+  "version": "1.13",
+  "date": "2026-11-14",
+  "frontend_tests": 29,
+  "health": 200,
+  "served_asset_matches_build": true,
+  "served_js": "/assets/index-BHYbTzRS.js",
+  "before_wheel_blocked": true,
+  "desktop_wheel_passed": true,
+  "narrow_wheel_passed": true,
+  "short_window_reading_passed": true,
+  "original_text_end_readable": true,
+  "first_probe_all_passed": false,
+  "first_probe_note": "Short viewport final-line-at-absolute-bottom assumption corrected by real wheel reading check; original probe preserved",
+  "paid_model_calls_by_assistant": 0,
+  "backend_restarted": false
+}

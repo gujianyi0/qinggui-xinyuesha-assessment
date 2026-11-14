@@ -1,0 +1,84 @@
+{
+  "passed": false,
+  "scope": "Actual Docker 1.13 owner UI, same saved source; native browser wheel input at three viewports and original-text end; no model calls",
+  "samples": [
+    {
+      "size": {
+        "width": 1084,
+        "height": 713
+      },
+      "start": {
+        "outer": 609.3333129882812,
+        "outerMax": 823,
+        "sourceMax": 0,
+        "sourceOverflow": "visible",
+        "x": 572.6666870117188,
+        "y": 331.89063262939453
+      },
+      "down": {
+        "outer": 822.6666870117188,
+        "bottomDistance": 0.33331298828125,
+        "lastTextEndVisible": true,
+        "sourceEndText": "亮出身份（将主公牌正面朝上放在面前），其它身份的玩家保存好自己的身份牌，不让别的玩家知道自己的身份。",
+        "composerBottom": 644.3333358764648,
+        "viewport": 713
+      },
+      "up": 372.6666564941406,
+      "passed": true
+    },
+    {
+      "size": {
+        "width": 1084,
+        "height": 500
+      },
+      "start": {
+        "outer": 609.3333129882812,
+        "outerMax": 1036,
+        "sourceMax": 0,
+        "sourceOverflow": "visible",
+        "x": 572.6666870117188,
+        "y": 225.22396087646484
+      },
+      "down": {
+        "outer": 1036,
+        "bottomDistance": 0,
+        "lastTextEndVisible": false,
+        "sourceEndText": "亮出身份（将主公牌正面朝上放在面前），其它身份的玩家保存好自己的身份牌，不让别的玩家知道自己的身份。",
+        "composerBottom": 431.0000228881836,
+        "viewport": 500
+      },
+      "up": 586,
+      "passed": false
+    },
+    {
+      "size": {
+        "width": 390,
+        "height": 844
+      },
+      "start": {
+        "outer": 890,
+        "outerMax": 970,
+        "sourceMax": 0,
+        "sourceOverflow": "visible",
+        "x": 209.83334350585938,
+        "y": 385.67709732055664
+      },
+      "down": {
+        "outer": 969.3333129882812,
+        "bottomDistance": 0.66668701171875,
+        "lastTextEndVisible": true,
+        "sourceEndText": "亮出身份（将主公牌正面朝上放在面前），其它身份的玩家保存好自己的身份牌，不让别的玩家知道自己的身份。",
+        "composerBottom": 779.0000228881836,
+        "viewport": 844
+      },
+      "up": 520,
+      "passed": true
+    }
+  ],
+  "raw": {
+    "opened": true,
+    "bottomDistance": 0.3333740234375,
+    "lastLineVisible": true,
+    "sourceMax": 0
+  }
+}
