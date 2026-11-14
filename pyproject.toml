@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qinggui-xinyuesha-assessment"
-version = "1.10.0"
+version = "1.11.0"
 description = "新月杀资料、已验证裁定与反馈助手"
 requires-python = ">=3.13,<3.14"
 dependencies = [

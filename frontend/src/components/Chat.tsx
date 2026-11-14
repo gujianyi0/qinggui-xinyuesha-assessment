@@ -35,7 +35,8 @@ export default function Chat({ userId = 'test-workspace', token, sessionId, onCr
   }, [userId, sessionId]);
   const [copied, setCopied] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const followTail = useRef(true);
   const controller = useRef<AbortController | null>(null);
   const runId = useRef<string | null>(null);
   const busyRef = useRef(false);
@@ -57,7 +58,7 @@ export default function Chat({ userId = 'test-workspace', token, sessionId, onCr
       runId.current = null; busyRef.current = false; setBusy(false);
     }
     let ignore = false;
-    setError(''); setProgress('');
+    setError(''); setProgress(''); followTail.current = true;
     if (!sessionId) { setMessages([]); setLoading(false); return; }
     setLoading(true);
     request<Message[] | { items: Message[] }>(`/sessions/${encodeURIComponent(sessionId)}/messages`, token)
@@ -67,7 +68,10 @@ export default function Chat({ userId = 'test-workspace', token, sessionId, onCr
     return () => { ignore = true; };
   }, [sessionId, token]);
 
-  useEffect(() => { endRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'end' }); }, [messages, progress]);
+  useEffect(() => {
+    // Only move this pane, without restarting smooth scrolling for every token.
+    if (followTail.current && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
 
   async function reload() {
     if (!sessionId || busy) return;
@@ -82,6 +86,7 @@ export default function Chat({ userId = 'test-workspace', token, sessionId, onCr
     const saved = recovering && sessionId ? pendingSubmission(userId, sessionId) : null;
     const message = saved?.message || input.trim();
     if (!message || busyRef.current || loading) return;
+    followTail.current = true;
     busyRef.current = true; setBusy(true); setError(''); setCancelRequested(false); setProgress('正在提交问题');
     const currentGeneration = ++generation.current;
     const currentController = new AbortController(); controller.current = currentController; runId.current = null;
@@ -150,8 +155,8 @@ export default function Chat({ userId = 'test-workspace', token, sessionId, onCr
   return <div className="chat-layout">
     <section className="chat-main" aria-label="问答工作台">
       <div className="chat-toolbar"><div><span className="section-kicker">有据可循</span><h1>问答工作台</h1></div><div className="snapshot-control"><BookOpen size={14} /><label className="sr-only" htmlFor="chat-snapshot">资料快照</label><select id="chat-snapshot" value={snapshotId} onChange={e => onSnapshotChange(e.target.value)} disabled={busy || !snapshots.length}>{!snapshots.length && <option value="">等待资料导入</option>}{snapshots.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select><ChevronDown size={13} /></div></div>
-      <div className="chat-scroll">
-        {loading ? <div className="loading-messages" aria-label="加载会话记录"><div className="skeleton skeleton-short" /><div className="skeleton" /><div className="skeleton" /><div className="skeleton skeleton-medium" /></div> : !messages.length ? <div className="chat-welcome"><div className="welcome-moon"><MoonStar size={43} strokeWidth={1.2} /><span /></div><div className="eyebrow">你好，我是轻归</div><h2>把疑问交给我，<br className="mobile-break" /><span>一起查清依据</span></h2><p>规则、卡牌、技能结算，或一个待整理的问题<br />我会保留出处，也会说明还缺少哪些条件</p><div className="prompt-grid">{prompts.map(item => <button key={item.tag} className="prompt-card" onClick={() => { setInput(item.text); inputRef.current?.focus(); }}><span className="prompt-icon"><item.icon size={19} strokeWidth={1.5} /></span><span className="prompt-tag">{item.tag}</span><strong>{item.label}</strong><span className="prompt-description">{item.text}</span><ArrowUp size={15} className="prompt-arrow" /></button>)}</div><div className="welcome-boundary"><ShieldCheck size={14} />复杂裁定仅针对已验证快照与明确条件</div></div> : <div className="message-list">{messages.map(item => <article className={`message message-${item.role}`} key={item.id} aria-label={item.role === 'user' ? '你的问题' : '轻归的回答'}><span className={`message-avatar ${item.role === 'user' ? 'user' : ''}`}>{item.role === 'user' ? <UserRound size={17} /> : <MoonStar size={19} />}</span><div className="message-body"><div className="message-author">{item.role === 'user' ? '你' : '轻归'}{item.role !== 'user' && <span>新月助手</span>}</div><div className="message-text">{(item.role === 'assistant' ? answerText(item.content, item.citations) : item.content) || (busy && item.id.startsWith('answer-') ? <Spinner label={progress || '正在准备回答'} /> : <span className="muted">本次没有生成完整回答，可查看请求状态或重试</span>)}</div>{item.role !== 'user' && <><CitationList items={item.citations ?? []} compact /><div className="message-actions">{item.content && <button className="text-button" onClick={() => void copy(item)}>{copied === item.id ? <Check size={13} /> : <Clipboard size={13} />}{copied === item.id ? '已复制' : '复制回答'}</button>}</div></>}</div></article>)}<div ref={endRef} /></div>}
+      <div className="chat-scroll" ref={scrollRef} onScroll={event => { const node = event.currentTarget; followTail.current = node.scrollHeight - node.clientHeight - node.scrollTop <= 8; }} onWheel={event => { if (event.deltaY < 0) followTail.current = false; }}>
+        {loading ? <div className="loading-messages" aria-label="加载会话记录"><div className="skeleton skeleton-short" /><div className="skeleton" /><div className="skeleton" /><div className="skeleton skeleton-medium" /></div> : !messages.length ? <div className="chat-welcome"><div className="welcome-moon"><MoonStar size={43} strokeWidth={1.2} /><span /></div><div className="eyebrow">你好，我是轻归</div><h2>把疑问交给我，<br className="mobile-break" /><span>一起查清依据</span></h2><p>规则、卡牌、技能结算，或一个待整理的问题<br />我会保留出处，也会说明还缺少哪些条件</p><div className="prompt-grid">{prompts.map(item => <button key={item.tag} className="prompt-card" onClick={() => { setInput(item.text); inputRef.current?.focus(); }}><span className="prompt-icon"><item.icon size={19} strokeWidth={1.5} /></span><span className="prompt-tag">{item.tag}</span><strong>{item.label}</strong><span className="prompt-description">{item.text}</span><ArrowUp size={15} className="prompt-arrow" /></button>)}</div><div className="welcome-boundary"><ShieldCheck size={14} />复杂裁定仅针对已验证快照与明确条件</div></div> : <div className="message-list">{messages.map(item => <article className={`message message-${item.role}`} key={item.id} aria-label={item.role === 'user' ? '你的问题' : '轻归的回答'}><span className={`message-avatar ${item.role === 'user' ? 'user' : ''}`}>{item.role === 'user' ? <UserRound size={17} /> : <MoonStar size={19} />}</span><div className="message-body"><div className="message-author">{item.role === 'user' ? '你' : '轻归'}{item.role !== 'user' && <span>新月助手</span>}</div><div className="message-text">{(item.role === 'assistant' ? answerText(item.content, item.citations) : item.content) || (busy && item.id.startsWith('answer-') ? <Spinner label={progress || '正在准备回答'} /> : <span className="muted">本次没有生成完整回答，可查看请求状态或重试</span>)}</div>{item.role !== 'user' && <><CitationList items={item.citations ?? []} compact onInteract={() => { followTail.current = false; }} /><div className="message-actions">{item.content && <button className="text-button" onClick={() => void copy(item)}>{copied === item.id ? <Check size={13} /> : <Clipboard size={13} />}{copied === item.id ? '已复制' : '复制回答'}</button>}</div></>}</div></article>)}</div>}
       </div>
       <div className="composer-region">{pending && !busy && <div className="mock-notice">有一条待核对的原请求。恢复会沿用原编号，不会重新计费。<button className="text-button" type="button" disabled={loading} onClick={() => void send(undefined, true)}>恢复原请求</button></div>}{error && <ErrorNotice message={error} onRetry={() => void reload()} onDismiss={() => setError('')} />}{progress && !busy && <p className="composer-status" role="status">{progress}</p>}{mockMode && <div className="mock-notice"><Info size={13} />当前为模型替身验证，回答不代表真实模型效果</div>}<form className="composer" onMouseDown={focusTextControlSurface} onSubmit={e => void send(e)}><label className="sr-only" htmlFor="chat-message">输入问题</label><textarea id="chat-message" ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKeyDown} placeholder="问一条规则，或描述你遇到的具体局面…" rows={2} maxLength={8000} disabled={busy} /><div className="composer-bottom"><span><MessageCircle size={13} />基于当前资料快照回答</span>{busy ? <button type="button" className="send-button cancel-button" onClick={() => void cancel()} disabled={cancelRequested} aria-label="取消回答"><Square size={14} />{cancelRequested ? '取消中' : '停止'}</button> : <button type="submit" className="send-button" disabled={!input.trim() || loading} aria-label="发送问题"><ArrowUp size={18} /></button>}</div></form><div className="composer-hint"><span><CornerDownLeft size={11} />Enter 发送 · Shift + Enter 换行</span><span>请勿填写账号密码等私人信息</span></div></div>
     </section>

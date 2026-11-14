@@ -40,3 +40,17 @@ it('opens complete source evidence only from the answer-end button and can close
   fireEvent.click(button);
   expect(screen.queryByRole('region')).not.toBeInTheDocument();
 });
+
+it('keeps every source button in its own strip when switching long details', () => {
+  render(<CitationList compact items={[source,{...source,id:'second',title:'护驾',excerpt:'很长的说明'.repeat(100)}]} />);
+  const first=screen.getByRole('button',{name:'查看来源 1：曹操'});
+  const second=screen.getByRole('button',{name:'查看来源 2：护驾'});
+  const strip=first.closest('.citation-buttons');
+  expect(strip).toContainElement(second);
+  fireEvent.click(first);
+  expect(strip).not.toContainElement(screen.getByRole('region',{name:'来源 1详情'}));
+  fireEvent.click(second);
+  expect(strip).not.toContainElement(screen.getByRole('region',{name:'来源 2详情'}));
+  expect(screen.queryByRole('region',{name:'来源 1详情'})).not.toBeInTheDocument();
+  expect(first.closest('.citation-buttons')).toBe(strip);
+});

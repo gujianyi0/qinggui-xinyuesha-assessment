@@ -16,3 +16,6 @@
 
 /* Keep answer evidence behind compact, wrapping source buttons. */
 .compact.citation-list{display:flex;flex-wrap:wrap;align-items:flex-start;gap:7px}.compact .citation-heading{flex-basis:100%;margin-bottom:2px}.compact .citation-item{min-width:0;max-width:100%;margin:0;flex:0 1 auto}.compact .citation-trigger{width:auto;max-width:100%;padding:7px 10px}.compact .citation-name small{display:none}.compact .citation-number{width:17px;height:18px}.compact .citation-detail{max-width:560px}.chat-main{min-width:0}.message-text{max-width:100%}
+
+/* Source details must never participate in the wrapping button row. */
+.compact.citation-list{display:block}.compact .citation-buttons{display:flex;flex-wrap:wrap;align-items:flex-start;gap:7px}.compact>.citation-detail{margin-top:10px;padding:12px;max-width:100%;border:1px solid var(--line);border-radius:7px;background:white}.compact .citation-heading{margin-bottom:9px}

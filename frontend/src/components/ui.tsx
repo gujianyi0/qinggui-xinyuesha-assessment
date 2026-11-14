@@ -36,18 +36,21 @@ const evidenceLabels: Record<string, string> = {
   rule_text: '规则说明', skill_description: '技能说明', project_scope: '项目范围', conversation: '本会话陈述',
 };
 
-export function CitationList({ items, compact = false }: { items: Citation[]; compact?: boolean }) {
+export function CitationList({ items, compact = false, onInteract }: { items: Citation[]; compact?: boolean; onInteract?: () => void }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const id = useId();
   if (!items?.length) return null;
+  const button = (item: Citation, index: number) => <button type="button" className="citation-trigger" onClick={() => { onInteract?.(); setExpanded(expanded === `${item.id}-${index}` ? null : `${item.id}-${index}`); }} aria-label={`查看来源 ${index + 1}：${item.title || '资料'}`} aria-controls={`${id}-${index}`} aria-expanded={expanded === `${item.id}-${index}`}>
+        <span className="citation-number">{index + 1}</span><span className="citation-name">{item.title || (compact ? `资料 ${index + 1}` : item.path)}<small>{evidenceLabels[item.evidence_type ?? ''] ?? item.evidence_type ?? '资料来源'}</small></span><ChevronDown size={14} className={expanded === `${item.id}-${index}` ? 'rotated' : ''} />
+      </button>;
+  const detail = (item: Citation, index: number) => <div className="citation-detail" id={`${id}-${index}`} role="region" aria-label={`来源 ${index + 1}详情`}><p><FileText size={12} />{item.path}{item.line_start ? `:${item.line_start}${item.line_end && item.line_end !== item.line_start ? `–${item.line_end}` : ''}` : ''}</p><p className="mono">快照 {item.snapshot_id}</p>{item.excerpt && <blockquote>{item.excerpt}</blockquote>}</div>;
+  const active = items.findIndex((item, index) => expanded === `${item.id}-${index}`);
   return <div className={`citation-list ${compact ? 'compact' : ''}`}>
     <div className="eyebrow citation-heading"><BookOpen size={13} />{compact ? '参考来源' : '依据与来源'} <span>{items.length}</span></div>
-    {items.map((item, index) => <div className="citation-item" key={`${item.id}-${index}`}>
-      <button className="citation-trigger" onClick={() => setExpanded(expanded === `${item.id}-${index}` ? null : `${item.id}-${index}`)} aria-label={`查看来源 ${index + 1}：${item.title || '资料'}`} aria-controls={`${id}-${index}`} aria-expanded={expanded === `${item.id}-${index}`}>
-        <span className="citation-number">{index + 1}</span><span className="citation-name">{item.title || (compact ? `资料 ${index + 1}` : item.path)}<small>{evidenceLabels[item.evidence_type ?? ''] ?? item.evidence_type ?? '资料来源'}</small></span><ChevronDown size={14} className={expanded === `${item.id}-${index}` ? 'rotated' : ''} />
-      </button>
-      {expanded === `${item.id}-${index}` && <div className="citation-detail" id={`${id}-${index}`} role="region" aria-label={`来源 ${index + 1}详情`}><p><FileText size={12} />{item.path}{item.line_start ? `:${item.line_start}${item.line_end && item.line_end !== item.line_start ? `–${item.line_end}` : ''}` : ''}</p><p className="mono">快照 {item.snapshot_id}</p>{item.excerpt && <blockquote>{item.excerpt}</blockquote>}</div>}
-    </div>)}
+    {compact ? <>
+      <div className="citation-buttons">{items.map((item, index) => <div className="citation-item" key={`${item.id}-${index}`}>{button(item, index)}</div>)}</div>
+      {active >= 0 && detail(items[active], active)}
+    </> : items.map((item, index) => <div className="citation-item" key={`${item.id}-${index}`}>{button(item,index)}{active === index && detail(item,index)}</div>)}
   </div>;
 }
 

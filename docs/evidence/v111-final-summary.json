@@ -1,0 +1,18 @@
+{
+  "version": "1.11",
+  "date": "2026-11-14",
+  "frontend_tests": 25,
+  "failures": 0,
+  "before_shift_px": 262.13543701171875,
+  "after_max_shift_px": 0,
+  "same_screen_point_toggle": true,
+  "served_js": "/assets/index-DSjIe2-I.js",
+  "served_js_matches_local_build": true,
+  "js_sha256": "d51c0371fecf68cd9308dd98e5795f471d1f9458e5766b53cd35246ceef2b31a",
+  "owner_health": 200,
+  "model_mode": "live",
+  "paid_model_calls": 0,
+  "backend_restarted": false,
+  "backend_business_change": false,
+  "running_backend_image_version": "1.10.0"
+}
