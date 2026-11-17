@@ -8,10 +8,52 @@
   "cloudModified": false,
   "files": [
     {
+      "path": "docs/2.0.4-公网发布与GitHub同步-20261117.md",
+      "url": "/bookshelf/review-files/docs/2.0.4-%E5%85%AC%E7%BD%91%E5%8F%91%E5%B8%83%E4%B8%8EGitHub%E5%90%8C%E6%AD%A5-20261117.md",
+      "sha256": "00194c679feb6c01e9120d1c1c337f26c6e1e1b8ab98a2cc74a63a2209f74c15",
+      "bytes": 5395
+    },
+    {
+      "path": "docs/evidence/v204-public-gateway-20261117.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v204-public-gateway-20261117.xml",
+      "sha256": "4647c1b9c0f3925c9061cf65ceff537867c9dcc1cb216f1dd455537fdcb84aed",
+      "bytes": 2279
+    },
+    {
+      "path": "docs/evidence/v204-public-live-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v204-public-live-20261117.json",
+      "sha256": "5cc6260085373beb5d5b2b10c16a3d56d850dfc11f58735123e84c3879c80eff",
+      "bytes": 30914
+    },
+    {
+      "path": "docs/evidence/v204-public-browser-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v204-public-browser-20261117.json",
+      "sha256": "1c80124d1e83cede0053c53c9294d64b47d0d97285aec92ec1d8da3f812dc5e7",
+      "bytes": 1806
+    },
+    {
+      "path": "docs/evidence/v204-public-frontend-final-check-20261117.log",
+      "url": "/bookshelf/review-files/docs/evidence/v204-public-frontend-final-check-20261117.log.txt",
+      "sha256": "d46ad93c984f9ccf250087ee24f05630eaf2a2e29fe392298c33c1ae3711272f",
+      "bytes": 2355
+    },
+    {
+      "path": "docs/evidence/v204-public-frontend-check-20261117.log",
+      "url": "/bookshelf/review-files/docs/evidence/v204-public-frontend-check-20261117.log.txt",
+      "sha256": "14e7e16115fc07217786e5f2553d67f7bd9dc64bc850345693d6ea0ea9da2300",
+      "bytes": 3744
+    },
+    {
+      "path": "docs/evidence/v204-bookshelf-verification-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v204-bookshelf-verification-20261117.json",
+      "sha256": "18396a0c99d4535b9b0220a4f9c09beb117133b94aabb32b96d1ddeb6b942d70",
+      "bytes": 349
+    },
+    {
       "path": "docs/进度同步-20261117-v204.md",
       "url": "/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261117-v204.md",
-      "sha256": "580d05c74ecef5be47346e41df6574c05a7a4d2c0ecc55b473fcac6134337ce5",
-      "bytes": 892
+      "sha256": "73458a2697e855f669ebd2503898e3928fc30bf388ea207fd3f2038fe6585c2e",
+      "bytes": 1395
     },
     {
       "path": "docs/2.0.4-位置预览与共享进度恢复-20261117.md",
@@ -90,12 +132,6 @@
       "url": "/bookshelf/review-files/frontend/src/features/bookshelf/components/bookshelf-screen.tsx.txt",
       "sha256": "c659b3548cbd27c33711a4d2b2895d32ddaead2841b9b367f0d0d0e80d4f81e1",
       "bytes": 10892
-    },
-    {
-      "path": "docs/evidence/v204-bookshelf-verification-20261117.json",
-      "url": "/bookshelf/review-files/docs/evidence/v204-bookshelf-verification-20261117.json",
-      "sha256": "ef0e1097cf239cd078160469f87f37859b8fe3ffd79a08546c0d024fdc669c76",
-      "bytes": 349
     },
     {
       "path": "docs/进度同步-20261117-v203.md",
@@ -456,18 +492,6 @@
       "url": "/bookshelf/review-files/README.md",
       "sha256": "dea85295d82147ebddb38dc547bc6a208f3d6fd54725bcfb8016b37e2f32ef4b",
       "bytes": 10946
-    },
-    {
-      "path": "docs/2.0.4-公网发布与GitHub同步-20261117.md",
-      "url": "/bookshelf/review-files/docs/2.0.4-%E5%85%AC%E7%BD%91%E5%8F%91%E5%B8%83%E4%B8%8EGitHub%E5%90%8C%E6%AD%A5-20261117.md",
-      "sha256": "f877bb26b9607dda6aa7c6580e6ae1f4f30817c75f39cb573f025664732d9eb0",
-      "bytes": 1639
-    },
-    {
-      "path": "docs/evidence/v204-public-gateway-20261117.xml",
-      "url": "/bookshelf/review-files/docs/evidence/v204-public-gateway-20261117.xml",
-      "sha256": "4647c1b9c0f3925c9061cf65ceff537867c9dcc1cb216f1dd455537fdcb84aed",
-      "bytes": 2279
     },
     {
       "path": "tools/bookshelf/README.md",
