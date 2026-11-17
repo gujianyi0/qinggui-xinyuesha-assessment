@@ -44,6 +44,7 @@ function allowed(file){
 }
 const codeSuffix=file=>/\.(?:[cm]?js|tsx?|log)$/.test(file)?'.txt':'';
 function urlFor(file){return '/bookshelf/review-files/'+path.relative(root,file).split(path.sep).map(encodeURIComponent).join('/')+codeSuffix(file);}
+function previewFor(file){return '/?'+new URLSearchParams({page:'bookshelf',shelf:'review',file:path.relative(root,path.resolve(file)).replaceAll('\\','/')||'.'});}
 async function copyEvidence(file){
   if(copied.has(file))return copied.get(file);
   if(!allowed(file)){excluded.push(path.relative(root,file));return null;}
@@ -73,26 +74,26 @@ async function resolveLink(href,source){
     const rel=path.relative(root,file),parts=rel.split(path.sep);
     if(!roots.has(parts[0])||parts.some(p=>['.local','git','.git','node_modules','public','dist'].includes(p)))return null;
     const key=file+path.sep;
-    if(copied.has(key))return urlFor(file)+'/index.html';
+    if(copied.has(key))return previewFor(file);
     copied.set(key,{directory:true});
     const links=[];
     for(const entry of await fs.readdir(file,{withFileTypes:true})){
       if(!entry.isFile())continue;
       const target=path.join(file,entry.name),record=await copyEvidence(target);
-      if(record)links.push(`<li><a href="${esc(record.url+(entry.name.endsWith('.md')?'.html':''))}">${esc(entry.name)}</a></li>`);
+      if(record)links.push(`<li><a href="${esc(previewFor(target))}">${esc(entry.name)}</a></li>`);
     }
     const dest=path.join(output,'review-files',rel,'index.html');await fs.mkdir(path.dirname(dest),{recursive:true});
     await fs.writeFile(dest,`<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>${esc(rel)}</title><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><h1>${esc(rel)}</h1><ul>${links.join('')}</ul></html>`);
-    return urlFor(file)+'/index.html';
+    return previewFor(file);
   }
   const record=await copyEvidence(file);
-  return record?record.url+(file.endsWith('.md')?'.html':''):null;
+  return record?previewFor(file):null;
 }
 async function render(markdown,source){
   let html=marked.parse(markdown,{gfm:true});
   const links=[...html.matchAll(/href="([^"]*)"/g)];
   for(const match of links){const target=await resolveLink(match[1],source);html=html.replace(match[0],target?`href="${esc(target)}"`:'aria-disabled="true" title="该本机资料未随检阅副本导出"');}
-  for(const match of [...html.matchAll(/src="([^"]*)"/g)]){const target=await resolveLink(match[1],source);html=html.replace(match[0],target?`src="${esc(target)}"`:'alt="历史图片未导出"');}
+  for(const match of [...html.matchAll(/src="([^"]*)"/g)]){let target=null;try{const value=match[1];if(/^https?:\/\//.test(value))target=value;else{const file=path.resolve(path.dirname(source),decodeURIComponent(value));target=(await copyEvidence(file))?.url;}}catch{}html=html.replace(match[0],target?`src="${esc(target)}"`:'alt="历史图片未导出"');}
   return sanitize(html,{allowedTags:[...sanitize.defaults.allowedTags,'details','summary','img'],allowedAttributes:{...sanitize.defaults.allowedAttributes,a:['href','title','aria-disabled'],'*':['id','class'],img:['src','alt']},allowedSchemes:['http','https','mailto']});
 }
 for(const name of names){
@@ -105,6 +106,7 @@ for(const name of names){
   data.reviewDocuments.push({id,kind:'assessment_reference',sourcePath:'docs/文档导航QA/'+name,title,available:true,filename:name,characters:markdown.length,hash:hash(markdown),search:markdown.replace(/[#*>`|\[\]]/g,' '),toc});
 }
 data.evidenceLinks=Object.fromEntries([...copied].map(([file,value])=>[path.relative(root,path.resolve(file)).replaceAll('\\','/'),value.directory?urlFor(path.resolve(file))+'/index.html':value.url+(file.endsWith('.md')?'.html':'')]));
+data.evidenceFiles=Object.fromEntries([...copied].filter(([,value])=>!value.directory).map(([file,value])=>[path.relative(root,file).replaceAll('\\','/'),value]));
 await fs.writeFile(path.join(output,'data.json'),JSON.stringify(data));
 await fs.writeFile(path.join(output,'index.html'),'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/?page=bookshelf"><title>轻归 · 知识书架</title><a href="/?page=bookshelf">进入轻归知识书架</a></html>');
 await fs.mkdir(path.join(output,'licenses'),{recursive:true});

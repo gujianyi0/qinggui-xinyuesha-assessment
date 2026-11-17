@@ -9,19 +9,19 @@
 <h2>回答</h2>
 <p>Draft草稿与Feedback正式记录分表。保存草稿不等于正式提交；用户在网页核对指定修订，再点击确认，才由独立业务接口写Feedback。聊天中说“好的”或模型声称“已保存”都不能绕过这条接口。</p>
 <h2>本项目如何实现</h2>
-<p><a href="/bookshelf/review-files/backend/app/main.py">main.py</a>的confirm_draft检查草稿归属、revision和实际现象，查询已有Feedback并处理并发冲突。Feedback.draft_id有唯一约束；同一确认再次到达返回原记录和duplicate标记，旧revision返回409，其他用户不可访问。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fmain.py">main.py</a>的confirm_draft检查草稿归属、revision和实际现象，查询已有Feedback并处理并发冲突。Feedback.draft_id有唯一约束；同一确认再次到达返回原记录和duplicate标记，旧revision返回409，其他用户不可访问。</p>
 <p>Draft允许在确认前持久化，正式列表只列已确认记录。反馈只写本项目，不连接真实官方工单平台；这符合原段明确给出的范围。</p>
 <h2>已有验证与证据</h2>
 <ul>
-<li><a href="/bookshelf/review-files/backend/app/models.py">模型与唯一约束</a>、<a href="/bookshelf/review-files/backend/app/main.py">确认接口</a>。</li>
-<li><a href="/bookshelf/review-files/tests/test_api.py">test_draft_revision_confirm_and_duplicate</a>：修订、确认及重复调用。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/compose-linux-20261111-04/summary.json">真实容器证据</a>：8次并发确认只有一条正式反馈，并验证归属边界。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/browser-compose-v1.4-20261111/summary.json">浏览器证据</a>：编辑、修订和明确确认操作。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fmodels.py">模型与唯一约束</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fmain.py">确认接口</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_api.py">test_draft_revision_confirm_and_duplicate</a>：修订、确认及重复调用。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-linux-20261111-04%2Fsummary.json">真实容器证据</a>：8次并发确认只有一条正式反馈，并验证归属边界。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fbrowser-compose-v1.4-20261111%2Fsummary.json">浏览器证据</a>：编辑、修订和明确确认操作。</li>
 </ul>
 <p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
 <h2>怎样核对或演示</h2>
 <p>在隔离环境比较正式反馈数量：只保存Draft后不增加；确认后增加一条；用同revision重复确认返回同一ID。编辑后用旧revision确认应409，不能自动把用户未核对的新内容保存成正式记录。</p>
 <h2>结论与边界</h2>
 <p>确认幂等范围是同一个草稿的正式记录，不是对任意两份文字相似的草稿做语义合并。用户另建Draft仍是另一个业务对象；取消或重复提交也不代表撤销已经保存的正式反馈。</p>
-<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%9E%E6%88%98QA%2F00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md">返回目录与维护说明</a></p>
 </article></body></html>

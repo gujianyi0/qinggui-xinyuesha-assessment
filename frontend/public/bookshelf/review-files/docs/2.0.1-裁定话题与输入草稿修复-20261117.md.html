@@ -11,7 +11,7 @@
 <li>本轮不需要裁定时，只向模型提供资料检索与数据查询工具，避免模型受到旧场景影响而错误调用裁定工具；当前问题需要裁定时继续提供裁定工具与原有必要条件约束。</li>
 <li>保留“条件不匹配不能发布确定结论、不能用固定记录冒充当前局面、模型自填条件不能代替玩家确认”的原有保护。</li>
 </ul>
-<p>实现：<a href="/bookshelf/review-files/backend/app/ruling_policy.py">ruling_policy.py</a>、<a href="/bookshelf/review-files/backend/app/runtime.py">runtime.py</a>。这是有限领域的路由规则，不能视为对任意自然语言意图的完美识别；仍可能需要用户明确具体场景。</p>
+<p>实现：<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fruling_policy.py">ruling_policy.py</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fruntime.py">runtime.py</a>。这是有限领域的路由规则，不能视为对任意自然语言意图的完美识别；仍可能需要用户明确具体场景。</p>
 <h3>回答生成时无法输入</h3>
 <p>原输入框使用<code>disabled={isBusy}</code>，整个生成期间不可编辑。原代码还在异步创建会话之后清空输入；单纯移除disabled会造成用户新写的草稿被迟到的创建响应清空，恢复旧请求时也会丢失新草稿。</p>
 <p>现在：</p>
@@ -22,7 +22,7 @@
 <li>恢复上一条请求时保留当前正在编辑的下一条草稿。</li>
 <li>当前回答完成后，草稿仍在，用户可自行发送。此功能没有把未提交草稿追加进正在进行的模型调用，也没有自动排队付费请求。</li>
 </ul>
-<p>实现：<a href="/bookshelf/review-files/frontend/src/features/chat/components/chat-screen.tsx.txt">chat-screen.tsx</a>。</p>
+<p>实现：<a href="/?page=bookshelf&amp;shelf=review&amp;file=frontend%2Fsrc%2Ffeatures%2Fchat%2Fcomponents%2Fchat-screen.tsx">chat-screen.tsx</a>。</p>
 <h2>测试与修正过程</h2>
 <table>
 <thead>
@@ -123,10 +123,10 @@
 <p>本地提交与标签保存于指定git库，main与GitHub保持原有提交。共享API缺陷修复不等于发布v2公网前端。</p>
 <h2>证据</h2>
 <ul>
-<li><a href="/bookshelf/review-files/docs/evidence/v201-pytest-20261117.log.txt">后端全量测试</a> / <a href="/bookshelf/review-files/docs/evidence/v201-pytest-20261117.xml">JUnit</a></li>
-<li><a href="/bookshelf/review-files/docs/evidence/v201-frontend-check-20261117.log.txt">前端完整检查</a></li>
-<li><a href="/bookshelf/review-files/docs/evidence/v201-live-regression-20261117.json">真实请求前后结果、引用、用量及浏览器操作</a></li>
-<li><a href="/bookshelf/review-files/docs/evidence/v201-api-deployment-20261117.json">API更新及账本/容器保持情况</a></li>
-<li><a href="/bookshelf/review-files/docs/evidence/v201-local-artifacts-20261117.json">前端源码与产物哈希</a></li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv201-pytest-20261117.log">后端全量测试</a> / <a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv201-pytest-20261117.xml">JUnit</a></li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv201-frontend-check-20261117.log">前端完整检查</a></li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv201-live-regression-20261117.json">真实请求前后结果、引用、用量及浏览器操作</a></li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv201-api-deployment-20261117.json">API更新及账本/容器保持情况</a></li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv201-local-artifacts-20261117.json">前端源码与产物哈希</a></li>
 </ul>
 </article></body></html>

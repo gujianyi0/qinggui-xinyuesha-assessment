@@ -22,7 +22,7 @@ it('only opens exported evidence and blocks absent private or malformed paths', 
       },
     })
   expect(resolve('../../tests/test_api.py')).toBe(
-    '/bookshelf/review-files/tests/test_api.py',
+    '/?page=bookshelf&shelf=review&file=tests%2Ftest_api.py',
   )
   expect(resolve('../../.env.docker-live')).toBeUndefined()
   expect(resolve('../missing.md')).toBeUndefined()

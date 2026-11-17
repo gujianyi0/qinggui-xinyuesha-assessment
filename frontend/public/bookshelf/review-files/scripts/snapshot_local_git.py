@@ -75,7 +75,7 @@ def snapshot(version=None, *, complete_current=False):
     live_config = ROOT / ".env.docker-live"
     if live_config.is_file():
         private = dotenv_values(live_config, interpolate=False)
-        secrets.extend(private.get(key) or "" for key in ("MODEL_API_KEY", "POSTGRES_PASSWORD", "PUBLIC_SERVICE_TOKEN"))
+        secrets.extend(private.get(key) or "" for key in ("MODEL_API_KEY", "POSTGRES_PASSWORD", "PUBLIC_SERVICE_TOKEN", "BOOKSHELF_OWNER_KEY"))
     gateway_config = ROOT / ".local/public-entry/config.json"
     if gateway_config.is_file():
         gateway_private = json.loads(gateway_config.read_text(encoding="utf-8"))

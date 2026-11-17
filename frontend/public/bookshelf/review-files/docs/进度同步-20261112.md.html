@@ -1,8 +1,8 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>进度同步-20261112.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>进度同步 — 2026-11-12，版本1.8</h1>
 <p>本轮新增本机共享真实问答：固定公网网页和可下载的纯客户端，模型密钥留本机，费用和会话沿用迁移后的Docker主库。按最新要求不设置问答次数、按人/按天或频率配额，保留200元总预算与记录归属检查；QQ和真人试用仍移除。</p>
 <p>184项Python、11项前端、Ruff、Worker类型/来源策略及Docker构建通过。公网实际完成曹操技能问答与同会话奸雄追问；保留初次误取消和一次供应商超时，重试后成功；再发现历史来源丢失并修复，最终三条有引用回答通过、10引用完整性问题0。下载版真实浏览器的隔离、管理入口保护、刷新和焦点检查通过，页面错误0。附带的非必要检索引用另列为改进项。</p>
-<p>对外入口先用普通隧道但端口预检失败，先尝试WSS443，最终采用HTTPS443短时拉取和回复。前两轮恢复观察均出现额外重置及503，未计全部通过；最终HTTPS复测135.35秒、恢复后17组全部200、账本/会话一致。详见<a href="/bookshelf/review-files/docs/1.8-%E6%9C%AC%E6%9C%BA%E5%85%B1%E4%BA%AB%E7%9C%9F%E5%AE%9E%E9%97%AE%E7%AD%94%E4%B8%8E%E9%AA%8C%E8%AF%81-20261112.md.html">本轮报告</a>。累计费用约11.851794元，预留0；本轮增加2.051762元，其中两次用量未知保守记账。未重新运行全部32条、一小时Worker或17组故障矩阵。</p>
-<p><a href="https://qinggui-assessment.c2115259095.workers.dev/">公网网页</a> · <a href="/bookshelf/review-files/docs/%E6%9C%AC%E6%9C%BA%E5%AF%B9%E5%A4%96%E6%9C%8D%E5%8A%A1.md.html">使用及启停</a> · <a href="https://github.com/gujianyi0/qinggui-xinyuesha-assessment">公开仓库</a>。本轮按1.8提交，旧标签不改写，后续1.9。</p>
+<p>对外入口先用普通隧道但端口预检失败，先尝试WSS443，最终采用HTTPS443短时拉取和回复。前两轮恢复观察均出现额外重置及503，未计全部通过；最终HTTPS复测135.35秒、恢复后17组全部200、账本/会话一致。详见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.8-%E6%9C%AC%E6%9C%BA%E5%85%B1%E4%BA%AB%E7%9C%9F%E5%AE%9E%E9%97%AE%E7%AD%94%E4%B8%8E%E9%AA%8C%E8%AF%81-20261112.md">本轮报告</a>。累计费用约11.851794元，预留0；本轮增加2.051762元，其中两次用量未知保守记账。未重新运行全部32条、一小时Worker或17组故障矩阵。</p>
+<p><a href="https://qinggui-assessment.c2115259095.workers.dev/">公网网页</a> · <a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E6%9C%AC%E6%9C%BA%E5%AF%B9%E5%A4%96%E6%9C%8D%E5%8A%A1.md">使用及启停</a> · <a href="https://github.com/gujianyi0/qinggui-xinyuesha-assessment">公开仓库</a>。本轮按1.8提交，旧标签不改写，后续1.9。</p>
 <h2>历史：1.7修复与首次上传</h2>
 <blockquote>
 <p>仓库访问更新：已按用户要求由私有改为公开，无需登录即可查看；匿名API及README访问均返回200。原1.7代码和版本标签保留，下方私有仓库措辞描述首次上传时的状态。</p>
@@ -12,9 +12,9 @@
 <p>本轮没有重跑全部32条、17组故障矩阵或一小时稳定性。费用从约9.721822元至9.800032元，新增0.078210元估算，预留/未结算0；反馈5条/草稿5条未增加。Docker1.7.0、26个后端文件哈希一致，15174正常。</p>
 <p>本轮1.7保存指定本地git库，旧标签保留，后续1.8。用户明确要求上传GitHub：目标为gujianyi0账号下的私有仓库，未增加协作者；凭据、数据库/备份及运行缓存排除，首次上传检查Git历史。仓库及Actions见下方链接。</p>
 <p>剩余：Markdown纯文本展示的阅读体验建议；F01真实主库保持故障保护；正式验收安排。QQ/真人试用仍移除，不恢复为待办，不记成完成原始条目。</p>
-<p><a href="/bookshelf/review-files/docs/1.7-I01%E8%BF%BD%E9%97%AE%E4%B8%8E%E8%BE%93%E5%85%A5%E7%84%A6%E7%82%B9%E4%BF%AE%E5%A4%8D-20261112.md.html">1.7修复与复测</a> · <a href="https://github.com/gujianyi0/qinggui-xinyuesha-assessment">私有GitHub</a> · <a href="https://github.com/gujianyi0/qinggui-xinyuesha-assessment/actions">Actions</a> · <a href="/bookshelf/review-files/docs/evidence/v17-feedback/evaluation-review.json">真实评测汇总</a> · <a href="/bookshelf/review-files/docs/evidence/v17-input-focus/browser-final/summary.json">焦点检查</a>。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.7-I01%E8%BF%BD%E9%97%AE%E4%B8%8E%E8%BE%93%E5%85%A5%E7%84%A6%E7%82%B9%E4%BF%AE%E5%A4%8D-20261112.md">1.7修复与复测</a> · <a href="https://github.com/gujianyi0/qinggui-xinyuesha-assessment">私有GitHub</a> · <a href="https://github.com/gujianyi0/qinggui-xinyuesha-assessment/actions">Actions</a> · <a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-feedback%2Fevaluation-review.json">真实评测汇总</a> · <a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-input-focus%2Fbrowser-final%2Fsummary.json">焦点检查</a>。</p>
 <h2>历史：1.6逐条审查进度</h2>
-<p>已通过已登录语雀原文逐条核对“项目实战”，本轮反馈集中在<a href="/bookshelf/review-files/docs/%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%88%98%E6%B5%8B%E8%AF%95%E5%8F%8D%E9%A6%88-20261112.md.html">测试与问题修复文档</a>。原1.5资料/会话/费用迁移结果保留。</p>
+<p>已通过已登录语雀原文逐条核对“项目实战”，本轮反馈集中在<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%88%98%E6%B5%8B%E8%AF%95%E5%8F%8D%E9%A6%88-20261112.md">测试与问题修复文档</a>。原1.5资料/会话/费用迁移结果保留。</p>
 <ul>
 <li>自动化：152项Python（含16项Agno协议、19项QQ历史协议），4项前端，生产构建与Ruff通过。</li>
 <li>后台：全新独立库17组真实容器检查；15分11秒、667组网页/API探测，预期外失败0；含Worker实际终止、租约恢复、退出81/82重放、并发幂等、有限重试、取消、Redis自然失效/停机及PG/Kafka故障。</li>
@@ -25,12 +25,12 @@
 <li>主库：隔离故障期间暂停真实服务，维护前后18表与账本完全一致，随后恢复15174。最终累计约9.721822元，本轮新增约3.959368元，预留/未结算0，均为估算，不是供应商账单。</li>
 </ul>
 <p>待完善：I01需明确追问武将/技能名；界面Markdown标记直接显示列阅读体验建议。GitHub远端共享范围/链接、托管Actions及Leader验收安排尚未完成。QQ和真人试用继续移出当前交付，原文中的试用条目不记完成。</p>
-<p>1.6保存指定本地git库，不推远端、不改旧标签；下一轮1.7。<a href="/bookshelf/review-files/docs/evidence/assessment-audit-20261112-overview.json">证据汇总</a> · <a href="/bookshelf/review-files/docs/evidence/assessment-audit-20261112-runtime-final.json">最终运行哈希</a> · <a href="/bookshelf/review-files/docs/evidence/assessment-audit-20261112-final-database.json">最终主库</a>。</p>
+<p>1.6保存指定本地git库，不推远端、不改旧标签；下一轮1.7。<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fassessment-audit-20261112-overview.json">证据汇总</a> · <a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fassessment-audit-20261112-runtime-final.json">最终运行哈希</a> · <a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fassessment-audit-20261112-final-database.json">最终主库</a>。</p>
 <h2>历史：1.5迁移进度</h2>
 <p>Docker真实问答与主库迁移已完成。18张表的行数、完整内容哈希及费用账本比对一致；源库246会话、270运行、537消息和267费用记录完整保留，未重置预算。现有15174地址由Docker提供服务，旧原生库停止并受启动保护。</p>
 <p>验证：147项Python、4项前端；6组迁移/冷重建检查；最终真实浏览器7项。4条固定样例5轮＋旧会话真实续问1轮＋网页真实问答1轮，共7轮，36处引用完整性问题0，Codex逐条核对通过。不是完整32条重跑或公司验收。</p>
 <p>费用由5.682864元继续累计至5.762454元，新增估算0.079590元，预留0、未结算0；冷启动后继续保留，均不是供应商账单。</p>
 <p>QQ已按用户明确确认移出当前交付，清理示例和实际运行配置；历史代码、协议测试和证据归档，不再列待办。真人试用继续移除。剩余：GitHub资料/共享范围及远端交付，正式验收安排。</p>
-<p><a href="/bookshelf/review-files/docs/1.5-Docker%E7%9C%9F%E5%AE%9E%E9%97%AE%E7%AD%94%E4%B8%8E%E4%B8%BB%E5%BA%93%E8%BF%81%E7%A7%BB-20261112.md.html">1.5报告</a> · <a href="/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E8%BF%81%E7%A7%BB%E4%B8%8E%E8%BF%90%E8%A1%8C%E6%89%8B%E5%86%8C.md.html">迁移与运行手册</a> · <a href="/bookshelf/review-files/docs/evidence/docker-cutover-v15-20261112-01/summary.json">切换6项</a> · <a href="/bookshelf/review-files/docs/evidence/docker-live-final-state-20261112.json">最终状态</a> · <a href="/bookshelf/review-files/docs/%E9%AA%8C%E6%94%B6%E7%9F%A9%E9%98%B5.md.html">验收矩阵</a></p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.5-Docker%E7%9C%9F%E5%AE%9E%E9%97%AE%E7%AD%94%E4%B8%8E%E4%B8%BB%E5%BA%93%E8%BF%81%E7%A7%BB-20261112.md">1.5报告</a> · <a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2FDocker%E4%B8%BB%E5%BA%93%E8%BF%81%E7%A7%BB%E4%B8%8E%E8%BF%90%E8%A1%8C%E6%89%8B%E5%86%8C.md">迁移与运行手册</a> · <a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fdocker-cutover-v15-20261112-01%2Fsummary.json">切换6项</a> · <a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fdocker-live-final-state-20261112.json">最终状态</a> · <a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E9%AA%8C%E6%94%B6%E7%9F%A9%E9%98%B5.md">验收矩阵</a></p>
 <p>本轮1.5提交指定本地git库，旧标签保持，不推送远端；下一轮1.6。</p>
 </article></body></html>

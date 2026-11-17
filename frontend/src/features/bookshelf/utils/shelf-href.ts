@@ -14,8 +14,12 @@ export function shelfHref({
   if (/^(?:https?:|mailto:|#)/i.test(href)) return href
   if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('//'))
     return undefined
-  if (href.startsWith('/?page=bookshelf') || href.startsWith('/bookshelf/'))
-    return href
+  if (href.startsWith('/?page=bookshelf')) return href
+  if (href.startsWith('/bookshelf/review-files/')) {
+    const [path, hash] = href.split('#')
+    const match = Object.entries(evidenceLinks).find(([, url]) => url === path)
+    return match ? evidenceHref(match[0], hash || '') : undefined
+  }
   let target: URL
   try {
     target = new URL(href, `https://shelf.local/${current.sourcePath}`)
@@ -33,5 +37,19 @@ export function shelfHref({
     return `/?page=bookshelf&shelf=${record.kind === 'learning' ? 'learning' : 'review'}&document=${record.id}`
   if (current.kind === 'learning') return undefined
   const evidence = evidenceLinks[path.replace(/\/$/, '')]
-  return evidence ? `${evidence}${target.hash}` : undefined
+  return evidence
+    ? evidenceHref(path.replace(/\/$/, ''), target.hash.slice(1))
+    : undefined
+}
+
+function evidenceHref(path: string, hash: string) {
+  const query = new URLSearchParams({
+    page: 'bookshelf',
+    shelf: 'review',
+    file: path || '.',
+  })
+  const line = /^L?(\d+)(?:-L?\d+)?$/.exec(hash)
+  if (line) query.set('line', line[1])
+  else if (hash) query.set('anchor', hash)
+  return `/?${query}`
 }

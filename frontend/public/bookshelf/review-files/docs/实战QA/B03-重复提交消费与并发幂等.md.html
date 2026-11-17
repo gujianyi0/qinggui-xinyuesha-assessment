@@ -13,15 +13,15 @@
 <p>Jobs.claim用条件UPDATE确保一个有效领取者，并增加attempts/generation。暂存块按job、generation、document_id唯一；完成与发布指针更新在同一事务。旧消息、旧代次及终态不会再被领取。Outbox在“已发送但未标记”时允许重发，跨进程去重最终由这些业务条件保证。</p>
 <h2>已有验证与证据</h2>
 <ul>
-<li><a href="/bookshelf/review-files/backend/app/models.py">模型约束</a>、<a href="/bookshelf/review-files/backend/app/jobs.py">Jobs.create/claim/process</a>。</li>
-<li><a href="/bookshelf/review-files/tests/test_jobs.py">并发与幂等单测</a>：test_concurrent_claim_duplicate_and_atomic_publish。</li>
-<li><a href="/bookshelf/review-files/tests/test_api.py">HTTP幂等测试</a>：test_job_idempotency_and_invalid_snapshot。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/compose-linux-20261111-04/summary.json">真实Kafka重投证据</a>：8次同键提交、duplicate_kafka_delivery_no_duplicate_result及Outbox重放。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fmodels.py">模型约束</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fjobs.py">Jobs.create/claim/process</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_jobs.py">并发与幂等单测</a>：test_concurrent_claim_duplicate_and_atomic_publish。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_api.py">HTTP幂等测试</a>：test_job_idempotency_and_invalid_snapshot。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-linux-20261111-04%2Fsummary.json">真实Kafka重投证据</a>：8次同键提交、duplicate_kafka_delivery_no_duplicate_result及Outbox重放。</li>
 </ul>
 <p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
 <h2>怎样核对或演示</h2>
 <p>看8次同键提交是否返回同一Job，再核对发布指针只指向该任务的完整代次。检查旧消息再次到达时claim为空，不执行模型或重复发布。统计时按已发布job/generation，而不是把所有历史暂存行都算成最终记录。</p>
 <h2>结论与边界</h2>
 <p>并不保证计算永远只做一次：崩溃后的代次可能重新计算，也可能保留旧暂存块。保证是同一任务不会因重复消息产生重复最终业务结果。显式换幂等键提交同一快照属于新业务请求，不会被自动合并。</p>
-<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%9E%E6%88%98QA%2F00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md">返回目录与维护说明</a></p>
 </article></body></html>

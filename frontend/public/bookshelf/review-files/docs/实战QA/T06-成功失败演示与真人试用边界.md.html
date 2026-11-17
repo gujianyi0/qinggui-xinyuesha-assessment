@@ -1,5 +1,5 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>T06-成功失败演示与真人试用边界.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><blockquote>
-<p>2026-11-17更新：用户本人多轮真人试用与改进已完成，见<a href="/bookshelf/review-files/docs/%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md.html">当前记录</a>及<a href="/?page=bookshelf&amp;shelf=review&amp;document=8-05">六项新记录</a>。原文中移除项指取消额外招募，不能据此否认已发生的用户反馈及改进。以下保留历史核对。</p>
+<p>2026-11-17更新：用户本人多轮真人试用与改进已完成，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md">当前记录</a>及<a href="/?page=bookshelf&amp;shelf=review&amp;document=8-05">六项新记录</a>。原文中移除项指取消额外招募，不能据此否认已发生的用户反馈及改进。以下保留历史核对。</p>
 </blockquote>
 <h1>T06 成功失败演示与真人试用边界</h1>
 <p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
@@ -16,16 +16,16 @@
 <p>网页断线恢复演示展示一次提交、离线后恢复查询、保存记录和无重复提交；这属于技术验证，不代替独立试用反馈。主库备份演示使用新恢复库，不覆盖主库。</p>
 <h2>已有验证与证据</h2>
 <ul>
-<li><a href="/bookshelf/review-files/docs/%E6%BC%94%E7%A4%BA%E4%B8%8E%E6%95%85%E9%9A%9C%E6%81%A2%E5%A4%8D%E6%89%8B%E5%86%8C.md.html">演示与故障恢复手册</a>。</li>
-<li><a href="/bookshelf/review-files/evaluations/results/live-v19-full-04/results.jsonl">成功与失败真实回答</a>、<a href="/bookshelf/review-files/evaluations/results/live-v19-retry-v01/results.jsonl">V01复测</a>。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/v19-browser-recovery-05/summary.json">浏览器恢复记录</a>。</li>
-<li><a href="/bookshelf/review-files/docs/%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md.html">试用范围决定</a>：真人试用移除的说明。</li>
-<li><a href="/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E5%A4%87%E4%BB%BD%E4%B8%8E%E6%81%A2%E5%A4%8D.md.html">独立库备份恢复</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E6%BC%94%E7%A4%BA%E4%B8%8E%E6%95%85%E9%9A%9C%E6%81%A2%E5%A4%8D%E6%89%8B%E5%86%8C.md">演示与故障恢复手册</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-v19-full-04%2Fresults.jsonl">成功与失败真实回答</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-v19-retry-v01%2Fresults.jsonl">V01复测</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv19-browser-recovery-05%2Fsummary.json">浏览器恢复记录</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md">试用范围决定</a>：真人试用移除的说明。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2FDocker%E4%B8%BB%E5%BA%93%E5%A4%87%E4%BB%BD%E4%B8%8E%E6%81%A2%E5%A4%8D.md">独立库备份恢复</a>。</li>
 </ul>
 <p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
 <h2>怎样核对或演示</h2>
 <p>演示时先打开现有成功/失败运行，解释状态和引用，再按手册展示操作路径；如需现场重新调用模型，要另记新日期、运行号和费用。不要为演示在当前主库启用故障注入，也不要把脚本操作者或浏览器自动化写成外部试用者。</p>
 <h2>结论与边界</h2>
 <p>“用户同意移除”说明当前工程范围，不等于公司原文也已豁免。若验收仍严格要求真人试用，这项就是待确认差距；本轮不重启该环节、不编造访谈和改进记录。已有技术修复不能自动充抵这一原文要求。</p>
-<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%9E%E6%88%98QA%2F00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md">返回目录与维护说明</a></p>
 </article></body></html>

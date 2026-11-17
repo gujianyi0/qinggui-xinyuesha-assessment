@@ -72,9 +72,9 @@
 <p>原始MemoryError的精确分配位置缺失，不能认定唯一根因或断言所有内存问题已消失。Windows历史告警证明当时系统提交量接近上限；其中大内存Python PID尚不能归属到Worker。数据库、API或整个操作系统故障也不在“后台进程退出不连带关闭网页”的保证范围内。</p>
 <h2>证据与版本</h2>
 <ul>
-<li><a href="/bookshelf/review-files/docs/evidence/worker-soak-20261111-01/summary.json">原始summary</a>、<a href="/bookshelf/review-files/docs/evidence/worker-soak-20261111-01/samples.jsonl">逐条采样</a>、<a href="/bookshelf/review-files/docs/evidence/worker-soak-20261111-01/audit.json">独立审计</a>、<a href="/bookshelf/review-files/docs/evidence/worker-soak-20261111-01/implementation.json">源码哈希</a></li>
-<li><a href="/bookshelf/review-files/docs/evidence/worker-soak-20261111-01/delivery-health.json">最终正常健康记录</a>、同目录Worker/Kafka/监督日志与资源采样</li>
-<li><a href="/bookshelf/review-files/docs/evidence/pytest-release-complete-20261111.xml">116项自动化测试</a>、<a href="/bookshelf/review-files/docs/evidence/worker-memory-fatal-a854e36a/summary.json">受控MemoryError</a>、<a href="/bookshelf/review-files/docs/evidence/worker-memory-20261110/embedding-owner-exit.json">所属进程退出清理</a></li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fworker-soak-20261111-01%2Fsummary.json">原始summary</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fworker-soak-20261111-01%2Fsamples.jsonl">逐条采样</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fworker-soak-20261111-01%2Faudit.json">独立审计</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fworker-soak-20261111-01%2Fimplementation.json">源码哈希</a></li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fworker-soak-20261111-01%2Fdelivery-health.json">最终正常健康记录</a>、同目录Worker/Kafka/监督日志与资源采样</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fpytest-release-complete-20261111.xml">116项自动化测试</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fworker-memory-fatal-a854e36a%2Fsummary.json">受控MemoryError</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fworker-memory-20261110%2Fembedding-owner-exit.json">所属进程退出清理</a></li>
 <li>旧01主动中断、旧02含58次连接失败的1804秒记录完整保留，不覆盖、不计作通过</li>
 </ul>
 <p>本地版本仍为1.0，存放<code>F:\Work\Biteagle\入职考核\git</code>；新增验证补充提交和<code>1.0-verified</code>标签，旧1.0/v1.0保持原提交。下一轮为1.1。排除.env、运行数据库、模型缓存及大型依赖；不配置远端或推送。该版本是本轮工程交付，不代替独立真人/公司验收。</p>

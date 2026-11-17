@@ -5,12 +5,12 @@
 <p>准备一段简短演示，走完一次成功请求和一次失败请求。再找位同事或朋友试用，记下他在哪里卡住，并据此改一处。</p>
 </blockquote>
 <h2 id="section-3">本项目回答与证据</h2>
-<p>真人试用与据反馈改进：<strong>已完成，参与者为用户本人。</strong> 当前对话记录包含真实网页使用、截图、明确问题反馈、实际修改和复测。取消另行招募不意味着不存在这些试用。<a href="/bookshelf/review-files/docs/%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md.html">逐条试用与改进记录</a>给出原话、定位、修改和结果。没有虚构同事/朋友身份或额外试用人数；原要求的参与者表述保留在上方，工程事实供考核官核阅。</p>
+<p>真人试用与据反馈改进：<strong>已完成，参与者为用户本人。</strong> 当前对话记录包含真实网页使用、截图、明确问题反馈、实际修改和复测。取消另行招募不意味着不存在这些试用。<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md">逐条试用与改进记录</a>给出原话、定位、修改和结果。没有虚构同事/朋友身份或额外试用人数；原要求的参与者表述保留在上方，工程事实供考核官核阅。</p>
 <p>可在3～5分钟内演示：</p>
 <ol>
-<li>打开本机15180，alice/123登录，新建会话问“查询标准诸葛亮的势力、体力和技能”。检查回答、来源按钮、快照、工具审计；继续追问“其中没有手牌时针对哪些牌”，核对本会话上下文。真实模型耗时和费用以本次Run记录为准，历史已完成结果见<a href="/bookshelf/review-files/docs/2.0.1-%E8%A3%81%E5%AE%9A%E8%AF%9D%E9%A2%98%E4%B8%8E%E8%BE%93%E5%85%A5%E8%8D%89%E7%A8%BF%E4%BF%AE%E5%A4%8D-20261117.md.html">2.0.1报告</a>。</li>
-<li>失败演示采用无需停主库的输入校验：登录后向会话runs接口提交空message，观察422和detail，确认没有新增成功回答。若展示工具失败，则回放<a href="/bookshelf/review-files/docs/%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md.html">完整32条核对中的F01</a>及原始记录，并明确这是已执行记录；现场注入须使用独立测试实例，主服务故障开关保持关闭。</li>
-<li>展开较长来源，向下滚到底并返回；在来源按钮上连续开关，检查按钮不跑开。展示<a href="/bookshelf/review-files/docs/1.11-%E6%9D%A5%E6%BA%90%E6%8C%89%E9%92%AE%E8%B7%B3%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md.html">1.11</a>修前/修后坐标和<a href="/bookshelf/review-files/docs/1.13-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E6%BB%9A%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md.html">1.13</a>真实滚轮记录，说明它们来自用户实际卡住后做的修改。</li>
+<li>打开本机15180，alice/123登录，新建会话问“查询标准诸葛亮的势力、体力和技能”。检查回答、来源按钮、快照、工具审计；继续追问“其中没有手牌时针对哪些牌”，核对本会话上下文。真实模型耗时和费用以本次Run记录为准，历史已完成结果见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F2.0.1-%E8%A3%81%E5%AE%9A%E8%AF%9D%E9%A2%98%E4%B8%8E%E8%BE%93%E5%85%A5%E8%8D%89%E7%A8%BF%E4%BF%AE%E5%A4%8D-20261117.md">2.0.1报告</a>。</li>
+<li>失败演示采用无需停主库的输入校验：登录后向会话runs接口提交空message，观察422和detail，确认没有新增成功回答。若展示工具失败，则回放<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md">完整32条核对中的F01</a>及原始记录，并明确这是已执行记录；现场注入须使用独立测试实例，主服务故障开关保持关闭。</li>
+<li>展开较长来源，向下滚到底并返回；在来源按钮上连续开关，检查按钮不跑开。展示<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.11-%E6%9D%A5%E6%BA%90%E6%8C%89%E9%92%AE%E8%B7%B3%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md">1.11</a>修前/修后坐标和<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.13-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E6%BB%9A%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md">1.13</a>真实滚轮记录，说明它们来自用户实际卡住后做的修改。</li>
 </ol>
-<p>需要更完整的反馈确认、Worker恢复与两身份演示时用<a href="/bookshelf/review-files/docs/%E6%BC%94%E7%A4%BA%E4%B8%8E%E6%95%85%E9%9A%9C%E6%81%A2%E5%A4%8D%E6%89%8B%E5%86%8C.md.html">演示与故障恢复手册</a>。不能在运行中的真实问答主库随意停数据库或开启注入。正式考核是否通过由验收人判断，本记录不替代验收签字。</p>
+<p>需要更完整的反馈确认、Worker恢复与两身份演示时用<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E6%BC%94%E7%A4%BA%E4%B8%8E%E6%95%85%E9%9A%9C%E6%81%A2%E5%A4%8D%E6%89%8B%E5%86%8C.md">演示与故障恢复手册</a>。不能在运行中的真实问答主库随意停数据库或开启注入。正式考核是否通过由验收人判断，本记录不替代验收签字。</p>
 <p><a href="/?page=bookshelf&amp;shelf=review&amp;document=8-05">返回六项记录导航</a> · <a href="/?page=bookshelf&amp;shelf=review&amp;document=8-01">返回文档导航QA</a></p>

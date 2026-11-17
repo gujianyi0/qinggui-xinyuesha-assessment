@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Download } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Download, Star } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ErrorNotice, Spinner } from '@/components/ui'
 import MarkdownDocument from '@/lib/markdown/markdown-document'
@@ -6,14 +6,23 @@ import { useQuery } from '@/lib/query'
 import { updateUrl } from '@/lib/url-state'
 import { displayError } from '@/services/api'
 import { getShelfDocument } from '@/services/bookshelf'
-import type { ShelfCatalog, ShelfDocument } from '@/types/bookshelf'
+import type {
+  LearningActions,
+  ShelfCatalog,
+  ShelfDocument,
+} from '@/types/bookshelf'
 import { shelfHref } from '../utils/shelf-href'
 
 interface ShelfReaderProps {
   document: ShelfDocument
   catalog: ShelfCatalog
+  learning?: LearningActions
 }
-export default function ShelfReader({ document, catalog }: ShelfReaderProps) {
+export default function ShelfReader({
+  document,
+  catalog,
+  learning,
+}: ShelfReaderProps) {
   const [fontSize, setFontSize] = useState(16)
   const reader = useRef<HTMLDivElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
@@ -34,6 +43,7 @@ export default function ShelfReader({ document, catalog }: ShelfReaderProps) {
         : isReview
           ? 'review'
           : 'learning',
+      file: null,
     })
   }
   function handleLink(href: string) {
@@ -61,7 +71,14 @@ export default function ShelfReader({ document, catalog }: ShelfReaderProps) {
       url.origin === location.origin &&
       url.searchParams.get('page') === 'bookshelf'
     ) {
-      openDocument(url.searchParams.get('document'))
+      if (url.searchParams.has('file'))
+        updateUrl({
+          file: url.searchParams.get('file'),
+          line: url.searchParams.get('line'),
+          anchor: url.searchParams.get('anchor'),
+          filePage: null,
+        })
+      else openDocument(url.searchParams.get('document'))
       return true
     }
     return false
@@ -87,6 +104,44 @@ export default function ShelfReader({ document, catalog }: ShelfReaderProps) {
           返回{isReview ? '文档导航' : '知识目录'}
         </button>
         <div className="shelf-reader-actions">
+          {learning && (
+            <>
+              <button
+                type="button"
+                className={
+                  learning.learned ? 'shelf-mastery mastered' : 'shelf-mastery'
+                }
+                disabled={
+                  !learning.canEdit ||
+                  learning.busy ||
+                  learning.learned === undefined
+                }
+                aria-label={learning.learned ? '取消掌握标记' : '标记已掌握'}
+                title={learning.canEdit ? undefined : '共享进度由书架主人维护'}
+                onClick={learning.onMastery}
+              >
+                <Check size={14} />
+                {learning.busy
+                  ? '正在保存'
+                  : learning.learned === undefined
+                    ? '进度未取得'
+                    : learning.learned
+                      ? '已掌握'
+                      : '标记掌握'}
+              </button>
+              <button
+                type="button"
+                aria-pressed={learning.saved}
+                onClick={learning.onSave}
+              >
+                <Star
+                  size={14}
+                  fill={learning.saved ? 'currentColor' : 'none'}
+                />
+                {learning.saved ? '已收藏文章' : '收藏文章'}
+              </button>
+            </>
+          )}
           <button
             type="button"
             aria-label="缩小正文字号"
@@ -108,7 +163,7 @@ export default function ShelfReader({ document, catalog }: ShelfReaderProps) {
             download={document.filename}
           >
             <Download size={14} />
-            原文
+            下载原文
           </a>
         </div>
       </div>
@@ -129,7 +184,11 @@ export default function ShelfReader({ document, catalog }: ShelfReaderProps) {
       ) : (
         content.data && (
           <div className="shelf-reading-layout">
-            <div className="shelf-article" ref={reader} style={{ fontSize }}>
+            <div
+              className="shelf-article shelf-primary-document"
+              ref={reader}
+              style={{ fontSize }}
+            >
               <MarkdownDocument
                 text={content.data}
                 variant="document"

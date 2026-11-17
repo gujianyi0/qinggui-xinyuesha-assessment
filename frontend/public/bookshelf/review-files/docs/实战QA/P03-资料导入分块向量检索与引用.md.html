@@ -1,15 +1,15 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>P03-资料导入分块向量检索与引用.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>P03 资料导入分块向量检索与引用</h1>
 <blockquote>
-<p>1.13补充（2026-11-14）：修复1.12独立原文滚动区吞掉滚轮的问题，改用聊天统一纵向滚动；29项前端测试及普通/矮窗口/窄屏实际滚轮核对。见<a href="/bookshelf/review-files/docs/1.13-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E6%BB%9A%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md.html">1.13报告</a>。</p>
+<p>1.13补充（2026-11-14）：修复1.12独立原文滚动区吞掉滚轮的问题，改用聊天统一纵向滚动；29项前端测试及普通/矮窗口/窄屏实际滚轮核对。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.13-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E6%BB%9A%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md">1.13报告</a>。</p>
 </blockquote>
 <blockquote>
-<p>1.12补充（2026-11-14）：来源原文按标题、段落、列表、表格与代码排版，未改写原始证据；29项前端测试和五份实际来源核对通过，无付费回归。见<a href="/bookshelf/review-files/docs/1.12-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E9%98%85%E8%AF%BB%E6%8E%92%E7%89%88-20261114.md.html">1.12报告</a>。</p>
+<p>1.12补充（2026-11-14）：来源原文按标题、段落、列表、表格与代码排版，未改写原始证据；29项前端测试和五份实际来源核对通过，无付费回归。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.12-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E9%98%85%E8%AF%BB%E6%8E%92%E7%89%88-20261114.md">1.12报告</a>。</p>
 </blockquote>
 <blockquote>
-<p>1.11补充（2026-11-14）：实际复现来源展开后按钮横移约262px，拆分按钮排与详情区并停止阅读时强制跟随；本轮仅网页变更，25项前端行为测试通过，未重跑付费评测。见<a href="/bookshelf/review-files/docs/1.11-%E6%9D%A5%E6%BA%90%E6%8C%89%E9%92%AE%E8%B7%B3%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md.html">1.11报告</a>。</p>
+<p>1.11补充（2026-11-14）：实际复现来源展开后按钮横移约262px，拆分按钮排与详情区并停止阅读时强制跟随；本轮仅网页变更，25项前端行为测试通过，未重跑付费评测。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.11-%E6%9D%A5%E6%BA%90%E6%8C%89%E9%92%AE%E8%B7%B3%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md">1.11报告</a>。</p>
 </blockquote>
 <blockquote>
-<p>1.10补充（2026-11-14）：正文去除可见Markdown标记与源码位置，引用改为回答末尾按钮展开；原始正文、来源、行号和版本仍保留。此次前端22项、后端相关49项通过，旧1.9完整32条真实回归仍是历史证据，不冒充新提示词的全量实测。见<a href="/bookshelf/review-files/docs/1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md.html">1.10报告</a>。</p>
+<p>1.10补充（2026-11-14）：正文去除可见Markdown标记与源码位置，引用改为回答末尾按钮展开；原始正文、来源、行号和版本仍保留。此次前端22项、后端相关49项通过，旧1.9完整32条真实回归仍是历史证据，不冒充新提示词的全量实测。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md">1.10报告</a>。</p>
 </blockquote>
 <p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
 <p>状态：<strong>已实现，真实BGE与pgvector已有验证</strong>。</p>
@@ -21,19 +21,19 @@
 <h2>回答</h2>
 <p>当前知识基础来自冻结的新月杀三包。静态提取198条资料，再按320字符、64字符重叠分成659块；固定revision的中文BGE在CPU产生512维向量，Worker将文本、元数据及向量写入PostgreSQL/pgvector，完整代次成功后才发布索引。</p>
 <h2>本项目如何实现</h2>
-<p><a href="/bookshelf/review-files/backend/app/chunking.py">chunking.py</a>负责分块并保留字符位置；<a href="/bookshelf/review-files/backend/app/catalog.py">catalog.py</a>中的KnowledgeSearch组合基础规则、词面候选和向量召回，形成供模型使用的上下文。来源带path、line_start/line_end、snapshot_id、evidence_type、excerpt、sha256等字段。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fchunking.py">chunking.py</a>负责分块并保留字符位置；<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fcatalog.py">catalog.py</a>中的KnowledgeSearch组合基础规则、词面候选和向量召回，形成供模型使用的上下文。来源带path、line_start/line_end、snapshot_id、evidence_type、excerpt、sha256等字段。</p>
 <p>模型回答的引用取自实际工具结果。版本一致性说明是额外的项目维护资料，明确标作project_scope，不伪装成上游规则。用户反馈引用是本会话陈述，也不当成独立游戏证据。</p>
 <h2>已有验证与证据</h2>
 <ul>
-<li><a href="/bookshelf/review-files/data/manifest.json">来源清单</a>、<a href="/bookshelf/review-files/data/documents.json">资料</a>、<a href="/bookshelf/review-files/tests/test_chunking.py">分块测试</a>。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/compose-linux-20261111-04/summary.json">真实容器17组结果</a>：包含CPU导入659块、pgvector查询及缓存验证。</li>
-<li><a href="/bookshelf/review-files/evaluations/results/v19-final-review.json">最终32条审查</a>：采用109处引用，完整性审计另有记录。</li>
-<li><a href="/bookshelf/review-files/scripts/audit_eval_sources.py">引用审计实现</a>：核对工具绑定、文件哈希、行号及会话陈述范围。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=data%2Fmanifest.json">来源清单</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=data%2Fdocuments.json">资料</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_chunking.py">分块测试</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-linux-20261111-04%2Fsummary.json">真实容器17组结果</a>：包含CPU导入659块、pgvector查询及缓存验证。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Fv19-final-review.json">最终32条审查</a>：采用109处引用，完整性审计另有记录。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=scripts%2Faudit_eval_sources.py">引用审计实现</a>：核对工具绑定、文件哈希、行号及会话陈述范围。</li>
 </ul>
 <p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
 <h2>怎样核对或演示</h2>
 <p>在保存的R04结果中找到检索回执和引用，打开对应冻结文件核对当前体力的规则。再看J04是否把主记录和SC04V前提分开。需要重新导入时在隔离环境使用新任务键，避免覆盖正在演示的发布指针。</p>
 <h2>结论与边界</h2>
 <p>659是该快照一次完整发布的块数，不是数据库所有历史暂存块总数。来源哈希正确只证明文件未变、引用可追溯，不能单独证明答案语义正确或每条额外召回都相关。换快照/模型需重新导入。</p>
-<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%9E%E6%88%98QA%2F00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md">返回目录与维护说明</a></p>
 </article></body></html>

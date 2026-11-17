@@ -157,8 +157,8 @@
 </ul>
 <p>详细命令输出、最终浏览器多视口数据与产物哈希见同目录evidence中的v2记录。浏览器截图接口两次超时，因此本轮只报告实际DOM/输入事件/几何检查，不声称完成截图视觉验收。</p>
 <p>额外模拟后端和测试网页的启动命令被自动审批拒绝，仅返回<code>blocked by policy</code>，没有细分原因；该服务没有启动，没有改动主数据库。额外浏览器写入测试未执行，反馈与任务写入流程的验证为组件网络替身测试。</p>
-<p>本轮记录：<a href="/bookshelf/review-files/docs/evidence/v2-local-quality-20261114.log.txt">完整前端检查</a>、<a href="/bookshelf/review-files/docs/evidence/v2-local-build-20261114.log.txt">本地构建</a>、<a href="/bookshelf/review-files/docs/evidence/v2-local-browser-20261114.json">真实浏览器检查</a>、<a href="/bookshelf/review-files/docs/evidence/v2-local-artifacts-20261114.json">源码与产物SHA256</a>。源码哈希覆盖前端源码、测试、配置和本地构建脚本；Git提交号见本地分支日志，产物自描述文件同时可从15180的<code>/v2-build.json</code>读取。</p>
-<p>构建后HTTP核对：<a href="/bookshelf/review-files/docs/evidence/v2-local-serving-20261114.json">本地服务与12个产物哈希</a>。15180实际读取的字节与构建清单一致，健康接口指向PostgreSQL和live模型；15174仍返回原页面。</p>
+<p>本轮记录：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv2-local-quality-20261114.log">完整前端检查</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv2-local-build-20261114.log">本地构建</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv2-local-browser-20261114.json">真实浏览器检查</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv2-local-artifacts-20261114.json">源码与产物SHA256</a>。源码哈希覆盖前端源码、测试、配置和本地构建脚本；Git提交号见本地分支日志，产物自描述文件同时可从15180的<code>/v2-build.json</code>读取。</p>
+<p>构建后HTTP核对：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv2-local-serving-20261114.json">本地服务与12个产物哈希</a>。15180实际读取的字节与构建清单一致，健康接口指向PostgreSQL和live模型；15174仍返回原页面。</p>
 <p>本地检查点使用<code>feat/v2-local-preview</code>分支及<code>v2.0.0-local.1</code>标签，保存于用户指定的<code>F:\Work\Biteagle\入职考核\git</code>，不推送远端。已有1.x标签与main不改写。</p>
 <p>检查工具范围依据用户提供的<a aria-disabled="true" title="该本机资料未随检阅副本导出">前端规范SKILL.md</a>及其<a aria-disabled="true" title="该本机资料未随检阅副本导出">验证与交付规范</a>：原文要求“缺少脚本、依赖、浏览器、服务或环境时报告具体阻碍；未经运行不声称通过，也不为了文档对齐擅自引入整套工具链。”本项目缺少Storybook与Lighthouse现成配置，因此报告为未执行；这不是公司豁免，公开推广前仍须补齐并评审。该本机规范目录不包含在独立Git仓库，远端查看时需另行提供规范副本或授权来源。</p>
 </article></body></html>

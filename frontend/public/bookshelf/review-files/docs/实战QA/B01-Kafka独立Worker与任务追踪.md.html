@@ -13,14 +13,14 @@
 <p>实际状态包括queued、running、retry_wait、cancel_requested，以及succeeded/failed/cancelled三个终态。查询不靠Kafka消息还在不在，也不以Redis缓存判断任务完成。</p>
 <h2>已有验证与证据</h2>
 <ul>
-<li><a href="/bookshelf/review-files/backend/app/main.py">任务接口</a>、<a href="/bookshelf/review-files/backend/app/models.py">Job/JobAttempt/Outbox模型</a>、<a href="/bookshelf/review-files/backend/app/worker.py">Worker</a>。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/compose-linux-20261111-04/summary.json">1.4真实容器17组</a>：导入、进度、重试、取消和恢复。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/v19-final-overview.json">1.9服务快照</a>：Worker/Kafka等处于运行状态，属于2026-11-13记录。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fmain.py">任务接口</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fmodels.py">Job/JobAttempt/Outbox模型</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fworker.py">Worker</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-linux-20261111-04%2Fsummary.json">1.4真实容器17组</a>：导入、进度、重试、取消和恢复。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv19-final-overview.json">1.9服务快照</a>：Worker/Kafka等处于运行状态，属于2026-11-13记录。</li>
 </ul>
 <p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
 <h2>怎样核对或演示</h2>
 <p>2026-11-14本会话通过现有API只读查询alice：14个成功、7个取消，排队/运行/等待重试/取消中均为0；最新任务100%、执行1次。这是当次alice可见任务快照，不是全库所有身份的实时保证。现场以网页后台任务或GET接口查看。</p>
 <h2>结论与边界</h2>
 <p>API返回202只证明已持久受理，不代表Kafka已经送达或任务已经成功。当前单Worker、单分区用于本机考核；公网访客入口不开放后台任务，后台演示使用本机完整网页。</p>
-<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%9E%E6%88%98QA%2F00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md">返回目录与维护说明</a></p>
 </article></body></html>

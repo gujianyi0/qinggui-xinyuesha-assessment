@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>架构与接口说明.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>架构、接口与数据访问边界</h1>
-<p>1.10展示层补充（2026-11-14）：API和数据库仍保留原始正文与结构化引用，网页仅转换助手可读正文；详细来源由回答末尾按钮按需展开。模型提示词改为简洁中文，不抄写工程位置。数据库迁移仍为0002；回归范围见<a href="/bookshelf/review-files/docs/1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md.html">1.10报告</a>。以下架构内容保持1.9基线。</p>
-<p>更新：2026-11-13，1.9。当前验证以<a href="/bookshelf/review-files/docs/1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md.html">1.9报告</a>为准，历史故障证据继续保留。当前主库备份见<a href="/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E5%A4%87%E4%BB%BD%E4%B8%8E%E6%81%A2%E5%A4%8D.md.html">备份与恢复</a>。</p>
+<p>1.10展示层补充（2026-11-14）：API和数据库仍保留原始正文与结构化引用，网页仅转换助手可读正文；详细来源由回答末尾按钮按需展开。模型提示词改为简洁中文，不抄写工程位置。数据库迁移仍为0002；回归范围见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md">1.10报告</a>。以下架构内容保持1.9基线。</p>
+<p>更新：2026-11-13，1.9。当前验证以<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md">1.9报告</a>为准，历史故障证据继续保留。当前主库备份见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2FDocker%E4%B8%BB%E5%BA%93%E5%A4%87%E4%BB%BD%E4%B8%8E%E6%81%A2%E5%A4%8D.md">备份与恢复</a>。</p>
 <h2>请求与后台调用链</h2>
 <pre><code class="language-mermaid">flowchart LR
     Web[React网页] --&gt; Nginx[Nginx /api代理]
@@ -113,13 +113,13 @@
 <li>PostgreSQL保存用户/token摘要、会话/消息/Run/工具/用量、反馈、任务/尝试/Outbox及索引发布数据。Redis无权替代这些业务记录。</li>
 <li>费用在统一账本预留和核销，200元预算不随迁移重置；用量缺失按预留保守记账并标估算。单价估算不是供应商账单。</li>
 </ul>
-<p>当前主库为Docker；旧原生库由启动标记阻止写入。取消不能退回已发生的供应商费用，运行和发布的竞争结果须按持久终态核对。来源授权、冻结快照及第三方组件见<a href="/bookshelf/review-files/docs/%E6%9D%A5%E6%BA%90%E4%B8%8E%E5%A4%8D%E7%94%A8%E8%AF%B4%E6%98%8E.md.html">来源与复用说明</a>。</p>
+<p>当前主库为Docker；旧原生库由启动标记阻止写入。取消不能退回已发生的供应商费用，运行和发布的竞争结果须按持久终态核对。来源授权、冻结快照及第三方组件见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E6%9D%A5%E6%BA%90%E4%B8%8E%E5%A4%8D%E7%94%A8%E8%AF%B4%E6%98%8E.md">来源与复用说明</a>。</p>
 <h2>1.8：共享真实问答入口</h2>
 <p>另增<code>public-entry</code>固定HTTPS网页及每台提供者电脑的Durable Object连接，<code>scripts/public_service.py</code>主动进行出站HTTPS443短时拉取和回复；本机<code>backend/public_gateway.py</code>仅绑定18083，复用原API18081及PostgreSQL费用总账。公共客户端不直接连接供应商，也不接触alice/bob登录、资料导入、QQ或管理接口。</p>
 <p><code>POST /api/auth/guest</code>由网关签发带签名的访客令牌；主API的<code>/internal/public/identity</code>和<code>/internal/public/sessions/{id}/runs</code>受独立服务身份保护。公共run请求包含UUID请求编号，数据库事务与确定性run_id保证重复编号不重复计费。客户端GET已保存运行结果，公网不依赖SSE；本机原流式接口保持。<code>/__poll</code>、<code>/__reply</code>、<code>/__status</code>、<code>/__disconnect</code>均须独立连接控制凭据。</p>
-<p>按用户最新要求无问答配额；保留预算、归属校验和并发/输入保护。来源和费用与原主流程一致。使用和私有配置见<a href="/bookshelf/review-files/docs/%E6%9C%AC%E6%9C%BA%E5%AF%B9%E5%A4%96%E6%9C%8D%E5%8A%A1.md.html">本机对外服务</a>。</p>
+<p>按用户最新要求无问答配额；保留预算、归属校验和并发/输入保护。来源和费用与原主流程一致。使用和私有配置见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E6%9C%AC%E6%9C%BA%E5%AF%B9%E5%A4%96%E6%9C%8D%E5%8A%A1.md">本机对外服务</a>。</p>
 <h2>v2.0本地前端组织（2026-11-14）</h2>
 <p>当前本地候选版使用<code>frontend/src/features/{auth,chat,library,feedback,jobs,workspace}</code>，跨功能只经index.ts导出。领域请求位于services，Query/Markdown/页面异常适配位于lib，共享UI和来源展示位于components。主接口、Kafka Worker、真实模型与费用账本没有迁移。新的15180入口复用18081，15174及公网仍是1.13。</p>
 <p>服务列表缓存按身份隔离，后台刷新保留旧内容；导航、会话、快照和资料筛选由URL保存；表单和流式消息为本地编辑状态。任务轮询仅在页面订阅且有活动任务时运行，隐藏页面不轮询。观察请求暂停不等于取消服务器运行，回执恢复继续使用原request_id。</p>
-<p>详见<a href="/bookshelf/review-files/docs/2.0-%E6%9C%AC%E5%9C%B0%E5%86%85%E6%B5%8B%E4%B8%8E%E5%89%8D%E7%AB%AF%E8%A7%84%E8%8C%83%E5%AF%B9%E7%85%A7-20261114.md.html">本地内测与规范对照</a>，完整公司门禁中尚未执行的检查按该报告列明。</p>
+<p>详见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F2.0-%E6%9C%AC%E5%9C%B0%E5%86%85%E6%B5%8B%E4%B8%8E%E5%89%8D%E7%AB%AF%E8%A7%84%E8%8C%83%E5%AF%B9%E7%85%A7-20261114.md">本地内测与规范对照</a>，完整公司门禁中尚未执行的检查按该报告列明。</p>
 </article></body></html>

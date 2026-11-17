@@ -1,9 +1,9 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>真实模型对照记录.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>真实模型对照记录（2026-11-10）</h1>
 <blockquote>
-<p>最新1.9：<a href="/bookshelf/review-files/docs/%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md.html">原32条四组与逐条审查</a>、<a href="/bookshelf/review-files/docs/1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md.html">修正/失败/费用全过程</a>。最终同版本整组V01超时，定向复测后采用32条/35回合，109引用问题0，补充三题另计。下文为早期历史，未回填原记录。</p>
+<p>最新1.9：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md">原32条四组与逐条审查</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md">修正/失败/费用全过程</a>。最终同版本整组V01超时，定向复测后采用32条/35回合，109引用问题0，补充三题另计。下文为早期历史，未回填原记录。</p>
 </blockquote>
 <h2>最新完整回归与来源核对</h2>
-<p>最终整组<code>live-full-regression-20261110-05</code>共32条/35轮，均completed。Codex逐条核对答案、工具回执和冻结来源，129处引用完整性检查0项不一致。<a href="/bookshelf/review-files/docs/%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92%E6%A0%B8%E5%AF%B9-20261110.md.html">完整报告</a>逐项列出核对结论，结构化证据保存run_id、答案哈希、主要依据及所有返回引用。真人验收仍待进行，不修改原始<code>human_review_pending</code>。</p>
+<p>最终整组<code>live-full-regression-20261110-05</code>共32条/35轮，均completed。Codex逐条核对答案、工具回执和冻结来源，129处引用完整性检查0项不一致。<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92%E6%A0%B8%E5%AF%B9-20261110.md">完整报告</a>逐项列出核对结论，结构化证据保存run_id、答案哈希、主要依据及所有返回引用。真人验收仍待进行，不修改原始<code>human_review_pending</code>。</p>
 <p>五轮完整重跑使用相同输入SHA256。01/02发现召回、引用、反馈与时序问题；03保留R03空正文failed；04完成35轮后仍查到V01“旧版说明”缺少历史证据；修正项目摘要并实际重新发布索引后，05完成全部来源核对。未通过放宽预期、改写失败记录取得结果。</p>
 <p>99项Python回归及Ruff通过；正常预览已恢复，故障注入关闭。约5.6241元是项目预算账本估算，不是供应商账单。先前Worker退出造成访问中断的稳定性问题另列，未以评测完成替代长期稳定性验证。</p>
 <h2>早期两轮对照（历史）</h2>
@@ -49,5 +49,5 @@
 <h2>SC01补充复验</h2>
 <p>经冻结技能源码blade.lua:20–21核对，两项bypass标志由技能设置，现从玩家必填项排除，其他局面条件仍须匹配。<code>live-player-input-fix-20261110</code>单条真实复验已完成，工具由needs_clarification转为verified，引用指向SC01执行证据。这是补充单条结果，不替代整组32条。</p>
 <h2>六项问题的后续处理</h2>
-<p>上述整组复测中未满足检查的J01/J02/J04/J05/J08/M02，现已按原输入完成定向修复、真实复测及来源核对。<a href="/bookshelf/review-files/docs/%E8%A3%81%E5%AE%9A%E4%B8%8E%E5%A4%9A%E8%BD%AE%E9%97%AE%E9%A2%98%E6%A0%B8%E5%AF%B9-20261110.md.html">逐条报告</a>记录固定牌面、前提差异、分支证据和M02词面误报。首次定向复测即使机械通过仍发现内容错误，该记录保留；最终记录为<code>live-targeted-rulings-multiturn-20261110-02</code>，6条/7回合。未将本轮子集结果覆盖原整组32条统计，真人验收仍待进行。</p>
+<p>上述整组复测中未满足检查的J01/J02/J04/J05/J08/M02，现已按原输入完成定向修复、真实复测及来源核对。<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E8%A3%81%E5%AE%9A%E4%B8%8E%E5%A4%9A%E8%BD%AE%E9%97%AE%E9%A2%98%E6%A0%B8%E5%AF%B9-20261110.md">逐条报告</a>记录固定牌面、前提差异、分支证据和M02词面误报。首次定向复测即使机械通过仍发现内容错误，该记录保留；最终记录为<code>live-targeted-rulings-multiturn-20261110-02</code>，6条/7回合。未将本轮子集结果覆盖原整组32条统计，真人验收仍待进行。</p>
 </article></body></html>

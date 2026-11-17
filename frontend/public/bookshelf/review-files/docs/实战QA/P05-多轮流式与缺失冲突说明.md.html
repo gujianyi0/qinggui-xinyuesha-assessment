@@ -1,12 +1,12 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>P05-多轮流式与缺失冲突说明.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>P05 多轮流式与缺失冲突说明</h1>
 <blockquote>
-<p>1.13补充（2026-11-14）：修复1.12独立原文滚动区吞掉滚轮的问题，改用聊天统一纵向滚动；29项前端测试及普通/矮窗口/窄屏实际滚轮核对。见<a href="/bookshelf/review-files/docs/1.13-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E6%BB%9A%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md.html">1.13报告</a>。</p>
+<p>1.13补充（2026-11-14）：修复1.12独立原文滚动区吞掉滚轮的问题，改用聊天统一纵向滚动；29项前端测试及普通/矮窗口/窄屏实际滚轮核对。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.13-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E6%BB%9A%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md">1.13报告</a>。</p>
 </blockquote>
 <blockquote>
-<p>1.11补充（2026-11-14）：实际复现来源展开后按钮横移约262px，拆分按钮排与详情区并停止阅读时强制跟随；本轮仅网页变更，25项前端行为测试通过，未重跑付费评测。见<a href="/bookshelf/review-files/docs/1.11-%E6%9D%A5%E6%BA%90%E6%8C%89%E9%92%AE%E8%B7%B3%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md.html">1.11报告</a>。</p>
+<p>1.11补充（2026-11-14）：实际复现来源展开后按钮横移约262px，拆分按钮排与详情区并停止阅读时强制跟随；本轮仅网页变更，25项前端行为测试通过，未重跑付费评测。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.11-%E6%9D%A5%E6%BA%90%E6%8C%89%E9%92%AE%E8%B7%B3%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md">1.11报告</a>。</p>
 </blockquote>
 <blockquote>
-<p>1.10补充（2026-11-14）：正文去除可见Markdown标记与源码位置，引用改为回答末尾按钮展开；原始正文、来源、行号和版本仍保留。此次前端22项、后端相关49项通过，旧1.9完整32条真实回归仍是历史证据，不冒充新提示词的全量实测。见<a href="/bookshelf/review-files/docs/1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md.html">1.10报告</a>。</p>
+<p>1.10补充（2026-11-14）：正文去除可见Markdown标记与源码位置，引用改为回答末尾按钮展开；原始正文、来源、行号和版本仍保留。此次前端22项、后端相关49项通过，旧1.9完整32条真实回归仍是历史证据，不冒充新提示词的全量实测。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md">1.10报告</a>。</p>
 </blockquote>
 <p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
 <p>状态：<strong>已实现，已有真实多轮与浏览器证据</strong>。</p>
@@ -18,19 +18,19 @@
 <h2>回答</h2>
 <p>本机网页支持逐步接收回答事件，公网共享入口采用轮询保存结果。多轮通过本会话近期消息承接主体和条件，例如先问诸葛亮技能、再问空城限制。缺资料、缺裁定前提和版本冲突分别处理，不能靠常识补出未查到的结论。</p>
 <h2>本项目如何实现</h2>
-<p><a href="/bookshelf/review-files/backend/app/runtime.py">runtime.py</a>维护异步运行与事件，常用事件包括started、progress、delta、citations及completed/failed/cancelled。<a href="/bookshelf/review-files/frontend/src/features/chat/services/run-transport.ts.txt">前端传输</a>在发送前保存request_id，断线查询原运行；离页只分离观察，显式停止才取消。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fruntime.py">runtime.py</a>维护异步运行与事件，常用事件包括started、progress、delta、citations及completed/failed/cancelled。<a href="/?page=bookshelf&amp;shelf=review&amp;file=frontend%2Fsrc%2Ffeatures%2Fchat%2Fservices%2Frun-transport.ts">前端传输</a>在发送前保存request_id，断线查询原运行；离页只分离观察，显式停止才取消。</p>
 <p>N01表示有限检索未查到虚构扩展；V01同时呈现10人文案和2–8配置；V02说明客户端号不足以保证服务器一致。复杂裁定未取得本轮有效工具结果时不输出模型猜测。</p>
 <h2>已有验证与证据</h2>
 <ul>
-<li><a href="/bookshelf/review-files/docs/%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md.html">M01–M03、V01/V02、N01/N02逐条核对</a>。</li>
-<li><a href="/bookshelf/review-files/backend/app/history_sources.py">历史来源复核</a>及<a href="/bookshelf/review-files/tests/test_history_sources.py">测试</a>：限本会话、同快照、文件哈希/行号有效的静态资料。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/v19-browser-recovery-05/summary.json">公网断线恢复</a>：一次提交，刷新找回同一回答。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md">M01–M03、V01/V02、N01/N02逐条核对</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fhistory_sources.py">历史来源复核</a>及<a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_history_sources.py">测试</a>：限本会话、同快照、文件哈希/行号有效的静态资料。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv19-browser-recovery-05%2Fsummary.json">公网断线恢复</a>：一次提交，刷新找回同一回答。</li>
 </ul>
 <p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
 <h2>怎样核对或演示</h2>
 <p>读取M01两轮是否保留诸葛亮，M03是否合并新版本与重开恢复信息。查看V01整组失败和同版本重试，不以“最终有答案”删除曾经超时的记录。公网演示不要要求逐token推送，它的设计是轮询。</p>
 <h2>结论与边界</h2>
 <p>普通模型上下文是有限近期消息，裁定回溯也有长度和场景识别边界，不是无限记忆。缓存的事件可丢弃，持久结果仍可查询；服务重启时中断模型运行记失败并结算，而非自动继续一次付费生成。</p>
-<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
-<p>v2本地重构说明：源码链接已迁至新功能目录；此处原有真实模型/公网证据仍按原版本及日期解读，不视作v2新增付费评测。参见<a href="/bookshelf/review-files/docs/2.0-%E6%9C%AC%E5%9C%B0%E5%86%85%E6%B5%8B%E4%B8%8E%E5%89%8D%E7%AB%AF%E8%A7%84%E8%8C%83%E5%AF%B9%E7%85%A7-20261114.md.html">2.0本地内测报告</a>。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%9E%E6%88%98QA%2F00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md">返回目录与维护说明</a></p>
+<p>v2本地重构说明：源码链接已迁至新功能目录；此处原有真实模型/公网证据仍按原版本及日期解读，不视作v2新增付费评测。参见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F2.0-%E6%9C%AC%E5%9C%B0%E5%86%85%E6%B5%8B%E4%B8%8E%E5%89%8D%E7%AB%AF%E8%A7%84%E8%8C%83%E5%AF%B9%E7%85%A7-20261114.md">2.0本地内测报告</a>。</p>
 </article></body></html>

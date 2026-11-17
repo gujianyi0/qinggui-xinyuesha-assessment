@@ -10,7 +10,7 @@
 <li>F01在明确开启的评测故障模式执行；正常预览恢复情况单列健康记录。</li>
 </ul>
 <h2>逐条答案与来源</h2>
-<p>下面定位中<code>standard/...</code>等相对路径位于<code>data/sources/freekill-local-b9dc701220bc/runtime/packages/</code>；裁定路径相对项目根目录。每一轮的run_id、答案哈希、完整引用哈希和工具回执见<a href="/bookshelf/review-files/docs/evidence/full-regression-source-review-20261110.json">结构化核对</a>。</p>
+<p>下面定位中<code>standard/...</code>等相对路径位于<code>data/sources/freekill-local-b9dc701220bc/runtime/packages/</code>；裁定路径相对项目根目录。每一轮的run_id、答案哈希、完整引用哈希和工具回执见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Ffull-regression-source-review-20261110.json">结构化核对</a>。</p>
 <table>
 <thead>
 <tr>
@@ -226,8 +226,8 @@
 </ol>
 <h2>证据与边界</h2>
 <ul>
-<li><a href="/bookshelf/review-files/evaluations/results/live-full-regression-20261110-05/results.jsonl">最终原始记录</a>、<a href="/bookshelf/review-files/evaluations/results/live-full-regression-20261110-05/metadata.json">元数据</a>、<a href="/bookshelf/review-files/evaluations/results/live-full-regression-20261110-05/citation-audit.json">引用完整性</a>。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/pytest-full-regression-final.xml">99项自动化测试</a>、<a href="/bookshelf/review-files/docs/evidence/full-regression-reindex-20261110.json">资料重新发布任务</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-full-regression-20261110-05%2Fresults.jsonl">最终原始记录</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-full-regression-20261110-05%2Fmetadata.json">元数据</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-full-regression-20261110-05%2Fcitation-audit.json">引用完整性</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fpytest-full-regression-final.xml">99项自动化测试</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Ffull-regression-reindex-20261110.json">资料重新发布任务</a>。</li>
 <li>中间全部五轮目录均保留。R03空正文失败及V01错误内容仍可对照，不合并成虚构的一次全通过。</li>
 <li>本机预览曾因Worker退出而整体停止，退出前日志出现MemoryError。重启恢复并确认网页和API可访问；未证明内存异常的全部成因。该运行稳定性问题单列，不以本次评测完成代替长期稳定性验收。</li>
 <li>本轮未执行QQ发送、真人试用、Docker复现或公司验收；这些仍为后续事项。费用为项目预算账本估算，不是供应商账单。</li>

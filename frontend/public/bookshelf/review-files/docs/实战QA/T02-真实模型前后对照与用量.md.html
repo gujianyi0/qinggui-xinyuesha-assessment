@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>T02-真实模型前后对照与用量.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>T02 真实模型前后对照与用量</h1>
 <blockquote>
-<p>1.10补充（2026-11-14）：正文去除可见Markdown标记与源码位置，引用改为回答末尾按钮展开；原始正文、来源、行号和版本仍保留。此次前端22项、后端相关49项通过，旧1.9完整32条真实回归仍是历史证据，不冒充新提示词的全量实测。见<a href="/bookshelf/review-files/docs/1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md.html">1.10报告</a>。</p>
+<p>1.10补充（2026-11-14）：正文去除可见Markdown标记与源码位置，引用改为回答末尾按钮展开；原始正文、来源、行号和版本仍保留。此次前端22项、后端相关49项通过，旧1.9完整32条真实回归仍是历史证据，不冒充新提示词的全量实测。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md">1.10报告</a>。</p>
 </blockquote>
 <p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
 <p>状态：<strong>已有同组真实运行、修正对照及耗时用量记录</strong>。</p>
@@ -12,19 +12,19 @@
 <h2>回答</h2>
 <p>1.9保留同一组32条的四轮真实运行，以及失败项单独复测。实际调用deepseek-flash；保存正文、引用、工具回执、状态、耗时、输入输出tokens、提示词版本和结算信息。不同轮次原始失败保留，不把最终通过结果覆盖回旧文件。</p>
 <h2>本项目如何实现</h2>
-<p><a href="/bookshelf/review-files/evaluations/run.py">评测入口</a>按用例请求流式接口并落JSONL；<a href="/bookshelf/review-files/scripts/audit_eval_sources.py">引用审计</a>核对引用来源完整性。最终采纳清单单独关联来源轮次，避免“曾经答对”与“本轮全过”混淆。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Frun.py">评测入口</a>按用例请求流式接口并落JSONL；<a href="/?page=bookshelf&amp;shelf=review&amp;file=scripts%2Faudit_eval_sources.py">引用审计</a>核对引用来源完整性。最终采纳清单单独关联来源轮次，避免“曾经答对”与“本轮全过”混淆。</p>
 <p>第一轮R06超时、V02缺引用；第二轮R04附加错误前提、D04引用定位不当、I01/I02代填预期；第三轮固定组通过，但额外AR01暴露手牌上限题缺来源；修正后第四轮31条通过、V01超时，同代码复测V01通过。超时属于真实运行结果，不从统计中抹掉。</p>
 <h2>已有验证与证据</h2>
 <ul>
-<li><a href="/bookshelf/review-files/evaluations/results/live-v19-full-01/results.jsonl">第一轮</a>、<a href="/bookshelf/review-files/evaluations/results/live-v19-full-02/results.jsonl">第二轮</a>、<a href="/bookshelf/review-files/evaluations/results/live-v19-full-03/results.jsonl">第三轮</a>、<a href="/bookshelf/review-files/evaluations/results/live-v19-full-04/results.jsonl">第四轮</a>。</li>
-<li><a href="/bookshelf/review-files/evaluations/results/live-v19-retry-v01/results.jsonl">V01复测</a>、<a href="/bookshelf/review-files/evaluations/results/v19-final-review.json">采纳审查</a>。</li>
-<li><a href="/bookshelf/review-files/docs/%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md.html">逐条解释与前后比较</a>。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/v19-evaluation-settlement.json">隔离评测结算</a>、<a href="/bookshelf/review-files/docs/evidence/assessment_eval_v19_r4-settlement.json">第四轮结算</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-v19-full-01%2Fresults.jsonl">第一轮</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-v19-full-02%2Fresults.jsonl">第二轮</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-v19-full-03%2Fresults.jsonl">第三轮</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-v19-full-04%2Fresults.jsonl">第四轮</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-v19-retry-v01%2Fresults.jsonl">V01复测</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Fv19-final-review.json">采纳审查</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md">逐条解释与前后比较</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv19-evaluation-settlement.json">隔离评测结算</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fassessment_eval_v19_r4-settlement.json">第四轮结算</a>。</li>
 </ul>
 <p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
 <h2>怎样核对或演示</h2>
 <p>例如第四轮R04：status=completed，prompt_version=grounded-48127a13cfb16704，elapsed_ms=4485，input_tokens=3239、output_tokens=156。其他条目分别查原行，不能把此数当全组平均值。最终采用的35回合共109处引用，完整性审计无定位/哈希问题；仍需逐条语义核对“引用能否支持这句回答”。</p>
 <h2>结论与边界</h2>
 <p>真实模型运行与Agno受控HTTP协议测试、mock、离线Lua各自报告。F01工具失败是隔离环境故障注入，不能宣称真实供应商当时宕机；V01超时也不足以确定供应商根因。费用按项目账本与估算单价记录，不能冒充供应商发票；后续模型输出仍可能波动。</p>
-<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%9E%E6%88%98QA%2F00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md">返回目录与维护说明</a></p>
 </article></body></html>

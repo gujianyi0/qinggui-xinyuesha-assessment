@@ -9,19 +9,19 @@
 <h2>回答</h2>
 <p>校验分三层：请求Schema限制字段、长度、编号和类型；工具与业务层限制权限、快照、条件和状态；最终回答Schema限制正文及引用形状。类型合法不能证明规则答案正确，所以还需要来源核对与真实评测。</p>
 <h2>本项目如何实现</h2>
-<p><a href="/bookshelf/review-files/backend/app/schemas.py">schemas.py</a>的StrictModel拒绝未知字段，RunInput消息为1–8000字符。Runtime使用异步信号量和有界超时，记录failed/error/retryable；finally释放信号量、结算用量并关闭模型异步客户端。缺密钥、缺单价或预算不足不伪装成功。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fschemas.py">schemas.py</a>的StrictModel拒绝未知字段，RunInput消息为1–8000字符。Runtime使用异步信号量和有界超时，记录failed/error/retryable；finally释放信号量、结算用量并关闭模型异步客户端。缺密钥、缺单价或预算不足不伪装成功。</p>
 <p>库中默认并发2、超时60秒；1.9本机真实部署/回归配置为并发1、超时90秒。它们是并发和等待控制，不是按人/按天问答配额。付费总额仍有200元项目上限。</p>
 <h2>已有验证与证据</h2>
 <ul>
-<li><a href="/bookshelf/review-files/tests/test_api.py">输入和模型失败测试</a>、<a href="/bookshelf/review-files/tests/test_runtime.py">运行与预算测试</a>。</li>
-<li><a href="/bookshelf/review-files/tests/test_agno_protocol.py">Agno协议测试</a>：超时、供应商错误、空正文、工具失败、用量及关闭连接。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/v19-release-final-209.xml">v19后端209项记录</a>。</li>
-<li><a href="/bookshelf/review-files/evaluations/results/live-v19-full-04/results.jsonl">V01真实超时</a>和<a href="/bookshelf/review-files/evaluations/results/live-v19-retry-v01/results.jsonl">同版本重试</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_api.py">输入和模型失败测试</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_runtime.py">运行与预算测试</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_agno_protocol.py">Agno协议测试</a>：超时、供应商错误、空正文、工具失败、用量及关闭连接。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv19-release-final-209.xml">v19后端209项记录</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-v19-full-04%2Fresults.jsonl">V01真实超时</a>和<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-v19-retry-v01%2Fresults.jsonl">同版本重试</a>。</li>
 </ul>
 <p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
 <h2>怎样核对或演示</h2>
 <p>在隔离测试中提交空消息/超长消息，确认流前就校验失败；查看超时运行有失败原因、retryable和结算记录。正文为空时应失败，不能用后附反馈清单掩盖。复现命令可用<code>uv run pytest tests/test_api.py tests/test_runtime.py tests/test_agno_protocol.py -q</code>，本轮仅提供指引。</p>
 <h2>结论与边界</h2>
 <p>主服务不打开测试故障注入。普通模型输出的业务正确性不能由Pydantic保证；并发已满时明确失败，不是无限排队承诺。用量未知的中断会按预留保守结算，取消和失败不保证没有费用。</p>
-<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%9E%E6%88%98QA%2F00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md">返回目录与维护说明</a></p>
 </article></body></html>

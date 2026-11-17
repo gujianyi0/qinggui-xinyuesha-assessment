@@ -1,0 +1,10 @@
+{
+  "worker": "biteagle-knowledge",
+  "version": "d90fa69b-c878-4a7b-adba-ee42b545b866",
+  "learning_documents": 49,
+  "new_article_status": 200,
+  "new_article_final_url": "https://biteagle-knowledge.c2115259095.workers.dev/articles/7-07",
+  "mastered": 48,
+  "revision": 41,
+  "d1_schema_changed": false
+}

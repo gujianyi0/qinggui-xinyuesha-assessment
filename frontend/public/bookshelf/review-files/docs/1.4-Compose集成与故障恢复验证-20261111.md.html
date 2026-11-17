@@ -1,5 +1,5 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1.4-Compose集成与故障恢复验证-20261111.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><blockquote>
-<p>后续1.5已完成真实模型接入、主库及账本迁移，QQ已移出范围，见<a href="/bookshelf/review-files/docs/1.5-Docker%E7%9C%9F%E5%AE%9E%E9%97%AE%E7%AD%94%E4%B8%8E%E4%B8%BB%E5%BA%93%E8%BF%81%E7%A7%BB-20261112.md.html">1.5报告</a>。本文保留1.4时的范围和结果。</p>
+<p>后续1.5已完成真实模型接入、主库及账本迁移，QQ已移出范围，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.5-Docker%E7%9C%9F%E5%AE%9E%E9%97%AE%E7%AD%94%E4%B8%8E%E4%B8%BB%E5%BA%93%E8%BF%81%E7%A7%BB-20261112.md">1.5报告</a>。本文保留1.4时的范围和结果。</p>
 </blockquote>
 <h1>1.4 Compose集成与故障恢复验证</h1>
 <p>日期：2026-11-11。最终第四次完整运行17组通过，窗口771.015秒；687组网页/API探测中660组为正常阶段，27组为受控中断阶段，非计划失败0。137项Python测试、4项前端测试及7项Edge网页流程通过。公司验收仍待进行。</p>
@@ -67,7 +67,7 @@
 <td>API实际异常自动重启；down/up产生新容器，原会话/运行/反馈/任务、Kafka位点和模型文件哈希保持</td>
 </tr>
 </tbody></table>
-<p>17项原始检查的拆分、任务号、执行代次、位点、命令和资源样本见<a href="/bookshelf/review-files/docs/evidence/compose-linux-20261111-04/summary.json">完整原始结果</a>及同目录记录。重建后另外完成<a href="/bookshelf/review-files/docs/evidence/compose-postrestart-isolation-20261111.json">四项身份隔离复查</a>。本轮不是重跑整小时；1.0的一小时证据继续单独保存。</p>
+<p>17项原始检查的拆分、任务号、执行代次、位点、命令和资源样本见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-linux-20261111-04%2Fsummary.json">完整原始结果</a>及同目录记录。重建后另外完成<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-postrestart-isolation-20261111.json">四项身份隔离复查</a>。本轮不是重跑整小时；1.0的一小时证据继续单独保存。</p>
 <h2>本轮发现与修复</h2>
 <ol>
 <li>Kafka命名卷原挂到无写权限的/tmp目录，首次启动退出。改到官方镜像预设appuser可写的/var/lib/kafka/data，未改root运行。</li>
@@ -75,12 +75,12 @@
 <li>数据库停机裸DNS/连接异常绕过SQLAlchemy包装导致500。在PostgreSQL异步连接创建边界翻译OSError并限5秒，沿用503处理。真实复测200→503→200；普通文件错误仍按原错误处理。</li>
 <li>API、网页、数据库补齐on-failure:5。故障脚本区分PID1无效信号、操作员停止和真实异常，按已发布代次统计，旧暂存不冒充重复最终记录。</li>
 </ol>
-<p><a href="/bookshelf/review-files/docs/%E9%97%AE%E9%A2%98%E4%BF%AE%E6%AD%A3%E8%AE%B0%E5%BD%95.md.html">详细修正FIX21–24</a>。前三次分别为中断、恢复方法未成立、数据库停机失败，均保留且不记全通过；最初数据库handle_error方案也被测试拒绝。最终结果仅指第四次新项目/新数据库。异常信号辅助容器的范围与能力见README，正常启动不需要它。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E9%97%AE%E9%A2%98%E4%BF%AE%E6%AD%A3%E8%AE%B0%E5%BD%95.md">详细修正FIX21–24</a>。前三次分别为中断、恢复方法未成立、数据库停机失败，均保留且不记全通过；最初数据库handle_error方案也被测试拒绝。最终结果仅指第四次新项目/新数据库。异常信号辅助容器的范围与能力见README，正常启动不需要它。</p>
 <h2>网页与复现</h2>
-<p>Edge实际操作7项通过：登录、流式与引用、草稿修订确认、任务取消、Worker完整导入、资料库及390px手机布局；页面脚本错误0。已查看<a href="/bookshelf/review-files/docs/evidence/browser-compose-v1.4-20261111/native-import-completed.png">导入完成截图</a>及<a href="/bookshelf/review-files/docs/evidence/browser-compose-v1.4-20261111/mobile.png">手机截图</a>，详见<a href="/bookshelf/review-files/docs/evidence/browser-compose-v1.4-20261111/summary.json">浏览器结果</a>。</p>
-<p>启动与独立复查命令已更新<a href="/bookshelf/review-files/README.md.html">README</a>。<a href="/bookshelf/review-files/docs/evidence/compose-final-build-inputs-20261111.json">最终构建输入</a>、<a href="/bookshelf/review-files/docs/evidence/pytest-v1.4-final-20261111.xml">137项Python测试</a>、<a href="/bookshelf/review-files/docs/evidence/frontend-v1.4-20261111.json">4项前端测试</a>可核对。GitHub Actions仅配置更新，未在GitHub执行。</p>
+<p>Edge实际操作7项通过：登录、流式与引用、草稿修订确认、任务取消、Worker完整导入、资料库及390px手机布局；页面脚本错误0。已查看<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fbrowser-compose-v1.4-20261111%2Fnative-import-completed.png">导入完成截图</a>及<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fbrowser-compose-v1.4-20261111%2Fmobile.png">手机截图</a>，详见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fbrowser-compose-v1.4-20261111%2Fsummary.json">浏览器结果</a>。</p>
+<p>启动与独立复查命令已更新<a href="/?page=bookshelf&amp;shelf=review&amp;file=README.md">README</a>。<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-final-build-inputs-20261111.json">最终构建输入</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fpytest-v1.4-final-20261111.xml">137项Python测试</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Ffrontend-v1.4-20261111.json">4项前端测试</a>可核对。GitHub Actions仅配置更新，未在GitHub执行。</p>
 <h2>当前运行及剩余事项</h2>
-<p>验证后停止全部本项目测试容器与Docker Desktop，保留模型、数据库及Kafka命名卷，释放16GB机器内存；<a href="/bookshelf/review-files/docs/evidence/compose-final-state-20261111.json">停止记录</a>。原生<a href="http://127.0.0.1:15174/">15174网页</a>已恢复，网页/API均200，真实deepseek-flash配置、PostgreSQL、已发布索引、Redis可用且故障注入关闭；<a href="/bookshelf/review-files/docs/evidence/compose-native-restored-20261111.json">恢复证据</a>。再次使用Docker前启动Docker Desktop；两套服务按需切换。</p>
+<p>验证后停止全部本项目测试容器与Docker Desktop，保留模型、数据库及Kafka命名卷，释放16GB机器内存；<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-final-state-20261111.json">停止记录</a>。原生<a href="http://127.0.0.1:15174/">15174网页</a>已恢复，网页/API均200，真实deepseek-flash配置、PostgreSQL、已发布索引、Redis可用且故障注入关闭；<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-native-restored-20261111.json">恢复证据</a>。再次使用Docker前启动Docker Desktop；两套服务按需切换。</p>
 <p>尚待：正式切换容器时迁移原生会话/费用账本并核查容器实模；专用QQ真实联调；GitHub资料范围、共享与上传；正式验收安排。真人试用按1.2决定移除，不列待办、不记完成。原公司材料及历史原始记录保持。</p>
 <p>本轮按1.4保存至指定本地git库，旧标签保留，下一轮1.5，无远端推送。</p>
 </article></body></html>

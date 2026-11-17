@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     seed_users: bool = True
     enable_test_faults: bool = False
     public_service_token: str = Field(default="", repr=False)
+    bookshelf_progress_url: str = 'https://biteagle-knowledge.c2115259095.workers.dev'
+    bookshelf_owner_key: str = Field(default='', repr=False)
+    bookshelf_owner_username: str = 'alice'
+    bookshelf_http_proxy: str = Field(default='', repr=False)
 
     @property
     def qq_allowlist(self) -> set[str]:

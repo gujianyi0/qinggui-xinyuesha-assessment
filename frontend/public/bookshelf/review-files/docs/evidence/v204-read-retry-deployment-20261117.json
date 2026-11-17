@@ -1,0 +1,48 @@
+{
+  "before": [
+    {
+      "Id": "a827a52bbe6e51653a4aab77e8180cb07284b08afc343d10c28e4cf2262f0729",
+      "Image": "sha256:cb7e8243713c41452d402d12902f4d7e2c429166b9366a4ffb21191fe00073e4",
+      "started": "2026-11-17T12:09:15.409806051Z"
+    },
+    {
+      "Id": "e9d0feeb837d6a0c1fb08c0f6e3e6c2d19724349254afcd93241e6a68219d789",
+      "Image": "sha256:bf036977c3d636a235ad7311ac4a0f8e35bfb4c950fefe1a0c5371c117e9f27e",
+      "started": "2026-11-14T09:43:19.939017778Z"
+    },
+    {
+      "Id": "91b13b7bd128bd10c1aa61047859682b4c09e3962f085c07ebe86758ad94b7f2",
+      "Image": "sha256:dfb0c5569fd2011b147a5995ef528a51dad0ab1d2299838ebd08ddf09b3c9b9b",
+      "started": "2026-11-14T11:21:51.370055525Z"
+    }
+  ],
+  "after": [
+    {
+      "Id": "705491bb93d1069beb537810867064942d0dd01fa8fe006551a9ab574c7d06a1",
+      "Image": "sha256:096a159d9b4714d75816764b40b143b187d00155b6e984f5b86fef002b762fed",
+      "started": "2026-11-17T12:14:32.038776184Z"
+    },
+    {
+      "Id": "e9d0feeb837d6a0c1fb08c0f6e3e6c2d19724349254afcd93241e6a68219d789",
+      "Image": "sha256:bf036977c3d636a235ad7311ac4a0f8e35bfb4c950fefe1a0c5371c117e9f27e",
+      "started": "2026-11-14T09:43:19.939017778Z"
+    },
+    {
+      "Id": "91b13b7bd128bd10c1aa61047859682b4c09e3962f085c07ebe86758ad94b7f2",
+      "Image": "sha256:dfb0c5569fd2011b147a5995ef528a51dad0ab1d2299838ebd08ddf09b3c9b9b",
+      "started": "2026-11-14T11:21:51.370055525Z"
+    }
+  ],
+  "budget_before": {
+    "running": 0,
+    "spent": 15.66333400000001,
+    "reserved": 0.0
+  },
+  "budget_after": {
+    "running": 0,
+    "spent": 15.66333400000001,
+    "reserved": 0.0
+  },
+  "source_sha256": "623471ba3cebaffc20847c043f8d456c6a350eb480715652eae759050736e53b",
+  "backup": "qinggui-assessment-api:v204-read-parent-20261117"
+}

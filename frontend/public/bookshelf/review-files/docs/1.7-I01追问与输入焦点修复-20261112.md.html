@@ -11,20 +11,20 @@
 <h2>FIX31：反馈追问不能只依赖模型自行补全</h2>
 <p><strong>原始输入</strong>：“技能没生效，帮我反馈。”</p>
 <ol>
-<li><strong>错误与定位</strong>：1.6最终I01有通用草稿、预期、步骤、版本和确认提示，但没有明确索要武将/技能名。已有指令不足以保证每次包含必要字段。以真实Agno SDK配合可控HTTP响应，故意返回同样缺项的正文，新防回归在修复前实际失败：<a href="/bookshelf/review-files/docs/evidence/v17-i01-protocol-before.xml">失败XML</a>。</li>
+<li><strong>错误与定位</strong>：1.6最终I01有通用草稿、预期、步骤、版本和确认提示，但没有明确索要武将/技能名。已有指令不足以保证每次包含必要字段。以真实Agno SDK配合可控HTTP响应，故意返回同样缺项的正文，新防回归在修复前实际失败：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-i01-protocol-before.xml">失败XML</a>。</li>
 <li><strong>修改</strong>：在当前反馈主题涉及技能、武将、卡牌、结算或伤害时，生成程序控制的结算核对清单。它包含具体实体、时机、目标、关键局面及其余缺项，并明确“已说明的信息无需重复提供”。只作为待核对项，不冒充玩家陈述或引擎事实。</li>
 <li><strong>保存与流式一致</strong>：清单写进prepare_feedback_context回执；模型正文非空后才附加到流式增量和最终保存文本。模型空正文仍失败，不能靠清单变成成功。没有正式保存权限，仍须到网页核对草稿修订并确认。</li>
 <li><strong>多轮边界</strong>：识别“武将是…／技能是…／我是曹操…”这类事实补充，继续整理同一反馈；普通新问题和“我是谁？”不因新规则被当作补充。新的明确反馈主题会重新判断清单范围，纯客户端问题不附武将清单。</li>
 <li><strong>防回归</strong>：检查故意漏问的模型正文仍得到具体清单；SSE拼接=运行正文=历史消息；审计可查且正式反馈不增加；另测空正文、客户端不附清单、技能名“反馈”、话题切换和组合字段补充。早期34项针对性通过，最终完整162项通过。</li>
 </ol>
-<p>影响位置：<a href="/bookshelf/review-files/backend/app/feedback_context.py">feedback_context.py</a>、<a href="/bookshelf/review-files/backend/app/runtime.py">runtime.py</a>、<a href="/bookshelf/review-files/tests/test_agno_protocol.py">协议测试</a>、<a href="/bookshelf/review-files/tests/test_full_regression_fixes.py">反馈边界测试</a>。普通规则/数据/裁定指令未修改；本轮M01/M02的提示词标识与1.6相同。</p>
+<p>影响位置：<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Ffeedback_context.py">feedback_context.py</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fruntime.py">runtime.py</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_agno_protocol.py">协议测试</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_full_regression_fixes.py">反馈边界测试</a>。普通规则/数据/裁定指令未修改；本轮M01/M02的提示词标识与1.6相同。</p>
 <h2>FIX32：点击空白留下整块高度的页面选择光标</h2>
 <p><strong>用户步骤</strong>：先点回答正文，再点输入框旁边或其他输入区域的空白；出现贯穿整个空输入区域的黑竖线。</p>
 <ol>
 <li><strong>现场复现</strong>：用户已登录Edge中，回答正文后点击composer左内边距，activeElement为BODY，文档选择落在FORM位置；黑线按空的内联textarea高度绘制，而不是正常输入行。输入框实际高60px、行高21.6px，Windows页面DPR为1.5。没有把浏览器设置的猜测当成已证明的根因。</li>
 <li><strong>修改</strong>：输入表面的左键空白点击转交给对应真实输入控件，阻止落在容器上的默认选择；textarea使用block布局，避免内联替换控件的整行光标。登录跳过隐藏身份字段；反馈字段各自定位自己的控件，搜索图标/空白聚焦搜索输入。</li>
 <li><strong>保留原生交互</strong>：不拦截输入控件、按钮、链接、标签、可编辑元素，不处理右键，不用全局user-select:none隐藏问题。回答仍可选择，文本框原生选区和按钮事件保留；组合输入事件及Shift+Enter不发送，普通Enter仍发送。</li>
-<li><strong>修复前后</strong>：<a href="/bookshelf/review-files/docs/evidence/v17-input-focus-before.json">组件修复前失败</a>；<a href="/bookshelf/review-files/docs/evidence/v17-frontend-final.json">7项前端最终测试</a>；<a href="/bookshelf/review-files/docs/evidence/v17-input-focus/browser-final/summary.json">浏览器最终检查</a>。另在用户原Edge重新加载部署，按相同步骤确认activeElement为chat-message、textarea为block，未出现整块长竖线。</li>
+<li><strong>修复前后</strong>：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-input-focus-before.json">组件修复前失败</a>；<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-frontend-final.json">7项前端最终测试</a>；<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-input-focus%2Fbrowser-final%2Fsummary.json">浏览器最终检查</a>。另在用户原Edge重新加载部署，按相同步骤确认activeElement为chat-message、textarea为block，未出现整块长竖线。</li>
 </ol>
 <p>影响位置：<a aria-disabled="true" title="该本机资料未随检阅副本导出">共用焦点处理</a>、Chat、Feedback、Library、Login及styles.css。前端测试覆盖空白聚焦、原生选区、右键、按钮、组合输入/换行/发送和反馈字段。没有更改浏览器全局设置。</p>
 <p><img src="/bookshelf/review-files/docs/evidence/v17-input-focus/browser-final/composer-after.png" alt="修复后的输入框" /></p>
@@ -68,7 +68,7 @@
 <td>第二轮补“武将是曹操，技能是奸雄…身份模式…Windows…0.5.25本地修改版”仍保持反馈整理，只用本会话事实；实体/版本保留，继续问预期、具体局面和步骤，不自动保存</td>
 </tr>
 </tbody></table>
-<p>原固定文件SHA256仍为<code>63d7c970e34124273725c2099e538d012cc715d20050d683ec8f13282a114cb3</code>，未重写固定预期或1.6失败记录。FI01使用<a href="/bookshelf/review-files/evaluations/feedback-followup-v17.json">独立合成样例文件</a>。</p>
+<p>原固定文件SHA256仍为<code>63d7c970e34124273725c2099e538d012cc715d20050d683ec8f13282a114cb3</code>，未重写固定预期或1.6失败记录。FI01使用<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Ffeedback-followup-v17.json">独立合成样例文件</a>。</p>
 <table>
 <thead>
 <tr>
@@ -91,7 +91,7 @@
 <td>0.010400元</td>
 </tr>
 </tbody></table>
-<p>固定集：<a href="/bookshelf/review-files/evaluations/results/live-feedback-v17-20261112-01/results.jsonl">原始记录</a>、<a href="/bookshelf/review-files/evaluations/results/live-feedback-v17-20261112-01/citation-audit.json">引用审计</a>、<a href="/bookshelf/review-files/evaluations/results/live-feedback-v17-20261112-01/codex-review.json">Codex核对</a>。新增多轮：<a href="/bookshelf/review-files/evaluations/results/live-feedback-followup-v17-20261112-01/results.jsonl">原始记录</a>、<a href="/bookshelf/review-files/evaluations/results/live-feedback-followup-v17-20261112-01/citation-audit.json">审计</a>、<a href="/bookshelf/review-files/evaluations/results/live-feedback-followup-v17-20261112-01/codex-review.json">核对</a>。这是Codex核对，不是独立真人试用或公司验收。</p>
+<p>固定集：<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-feedback-v17-20261112-01%2Fresults.jsonl">原始记录</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-feedback-v17-20261112-01%2Fcitation-audit.json">引用审计</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-feedback-v17-20261112-01%2Fcodex-review.json">Codex核对</a>。新增多轮：<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-feedback-followup-v17-20261112-01%2Fresults.jsonl">原始记录</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-feedback-followup-v17-20261112-01%2Fcitation-audit.json">审计</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-feedback-followup-v17-20261112-01%2Fcodex-review.json">核对</a>。这是Codex核对，不是独立真人试用或公司验收。</p>
 <h2>程序、部署与数据核对</h2>
 <table>
 <thead>
@@ -102,27 +102,27 @@
 </thead>
 <tbody><tr>
 <td>后端全套</td>
-<td><a href="/bookshelf/review-files/docs/evidence/v17-pytest-final.xml">162项通过</a>，含18项Agno协议；QQ历史协议保留但不启用真实QQ</td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-pytest-final.xml">162项通过</a>，含18项Agno协议；QQ历史协议保留但不启用真实QQ</td>
 </tr>
 <tr>
 <td>前端</td>
-<td><a href="/bookshelf/review-files/docs/evidence/v17-frontend-final.json">7项通过</a>，<a href="/bookshelf/review-files/docs/evidence/v17-frontend-build-final.log.txt">TypeScript与生产构建</a>通过</td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-frontend-final.json">7项通过</a>，<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-frontend-build-final.log">TypeScript与生产构建</a>通过</td>
 </tr>
 <tr>
 <td>焦点浏览器</td>
-<td><a href="/bookshelf/review-files/docs/evidence/v17-input-focus/browser-final/summary.json">7组</a>：6次正文→空白点击、文本选择、换行/发送、6个反馈控件、搜索、登录、移动端；接口全替身，不写数据库或计费</td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-input-focus%2Fbrowser-final%2Fsummary.json">7组</a>：6次正文→空白点击、文本选择、换行/发送、6个反馈控件、搜索、登录、移动端；接口全替身，不写数据库或计费</td>
 </tr>
 <tr>
 <td>源码与镜像</td>
-<td><a href="/bookshelf/review-files/docs/evidence/v17-feedback/runtime-final.json">1.7.0及26个后端文件一致</a>；追加界面修复部署使用当前BRXwD8U0.js/Cml1dYb1.css资产</td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-feedback%2Fruntime-final.json">1.7.0及26个后端文件一致</a>；追加界面修复部署使用当前BRXwD8U0.js/Cml1dYb1.css资产</td>
 </tr>
 <tr>
 <td>主库/预算</td>
-<td><a href="/bookshelf/review-files/docs/evidence/v17-feedback/final-state.json">最终状态</a>：正式反馈5条、草稿5条均未增加，运行/任务/未结算0；累计约9.800032元、本轮增加约0.078210元、预留0</td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-feedback%2Ffinal-state.json">最终状态</a>：正式反馈5条、草稿5条均未增加，运行/任务/未结算0；累计约9.800032元、本轮增加约0.078210元、预留0</td>
 </tr>
 </tbody></table>
 <p>费用均按项目单价估算，不是供应商账单；总额200元不重置。模型回复和程序核对清单属于两类内容，引用仅绑定实际用户陈述或工具回执，不把清单变成玩家事实。</p>
-<p>构建经过：标准1.7构建成功。交付哈希检查发现一个晚加的话题边界没有进入首份镜像，保留<a href="/bookshelf/review-files/docs/evidence/v17-feedback/runtime-check.json">首次检查</a>，随后在同一成功构建的1.7基础镜像重建应用层并确认26文件一致，才开始付费评测。界面修复另行标准web构建。新增焦点浏览器脚本首次使用错误按钮名“新建草稿”而超时，实际为“新建反馈”；<a href="/bookshelf/review-files/docs/evidence/v17-input-focus/browser/attempt-error.json">失败说明</a>保留，修正脚本后全7组通过，未放宽产品断言。</p>
+<p>构建经过：标准1.7构建成功。交付哈希检查发现一个晚加的话题边界没有进入首份镜像，保留<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-feedback%2Fruntime-check.json">首次检查</a>，随后在同一成功构建的1.7基础镜像重建应用层并确认26文件一致，才开始付费评测。界面修复另行标准web构建。新增焦点浏览器脚本首次使用错误按钮名“新建草稿”而超时，实际为“新建反馈”；<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-input-focus%2Fbrowser%2Fattempt-error.json">失败说明</a>保留，修正脚本后全7组通过，未放宽产品断言。</p>
 <p>复测命令在项目根目录执行：</p>
 <pre><code class="language-powershell">.\.venv\Scripts\python.exe -m pytest -q
 Set-Location frontend

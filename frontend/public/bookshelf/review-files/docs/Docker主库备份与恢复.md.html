@@ -22,5 +22,5 @@ uv run python -m scripts.verify_restored_service --label daily-20261113-01 --dat
 <li>本轮已经验证隔离恢复与历史读取；灾难后人工选择备份、补账和正式切换尚未演练。不能把一次恢复检查写成零数据丢失或高可用保证。</li>
 </ol>
 <p>Kafka、Redis、BGE 下载缓存均不能替代 PostgreSQL 业务备份。Redis 可重建；BGE 按锁定 revision 获取并验哈希；只在任务/Outbox 全部完成后备份，恢复时不借旧 Kafka 位点推断业务完成。电脑重启后仍需执行本项目启动脚本和公网入口脚本。</p>
-<p>本轮实测记录见 <a href="/bookshelf/review-files/docs/1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md.html">1.9 报告</a>。QQ 和真人试用保持移除。</p>
+<p>本轮实测记录见 <a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md">1.9 报告</a>。QQ 和真人试用保持移除。</p>
 </article></body></html>

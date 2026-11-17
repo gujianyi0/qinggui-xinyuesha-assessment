@@ -14,4 +14,20 @@ export interface ShelfCatalog {
   records: ShelfDocument[]
   reviewDocuments: ShelfDocument[]
   evidenceLinks: Record<string, string>
+  evidenceFiles?: Record<string, { url: string; bytes: number; sha256: string }>
+}
+export interface ShelfProgress {
+  ids: string[]
+  revision: number
+  initialized: boolean
+  updatedAt: string | null
+  can_edit: boolean
+}
+export interface LearningActions {
+  learned: boolean | undefined
+  saved: boolean
+  canEdit: boolean
+  busy: boolean
+  onMastery: () => void
+  onSave: () => void
 }

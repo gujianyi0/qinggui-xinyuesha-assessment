@@ -10,7 +10,7 @@
 <li>公网提交运行后查询持久结果，本机15174保留SSE。相同访客的相同请求编号返回已有运行；进度查询失败不会重新提交问题或取消付费任务。</li>
 <li>本机主动通过HTTPS443短时拉取请求并回复，具备失败退避、重新拉取、单实例保护及停止入口。模型密钥只在本机；Cloudflare存储独立的连接控制令牌。</li>
 </ul>
-<p>部署和停止命令、配置边界见<a href="/bookshelf/review-files/docs/%E6%9C%AC%E6%9C%BA%E5%AF%B9%E5%A4%96%E6%9C%8D%E5%8A%A1.md.html">本机对外服务</a>。本机当前服务未配置Windows登录自启动，电脑重启后需运行启动脚本。</p>
+<p>部署和停止命令、配置边界见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E6%9C%AC%E6%9C%BA%E5%AF%B9%E5%A4%96%E6%9C%8D%E5%8A%A1.md">本机对外服务</a>。本机当前服务未配置Windows登录自启动，电脑重启后需运行启动脚本。</p>
 <h2>自动化与构建</h2>
 <table>
 <thead>
@@ -23,12 +23,12 @@
 <tbody><tr>
 <td>完整Python测试</td>
 <td>184通过；包含原1.7及新访客/连接测试</td>
-<td><a href="/bookshelf/review-files/docs/evidence/v18-public-service/pytest-delivery.xml">pytest-delivery.xml</a></td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Fpytest-delivery.xml">pytest-delivery.xml</a></td>
 </tr>
 <tr>
 <td>前端行为</td>
 <td>11通过：原焦点/IME/反馈、多轮轮询、访客登录、临时查询故障</td>
-<td><a href="/bookshelf/review-files/docs/evidence/v18-public-service/frontend-test-final.json">frontend-test-final.json</a></td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Ffrontend-test-final.json">frontend-test-final.json</a></td>
 </tr>
 <tr>
 <td>Worker</td>
@@ -38,12 +38,12 @@
 <tr>
 <td>Docker后端</td>
 <td>标准Dockerfile实际构建api/worker成功，更新主API环境</td>
-<td><a href="/bookshelf/review-files/docs/evidence/v18-public-service/backend-build.log.txt">build</a>、<a href="/bookshelf/review-files/docs/evidence/v18-public-service/backend-rollout.log.txt">rollout</a></td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Fbackend-build.log">build</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Fbackend-rollout.log">rollout</a></td>
 </tr>
 <tr>
 <td>下载客户端</td>
 <td>独立Compose实际构建、启动，真实浏览器连接公网后端</td>
-<td><a href="/bookshelf/review-files/docs/evidence/v18-public-service/download-client-final-build.log.txt">client build</a></td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Fdownload-client-final-build.log">client build</a></td>
 </tr>
 <tr>
 <td>前端构建/Ruff</td>
@@ -93,28 +93,28 @@
 <td>实际使用reuse_conversation_sources回执，文件/快照复核，浏览器显示引用</td>
 </tr>
 </tbody></table>
-<p><a href="/bookshelf/review-files/docs/evidence/v18-public-service/real-runs-final.json">全部五次后续运行</a>保留成功、超时与重试；<a href="/bookshelf/review-files/docs/evidence/v18-public-service/initial-run-failed.json">首次取消</a>依据数据库及API日志留档。浏览器失败记录、截图和最终结果分别保留：<a href="/bookshelf/review-files/docs/evidence/v18-public-service/browser-followup-timeout.json">超时</a>、<a href="/bookshelf/review-files/docs/evidence/v18-public-service/real-browser-retry.json">复测</a>、<a href="/bookshelf/review-files/docs/evidence/v18-public-service/download-client-real-answer.png">成功界面</a>。</p>
-<p>10处引用逐项核对工具回执、文件哈希、路径、行号和快照，完整性问题0，见<a href="/bookshelf/review-files/docs/evidence/v18-public-service/citation-audit-final.json">引用审计</a>。Codex核对三条有引用的成功回答所使用的奸雄/护驾原文与结论一致。检索回执还附带身份模式、反馈、刚烈等额外资料；这些附加引用不直接支持最终结论，引用相关性仍可改进，不能将“完整性0问题”写成所有附加引用都必要。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Freal-runs-final.json">全部五次后续运行</a>保留成功、超时与重试；<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Finitial-run-failed.json">首次取消</a>依据数据库及API日志留档。浏览器失败记录、截图和最终结果分别保留：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Fbrowser-followup-timeout.json">超时</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Freal-browser-retry.json">复测</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Fdownload-client-real-answer.png">成功界面</a>。</p>
+<p>10处引用逐项核对工具回执、文件哈希、路径、行号和快照，完整性问题0，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Fcitation-audit-final.json">引用审计</a>。Codex核对三条有引用的成功回答所使用的奸雄/护驾原文与结论一致。检索回执还附带身份模式、反馈、刚烈等额外资料；这些附加引用不直接支持最终结论，引用相关性仍可改进，不能将“完整性0问题”写成所有附加引用都必要。</p>
 <p>实际浏览器还验证：退出/刷新后可重新读取身份及记录、另一访客会话列表为空，交叉访问运行/消息/取消均404；jobs、原登录、内部QQ、API文档均404；无控制凭据不能查询连接状态；非本地客户端来源被拒绝。页面错误0。没有向原QQ发送消息，没有邀请真人试用。</p>
 <h2>故障、修复与复测记录</h2>
 <h3>FIX33：别人拉取后无法使用提供者真实模型</h3>
 <p>原默认Compose为模型替身；复制提供者密钥会违反本次要求。新增仅含界面的下载客户端、固定公网入口、签名访客身份及窄接口网关，复用原主库和账本。网关不会读取模型供应商密钥。实际下载版浏览器完成真实问答和同一会话追问，跨访客不可读取记录。公共问答重复请求通过确定性运行编号和数据库事务锁去重；单元测试确认只有一份消息及运行。</p>
 <h3>FIX34：普通隧道不可达与长期WebSocket停顿</h3>
-<p>第一次使用Cloudflare临时隧道，预检显示UDP和HTTP/2连接不可达；生成域名或登记成功不能证明本机服务在线。<a href="/bookshelf/review-files/docs/evidence/v18-public-service/tunnel-precheck-failed.json">失败预检</a>未记为可用交付。先改为WSS443反向连接，不修改系统代理、防火墙或其他项目部署。</p>
+<p>第一次使用Cloudflare临时隧道，预检显示UDP和HTTP/2连接不可达；生成域名或登记成功不能证明本机服务在线。<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Ftunnel-precheck-failed.json">失败预检</a>未记为可用交付。先改为WSS443反向连接，不修改系统代理、防火墙或其他项目部署。</p>
 <p>初版存在重连现象，改用文本心跳后，前两轮严格恢复观察仍分别出现1次和2次短暂503，未计通过。诊断显示本机网关收到的请求很快返回，但长期连接上另有请求停顿/无关闭帧重置；根因没有被完全确定。因此最终改为HTTPS443短时拉取和回复，每次等待8秒，使用新的短时HTTP连接，避免依赖持续升级连接。两轮失败、对应诊断和最终复测分开保留。</p>
 <h3>FIX35：进度查询失败误取消付费问答（本轮AI生成代码修复）</h3>
 <p>新增轮询初版在<code>finally</code>无条件取消未终结运行。浏览器首次进度查询后发出cancel，数据库保存cancelled，用量未知；当时未保存失败HTTP响应，不能断言具体状态码。该错误来自本轮AI生成的客户端代码。</p>
 <p>修复：临时502/503/504或网络查询错误重查同一个运行，只有AbortSignal已取消时才主动请求取消；不重放提交问题的POST。前端回归注入503后完成，断言只有一次提交、两次同运行GET，没有cancel；显式停止仍发cancel。完整前端11项通过，真实浏览器复测得到完整正文和引用。供应商超时另存failed，不用成功正文或空正文掩盖，也不自动重新产生付费请求。</p>
 <h3>对外连接故障恢复</h3>
-<p>首轮主动关闭连接，约12.311秒（含准备步骤）恢复。随后一次无关闭帧的连接重置造成短暂503，首轮严格观察判定失败；本机API和静态网页仍200，账本/会话不变。原始<a href="/bookshelf/review-files/docs/evidence/v18-public-service/recovery-first-failed.json">首轮失败</a>、<a href="/bookshelf/review-files/docs/evidence/v18-public-service/recovery-second-failed.json">第二轮失败</a>与<a href="/bookshelf/review-files/docs/evidence/v18-public-service/relay-diagnostics-first.json">连接诊断</a>保留。该额外重置的根因尚未确定，不将自动重连等同于网络绝不掉线。</p>
-<p>最终HTTPS方案在相同检查条件下通过：总观察135.35秒，含准备步骤约6.865秒恢复，随后两分钟17组公网问答接口、本机API和网页探测全部200，会话与费用账本一致，新增模型请求0。见<a href="/bookshelf/review-files/docs/evidence/v18-public-service/recovery.json">恢复报告</a>。严格观察窗口后，另记录一次远端HTTPS拉取ReadTimeout及审计登录临时503，进程自动重新拉取后，重试认证和查询成功，没有模型费用。此情况作为公网网络边界保留，不将两分钟通过表述为永久无掉线。此项不是一小时Worker稳定性复测，也没有重跑原17组基础设施故障矩阵。</p>
+<p>首轮主动关闭连接，约12.311秒（含准备步骤）恢复。随后一次无关闭帧的连接重置造成短暂503，首轮严格观察判定失败；本机API和静态网页仍200，账本/会话不变。原始<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Frecovery-first-failed.json">首轮失败</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Frecovery-second-failed.json">第二轮失败</a>与<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Frelay-diagnostics-first.json">连接诊断</a>保留。该额外重置的根因尚未确定，不将自动重连等同于网络绝不掉线。</p>
+<p>最终HTTPS方案在相同检查条件下通过：总观察135.35秒，含准备步骤约6.865秒恢复，随后两分钟17组公网问答接口、本机API和网页探测全部200，会话与费用账本一致，新增模型请求0。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Frecovery.json">恢复报告</a>。严格观察窗口后，另记录一次远端HTTPS拉取ReadTimeout及审计登录临时503，进程自动重新拉取后，重试认证和查询成功，没有模型费用。此情况作为公网网络边界保留，不将两分钟通过表述为永久无掉线。此项不是一小时Worker稳定性复测，也没有重跑原17组基础设施故障矩阵。</p>
 <h3>FIX36：多轮沿用正文时丢失引用</h3>
-<p>最终HTTPS追问<code>baa8bbc9…</code>正文引用了奸雄原文，但模型没有再次调用工具，本轮citations为空，页面无来源卡片。原始<a href="/bookshelf/review-files/docs/evidence/v18-public-service/browser-history-citation-gap.json">缺口</a>和真实SDK<a href="/bookshelf/review-files/docs/evidence/v18-public-service/history-source-before.xml">修复前失败</a>保留。</p>
+<p>最终HTTPS追问<code>baa8bbc9…</code>正文引用了奸雄原文，但模型没有再次调用工具，本轮citations为空，页面无来源卡片。原始<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Fbrowser-history-citation-gap.json">缺口</a>和真实SDK<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Fhistory-source-before.xml">修复前失败</a>保留。</p>
 <p>新增受控静态来源续用：仅检查当前会话已存助手消息，要求资料快照相同、标题在本轮正文出现、路径在冻结runtime资料内，重新核对文件SHA256和行号。按位置去重，排除用户陈述和引擎裁定，不自动继承旧局面的引擎验证。应用记录<code>reuse_conversation_sources</code>回执、原消息编号和<code>fresh_lookup=false</code>，追加来源沿用说明；不增加模型调用。</p>
 <p>调用方影响：只在真实非反馈回答非空、且本轮没有任何引用时执行；反馈缺项/空正文保持原处理，本机SSE和公网持久结果一致。新增测试拒绝错快照、哈希篡改、越界路径、裁定证据、无效行号和无关标题；相关33项通过，完整184项随后通过。最终真实追问<code>e21849c5…</code>实际走来源续用并显示1处引用，客户端原焦点/隔离/刷新检查通过，页面错误0。</p>
-<p>标准1.8后端构建完成后，该修复以相同锁定依赖的应用层更新，见<a href="/bookshelf/review-files/docs/evidence/v18-public-service/final-layer-build.log.txt">构建</a>。Docker1.8.0的27个后端app文件与当前源码哈希全部一致，见<a href="/bookshelf/review-files/docs/evidence/v18-public-service/application-fingerprint-final.json">指纹</a>。</p>
+<p>标准1.8后端构建完成后，该修复以相同锁定依赖的应用层更新，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Ffinal-layer-build.log">构建</a>。Docker1.8.0的27个后端app文件与当前源码哈希全部一致，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Fapplication-fingerprint-final.json">指纹</a>。</p>
 <h2>费用、数据和验证边界</h2>
-<p>本轮开始累计9.800032元，当前累计11.851794元，增加2.051762元。其中四次completed运行按返回tokens及配置单价计0.008860、0.011718、0.004788、0.005020元；其中0.004788元的引用缺口运行不记为验收通过；初次取消和一次供应商超时用量未知，各按1.010688元预留保守结算。以上均非供应商账单，单价仍按本机已标记的估算价格；预留和未结算均为0，不清零账本；原正式反馈5条、草稿5条保持，运行/任务均无活动项，见<a href="/bookshelf/review-files/docs/evidence/v18-public-service/final-database-state.json">最终状态</a>。</p>
+<p>本轮开始累计9.800032元，当前累计11.851794元，增加2.051762元。其中四次completed运行按返回tokens及配置单价计0.008860、0.011718、0.004788、0.005020元；其中0.004788元的引用缺口运行不记为验收通过；初次取消和一次供应商超时用量未知，各按1.010688元预留保守结算。以上均非供应商账单，单价仍按本机已标记的估算价格；预留和未结算均为0，不清零账本；原正式反馈5条、草稿5条保持，运行/任务均无活动项，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv18-public-service%2Ffinal-database-state.json">最终状态</a>。</p>
 <p>连接恢复和健康探测不产生模型请求。新增访客记录是本轮真实网页/API测试数据，原个人会话与反馈不向公网访客开放。没有复制模型密钥、运行数据库或缓存到GitHub。</p>
 <p>本轮没有重跑完整32条固定真实评测，没有新增一小时验证、独立真人试用或真实QQ验收。当前公网和下载客户端检查均从这台电脑经过真实公网地址完成，尚未在另一台物理电脑安装；这不影响代码/部署证据边界的记录。正式截止日期、Leader验收安排仍待公司确认。</p>
 <p>本轮按1.8保存指定本地<code>git</code>库并上传原公开GitHub仓库；旧版本标签保留，后续代码轮次为1.9。最终提交和托管检查以Git标签及GitHub Actions为准。</p>

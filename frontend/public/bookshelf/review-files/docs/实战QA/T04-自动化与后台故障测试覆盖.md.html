@@ -1,15 +1,15 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>T04-自动化与后台故障测试覆盖.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>T04 自动化与后台故障测试覆盖</h1>
 <blockquote>
-<p>1.13补充（2026-11-14）：修复1.12独立原文滚动区吞掉滚轮的问题，改用聊天统一纵向滚动；29项前端测试及普通/矮窗口/窄屏实际滚轮核对。见<a href="/bookshelf/review-files/docs/1.13-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E6%BB%9A%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md.html">1.13报告</a>。</p>
+<p>1.13补充（2026-11-14）：修复1.12独立原文滚动区吞掉滚轮的问题，改用聊天统一纵向滚动；29项前端测试及普通/矮窗口/窄屏实际滚轮核对。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.13-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E6%BB%9A%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md">1.13报告</a>。</p>
 </blockquote>
 <blockquote>
-<p>1.12补充（2026-11-14）：来源原文按标题、段落、列表、表格与代码排版，未改写原始证据；29项前端测试和五份实际来源核对通过，无付费回归。见<a href="/bookshelf/review-files/docs/1.12-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E9%98%85%E8%AF%BB%E6%8E%92%E7%89%88-20261114.md.html">1.12报告</a>。</p>
+<p>1.12补充（2026-11-14）：来源原文按标题、段落、列表、表格与代码排版，未改写原始证据；29项前端测试和五份实际来源核对通过，无付费回归。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.12-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E9%98%85%E8%AF%BB%E6%8E%92%E7%89%88-20261114.md">1.12报告</a>。</p>
 </blockquote>
 <blockquote>
-<p>1.11补充（2026-11-14）：实际复现来源展开后按钮横移约262px，拆分按钮排与详情区并停止阅读时强制跟随；本轮仅网页变更，25项前端行为测试通过，未重跑付费评测。见<a href="/bookshelf/review-files/docs/1.11-%E6%9D%A5%E6%BA%90%E6%8C%89%E9%92%AE%E8%B7%B3%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md.html">1.11报告</a>。</p>
+<p>1.11补充（2026-11-14）：实际复现来源展开后按钮横移约262px，拆分按钮排与详情区并停止阅读时强制跟随；本轮仅网页变更，25项前端行为测试通过，未重跑付费评测。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.11-%E6%9D%A5%E6%BA%90%E6%8C%89%E9%92%AE%E8%B7%B3%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md">1.11报告</a>。</p>
 </blockquote>
 <blockquote>
-<p>1.10补充（2026-11-14）：正文去除可见Markdown标记与源码位置，引用改为回答末尾按钮展开；原始正文、来源、行号和版本仍保留。此次前端22项、后端相关49项通过，旧1.9完整32条真实回归仍是历史证据，不冒充新提示词的全量实测。见<a href="/bookshelf/review-files/docs/1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md.html">1.10报告</a>。</p>
+<p>1.10补充（2026-11-14）：正文去除可见Markdown标记与源码位置，引用改为回答末尾按钮展开；原始正文、来源、行号和版本仍保留。此次前端22项、后端相关49项通过，旧1.9完整32条真实回归仍是历史证据，不冒充新提示词的全量实测。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md">1.10报告</a>。</p>
 </blockquote>
 <p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
 <p>状态：<strong>自动化209项与真实容器17组分别留证</strong>。</p>
@@ -30,15 +30,15 @@
 </thead>
 <tbody><tr>
 <td>非法输入与未知字段</td>
-<td><a href="/bookshelf/review-files/tests/test_api.py">test_api.py</a>：非法消息、鉴权、额外字段、坏快照拒绝</td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_api.py">test_api.py</a>：非法消息、鉴权、额外字段、坏快照拒绝</td>
 </tr>
 <tr>
 <td>模型格式、空正文、工具异常</td>
-<td><a href="/bookshelf/review-files/tests/test_agno_protocol.py">test_agno_protocol.py</a>：真实SDK配受控HTTP，校验失败/引用/资源关闭</td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_agno_protocol.py">test_agno_protocol.py</a>：真实SDK配受控HTTP，校验失败/引用/资源关闭</td>
 </tr>
 <tr>
 <td>超时与并发</td>
-<td><a href="/bookshelf/review-files/tests/test_runtime.py">test_runtime.py</a>、Agno协议超时；检查运行与费用状态</td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_runtime.py">test_runtime.py</a>、Agno协议超时；检查运行与费用状态</td>
 </tr>
 <tr>
 <td>会话/运行/反馈/任务隔离</td>
@@ -50,7 +50,7 @@
 </tr>
 <tr>
 <td>重复消费与并发领取</td>
-<td><a href="/bookshelf/review-files/tests/test_jobs.py">test_jobs.py</a>：同代次只领取一次，发布事务保护</td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_jobs.py">test_jobs.py</a>：同代次只领取一次，发布事务保护</td>
 </tr>
 <tr>
 <td>Worker中断与重启</td>
@@ -62,22 +62,22 @@
 </tr>
 <tr>
 <td>位点及异常</td>
-<td><a href="/bookshelf/review-files/tests/test_worker.py">test_worker.py</a>：坏信封处理、失败位置回退，防后续提交跳过消息</td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_worker.py">test_worker.py</a>：坏信封处理、失败位置回退，防后续提交跳过消息</td>
 </tr>
 </tbody></table>
 <p>网页断线恢复、焦点/IME和重复点击行为由前端测试与真实浏览器记录补充。测试环境中的时间推进、模型替身和注入点须保持显式，不拿加速单测证明实际10/30秒间隔。</p>
 <h2>已有验证与证据</h2>
 <ul>
-<li><a href="/bookshelf/review-files/docs/evidence/v19-release-final-209.xml">最终209项XML</a>。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/compose-linux-20261111-04/summary.json">真实17组容器报告</a>。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/compose-postrestart-isolation-20261111.json">重启后双身份隔离</a>。</li>
-<li><a href="/bookshelf/review-files/docs/evidence/v19-browser-recovery-05/summary.json">真实浏览器断线恢复</a>。</li>
-<li><a href="/bookshelf/review-files/.github/workflows/checks.yml">CI定义</a>、<a href="/bookshelf/review-files/docs/%E9%AA%8C%E6%94%B6%E7%9F%A9%E9%98%B5.md.html">验收矩阵</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv19-release-final-209.xml">最终209项XML</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-linux-20261111-04%2Fsummary.json">真实17组容器报告</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-postrestart-isolation-20261111.json">重启后双身份隔离</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv19-browser-recovery-05%2Fsummary.json">真实浏览器断线恢复</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=.github%2Fworkflows%2Fchecks.yml">CI定义</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E9%AA%8C%E6%94%B6%E7%9F%A9%E9%98%B5.md">验收矩阵</a>。</li>
 </ul>
 <p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
 <h2>怎样核对或演示</h2>
 <p>先看XML实际tests/failures/errors/skipped与时间，再按测试名读断言，确认不是只检查HTTP200。需要新回归时运行仓库既有命令；真实故障脚本仅用隔离库和Topic。查中断恢复要同时看业务状态、尝试代次和最终发布，而非只看进程启动。</p>
 <h2>结论与边界</h2>
 <p>上述是已执行的历史证据，本轮文档整理没有重跑209项或故障实验。不能据此声称100%代码覆盖率、多节点集群全部行为或所有网络故障均已验证。正式公司验收仍需由指定验收人确认。</p>
-<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%9E%E6%88%98QA%2F00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md">返回目录与维护说明</a></p>
 </article></body></html>

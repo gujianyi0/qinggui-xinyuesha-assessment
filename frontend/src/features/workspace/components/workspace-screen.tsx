@@ -195,7 +195,7 @@ export default function WorkspaceScreen({
                   : '当前离线'}
             </span>
             {isMockMode && <span className="mode-badge">模型替身模式</span>}
-            <span className="preview-badge">v2.0.3 · 本地内测</span>
+            <span className="preview-badge">v2.0.4 · 本地内测</span>
           </div>
         </header>
         {error && (
@@ -265,7 +265,9 @@ export default function WorkspaceScreen({
                   snapshotId={snapshotId}
                 />
               )}
-              {page === 'bookshelf' && <Bookshelf />}
+              {page === 'bookshelf' && (
+                <Bookshelf userId={auth.user.id} token={token} />
+              )}
             </Suspense>
           </ScreenBoundary>
         </div>

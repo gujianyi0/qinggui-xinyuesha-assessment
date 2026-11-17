@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, text, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+from .bookshelf_progress import MasteryInput, ShelfProgress
 from .catalog import Catalog, Embedder, KnowledgeSearch
 from .config import Settings
 from .db import Database
@@ -74,6 +75,7 @@ def create_app(settings: Settings | None = None):
     runtime = Runtime(config, database, catalog, search)
     jobs = Jobs(config, database, catalog, embedder)
     admission_lock = asyncio.Lock()
+    shelf_progress = ShelfProgress(config)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -98,6 +100,7 @@ def create_app(settings: Settings | None = None):
 
     app = FastAPI(title="轻归 · 新月杀资料与反馈助手", version="0.1.0", lifespan=lifespan)
     app.state.settings, app.state.database, app.state.runtime = config, database, runtime
+    app.state.shelf_progress = shelf_progress
     app.state.catalog, app.state.jobs, app.state.search = catalog, jobs, search
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], allow_methods=["GET", "POST", "PATCH"], allow_headers=["Authorization", "Content-Type", "X-Assessment-Fault"])
 
@@ -114,6 +117,21 @@ def create_app(settings: Settings | None = None):
             if token is None or token.expires_at <= now():
                 raise HTTPException(401, "登录已失效，请重新登录")
             return token.user_id
+
+    async def shelf_owner(user_id: str) -> bool:
+        async with database.sessions() as db:
+            user = await db.get(User, user_id)
+            return bool(user and user.username == config.bookshelf_owner_username and config.bookshelf_owner_key)
+
+    @app.get('/bookshelf/progress')
+    async def bookshelf_progress(user_id: str = Depends(current_user)):
+        return await shelf_progress.read(await shelf_owner(user_id))
+
+    @app.patch('/bookshelf/progress')
+    async def change_bookshelf_progress(body: MasteryInput, user_id: str = Depends(current_user)):
+        if not await shelf_owner(user_id):
+            raise HTTPException(403, '仅书架主人可以修改共享掌握进度')
+        return await shelf_progress.write(body)
 
     async def bridge_auth(x_bridge_token: str = Header(default="")):
         if not config.bridge_token or not secrets.compare_digest(x_bridge_token, config.bridge_token):

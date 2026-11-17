@@ -33,24 +33,87 @@ const catalog: ShelfCatalog = {
   ],
   evidenceLinks: {},
 }
-function mount(url = '/?page=bookshelf') {
+function mount(url = '/?page=bookshelf', token = '') {
   window.history.replaceState({}, '', url)
   vi.stubGlobal(
     'fetch',
-    vi.fn(
-      async (input: string) =>
-        new Response(
-          input.endsWith('data.json')
-            ? JSON.stringify(catalog)
-            : '# 正文\n\n原文内容\n\n[修复记录](修复记录.md)',
-        ),
-    ),
+    vi.fn(async (input: string, options?: RequestInit) => {
+      if (input.endsWith('/bookshelf/progress'))
+        return new Response(
+          JSON.stringify({
+            ids: options?.method === 'PATCH' ? [] : ['7-06'],
+            revision: options?.method === 'PATCH' ? 4 : 3,
+            initialized: true,
+            updatedAt: null,
+            can_edit: token === 'owner',
+          }),
+        )
+      return new Response(
+        input.endsWith('data.json')
+          ? JSON.stringify(catalog)
+          : '# 正文\n\n原文内容\n\n[修复记录](修复记录.md)',
+      )
+    }),
   )
-  return render(<BookshelfScreen />, { wrapper: AppQueryProvider })
+  return render(<BookshelfScreen token={token} />, {
+    wrapper: AppQueryProvider,
+  })
 }
 afterEach(() => {
   vi.unstubAllGlobals()
   window.history.replaceState({}, '', '/')
+  localStorage.removeItem('qinggui-bookshelf-saved:test-workspace')
+})
+
+it('shows shared progress and owner mastery controls without merging review documents', async () => {
+  mount('/?page=bookshelf', 'owner')
+  expect(await screen.findByText('共享进度 · 已掌握 1/2（50%）')).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: /部署验证/ }))
+  const mastery = await screen.findByRole('button', { name: '取消掌握标记' })
+  expect(mastery).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: '收藏文章' }))
+  expect(screen.getByRole('button', { name: '已收藏文章' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  expect(
+    JSON.parse(
+      localStorage.getItem('qinggui-bookshelf-saved:test-workspace') || '[]',
+    ),
+  ).toEqual(['7-06'])
+  fireEvent.click(mastery)
+  expect(
+    await screen.findByRole('button', { name: '标记已掌握' }),
+  ).toBeEnabled()
+  const calls = vi.mocked(fetch).mock.calls
+  const patch = calls.find(([, options]) => options?.method === 'PATCH')
+  expect(JSON.parse(String(patch?.[1]?.body))).toEqual({
+    id: '7-06',
+    learned: false,
+    revision: 3,
+  })
+  expect(screen.getByRole('link', { name: '下载原文' })).toHaveAttribute(
+    'download',
+  )
+})
+
+it('keeps shared mastery read only for a reviewer while allowing personal bookmarks', async () => {
+  const view = mount('/?page=bookshelf&document=7-06', 'readonly')
+  expect(
+    await screen.findByRole('button', { name: '取消掌握标记' }),
+  ).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: '收藏文章' }))
+  expect(screen.getByRole('button', { name: '已收藏文章' })).toBeEnabled()
+  view.unmount()
+  mount('/?page=bookshelf&document=7-06', 'readonly')
+  expect(
+    await screen.findByRole('button', { name: '已收藏文章' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  expect(
+    vi
+      .mocked(fetch)
+      .mock.calls.some(([, options]) => options?.method === 'PATCH'),
+  ).toBe(false)
 })
 
 it('keeps assessment references out of knowledge lists, search and categories', async () => {

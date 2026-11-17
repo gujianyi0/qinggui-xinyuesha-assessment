@@ -1,9 +1,9 @@
-"""Verify the local read-only review shelf, source bytes, links and private boundary."""
+"""Verify shelf documents, file previews, source bytes and private boundaries."""
 import hashlib
 import json
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from dotenv import dotenv_values
 
@@ -31,6 +31,12 @@ def verify():
     assert len(review) == 11
     assert all(r['kind'] == 'assessment_reference' and 'group' not in r for r in review)
     assert not set(r['id'] for r in review) & set(r['id'] for r in data['records'])
+    for path, metadata in data['evidenceFiles'].items():
+        assert path in data['evidenceLinks']
+        assert metadata['url'].startswith('/bookshelf/review-files/')
+        exported = SHELF / unquote(metadata['url']).removeprefix('/bookshelf/')
+        assert exported.resolve().is_relative_to(SHELF.resolve())
+        assert hashlib.sha256(exported.read_bytes()).hexdigest() == metadata['sha256'], path
     for record in data['records']:
         original = ROOT / 'tools/bookshelf/base/originals' / (record['id'] + '.md')
         exported = SHELF / 'originals' / (record['id'] + '.md')
@@ -43,7 +49,7 @@ def verify():
         source = ROOT / record['path']
         assert hashlib.sha256(source.read_bytes()).hexdigest() == record['sha256'], source
     private = dotenv_values(ROOT / '.env.docker-live', interpolate=False)
-    secrets = [private.get(key) for key in ['MODEL_API_KEY', 'POSTGRES_PASSWORD', 'PUBLIC_SERVICE_TOKEN']]
+    secrets = [private.get(key) for key in ['MODEL_API_KEY', 'POSTGRES_PASSWORD', 'PUBLIC_SERVICE_TOKEN', 'BOOKSHELF_OWNER_KEY']]
     owner = ROOT.parent / '知识浏览网页/.local/owner-access.json'
     if owner.exists():
         credentials = json.loads(owner.read_text(encoding='utf-8'))
@@ -68,6 +74,14 @@ def verify():
             if url.startswith('/bookshelf/'):
                 target = SHELF / url.removeprefix('/bookshelf/')
             elif url == '/' and 'page=bookshelf' in value.query:
+                query = parse_qs(value.query)
+                if 'document' in query:
+                    assert query['document'][0] in {r['id'] for r in data['records'] + review}, (file, href)
+                if 'file' in query:
+                    target_path = query['file'][0]
+                    assert (target_path == '.' or target_path in data['evidenceLinks']
+                            or any(p.startswith(target_path.rstrip('/') + '/') for p in data['evidenceFiles'])), (file, href)
+                count += 1
                 continue
             elif url.startswith('/'):
                 raise AssertionError(f'Unexpected root link in {file}: {href}')
@@ -80,7 +94,7 @@ def verify():
     assert not (SHELF / 'app.js').exists()
     assert not (SHELF / 'shared-progress.js').exists()
     result = {'review_documents': 11, 'learning_goals': 49, 'linked_source_files': len(manifest['files']),
-              'local_links_checked': count, 'private_values_found': 0, 'cloud_progress_connected': False,
+              'local_links_checked': count, 'private_values_found': 0, 'owner_credentials_in_static_assets': False,
               'historical_missing_paths': manifest['unexported']}
     print(json.dumps(result, ensure_ascii=False))
     return result

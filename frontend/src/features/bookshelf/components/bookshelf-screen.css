@@ -46,6 +46,93 @@
   color: var(--muted);
   font-size: 13px;
 }
+.shelf-progress-summary {
+  display: grid;
+  gap: 5px;
+  margin-top: 7px;
+  font-size: 12px;
+}
+.shelf-progress-summary progress {
+  width: 100%;
+  height: 5px;
+  accent-color: var(--teal);
+}
+.shelf-mastered-label,
+.shelf-saved-label {
+  margin-left: 10px;
+  font-size: 12px;
+  color: var(--teal);
+}
+.shelf-reader-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.shelf-reader-actions .mastered {
+  background: var(--teal);
+  color: white;
+}
+.evidence-breadcrumb {
+  overflow-wrap: anywhere;
+  margin: 20px 0;
+  font-size: 14px;
+  line-height: 2;
+}
+.evidence-breadcrumb button {
+  border: 0;
+  color: var(--teal);
+  background: transparent;
+  padding: 2px 0;
+}
+.evidence-image {
+  max-width: 100%;
+  height: auto;
+}
+.evidence-page-control {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin: 15px 0;
+  font-size: 13px;
+}
+.evidence-page-control button {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: inherit;
+}
+.evidence-code {
+  max-width: 100%;
+  overflow-x: auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 14px 0;
+  border-radius: 8px;
+}
+.evidence-line {
+  display: flex;
+  gap: 15px;
+  min-width: max-content;
+  font:
+    12px / 1.8 Consolas,
+    monospace;
+  padding: 1px 14px;
+}
+.evidence-line code {
+  white-space: pre;
+}
+.evidence-line-number {
+  color: var(--muted);
+  min-width: 4ch;
+  text-align: right;
+  user-select: none;
+}
+.evidence-line.highlighted {
+  background: var(--soft);
+}
 .shelf-groups {
   min-inline-size: 0;
   padding: 0;
@@ -132,7 +219,7 @@
   border-radius: 9px;
   background: var(--paper);
 }
-.shelf-article > h1:first-child {
+.shelf-primary-document > h1:first-of-type {
   display: none;
 }
 .shelf-article h2 {
@@ -227,6 +314,13 @@
   }
 }
 @media (max-width: 650px) {
+  .shelf-list-toolbar .shelf-search {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+  .shelf-count {
+    width: 100%;
+  }
   .shelf-module {
     padding: 10px 14px 28px;
   }
