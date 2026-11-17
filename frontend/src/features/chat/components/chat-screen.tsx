@@ -181,6 +181,8 @@ export default function ChatScreen({
       recovering && sessionId ? pendingSubmission(userId, sessionId) : null
     const message = saved?.message || input.trim()
     if (!message || busyRef.current || isLoading || !isOnline) return
+    const submittedDraft = input
+    if (!saved) setInput('')
     followTail.current = true
     busyRef.current = true
     setBusy(true)
@@ -193,8 +195,10 @@ export default function ChatScreen({
     runId.current = null
     const assistantId = `answer-${crypto.randomUUID()}`
     let terminal = false
+    let hasSession = Boolean(sessionId)
     try {
       const id = sessionId || (await onCreate(message.slice(0, 28))).id
+      hasSession = true
       if (saved) {
         try {
           const found = await lookupSubmission({
@@ -222,7 +226,6 @@ export default function ChatScreen({
       }
       activeSession.current = id
       if (currentGeneration !== generation.current) return
-      setInput('')
       setMessages((current) => [
         ...current,
         ...(saved &&
@@ -314,8 +317,10 @@ export default function ChatScreen({
       if (
         currentGeneration === generation.current &&
         !(error instanceof Error && error.name === 'AbortError')
-      )
+      ) {
+        if (!hasSession && !saved) setInput((draft) => draft || submittedDraft)
         setError(displayError(error))
+      }
     } finally {
       if (currentGeneration === generation.current) {
         busyRef.current = false
@@ -340,6 +345,7 @@ export default function ChatScreen({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (isBusy) return
     if (
       event.key === 'Enter' &&
       !event.shiftKey &&
@@ -581,12 +587,14 @@ export default function ChatScreen({
               placeholder="问一条规则，或描述你遇到的具体局面…"
               rows={2}
               maxLength={8000}
-              disabled={isBusy}
+              aria-describedby="composer-status"
             />
             <div className="composer-bottom">
-              <span>
+              <span id="composer-status" aria-live="polite">
                 <MessageCircle size={13} />
-                基于当前资料快照回答
+                {isBusy
+                  ? '正在回答，可编辑下一条，完成后再发送'
+                  : '基于当前资料快照回答'}
               </span>
               {isBusy ? (
                 <button
@@ -614,7 +622,9 @@ export default function ChatScreen({
           <div className="composer-hint">
             <span>
               <CornerDownLeft size={11} />
-              Enter 发送 · Shift + Enter 换行
+              {isBusy
+                ? 'Enter 换行 · 草稿会保留'
+                : 'Enter 发送 · Shift + Enter 换行'}
             </span>
             <span>请勿填写账号密码等私人信息</span>
           </div>

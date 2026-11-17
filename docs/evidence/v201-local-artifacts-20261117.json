@@ -1,0 +1,22 @@
+{
+  "version": "2.0.1-local.1",
+  "scope": "local-internal-preview",
+  "buildMode": "v2-local",
+  "builtAt": "2026-11-17T08:30:42.010Z",
+  "sourceSha256": "223cf6cdc835bfafe0282c26a8eb2c20821cc76306c0edc7e6868a42f9f16383",
+  "sourceFiles": 80,
+  "artifacts": {
+    "assets/feedback-Bp0U4Ubh.js": "8f4eeb6c6e1bbcb73435723f7bab35c65a767d56170565f5f42ea58643e578b7",
+    "assets/index-BaFzdQdY.css": "9197675a79c8ba5b443cafbb59b736a22a4ae18257726471c8ce3193c094fb17",
+    "assets/index-Rz_KBKI2.js": "f1574bd1f895abd149e422f098f6e145e164c7b2da6ae3cdbed88ac5d1cfab2f",
+    "assets/jobs-Bc4af4LQ.js": "6f11d5f1ae86ede7da95f26938544628e8afffc9e872d299dcb5156d462d3171",
+    "assets/jsx-runtime-Wy9s6hX0.js": "bcb9f6586cd973c2fb2faa4a2d38d4b06660e2fe2806aaa0de1c39306ff0f69a",
+    "assets/library-C6dAWWt1.js": "3dcdd4461f95147f09ce2195860f640efb733a687cbe2f81b601893174beb054",
+    "assets/source-excerpt-ZZvQrne9.js": "da8a77f9b0593c417f2a2d940ee1e154d20f58d41a28a6cbdb1af5c92457c796",
+    "assets/status-tag-BXGQ0zWw.js": "59ac5f2406ff8a9746eda7a8a5f956e4283a4baabe16666e2be833a147569dd4",
+    "assets/tab-navigation-5M9ZGyq5.js": "651cd6b2ef5693ae185668a68639391a863e77f0be9f9117ec8f1f2261b04939",
+    "assets/workspace-DFLQTKGf.js": "4cc8158684f452d06b665844120b5701b5300d1b865c9547521b267004782959",
+    "index.html": "c0e06630bc9a170964d0851310beb9262d4aff6ff38a4a1229b11c3443c3ba8b",
+    "moon.svg": "05f3bb9c1293d12cefc5d23d4238eee6274f8b2f26748e4cb2ff3e41e094d1db"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "version": "2.0.1-local.1",
+  "before": [
+    {
+      "name": "qinggui-assessment-live-api-1",
+      "id": "e578e4228793cd35b53d5c4cb4731efb0dbc3cb88d9ad5364d2cdd6c5d14ede1",
+      "image": "sha256:7e90ffe51186a3ef11f7986ecc8f936b63aa15ffbfa37cb80b730ffdb220c241",
+      "started": "2026-11-14T09:43:08.459952493Z"
+    },
+    {
+      "name": "qinggui-assessment-live-worker-1",
+      "id": "e9d0feeb837d6a0c1fb08c0f6e3e6c2d19724349254afcd93241e6a68219d789",
+      "image": "sha256:bf036977c3d636a235ad7311ac4a0f8e35bfb4c950fefe1a0c5371c117e9f27e",
+      "started": "2026-11-14T09:43:19.939017778Z"
+    },
+    {
+      "name": "qinggui-assessment-live-web-1",
+      "id": "91b13b7bd128bd10c1aa61047859682b4c09e3962f085c07ebe86758ad94b7f2",
+      "image": "sha256:dfb0c5569fd2011b147a5995ef528a51dad0ab1d2299838ebd08ddf09b3c9b9b",
+      "started": "2026-11-14T11:21:51.370055525Z"
+    }
+  ],
+  "after": [
+    {
+      "name": "qinggui-assessment-live-api-1",
+      "id": "021a600f9ceff9bfb7a0bc7b9372a8462c350e11afd6fc2048446acc36aa20bf",
+      "image": "sha256:b523357d0b7f935d38fd7f896654c4e273dc9ad2008fe40d8a9b8656f1179d50",
+      "started": "2026-11-17T08:34:56.817930839Z"
+    },
+    {
+      "name": "qinggui-assessment-live-worker-1",
+      "id": "e9d0feeb837d6a0c1fb08c0f6e3e6c2d19724349254afcd93241e6a68219d789",
+      "image": "sha256:bf036977c3d636a235ad7311ac4a0f8e35bfb4c950fefe1a0c5371c117e9f27e",
+      "started": "2026-11-14T09:43:19.939017778Z"
+    },
+    {
+      "name": "qinggui-assessment-live-web-1",
+      "id": "91b13b7bd128bd10c1aa61047859682b4c09e3962f085c07ebe86758ad94b7f2",
+      "image": "sha256:dfb0c5569fd2011b147a5995ef528a51dad0ab1d2299838ebd08ddf09b3c9b9b",
+      "started": "2026-11-14T11:21:51.370055525Z"
+    }
+  ],
+  "budget_before": {
+    "running": 0,
+    "spent": 15.368122000000007,
+    "reserved": 0.0
+  },
+  "budget_after": {
+    "running": 0,
+    "spent": 15.368122000000007,
+    "reserved": 0.0
+  },
+  "worker_and_old_frontend_unchanged": true,
+  "only_api_recreated": true,
+  "rollback_image": "qinggui-assessment-api:v201-parent-20261117"
+}

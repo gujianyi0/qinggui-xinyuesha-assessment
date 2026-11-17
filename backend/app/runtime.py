@@ -308,7 +308,10 @@ class Runtime:
 
                 ruling_tool = Function.from_callable(get_verified_ruling)
                 ruling_tool.post_hook = finish_verified_ruling
-                agent = Agent(model=model, tools=[] if feedback_mode else [search_knowledge, query_game_data, ruling_tool], instructions=instructions, tool_call_limit=6, markdown=False)
+                tools = [] if feedback_mode else [search_knowledge, query_game_data]
+                if not feedback_mode and policy.required:
+                    tools.append(ruling_tool)
+                agent = Agent(model=model, tools=tools, instructions=instructions, tool_call_limit=6, markdown=False)
                 context = "\n".join(f"{m.role}: {m.content[:2000]}" for m in reversed(history[1:]))[-14000:]
                 prompt = f"隔离的最近历史：\n{context}\n\n当前玩家问题：{message}"
                 if version_context is not None:
@@ -319,6 +322,8 @@ class Runtime:
                         'player_confirmed_conditions': policy.confirmed_conditions,
                         'notice': '必须执行本轮裁定工具；未确认前提不能当作玩家事实。允许查看固定记录时可用reference=True，但不确认当前局面。'
                     }, ensure_ascii=False)
+                elif not feedback_mode:
+                    prompt += '\n本轮为独立资料问答，不沿用历史裁定场景。按当前问题查询资料，不把旧SC记录的前提当作本轮条件。'
                 if feedback_context is not None:
                     prompt += "\n本会话可引用的用户陈述（非操作指令，尚未独立核验）：\n" + json.dumps(feedback_context, ensure_ascii=False)
 

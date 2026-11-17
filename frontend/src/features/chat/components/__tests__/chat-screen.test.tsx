@@ -319,3 +319,211 @@ function requiredElement<T extends Element>(element: T | null): T {
   if (!element) throw new Error('缺少预期的元素')
   return element
 }
+
+it('allows composing the next question during a reply without submitting it or losing it at completion', async () => {
+  let emit: (event: StreamEvent) => void = () => {}
+  let finish: () => void = () => {}
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response('[]')),
+  )
+  vi.mocked(streamRun).mockImplementationOnce(async ({ onEvent }) => {
+    emit = onEvent
+    await new Promise<void>((resolve) => {
+      finish = resolve
+    })
+  })
+  try {
+    render(
+      <Chat
+        token="test"
+        sessionId="draft-session"
+        onCreate={vi.fn()}
+        snapshots={[]}
+        snapshotId="test"
+        onSnapshotChange={vi.fn()}
+        isMockMode={false}
+        onFeedback={vi.fn()}
+      />,
+    )
+    const input = screen.getByRole('textbox', { name: '输入问题' })
+    fireEvent.change(input, { target: { value: '曹操技能' } })
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '发送问题' })).toBeEnabled(),
+    )
+    const before = vi.mocked(streamRun).mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: '发送问题' }))
+    await screen.findByRole('button', { name: '取消回答' })
+    expect(input).toBeEnabled()
+    fireEvent.change(input, { target: { value: '刘备技能\n补充说明' } })
+    expect(fireEvent.keyDown(input, { key: 'Enter' })).toBe(true)
+    expect(vi.mocked(streamRun).mock.calls.length).toBe(before + 1)
+    act(() => emit({ event: 'delta', data: { text: '正在回答曹操' } }))
+    expect(input).toHaveValue('刘备技能\n补充说明')
+    await act(async () => {
+      emit({
+        event: 'completed',
+        data: { text: '曹操有奸雄和护驾', citations: [] },
+      })
+      finish()
+    })
+    await screen.findByRole('button', { name: '发送问题' })
+    expect(input).toHaveValue('刘备技能\n补充说明')
+    vi.mocked(streamRun).mockImplementationOnce(async ({ onEvent }) =>
+      onEvent({
+        event: 'completed',
+        data: { text: '刘备有仁德和激将', citations: [] },
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: '发送问题' }))
+    await waitFor(() =>
+      expect(vi.mocked(streamRun).mock.calls.at(-1)?.[0].message).toBe(
+        '刘备技能\n补充说明',
+      ),
+    )
+  } finally {
+    finish()
+    vi.unstubAllGlobals()
+  }
+})
+
+it('does not erase a new draft when new-session creation finishes later', async () => {
+  let finishCreate: (session: {
+    id: string
+    title: string
+    created_at: string
+  }) => void = () => {}
+  let finish: () => void = () => {}
+  const create = vi.fn(
+    () =>
+      new Promise<{ id: string; title: string; created_at: string }>(
+        (resolve) => {
+          finishCreate = resolve
+        },
+      ),
+  )
+  vi.mocked(streamRun).mockImplementationOnce(
+    async () =>
+      new Promise<void>((resolve) => {
+        finish = resolve
+      }),
+  )
+  render(
+    <Chat
+      token="test"
+      sessionId={null}
+      onCreate={create}
+      snapshots={[]}
+      snapshotId="test"
+      onSnapshotChange={vi.fn()}
+      isMockMode={false}
+      onFeedback={vi.fn()}
+    />,
+  )
+  const input = screen.getByRole('textbox', { name: '输入问题' })
+  fireEvent.change(input, { target: { value: '第一条' } })
+  fireEvent.click(screen.getByRole('button', { name: '发送问题' }))
+  expect(input).toBeEnabled()
+  expect(input).toHaveValue('')
+  fireEvent.change(input, { target: { value: '下一条草稿' } })
+  await act(async () =>
+    finishCreate({
+      id: 'new-session',
+      title: '第一条',
+      created_at: '2026-11-17',
+    }),
+  )
+  expect(input).toHaveValue('下一条草稿')
+  await act(async () => finish())
+  expect(input).toHaveValue('下一条草稿')
+})
+
+it.each([false, true])(
+  'preserves the appropriate draft if creating a conversation fails (new draft: %s)',
+  async (hasNewDraft) => {
+    let rejectCreate: (error: Error) => void = () => {}
+    const create = vi.fn(
+      () =>
+        new Promise<{ id: string; title: string; created_at: string }>(
+          (_resolve, reject) => {
+            rejectCreate = reject
+          },
+        ),
+    )
+    render(
+      <Chat
+        token="test"
+        sessionId={null}
+        onCreate={create}
+        snapshots={[]}
+        snapshotId="test"
+        onSnapshotChange={vi.fn()}
+        isMockMode={false}
+        onFeedback={vi.fn()}
+      />,
+    )
+    const input = screen.getByRole('textbox', { name: '输入问题' })
+    fireEvent.change(input, { target: { value: '原始问题' } })
+    fireEvent.click(screen.getByRole('button', { name: '发送问题' }))
+    if (hasNewDraft) fireEvent.change(input, { target: { value: '新草稿' } })
+    await act(async () => rejectCreate(new Error('创建会话失败')))
+    expect(input).toHaveValue(hasNewDraft ? '新草稿' : '原始问题')
+    expect(input).toBeEnabled()
+    expect(screen.getByText('创建会话失败')).toBeVisible()
+  },
+)
+
+it('keeps a next-question draft while recovering the previous request', async () => {
+  const key = 'qinggui-pending:test-workspace:recover-edit'
+  localStorage.setItem(
+    key,
+    JSON.stringify({
+      request_id: 'original',
+      session_id: 'recover-edit',
+      message: '原始问题',
+      snapshot_id: 'test',
+    }),
+  )
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async (url: string) =>
+        new Response(
+          url.includes('/requests/')
+            ? JSON.stringify({ run_id: 'old-run', status: 'running' })
+            : '[]',
+        ),
+    ),
+  )
+  vi.mocked(streamRun).mockImplementationOnce(async ({ onEvent }) =>
+    onEvent({
+      event: 'completed',
+      data: { text: '恢复的原回答', citations: [] },
+    }),
+  )
+  try {
+    render(
+      <Chat
+        token="test"
+        sessionId="recover-edit"
+        onCreate={vi.fn()}
+        snapshots={[]}
+        snapshotId="test"
+        onSnapshotChange={vi.fn()}
+        isMockMode={false}
+        onFeedback={vi.fn()}
+      />,
+    )
+    const recover = screen.getByRole('button', { name: '恢复原请求' })
+    await waitFor(() => expect(recover).toBeEnabled())
+    const input = screen.getByRole('textbox', { name: '输入问题' })
+    fireEvent.change(input, { target: { value: '下一条草稿' } })
+    fireEvent.click(recover)
+    await screen.findByText('恢复的原回答')
+    expect(input).toHaveValue('下一条草稿')
+    expect(vi.mocked(streamRun).mock.calls.at(-1)?.[0].message).toBe('原始问题')
+  } finally {
+    localStorage.removeItem(key)
+    vi.unstubAllGlobals()
+  }
+})

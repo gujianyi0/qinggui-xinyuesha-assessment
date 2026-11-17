@@ -3,7 +3,7 @@ services:
   migrate:
     image: qinggui-assessment-migrate:latest
   api:
-    image: qinggui-assessment-api:latest
+    image: qinggui-assessment-api:v2.0.1-local.1
     environment:
       ENABLE_TEST_FAULTS: 'false'
   worker:

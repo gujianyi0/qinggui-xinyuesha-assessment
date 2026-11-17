@@ -17,7 +17,8 @@ try {
     }
     if (-not (Test-Path -LiteralPath frontend/dist/index.html)) { throw 'Build frontend/dist first.' }
     $manifest = Get-Content -LiteralPath frontend/dist/v2-build.json -Raw | ConvertFrom-Json
-    if ($manifest.version -ne '2.0.0-local.1' -or $manifest.scope -ne 'local-internal-preview') {
+    $expectedVersion = (Get-Content -LiteralPath VERSION -Raw).Trim()
+    if ($manifest.version -ne $expectedVersion -or $manifest.scope -ne 'local-internal-preview') {
         throw 'The selected artifact is not the v2 local preview. Rebuild without -SkipBuild.'
     }
     docker compose -p qinggui-assessment-v2-local -f compose.v2-local.yaml up -d --wait
