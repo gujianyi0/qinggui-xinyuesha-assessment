@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1.5-Docker真实问答与主库迁移-20261112.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>1.5 Docker真实问答与主库迁移</h1>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1.5-Docker真实问答与主库迁移-20261112.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>1.5 Docker真实问答与主库迁移</h1>
 <p>日期：2026-11-12。Docker已成为唯一运行主库，网页地址仍为 <a href="http://127.0.0.1:15174/">http://127.0.0.1:15174/</a> 。沿用原轻归授权的同一deepseek-flash服务；不改动原轻归工程、账号、私人记忆或运行库。QQ接入按本次确认移出交付范围。</p>
 <h2>迁移内容与结果</h2>
 <p>先确认没有运行中问答、未完成任务、未投递Outbox或未结算费用，再停止原生API/Worker等写入方。仅启动本项目源PG的只读实例，取得自定义格式pg_dump备份，并在导出前后重新核对全部表。备份及原数据库保留在.local，均不进入Git。</p>

@@ -25,10 +25,17 @@ class Links(HTMLParser):
 def verify():
     data = json.loads((SHELF / 'data.json').read_text(encoding='utf-8'))
     manifest = json.loads((SHELF / 'export-manifest.json').read_text(encoding='utf-8'))
-    assert len(data['groups']) == 8 and data['groups'][7]['title'] == '文档导航QA'
-    assert len([r for r in data['records'] if r['group'] < 7]) == 49
-    review = [r for r in data['records'] if r['group'] == 7]
+    assert len(data['groups']) == 7 and len(data['records']) == 49
+    assert all(r['kind'] == 'learning' for r in data['records'])
+    review = data['reviewDocuments']
     assert len(review) == 11
+    assert all(r['kind'] == 'assessment_reference' and 'group' not in r for r in review)
+    assert not set(r['id'] for r in review) & set(r['id'] for r in data['records'])
+    for record in data['records']:
+        original = ROOT / 'tools/bookshelf/base/originals' / (record['id'] + '.md')
+        exported = SHELF / 'originals' / (record['id'] + '.md')
+        assert original.read_bytes() == exported.read_bytes()
+        assert hashlib.sha256(exported.read_bytes()).hexdigest() == record['hash'], original
     for record in review:
         source = ROOT / 'docs/文档导航QA' / record['filename']
         assert hashlib.sha256(source.read_bytes()).hexdigest() == record['hash'], source
@@ -60,6 +67,8 @@ def verify():
             url = unquote(value.path)
             if url.startswith('/bookshelf/'):
                 target = SHELF / url.removeprefix('/bookshelf/')
+            elif url == '/' and 'page=bookshelf' in value.query:
+                continue
             elif url.startswith('/'):
                 raise AssertionError(f'Unexpected root link in {file}: {href}')
             else:
@@ -68,7 +77,8 @@ def verify():
             assert target.resolve().is_relative_to(SHELF.resolve()), (file, href)
             assert target.exists(), (file, href)
             count += 1
-    assert 'fetch(' not in (SHELF / 'shared-progress.js').read_text(encoding='utf-8')
+    assert not (SHELF / 'app.js').exists()
+    assert not (SHELF / 'shared-progress.js').exists()
     result = {'review_documents': 11, 'learning_goals': 49, 'linked_source_files': len(manifest['files']),
               'local_links_checked': count, 'private_values_found': 0, 'cloud_progress_connected': False,
               'historical_missing_paths': manifest['unexported']}

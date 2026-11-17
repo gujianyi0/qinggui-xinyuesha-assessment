@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1.13-参考来源滚动修复-20261114.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>1.13 参考来源滚动修复</h1>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1.13-参考来源滚动修复-20261114.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>1.13 参考来源滚动修复</h1>
 <p>日期：2026-11-14。用户截图显示原文下半部被截住，无法继续下拉。</p>
 <h2>问题及修前证据</h2>
 <p>这是1.12新增来源阅读区引入的问题：原文设为max-height 440px（窄屏400px），内部独立纵向滚动，overscroll-behavior:contain又禁止到边缘后把滚动传递给聊天区。固定的聊天最小高度在短窗口/放大显示下也会造成额外的页面滚动。</p>

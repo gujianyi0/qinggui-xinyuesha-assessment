@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Docker主库备份与恢复.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>Docker 主库备份与恢复（1.9）</h1>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Docker主库备份与恢复.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>Docker 主库备份与恢复（1.9）</h1>
 <p>当前业务权威是 <code>qinggui-assessment-live</code> 的 PostgreSQL。旧原生迁移归档只代表迁移时点，不能覆盖今天的会话、反馈和费用账本。备份命令应在项目根目录执行。</p>
 <h2>备份内容与维护窗口</h2>
 <pre><code class="language-powershell">uv run python -m scripts.backup_docker_primary backup --label daily-20261113-01

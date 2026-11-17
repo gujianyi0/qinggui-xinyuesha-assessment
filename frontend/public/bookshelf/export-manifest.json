@@ -8,6 +8,36 @@
   "cloudModified": false,
   "files": [
     {
+      "path": "docs/进度同步-20261117-v203.md",
+      "url": "/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261117-v203.md",
+      "sha256": "88bd4e0c29a912063892d38671badbbc28743950652f6337e5b505ed7d6a0717",
+      "bytes": 753
+    },
+    {
+      "path": "docs/2.0.3-书架原生整合与文档分类-20261117.md",
+      "url": "/bookshelf/review-files/docs/2.0.3-%E4%B9%A6%E6%9E%B6%E5%8E%9F%E7%94%9F%E6%95%B4%E5%90%88%E4%B8%8E%E6%96%87%E6%A1%A3%E5%88%86%E7%B1%BB-20261117.md",
+      "sha256": "d6495e3f1c6a34dcc3abc7c93823cbb7e5b66347fba02048758cda4f53882036",
+      "bytes": 3495
+    },
+    {
+      "path": "docs/evidence/v203-frontend-check-20261117.log",
+      "url": "/bookshelf/review-files/docs/evidence/v203-frontend-check-20261117.log.txt",
+      "sha256": "9dbeeee0b47c0c7d416c400a26873e0fb63b1a50cb87393cd65e0bfe2172bb34",
+      "bytes": 2354
+    },
+    {
+      "path": "docs/evidence/v203-native-bookshelf-browser-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v203-native-bookshelf-browser-20261117.json",
+      "sha256": "a625197ef2dbb6de5312a8fb95765e7916022bc1415ecd1ad13588c2469c7299",
+      "bytes": 1232
+    },
+    {
+      "path": "docs/evidence/v203-bookshelf-verification-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v203-bookshelf-verification-20261117.json",
+      "sha256": "97c484c4aab93f8b1f3c8df45e2786aba4e27334bc586f5df2df19f7b1d3aef9",
+      "bytes": 339
+    },
+    {
       "path": "docs/进度同步-20261117-v202.md",
       "url": "/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261117-v202.md",
       "sha256": "01c6d3490339582cc4083d0e16a3726c4371d7d87aa975c7bfbe294e1e686d35",
@@ -334,14 +364,14 @@
     {
       "path": "README.md",
       "url": "/bookshelf/review-files/README.md",
-      "sha256": "a53f890c9a6d701b6cb793d5c436e57fda3971b7f49753efb31d86bdd2be9032",
-      "bytes": 9526
+      "sha256": "d688f57690e562d6ad92478a302536745b4e2574a8f4b20b3a3b583138f0be50",
+      "bytes": 9623
     },
     {
       "path": "tools/bookshelf/README.md",
       "url": "/bookshelf/review-files/tools/bookshelf/README.md",
-      "sha256": "308b031f703730bc7b3809b2d6a2c29d592cc969104de6f48469f66c06dbe60e",
-      "bytes": 1344
+      "sha256": "5431778c14c185d3d6cea65aee4a337d30d5fae6f817799e73f380a333c9fd9a",
+      "bytes": 1572
     },
     {
       "path": "backend/app/main.py",
@@ -1346,6 +1376,12 @@
       "bytes": 490
     },
     {
+      "path": "frontend/src/services/bookshelf.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/bookshelf.ts.txt",
+      "sha256": "560a63287ab28104722413bdbe00183a484ecfc0462f0204276e01f0130473aa",
+      "bytes": 784
+    },
+    {
       "path": "frontend/src/services/feedback.ts",
       "url": "/bookshelf/review-files/frontend/src/services/feedback.ts.txt",
       "sha256": "aaec6d83f53004f47eb6e68426e5ae3f822d215d311f91063f50617dc2e604b4",
@@ -1660,8 +1696,8 @@
     {
       "path": "scripts/verify_bookshelf.py",
       "url": "/bookshelf/review-files/scripts/verify_bookshelf.py",
-      "sha256": "f42a986d09b9f0ba12fe4e412c6d4bdd0259a159604a4c9424b1b4ec12713cba",
-      "bytes": 3575
+      "sha256": "48734dd095ee7ae50fb3015a1d71a11c76be2daaa37c76b294ebff5ac378b526",
+      "bytes": 4140
     },
     {
       "path": "scripts/verify_browser_request_recovery.py",
@@ -1750,7 +1786,7 @@
     {
       "path": "VERSION",
       "url": "/bookshelf/review-files/VERSION",
-      "sha256": "cefdd61626e26353a937bc30deec509d9627e53d3dd710a6925398557403398f",
+      "sha256": "df55ba81550c9fbcd1aba7d3d412153d9ba7dc0fdaac873b6ce167ad6598a149",
       "bytes": 15
     },
     {
@@ -1768,13 +1804,13 @@
     {
       "path": "frontend/package.json",
       "url": "/bookshelf/review-files/frontend/package.json",
-      "sha256": "db6485b5b8529bc2d202bdf855d104ddcf927947ac0a4827d2da90f73780ee4e",
+      "sha256": "27bb2e87c74960a3645f508801b2cfe8e64995d93af011a05d481447c19ce6ed",
       "bytes": 1612
     },
     {
       "path": "frontend/package-lock.json",
       "url": "/bookshelf/review-files/frontend/package-lock.json",
-      "sha256": "5ecc0f4665aefb26525847497f9a061526614b6414d45d97df34814ec3f845bb",
+      "sha256": "6ebebc0ca927617bb1374378bf0db6fccc284c08601d9bd579017bccf1012475",
       "bytes": 180649
     },
     {

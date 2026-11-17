@@ -1,11 +1,11 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>README.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>轻归 · 新月杀资料与反馈助手</h1>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>README.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>轻归 · 新月杀资料与反馈助手</h1>
 <h2>1. 使用者与问题</h2>
 <p>面向普通新月杀玩家，解决规则和技能资料难查、复杂结算缺少前提、问题反馈缺少复现信息的问题。玩家可以查询资料、核对固定裁定记录，并整理和确认反馈；开发者可以追溯来源、工具调用及后台导入结果。</p>
 <h2>2. 完成范围</h2>
 <p>已实现React网页、FastAPI/Agno问答、PostgreSQL/pgvector检索、多轮流式与原请求恢复、三类受控工具、反馈草稿及明确确认、身份隔离，以及Kafka＋独立Worker的资料导入、查询、重试和取消。</p>
 <p>资料固定为新月杀外层standard、standard_cards、maneuvering三包，快照<code>freekill-local-b9dc701220bc</code>；包含198条资料，索引分为659块。SC01–SC08及选定对照有Lua规则引擎离线执行记录，不表示任意对局都已验证。</p>
-<p>当前本地版本为<code>2.0.2-local.1</code>；15180运行v2内测前端，15174与公网仍为1.13前端，共用API已应用当前缺陷修复。精确输入单个卡牌名时直接返回带来源的资料库说明，不调用模型；其他问题继续由Agno处理。已有索引时API后台预热本地BGE，网页显示等待阶段和已等待秒数。</p>
-<p>工作区“后台任务”下新增“知识书架”，复用原书架并加入08文档导航QA（11份导航与测试记录）；补齐第49篇知识文档《从使用者角度验证交互》。本地只读副本保留原文、证据链接和第三方许可证，不连接云端掌握进度。v2源码此前通过<a href="https://github.com/gujianyi0/qinggui-xinyuesha-assessment/tree/feat/v2-local-preview">内测分支</a>提供，本轮新改动及v2公网前端尚未发布。材料位置、验证记录与分项进度见<a href="/bookshelf/index.html#read/8-01">文档导航QA</a>。</p>
+<p>当前本地版本为<code>2.0.3-local.1</code>；15180运行v2内测前端，15174与公网仍为1.13前端，共用API保持2.0.2业务修复。精确输入单个卡牌名时直接返回带来源的资料库说明，不调用模型；其他问题继续由Agno处理。已有索引时API后台预热本地BGE，网页显示等待阶段和已等待秒数。</p>
+<p>工作区“后台任务”下的“知识书架”为轻归原生子模块。知识目录仅包含7个方向、49篇知识文档；11份文档导航QA单列为考核资料，不进入学习目录、统计或文章翻页。移除独立书架的重复品牌、头像、导航、页脚、掌握进度和iframe，保留正文、搜索、目录、字号、原文下载与证据链接。v2源码此前通过<a href="https://github.com/gujianyi0/qinggui-xinyuesha-assessment/tree/feat/v2-local-preview">内测分支</a>提供，本轮新改动及v2公网前端尚未发布。材料位置、验证记录与分项进度见<a href="/?page=bookshelf&amp;shelf=review&amp;document=8-01">文档导航QA</a>。</p>
 <p>书架导出源码、原49篇快照与锁定依赖在<a href="/bookshelf/review-files/tools/bookshelf/README.md.html">tools/bookshelf</a>，普通启动直接使用已生成的静态副本；更新文档后的重新导出步骤也在该处。</p>
 <h2>3. 启动及测试命令</h2>
 <p>需要Docker Compose；本地构建与测试另需Python 3.13、uv和符合<code>frontend/package.json</code>要求的Node.js。以下命令从项目根目录执行。</p>
@@ -35,7 +35,7 @@ uv run pytest -q
 npm --prefix frontend ci
 npm --prefix frontend run check
 </code></pre>
-<p><code>check</code>包含Lint、架构边界、类型、Knip、前端测试和生产构建。固定样例及需计费、隔离环境的真实评测另见<a href="/bookshelf/index.html#read/8-03">验证导航</a>，不作为上述命令的自动步骤。</p>
+<p><code>check</code>包含Lint、架构边界、类型、Knip、前端测试和生产构建。固定样例及需计费、隔离环境的真实评测另见<a href="/?page=bookshelf&amp;shelf=review&amp;document=8-03">验证导航</a>，不作为上述命令的自动步骤。</p>
 <h2>4. 主要调用链路</h2>
 <ul>
 <li>问答：网页登录 → FastAPI校验身份与会话 → 保存用户输入及运行编号 → Agno调用模型和受控工具 → 汇集引用并执行裁定约束 → 保存答案、工具审计与用量 → SSE或轮询返回。回答期间可编辑下一条草稿，完成后再发送。</li>
@@ -68,7 +68,7 @@ npm --prefix frontend run check
 <td>仅在本轮需要裁定时提供；普通问题不继承旧SC场景。条件未匹配不能发布确定结论，模型自填条件不算玩家确认</td>
 </tr>
 </tbody></table>
-<p>Agno负责模型和工具编排；权限、确认、任务状态与审计由应用控制。游戏原文、FreeKill引擎、BGE权重和各第三方框架为复用组件；本项目实现其接入与业务规则，来源说明见<a href="/bookshelf/index.html#read/8-02">交付材料导航</a>。</p>
+<p>Agno负责模型和工具编排；权限、确认、任务状态与审计由应用控制。游戏原文、FreeKill引擎、BGE权重和各第三方框架为复用组件；本项目实现其接入与业务规则，来源说明见<a href="/?page=bookshelf&amp;shelf=review&amp;document=8-02">交付材料导航</a>。</p>
 <h2>6. 数据设计</h2>
 <table>
 <thead>
@@ -145,7 +145,7 @@ npm --prefix frontend run check
 <ul>
 <li>只覆盖固定快照和选定场景。引用完整性、替身测试或一次真实回答正确，均不能证明任意模型输出、完整客户端或线上对局正确。</li>
 <li>正式部署限定单API进程与单Worker；无多API高可用、异地备份或正式灾难切换。共享服务依赖提供者电脑持续运行。</li>
-<li>本轮后端243项、前端50项检查通过；同组4条性能复测与书架核验另存证据。完整32条真实回归和一小时稳定性属于各自历史版本，本轮没有重跑。</li>
+<li>2.0.3前端54项及完整门禁通过；后端243项、同组性能复测属于2.0.2，本轮后台业务未改。完整32条真实回归和一小时稳定性属于各自历史版本，本轮没有重跑。</li>
 <li>Storybook、Lighthouse、v2完整隔离浏览器写入流程和另一台物理电脑的全新部署仍未完成；整浏览器无响应的具体根因也没有被完全确证。</li>
 <li>QQ已移出当前范围；用户本人多轮真人试用与反馈改进已完成，记录见<a href="/bookshelf/review-files/docs/%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md.html">试用记录</a>，未另行招募外部试用者。公司验收、范围认可、截止日期与演示安排仍需确认。</li>
 </ul>

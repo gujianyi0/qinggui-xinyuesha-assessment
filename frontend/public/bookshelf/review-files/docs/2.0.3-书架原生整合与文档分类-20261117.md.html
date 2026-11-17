@@ -1,0 +1,19 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2.0.3-书架原生整合与文档分类-20261117.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>2.0.3 书架原生整合与文档分类</h1>
+<p>2026-11-17，版本2.0.3-local.1，仅本地内测。用户明确要求“文档导航不作为可学习的知识”“知识书架直接作为轻归下的子模块，去掉多余的部分”。</p>
+<h2>本轮调整</h2>
+<ul>
+<li>学习数据只保留7个方向、49篇知识文档。11份文档导航QA独立为assessment_reference，不加入学习方向、知识搜索或知识文章翻页；不再呈现第08学习方向或60篇知识的统计。</li>
+<li>工作区“知识书架”直接使用React原生页面，移除iframe套独立网站的方式。重复的BITEAGLE品牌、故剑遗账户区、书架侧栏、独立页头/页脚、云端进度管理、同步提示及独立窗口入口均从本地使用界面移除。轻归自己的导航与账户继续作为统一工作区入口。</li>
+<li>模块中分为“知识文档”和“文档导航QA”。知识区支持7方向筛选和标题/目标/正文搜索；考核区单独搜索与检阅。正文保留分段、目录、字号调整、原文下载和证据链接，统一使用工作区纵向滚动。</li>
+<li>原49篇知识正文和11份考核记录保留，未删除学习原文或历史证据；原始独立书架源码快照仍留在tools/bookshelf/base作为来源记录，不加载到使用页面。</li>
+<li>复用已有react-markdown/remark-gfm适配。默认引用展示保留既有行为，原生文档模式使用标题层级和本地链接。原文中的相对文档链接映射到模块内文档；证据只能打开导出清单中的路径，缺失或私有路径不生成可点击链接。</li>
+</ul>
+<h2>验证范围</h2>
+<p>新增行为验证：学习列表/搜索不混入考核记录；最后一篇知识文档不能通过“下一篇”进入考核区；考核深链接及相对链接保持在考核资料序列；缺失、私有、危险协议及异常编码链接不生成有效目标。</p>
+<p>完整前端门禁（Lint、架构、类型、Knip、54项测试、生产构建）通过，见<a href="/bookshelf/review-files/docs/evidence/v203-frontend-check-20261117.log.txt">原始日志</a>。首次门禁碰到导出前残留的独立脚本，原失败日志保留为v203-frontend-preexport-20261117.log；完成清理和导出后重新执行通过，未增加忽略规则。API、Worker、Kafka、数据库、模型及费用账本没有变更，不为本轮界面调整重跑付费评测或重启主库。</p>
+<p>入口：<a href="http://127.0.0.1:15180/?page=bookshelf">轻归知识书架</a>，<a href="http://127.0.0.1:15180/?page=bookshelf&amp;shelf=review">文档导航QA</a>。本轮不发布公网网页、不修改Cloudflare/D1，也不将工程检查写成公司验收。</p>
+<h2>实际网页结果</h2>
+<p><a href="/bookshelf/review-files/docs/evidence/v203-native-bookshelf-browser-20261117.json">浏览器记录</a>：桌面知识列表49篇、方向7个、iframe为0，模块内重复品牌及掌握提示为0；知识最后一篇与考核最后一份的下一篇均正确禁用。考核列表11份，不显示学习目标或方向筛选。正文相对链接可跳到导出的试用证据。</p>
+<p>390px视口无页面横向溢出，正文和表格均无独立纵向滚动范围，表格只保留必要横向查看；从距页面底部200px的起点使用真实鼠标滚轮到达底部。此处是DOM、点击和滚轮验证，不声称截图视觉验收或实体手机测试。</p>
+<p><a href="/bookshelf/review-files/docs/evidence/v203-bookshelf-verification-20261117.json">导出核验</a>检查49篇原文字节与哈希、11份考核资料独立分类、证据链接与实际私有值。历史证据和原文保留，当前本机入口可直接刷新使用。</p>
+</article></body></html>

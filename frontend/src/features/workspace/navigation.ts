@@ -35,6 +35,6 @@ export const NAVIGATION = [
     id: 'bookshelf' as const,
     label: '知识书架',
     icon: LibraryBig,
-    sub: '08 文档导航QA · 考核检阅',
+    sub: '知识文档与考核资料',
   },
 ]

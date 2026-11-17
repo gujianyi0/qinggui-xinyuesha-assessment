@@ -1,0 +1,45 @@
+{
+  "version": "2.0.3-local.1",
+  "scope": "local native React bookshelf, no model calls",
+  "desktop": {
+    "start": {
+      "knowledgeRows": 49,
+      "iframeCount": 0,
+      "categoryCount": 7,
+      "duplicateBrand": false,
+      "learningLabels": false
+    },
+    "knowledge": {
+      "title": "从使用者角度验证交互",
+      "nextDisabled": true,
+      "articleRendered": "一、把技术状态翻译成使用者能理解的状态",
+      "iframeCount": 0
+    },
+    "review": {
+      "rows": 11,
+      "learningGoals": 0,
+      "learningCategories": 0,
+      "tab": "文档导航QA 11"
+    },
+    "reading": {
+      "title": "成功失败演示与真人试用",
+      "nextDisabled": true,
+      "trialLink": "/bookshelf/review-files/docs/%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md.html",
+      "overflow": false
+    }
+  },
+  "mobile": {
+    "viewport": 390,
+    "overflow": false,
+    "iframeCount": 0,
+    "innerVerticalRanges": [
+      0,
+      0
+    ],
+    "tableHorizontalRange": 150,
+    "bottomReached": true
+  },
+  "limits": [
+    "DOM, native clicks and real wheel verified; no screenshot visual acceptance or physical phone test."
+  ]
+}

@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>README.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>固定样例与评测</h1>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>README.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>固定样例与评测</h1>
 <p><code>cases.json</code> 固定32条规格：8规则、6结构化、8裁定、3多轮、2冲突、2无答案、1工具失败、2反馈不足。来源来自本次冻结的本地外层三个业务包。<code>build_cases.py</code> 只重建规格文件，不调用模型。</p>
 <p>每条均有输入、前提、预期工具、人工核对规则和来源定位。8条裁定以实际离线规则引擎证据为判据；没有执行证据时保持待验证。</p>
 <h2>手动运行</h2>

@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>浏览器无响应排查-20261114.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>本机浏览器无响应排查</h1>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>浏览器无响应排查-20261114.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>本机浏览器无响应排查</h1>
 <p>日期：2026-11-14。用户明确描述为“整个浏览器无响应”，不是仅一条请求等待。</p>
 <h2>观察与结论</h2>
 <p>截图中的“查询凯撒技能”对应Run <code>398007e2-1f21-51eb-a0db-ccd4d61b8b02</code>，已于5.593秒完成，无error；之后“介绍曹操”也完成。问答快照未收录凯撒，回答资料不足本身不是卡死。排查时15174和18081健康检查均200，PostgreSQL/真实模型模式/发布索引正常。</p>

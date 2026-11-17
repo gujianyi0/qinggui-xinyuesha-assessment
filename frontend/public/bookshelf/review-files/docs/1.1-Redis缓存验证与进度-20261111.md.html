@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1.1-Redis缓存验证与进度-20261111.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>1.1 Redis缓存验证与进度</h1>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1.1-Redis缓存验证与进度-20261111.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>1.1 Redis缓存验证与进度</h1>
 <p>本轮按计划补齐B02/B07的Redis原生证据，不改动QQ账号或发送消息、不调用外部工单。版本从1.0推进到1.1，已有1.0标签及失败记录保持原样。</p>
 <h2>本轮完成</h2>
 <p>真实Redis＋隔离PostgreSQL/pgvector＋CPU BGE的6组检查全部通过。默认TTL自然等待 <strong>300.001秒</strong> 后失效回源；期间60组网页/API探测均为200，查询BGE调用保持1次，过期回源后为2次。未手动缩短或延长该键的期限。</p>

@@ -1,0 +1,242 @@
+.shelf-module {
+  max-width: 1250px;
+  margin: 0 auto;
+  padding: 18px 26px 36px;
+}
+.shelf-list-toolbar,
+.shelf-reader-toolbar,
+.shelf-reader-actions,
+.shelf-pagination {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.shelf-list-toolbar,
+.shelf-reader-toolbar {
+  justify-content: space-between;
+  margin: 24px 0 20px;
+}
+.shelf-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 9px 12px;
+  border-radius: 8px;
+  min-width: 0;
+  flex: 1;
+  max-width: 520px;
+}
+.shelf-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.shelf-search:focus-within {
+  border-color: var(--teal);
+}
+.shelf-count,
+.shelf-document-goal {
+  color: var(--muted);
+  font-size: 13px;
+}
+.shelf-groups {
+  min-inline-size: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+.shelf-groups button,
+.shelf-reader-actions button {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 10px;
+  color: var(--muted);
+}
+.shelf-groups button[aria-pressed="true"] {
+  background: var(--soft);
+  color: var(--teal);
+  border-color: var(--teal);
+}
+.shelf-document-list {
+  display: grid;
+  gap: 8px;
+}
+.shelf-document {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+  padding: 18px;
+  color: inherit;
+}
+.shelf-document strong {
+  font-weight: 550;
+  font-size: 15px;
+  line-height: 1.7;
+}
+.shelf-document-goal {
+  display: block;
+  margin-top: 6px;
+  line-height: 1.8;
+}
+.shelf-document:hover {
+  border-color: var(--teal);
+}
+.shelf-reader-actions a {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--teal);
+}
+.shelf-title {
+  font-size: 25px;
+  line-height: 1.6;
+  margin: 26px 0 16px;
+  outline: none;
+}
+.shelf-goal {
+  color: var(--muted);
+  line-height: 1.9;
+  padding: 14px 18px;
+  background: var(--soft);
+  border-radius: 8px;
+}
+.shelf-reading-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 175px;
+  gap: 26px;
+  align-items: start;
+}
+.shelf-article {
+  min-width: 0;
+  padding: 22px 26px;
+  line-height: 1.95;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+}
+.shelf-article > h1:first-child {
+  display: none;
+}
+.shelf-article h2 {
+  font-size: 1.25em;
+  line-height: 1.7;
+  margin: 32px 0 14px;
+  scroll-margin-top: 20px;
+}
+.shelf-article h3 {
+  font-size: 1.08em;
+  margin-top: 26px;
+  scroll-margin-top: 20px;
+}
+.shelf-article p {
+  margin: 13px 0;
+}
+.shelf-article a {
+  color: var(--teal);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.shelf-article a:not([href]) {
+  color: var(--muted);
+  text-decoration: none;
+}
+.shelf-article ul,
+.shelf-article ol {
+  padding-left: 25px;
+}
+.shelf-article pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 16px;
+  background: var(--soft);
+  border-radius: 7px;
+  font-size: 0.85em;
+}
+.shelf-article code {
+  font-family: Consolas, monospace;
+  font-size: 0.9em;
+}
+.shelf-article blockquote {
+  margin: 18px 0;
+  padding: 1px 16px;
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+}
+.shelf-article table {
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+.shelf-article th,
+.shelf-article td {
+  border: 1px solid var(--line);
+  padding: 9px 12px;
+  min-width: 95px;
+  vertical-align: top;
+}
+.shelf-article th {
+  background: var(--soft);
+}
+.shelf-article .source-table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.shelf-toc {
+  position: sticky;
+  top: 20px;
+  display: grid;
+  gap: 10px;
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+}
+.shelf-toc button {
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.shelf-pagination {
+  justify-content: space-between;
+  margin-top: 25px;
+}
+@media (max-width: 1000px) {
+  .shelf-reading-layout {
+    display: block;
+  }
+  .shelf-toc {
+    display: none;
+  }
+}
+@media (max-width: 650px) {
+  .shelf-module {
+    padding: 10px 14px 28px;
+  }
+  .shelf-title {
+    font-size: 21px;
+  }
+  .shelf-article {
+    padding: 16px;
+  }
+  .shelf-document {
+    padding: 14px;
+  }
+}

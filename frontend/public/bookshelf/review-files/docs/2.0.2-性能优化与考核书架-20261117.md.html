@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2.0.2-性能优化与考核书架-20261117.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>2.0.2 性能优化与考核书架</h1>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2.0.2-性能优化与考核书架-20261117.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>2.0.2 性能优化与考核书架</h1>
 <p>日期：2026-11-17，版本<code>2.0.2-local.1</code>，本地内测。当前变更没有部署v2公网前端，也没有改动原知识书架的Cloudflare服务或D1掌握记录。</p>
 <h2>本轮问题、改动与来源</h2>
 <p>用户实际问“闪”时出现较长等待。原Run <code>e728d8f4-8992-58df-8e95-c09032522019</code>总耗时32.705秒，结构化查询4毫秒，额外检索27.301秒；该检索是API重启后的首次向量检索。此前只能推断冷启动占主要开销，本轮新增加载计时后，观察到一次本地BGE加载为51.898秒，不能将两个不同运行窗口的数字混作同一测量。</p>

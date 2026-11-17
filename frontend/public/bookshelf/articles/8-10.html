@@ -10,4 +10,4 @@
 <p>实际修改：<a href="/bookshelf/review-files/frontend/src/services/feedback.ts.txt">feedback.ts</a>分别构造POST和PATCH；PATCH不带session_id，带当前revision。当前组件已迁移到features/feedback，历史路径见<a href="/bookshelf/review-files/docs/%E9%97%AE%E9%A2%98%E4%BF%AE%E6%AD%A3%E8%AE%B0%E5%BD%95.md.html">问题修正全集FIX01</a>。</p>
 <p>调用方检查：核对新建草稿、编辑草稿、读取草稿、确认指定修订四条链；<a href="/bookshelf/review-files/frontend/src/features/feedback/components/__tests__/feedback-screen.test.tsx.txt">反馈组件测试</a>检查请求字段及修订，<a href="/bookshelf/review-files/tests/test_api.py">test_api.py</a>继续检查跨身份、旧修订、重复确认和确认后不可编辑。实际浏览器<a href="/bookshelf/review-files/docs/evidence/browser/summary.json">summary</a>完成创建v1→编辑v2→确认。结果是编辑成功，归属和确认边界保留。</p>
 <p>本记录说明被修代码由AI生成，不把AI的解释当验证证据。接口测试与浏览器结果分别证明协议约束和实际操作链路。</p>
-<p><a href="/bookshelf/index.html#read/8-05">返回六项记录导航</a> · <a href="/bookshelf/index.html#read/8-01">返回文档导航QA</a></p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;document=8-05">返回六项记录导航</a> · <a href="/?page=bookshelf&amp;shelf=review&amp;document=8-01">返回文档导航QA</a></p>
