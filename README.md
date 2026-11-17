@@ -10,7 +10,7 @@
 
 资料固定为新月杀外层standard、standard_cards、maneuvering三包，快照`freekill-local-b9dc701220bc`；包含198条资料，索引分为659块。SC01–SC08及选定对照有Lua规则引擎离线执行记录，不表示任意对局都已验证。
 
-当前本地版本为`2.0.1-local.1`；15180运行v2内测前端，15174与公网仍为1.13前端，共用API已应用2.0.1缺陷修复。v2未上传GitHub。材料位置、验证记录与分项进度见[文档导航QA](docs/文档导航QA/文档导航QA.md)。
+当前本地版本为`2.0.1-local.1`；15180运行v2内测前端，15174与公网仍为1.13前端，共用API已应用2.0.1缺陷修复。v2源码通过[内测分支](https://github.com/gujianyi0/qinggui-xinyuesha-assessment/tree/feat/v2-local-preview)提供，v2公网前端尚未发布。材料位置、验证记录与分项进度见[文档导航QA](docs/文档导航QA/文档导航QA.md)。
 
 ## 3. 启动及测试命令
 
