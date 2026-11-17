@@ -8,6 +8,7 @@ import { displayError } from '@/services/api'
 import {
   getShelfCatalog,
   getShelfProgress,
+  getShelfSearchIndex,
   setShelfMastery,
 } from '@/services/bookshelf'
 import { useShelfBookmarks } from '../hooks/use-shelf-bookmarks'
@@ -49,6 +50,12 @@ export default function BookshelfScreen({
     queryKey: ['bookshelf'],
     queryFn: ({ signal }) => getShelfCatalog(signal),
   })
+  const searchIndex = useQuery({
+    queryKey: ['bookshelf-search'],
+    queryFn: ({ signal }) => getShelfSearchIndex(signal),
+    enabled: Boolean(search.trim()),
+  })
+  const searching = Boolean(search.trim())
   const records = isReview
     ? catalog.data?.reviewDocuments || []
     : catalog.data?.records || []
@@ -57,7 +64,7 @@ export default function BookshelfScreen({
     (item) =>
       (isReview || !group || String(item.group) === group) &&
       (isReview || !onlySaved || bookmarks.saved.includes(item.id)) &&
-      `${item.title} ${item.goal || ''} ${item.search}`
+      `${item.title} ${item.goal || ''} ${searchIndex.data?.[item.id] || item.search}`
         .toLocaleLowerCase()
         .includes(search.trim().toLocaleLowerCase()),
   )
@@ -270,7 +277,16 @@ export default function BookshelfScreen({
                   </button>
                 ))}
               </div>
-              {!visible.length && (
+              {searching && searchIndex.isPending && (
+                <Spinner label="正在读取全文搜索索引" />
+              )}
+              {searching && searchIndex.error && (
+                <ErrorNotice
+                  message={displayError(searchIndex.error)}
+                  onRetry={() => void searchIndex.refetch()}
+                />
+              )}
+              {!visible.length && (!searching || searchIndex.isSuccess) && (
                 <EmptyState
                   title="没有匹配的文档"
                   detail="试试更短的关键词，或切换知识方向。"

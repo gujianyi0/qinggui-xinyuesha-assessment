@@ -88,13 +88,13 @@
     {
       "path": "frontend/src/features/bookshelf/components/bookshelf-screen.tsx",
       "url": "/bookshelf/review-files/frontend/src/features/bookshelf/components/bookshelf-screen.tsx.txt",
-      "sha256": "a49dc611a12f3b8b67d44619cbac3fc92307ba7466cfc007b343546bc3475f23",
-      "bytes": 10209
+      "sha256": "c659b3548cbd27c33711a4d2b2895d32ddaead2841b9b367f0d0d0e80d4f81e1",
+      "bytes": 10892
     },
     {
       "path": "docs/evidence/v204-bookshelf-verification-20261117.json",
       "url": "/bookshelf/review-files/docs/evidence/v204-bookshelf-verification-20261117.json",
-      "sha256": "c9c556de5a486abbb411e5804c5f630d1fc62338b2d2efcdc5a9a9df62dd8367",
+      "sha256": "ef0e1097cf239cd078160469f87f37859b8fe3ffd79a08546c0d024fdc669c76",
       "bytes": 349
     },
     {
@@ -454,14 +454,26 @@
     {
       "path": "README.md",
       "url": "/bookshelf/review-files/README.md",
-      "sha256": "e7dc92293a0e81213ef55db30de67ed9d549c643b7171ecc536bc79ade266ce9",
-      "bytes": 10659
+      "sha256": "dea85295d82147ebddb38dc547bc6a208f3d6fd54725bcfb8016b37e2f32ef4b",
+      "bytes": 10946
+    },
+    {
+      "path": "docs/2.0.4-公网发布与GitHub同步-20261117.md",
+      "url": "/bookshelf/review-files/docs/2.0.4-%E5%85%AC%E7%BD%91%E5%8F%91%E5%B8%83%E4%B8%8EGitHub%E5%90%8C%E6%AD%A5-20261117.md",
+      "sha256": "f877bb26b9607dda6aa7c6580e6ae1f4f30817c75f39cb573f025664732d9eb0",
+      "bytes": 1639
+    },
+    {
+      "path": "docs/evidence/v204-public-gateway-20261117.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v204-public-gateway-20261117.xml",
+      "sha256": "4647c1b9c0f3925c9061cf65ceff537867c9dcc1cb216f1dd455537fdcb84aed",
+      "bytes": 2279
     },
     {
       "path": "tools/bookshelf/README.md",
       "url": "/bookshelf/review-files/tools/bookshelf/README.md",
-      "sha256": "5431778c14c185d3d6cea65aee4a337d30d5fae6f817799e73f380a333c9fd9a",
-      "bytes": 1572
+      "sha256": "e2c958dd78be67fe73e49a11984724da03057abc9906ef5bd2b4ede2e1ed1b1f",
+      "bytes": 1796
     },
     {
       "path": "backend/app/main.py",
@@ -1456,8 +1468,8 @@
     {
       "path": "frontend/src/services/api.ts",
       "url": "/bookshelf/review-files/frontend/src/services/api.ts.txt",
-      "sha256": "f91628381bc312d651327dad3066ed3f7d05fa1ac890b5760f3e42a14b46086f",
-      "bytes": 2192
+      "sha256": "bda184d5fe73ff42b078464488fb2348ca81ba62ef1abad4f4cfcd032810eecb",
+      "bytes": 2277
     },
     {
       "path": "frontend/src/services/auth.ts",
@@ -1468,8 +1480,8 @@
     {
       "path": "frontend/src/services/bookshelf.ts",
       "url": "/bookshelf/review-files/frontend/src/services/bookshelf.ts.txt",
-      "sha256": "469379e53751b1d131a390261cdcecab595c2fb9a058c277bfcc32377848a9b9",
-      "bytes": 1568
+      "sha256": "ccb0b39beb30a321795caa9df3ff8cb631fa95496cc1e7258db6b76444c51aae",
+      "bytes": 1864
     },
     {
       "path": "frontend/src/services/feedback.ts",
@@ -1534,8 +1546,8 @@
     {
       "path": "backend/public_gateway.py",
       "url": "/bookshelf/review-files/backend/public_gateway.py",
-      "sha256": "ec083799498c410e5dd28e1dfd4973e05ff9979238d87e4c1cf87ce8cc79849d",
-      "bytes": 6133
+      "sha256": "3ec27d95161896f87fa62a9169817a52fa677e6cc2a0adbbad0c6370a6f30b8d",
+      "bytes": 6157
     },
     {
       "path": "public-entry/package-lock.json",
@@ -1618,8 +1630,8 @@
     {
       "path": "scripts/deploy_public_entry.py",
       "url": "/bookshelf/review-files/scripts/deploy_public_entry.py",
-      "sha256": "6d67ae9b51ac8b2467031581d441f4bf45bedbec412ce56e89ade1a4ce512fe9",
-      "bytes": 1538
+      "sha256": "300501e191606b6aaade8e793a15f69f401843b09779e2d47fa727c26dda892b",
+      "bytes": 3328
     },
     {
       "path": "scripts/docker_live.py",

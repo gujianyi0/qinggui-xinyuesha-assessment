@@ -49,9 +49,11 @@ function mount(url = '/?page=bookshelf', token = '') {
           }),
         )
       return new Response(
-        input.endsWith('data.json')
-          ? JSON.stringify(catalog)
-          : '# 正文\n\n原文内容\n\n[修复记录](修复记录.md)',
+        input.endsWith('search.json')
+          ? JSON.stringify({ '7-06': '仅正文出现的关键词' })
+          : input.endsWith('data.json')
+            ? JSON.stringify(catalog)
+            : '# 正文\n\n原文内容\n\n[修复记录](修复记录.md)',
       )
     }),
   )
@@ -126,7 +128,7 @@ it('keeps assessment references out of knowledge lists, search and categories', 
   fireEvent.change(screen.getByRole('searchbox', { name: '搜索知识文档' }), {
     target: { value: '考核' },
   })
-  expect(screen.getByText('没有匹配的文档')).toBeVisible()
+  expect(await screen.findByText('没有匹配的文档')).toBeVisible()
   fireEvent.keyDown(screen.getByRole('tab', { name: /知识文档/ }), {
     key: 'ArrowRight',
   })
@@ -169,4 +171,21 @@ it('opens review deep links and follows review documents without joining the lea
   expect(screen.queryByText('学习交互验证')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: /返回文档导航/ }))
   expect(await screen.findByRole('button', { name: '考核导航' })).toBeVisible()
+})
+
+it('loads full text only when searching and finds a body-only match', async () => {
+  mount()
+  await screen.findByRole('button', { name: /用户交互/ })
+  expect(
+    vi
+      .mocked(fetch)
+      .mock.calls.some(([url]) => String(url).endsWith('search.json')),
+  ).toBe(false)
+  fireEvent.change(screen.getByRole('searchbox', { name: '搜索知识文档' }), {
+    target: { value: '仅正文出现' },
+  })
+  expect(await screen.findByRole('button', { name: /部署验证/ })).toBeVisible()
+  expect(
+    screen.queryByRole('button', { name: /用户交互/ }),
+  ).not.toBeInTheDocument()
 })

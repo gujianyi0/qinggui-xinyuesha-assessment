@@ -46,7 +46,7 @@ def allowed(method: str, path: str) -> bool:
     identifier = r"[a-f0-9-]{36}"
     routes = {
         "GET": [r"/health", r"/sessions", rf"/sessions/{identifier}/messages", rf"/runs/{identifier}", rf"/sessions/{identifier}/requests/{identifier}",
-                r"/catalog/(snapshots|entities|rulings)", r"/feedback-drafts", r"/feedback"],
+                r"/catalog/(snapshots|entities|rulings)", r"/feedback-drafts", r"/feedback", r"/bookshelf/progress"],
         "POST": [r"/sessions", rf"/sessions/{identifier}/runs", rf"/sessions/{identifier}/submissions", rf"/runs/{identifier}/cancel",
                  rf"/sessions/{identifier}/requests/{identifier}/cancel",
                  r"/feedback-drafts", rf"/feedback-drafts/{identifier}/confirm"],

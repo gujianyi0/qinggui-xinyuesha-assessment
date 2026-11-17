@@ -1,4 +1,4 @@
-import { apiBase } from '@/lib/runtime-config'
+import { apiBase, isPublicMode } from '@/lib/runtime-config'
 
 export class ApiError extends Error {
   constructor(
@@ -27,10 +27,11 @@ export async function request<T>(
   const headers = new Headers(options.headers)
   if (token) headers.set('Authorization', `Bearer ${token}`)
   if (options.body) headers.set('Content-Type', 'application/json')
+  const timeoutMs = isPublicMode ? 50_000 : 15_000
   const timeout = new AbortController()
   const timer = setTimeout(
     () => timeout.abort(new DOMException('请求超时', 'TimeoutError')),
-    15_000,
+    timeoutMs,
   )
   const signal = options.signal
     ? AbortSignal.any([options.signal, timeout.signal])
@@ -57,7 +58,7 @@ export async function request<T>(
   } catch (error) {
     if (timeout.signal.aborted && !options.signal?.aborted)
       throw new Error(
-        '请求超过15秒，请检查服务后重试；提交结果不明时会核对原请求。',
+        `请求超过${timeoutMs / 1000}秒，请检查服务后重试；提交结果不明时会核对原请求。`,
       )
     throw error
   } finally {

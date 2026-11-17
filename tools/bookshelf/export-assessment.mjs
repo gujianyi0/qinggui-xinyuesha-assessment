@@ -107,6 +107,9 @@ for(const name of names){
 }
 data.evidenceLinks=Object.fromEntries([...copied].map(([file,value])=>[path.relative(root,path.resolve(file)).replaceAll('\\','/'),value.directory?urlFor(path.resolve(file))+'/index.html':value.url+(file.endsWith('.md')?'.html':'')]));
 data.evidenceFiles=Object.fromEntries([...copied].filter(([,value])=>!value.directory).map(([file,value])=>[path.relative(root,file).replaceAll('\\','/'),value]));
+const searchIndex=Object.fromEntries([...data.records,...data.reviewDocuments].map(record=>[record.id,record.search]));
+for(const record of [...data.records,...data.reviewDocuments])record.search='';
+await fs.writeFile(path.join(output,'search.json'),JSON.stringify(searchIndex));
 await fs.writeFile(path.join(output,'data.json'),JSON.stringify(data));
 await fs.writeFile(path.join(output,'index.html'),'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/?page=bookshelf"><title>轻归 · 知识书架</title><a href="/?page=bookshelf">进入轻归知识书架</a></html>');
 await fs.mkdir(path.join(output,'licenses'),{recursive:true});
