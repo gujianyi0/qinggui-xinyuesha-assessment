@@ -195,7 +195,9 @@ export default function WorkspaceScreen({
                   : '当前离线'}
             </span>
             {isMockMode && <span className="mode-badge">模型替身模式</span>}
-            <span className="preview-badge">v2.0.4 · 本地内测</span>
+            <span className="preview-badge">
+              v2.0.4 · {isPublicMode ? '公开试用' : '本地内测'}
+            </span>
           </div>
         </header>
         {error && (

@@ -125,6 +125,19 @@ async def test_polling_discards_unconsumed_events():
     assert queue.qsize() == 0
 
 
+async def test_public_shared_progress_is_read_only(public, app, monkeypatch):
+    gateway, _ = public
+    headers, _ = await guest(gateway)
+    async def snapshot(can_edit):
+        assert not can_edit
+        return {'ids': ['1-01'], 'revision': 4, 'initialized': True, 'can_edit': False, 'updatedAt': None}
+    monkeypatch.setattr(app.state.shelf_progress, 'read', snapshot)
+    response = await gateway.get('/api/bookshelf/progress', headers=headers)
+    assert response.status_code == 200 and not response.json()['can_edit']
+    assert (await gateway.patch('/api/bookshelf/progress', headers=headers,
+                                json={'id':'1-01','learned':False,'revision':4})).status_code == 404
+
+
 @pytest.mark.asyncio
 async def test_public_still_uses_the_existing_global_monetary_budget(public, app):
     client, _ = public
