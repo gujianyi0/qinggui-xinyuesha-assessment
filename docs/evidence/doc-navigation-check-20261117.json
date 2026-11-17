@@ -1,0 +1,43 @@
+{
+  "checked_on": "2026-11-17",
+  "readme_sections": [
+    "使用者与问题",
+    "完成范围",
+    "启动及测试命令",
+    "主要调用链路",
+    "工具边界",
+    "数据设计",
+    "失败处理",
+    "已知限制"
+  ],
+  "navigation_files": [
+    "01-源码依赖迁移配置与资料.md",
+    "02-验证测试修正与试用反馈.md",
+    "03-主要功能与后台任务进度.md",
+    "文档导航QA.md"
+  ],
+  "local_links_checked": 190,
+  "broken_links": [],
+  "business_tests_rerun": false,
+  "paid_model_calls": 0,
+  "password_verification": {
+    "date": "2026-11-17",
+    "accounts": [
+      {
+        "account": "alice",
+        "new_login_status": 200,
+        "old_login_status": 401
+      },
+      {
+        "account": "bob",
+        "new_login_status": 200,
+        "old_login_status": 401
+      }
+    ],
+    "new_demo_config_loaded": true,
+    "same_user_ids": true,
+    "budget_unchanged": true,
+    "model_calls": 0,
+    "scope": "Only existing local demo accounts alice/bob and private startup configuration; no model credential change"
+  }
+}
