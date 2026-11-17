@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -78,10 +79,22 @@ def create_app(settings: Settings | None = None):
     async def lifespan(app):
         await database.initialize(config)
         await runtime.recover_interrupted()
-        yield
-        await runtime.close()
-        await search.close()
-        await database.close()
+        warmup = None
+        if config.embedding_mode == "local":
+            async with database.sessions() as db:
+                published = await db.get(PublishedIndex, catalog.active_id) if catalog.active_id else None
+            if published:
+                warmup = asyncio.create_task(embedder.warmup(), name="embedding-warmup")
+        try:
+            yield
+        finally:
+            if warmup:
+                warmup.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await warmup
+            await runtime.close()
+            await search.close()
+            await database.close()
 
     app = FastAPI(title="轻归 · 新月杀资料与反馈助手", version="0.1.0", lifespan=lifespan)
     app.state.settings, app.state.database, app.state.runtime = config, database, runtime
@@ -195,7 +208,7 @@ def create_app(settings: Settings | None = None):
             cache_status = "available" if await search.cache.ping() else "unavailable_fallback"
         except Exception:
             cache_status = "unavailable_fallback"
-        return {"status": "ok", "cache": cache_status, "model_mode": config.model_mode, "model_id": config.model_id, "snapshot_id": catalog.active_id, "embedding_mode": config.embedding_mode, "index_published": published is not None, "database": database.engine.dialect.name, "fault_injection_enabled": config.enable_test_faults, "budget": {"spent_cny": budget.spent, "reserved_cny": budget.reserved, "limit_cny": config.total_budget_cny, "warning": budget.spent + budget.reserved >= config.budget_warning_cny}}
+        return {"status": "ok", "cache": cache_status, "model_mode": config.model_mode, "model_id": config.model_id, "snapshot_id": catalog.active_id, "embedding_mode": config.embedding_mode, "embedding": embedder.diagnostics(), "index_published": published is not None, "database": database.engine.dialect.name, "fault_injection_enabled": config.enable_test_faults, "budget": {"spent_cny": budget.spent, "reserved_cny": budget.reserved, "limit_cny": config.total_budget_cny, "warning": budget.spent + budget.reserved >= config.budget_warning_cny}}
 
     @app.post("/auth/token")
     async def login(body: Login):

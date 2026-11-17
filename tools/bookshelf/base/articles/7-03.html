@@ -1,0 +1,1233 @@
+<h1 id="section-1">测试、部署与效果验证（三）：真实模型效果评测与模型替身程序测试的分离</h1>
+<blockquote>
+<p>对应学习目标：<strong>将模型效果测试与程序测试分开：真实模型验证回答与工具选择，模型替身验证错误处理和系统可靠性。</strong></p>
+<p>文档类型：独立技术知识手册；版本：1.0；编写日期：2026-11-12。示例采用 Python 3.13、pytest、Pydantic；真实模型调用为独立、显式启用的可选实验，不作为普通测试的前提。</p>
+</blockquote>
+<h2 id="section-2">1. 核心问题：为什么必须分离两类测试</h2>
+<p>一个 AI 应用往往同时包含<strong>概率性决策系统</strong>（大模型）与<strong>确定性的程序控制系统</strong>（参数校验、权限、数据库事务、重试、接口）。这两种系统采用同一套测试方法，会让测试结果失去明确含义。</p>
+<ul>
+<li><strong>模型效果评测（Model Evaluation / Evals）</strong>：回答“真实模型在这类任务中是否理解问题、选择合适工具、根据证据答对、在信息不足时合理澄清”。对象是实际调用的模型与提示词、工具定义、上下文、检索结果等组合。</li>
+<li><strong>程序测试（Software Tests）</strong>：回答“假设模型给出某个结果或者发生某类故障，我们编写的程序是否按照规定正确处理”。对象是应用自身代码，包括输入/输出校验、超时、取消、权限、异常传播、任务状态和数据库事务。</li>
+</ul>
+<p><strong>模型替身无法证明真实模型聪明，也不需要证明；真实模型偶尔答对，也不能证明程序能承受异常。</strong> 两套测试各自提供不重叠、又共同必要的证据。</p>
+<h3 id="section-3">1.1 一个对照案例</h3>
+<p>用户询问：“游戏版本 v1 中，角色 A 的生命值是多少？”应用有 <code>lookup_rule(rule_id)</code> 工具，权威规则写明生命值为 4。</p>
+<table>
+<thead>
+<tr>
+<th>测试问题</th>
+<th>应使用什么</th>
+<th>能证明什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>模型是否知道该查规则，而不是猜数值？</td>
+<td>真实模型 + 固定任务集</td>
+<td>工具选择是否合适</td>
+</tr>
+<tr>
+<td>模型是否把查询条件设置成正确版本？</td>
+<td>真实模型 + 工具轨迹评分</td>
+<td>工具参数是否适合任务</td>
+</tr>
+<tr>
+<td>获得真实规则后是否回答“4”？</td>
+<td>真实模型 + 独立规则答案</td>
+<td>事实性和证据利用情况</td>
+</tr>
+<tr>
+<td>工具返回 <code>{"error":"NOT_FOUND"}</code> 后接口是否正确处理？</td>
+<td>可控模型/工具替身</td>
+<td>错误传播与业务状态</td>
+</tr>
+<tr>
+<td>模型输出非法 JSON 后是否拒绝持久化？</td>
+<td>替身 + Pydantic + pytest</td>
+<td>输出契约与失败分支</td>
+</tr>
+<tr>
+<td>某个请求超时是否阻塞其他用户？</td>
+<td>延迟替身 + 并发测试</td>
+<td>超时、取消、事件循环行为</td>
+</tr>
+<tr>
+<td>同一反馈重复提交是否产生两条记录？</td>
+<td>替身 + 真实测试数据库</td>
+<td>幂等与事务一致性</td>
+</tr>
+</tbody></table>
+<p>上述测试不能互相代替。一次完整的模型输出正确，完全可能与一个存在严重权限漏洞的后端共存。</p>
+<h2 id="section-4">2. 四个测试层次，而不是只分成两堆</h2>
+<p>实际应用可以用四层结构理解测试范围：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">真实用户任务
+  │
+  ├── A. 模型能力评测（真实模型）
+  │      任务 → 模型 → 回答/工具决策 → 独立评分
+  │
+  ├── B. Agent 流程评测（真实模型 + 受控工具环境）
+  │      任务 → 模型决策 → 工具实际执行 → 回答 → 轨迹/最终结果评分
+  │
+  ├── C. 应用程序测试（脚本化模型替身）
+  │      固定输出/故障 → API → 业务代码 → 数据库/状态验证
+  │
+  └── D. 真实基础设施集成测试
+         API → PostgreSQL → Kafka/Worker → Redis → 故障恢复</code></pre></div><p>A、B 属于模型效果相关验证；C 属于程序可靠性；D 属于系统集成可靠性。D 可以使用替身避免模型费用，但应接入真实的数据库、消息中间件等，以发现模拟器无法体现的真实语义。</p>
+<p>对每次测试结果应准确标注范围：<strong>“模拟模型 + SQLite 通过”不等于“真实模型 + PostgreSQL + Kafka 通过”。</strong></p>
+<h2 id="section-5">3. 可测试架构：把模型调用隔离在接口边界</h2>
+<p>核心方法是<strong>依赖倒置</strong>：业务服务依赖抽象模型接口，不依赖某家服务商 SDK 的具体网络请求。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> Protocol
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ModelGateway</span>(<span class="hljs-title class_ inherited__">Protocol</span>):
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">generate</span>(<span class="hljs-params">self, messages: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>]</span>):
+        ...</code></pre></div><p>生产运行时，可以注入实际 API Adapter；测试运行时，注入 <code>ScriptedGateway</code>（预置响应队列）。这样业务代码只有一份，替换的是外部依赖，不是另一份简化实现。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">                    ┌─────────真实模型 API─────────┐
+FastAPI → AgentService → ModelGateway              │
+                    └─────────脚本化模型替身────────┘
+                         ↓
+                   工具权限 / 数据校验
+                         ↓
+                   业务事务 / 运行状态</code></pre></div><p>需要坚持两点：</p>
+<ol>
+<li>替身只模拟被依赖的模型接口，不应重新实现整个业务规则；否则测试可能绕开实际的被测代码。</li>
+<li>输出校验、工具白名单、授权和事务逻辑必须仍然运行真实程序代码；不能用一个固定的“成功返回值”把这些路径全部跳过。</li>
+</ol>
+<h2 id="section-6">4. 模型替身的四种主要类型</h2>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>定义</th>
+<th>适用情况</th>
+<th>注意事项</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Stub</td>
+<td>按预先设置返回固定输出</td>
+<td>特定响应或错误分支</td>
+<td>不检验复杂交互细节</td>
+</tr>
+<tr>
+<td>Mock</td>
+<td>记录调用，支持断言参数及调用次数</td>
+<td>验证调用契约</td>
+<td>不应使测试过度依赖内部实现细节</td>
+</tr>
+<tr>
+<td>Fake</td>
+<td>运行简化但功能完整的实现</td>
+<td>例如内存知识库、任务存储</td>
+<td>与真实基础设施语义可能不同</td>
+</tr>
+<tr>
+<td>Spy</td>
+<td>记录真实或委托执行过程</td>
+<td>调用链核对与审计</td>
+<td>注意保密和副作用</td>
+</tr>
+</tbody></table>
+<p>Python 中常见手段：<code>unittest.mock.Mock</code>、<code>AsyncMock</code>、<code>side_effect</code>、<code>pytest.monkeypatch</code>、FastAPI 的 <code>dependency_overrides</code>、HTTPX <code>MockTransport</code>。它们是工具，不是测试级别；测试级别由实际覆盖的组件决定。</p>
+<h3 id="section-7">4.1 脚本化替身（Scripted Model）的设计</h3>
+<p>一个良好的脚本化模型应能够：</p>
+<ul>
+<li>按顺序返回多个响应（先请求工具，再返回最终回答）。</li>
+<li>在指定步骤抛出临时或永久异常。</li>
+<li>模拟延迟，并在取消时留下可核验的取消记录。</li>
+<li>保留收到的消息，方便检查应用是否回传了真实工具结果。</li>
+<li>在脚本用尽时立即报错，避免使用隐式默认值掩盖调用失控。</li>
+</ul>
+<p>本手册附录中的 <code>ScriptedGateway</code> 就实现了这些行为。</p>
+<h2 id="section-8">5. 程序测试应覆盖的故障矩阵</h2>
+<p>故障注入的目标是<strong>穷尽关键状态转移和异常处理分支</strong>，不是随机让模型输出奇怪文字。</p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>故障或正常路径</th>
+<th>关键断言</th>
+<th>层级</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>S01</td>
+<td>正常 JSON 回答</td>
+<td>返回已校验结构</td>
+<td>单元/服务</td>
+</tr>
+<tr>
+<td>S02</td>
+<td>无法解析的 JSON</td>
+<td>错误被分类，不能当作成功保存</td>
+<td>单元/服务</td>
+</tr>
+<tr>
+<td>S03</td>
+<td>缺少必填字段</td>
+<td>输出 Schema 检查失败</td>
+<td>单元/服务</td>
+</tr>
+<tr>
+<td>S04</td>
+<td>字段类型错误</td>
+<td>类型拒绝或明确转换规则</td>
+<td>单元/服务</td>
+</tr>
+<tr>
+<td>S05</td>
+<td>多余的禁用字段</td>
+<td>拒绝异常结构</td>
+<td>单元/服务</td>
+</tr>
+<tr>
+<td>S06</td>
+<td>模型空响应</td>
+<td>明确输出缺失</td>
+<td>单元/服务</td>
+</tr>
+<tr>
+<td>S07</td>
+<td>模型明确拒答</td>
+<td>与格式故障分开表示（业务实现可扩展）</td>
+<td>服务</td>
+</tr>
+<tr>
+<td>S08</td>
+<td>信息不足</td>
+<td>可澄清/弃答，不凭空生成</td>
+<td>服务</td>
+</tr>
+<tr>
+<td>S09</td>
+<td>模型调用超时</td>
+<td>任务取消、资源释放、正确错误状态</td>
+<td>异步</td>
+</tr>
+<tr>
+<td>S10</td>
+<td>临时网络异常</td>
+<td>有界重试，最终可成功</td>
+<td>服务</td>
+</tr>
+<tr>
+<td>S11</td>
+<td>多次临时失败</td>
+<td>重试耗尽，不能无限循环</td>
+<td>服务</td>
+</tr>
+<tr>
+<td>S12</td>
+<td>工具名不存在</td>
+<td>拒绝执行，不做危险兜底</td>
+<td>权限</td>
+</tr>
+<tr>
+<td>S13</td>
+<td>工具参数缺字段</td>
+<td>参数校验失败</td>
+<td>工具</td>
+</tr>
+<tr>
+<td>S14</td>
+<td>工具参数类型错误</td>
+<td>拒绝非法类型</td>
+<td>工具</td>
+</tr>
+<tr>
+<td>S15</td>
+<td>工具多出越权参数</td>
+<td>拒绝未知字段</td>
+<td>工具</td>
+</tr>
+<tr>
+<td>S16</td>
+<td>只读查询找不到记录</td>
+<td>工具失败与正常无结果状态可区分</td>
+<td>业务</td>
+</tr>
+<tr>
+<td>S17</td>
+<td>模型请求多轮工具</td>
+<td>上限生效，最终停止</td>
+<td>Agent</td>
+</tr>
+<tr>
+<td>S18</td>
+<td>用户数据隔离</td>
+<td>测试身份无法读取他人数据</td>
+<td>集成</td>
+</tr>
+<tr>
+<td>S19</td>
+<td>数据库中途出错</td>
+<td>事务回滚，无部分结果</td>
+<td>集成</td>
+</tr>
+<tr>
+<td>S20</td>
+<td>Kafka 消息重投</td>
+<td>最终业务结果不重复</td>
+<td>集成</td>
+</tr>
+<tr>
+<td>S21</td>
+<td>Worker 处理中退出</td>
+<td>租约或重新消费可以恢复</td>
+<td>集成</td>
+</tr>
+<tr>
+<td>S22</td>
+<td>并发慢请求</td>
+<td>其他请求仍然能得到响应</td>
+<td>集成</td>
+</tr>
+</tbody></table>
+<p>S07/S08 需要匹配具体 API 的拒答字段或应用约定的状态结构，不能简单把所有非标准输出都映射成“JSON 错误”。附录提供了 S01—S06、S09—S17 等核心路径的可运行示范；数据库、Kafka、真实多用户隔离应在单独的集成测试环境验证。</p>
+<h2 id="section-9">6. Mock 应断言哪些内容</h2>
+<p>一个错误的测试例子是：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 这种测试只证明预设的返回值等于预设值。</span>
+mock_model.return_value = <span class="hljs-string">"4"</span>
+<span class="hljs-keyword">assert</span> mock_model() == <span class="hljs-string">"4"</span></code></pre></div><p>较有意义的测试是：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 真实 AgentService 接收到模型工具调用后：</span>
+<span class="hljs-comment"># 1. 校验工具参数；2. 查受控数据；</span>
+<span class="hljs-comment"># 3. 将真实工具结果交还模型；4. 校验最终结构。</span>
+result = <span class="hljs-keyword">await</span> service.run(<span class="hljs-string">"查角色 A 的规则"</span>)
+<span class="hljs-keyword">assert</span> result.answer == <span class="hljs-string">"4"</span>
+<span class="hljs-keyword">assert</span> <span class="hljs-string">"lookup_rule"</span> <span class="hljs-keyword">in</span> result.tools_executed
+<span class="hljs-keyword">assert</span> model.received[<span class="hljs-number">1</span>][-<span class="hljs-number">1</span>][<span class="hljs-string">"content"</span>] == <span class="hljs-string">"角色A生命值为4"</span></code></pre></div><p>对于接口，除了返回文本，还要检查 HTTP 状态、错误码、数据库副作用和授权边界。对于异步操作，还要验证取消是否传播、是否关闭客户端和连接、有没有遗留后台任务。</p>
+<h2 id="section-10">7. 真实模型评测必须具有独立参考答案</h2>
+<p>真实模型评测需要先构造 <strong>Gold Dataset（独立参考集）</strong>，而不是让当前被测模型自己给自己出题、自己确定正确答案。</p>
+<p>推荐的单条评测样例结构：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"case_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"rule-001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"question"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"在规则版本 v1 中，角色 A 的基础生命值是多少？"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"expected_facts"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">{</span><span class="hljs-attr">"field"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"hp"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"value"</span><span class="hljs-punctuation">:</span><span class="hljs-number">4</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"expected_tool"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"lookup_rule"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"expected_arguments"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-attr">"rule_id"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"r1"</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"supporting_sources"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"rule:v1:a"</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"knowledge_snapshot"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"kb-v1"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"assessment_policy"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"依据原始规则，回答数值及可核查来源"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>样例的答案和来源应由可核查的原始规则、结构化业务数据或独立人工标注建立。知识库发生变更时，应冻结旧快照或显式产生新的评测版本，不能在比较前后两版时偷偷更换标准答案。</p>
+<h3 id="section-11">7.1 评测集包含哪些问题</h3>
+<p>一般至少包含：</p>
+<ul>
+<li><strong>正常问题</strong>：答案可从固定来源直接验证。</li>
+<li><strong>多步骤问题</strong>：需要先查结构化数据，再用规则解释。</li>
+<li><strong>工具选择问题</strong>：需要调用某个工具，或者根本不应调用工具。</li>
+<li><strong>工具参数问题</strong>：检查版本、ID、查询范围是否正确。</li>
+<li><strong>无答案问题</strong>：资料确实不足，应澄清或弃答。</li>
+<li><strong>冲突问题</strong>：多版本资料不一致，需要限定范围。</li>
+<li><strong>安全边界问题</strong>：注入文本、越权要求、禁止写入。</li>
+<li><strong>多轮问题</strong>：上一次的问题条件仍然生效。</li>
+<li><strong>回归问题</strong>：历史上出现过的真实缺陷。</li>
+</ul>
+<p>只收集“简单且有答案”的问题，会高估模型在真实业务中的可靠程度。实际生产中的分布、边界情况与高损失错误要单独覆盖。</p>
+<h2 id="section-12">8. 如何衡量“回答正确”</h2>
+<p>不能把一个单一分数当成所有质量指标。</p>
+<h3 id="section-13">8.1 有确定答案的任务</h3>
+<p>对于唯一数值、枚举、版本号、合法 ID 等任务，可以使用程序性评分，例如：</p>
+<ul>
+<li>精确匹配（Exact Match）：答案是否与标准值一致。</li>
+<li>类型和范围校验：结果是否符合业务定义。</li>
+<li>程序实际计算：金额、数量、比例等计算应由代码进行。</li>
+<li>数据库结果核对：生成内容是否与受控查询结果一致。</li>
+</ul>
+<p>示例中，<code>4</code> 与 <code>5</code> 的不同应该被判错。不要让“回答很流畅”抵消关键事实错误。</p>
+<h3 id="section-14">8.2 开放式生成任务</h3>
+<p>对于解释、总结或多段论述，应拆分要点：覆盖必需事实、是否有无依据陈述、是否遵守约束、是否提供适当的不确定性说明。可以使用人工标注或经过校准的 LLM-as-a-Judge，但模型评分器本身可能偏向某种措辞、结构或答案长度。</p>
+<h3 id="section-15">8.3 证据与引用</h3>
+<p>区分以下层次：</p>
+<ol>
+<li><strong>引用格式正确</strong>：字段可解析。</li>
+<li><strong>引用 ID 存在</strong>：确实对应某份资料。</li>
+<li><strong>引用版本匹配</strong>：来源与问题版本一致。</li>
+<li><strong>引用能支持断言</strong>：原文在语义上确实证明这一说法。</li>
+</ol>
+<p>自动比较 <code>source_id</code> 最多主要说明引用身份/版本对应情况；<strong>不能单凭 ID 匹配证明自然语言断言得到证据支持</strong>。若要评价第 4 层，需要规则化事实核验、人工审核或经人工校准的语义支持评分器。</p>
+<h2 id="section-16">9. 如何衡量“工具选择正确”</h2>
+<p>真实模型在 <code>tool_choice="auto"</code> 的条件下，可以自行选择是否使用工具。工具能力评测至少区分：</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>观察对象</th>
+<th>典型失误</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>是否调用工具</td>
+<td>tool_calls 是否为空</td>
+<td>需要查证时直接编造</td>
+</tr>
+<tr>
+<td>工具名称</td>
+<td>选择了哪个工具</td>
+<td>应查规则却调用角色更新</td>
+</tr>
+<tr>
+<td>工具参数</td>
+<td>JSON 参数、版本、ID</td>
+<td>传错 rule_id 或遗漏版本</td>
+</tr>
+<tr>
+<td>调用顺序</td>
+<td>前一步是否构成后一步前提</td>
+<td>没获取资料就尝试总结</td>
+</tr>
+<tr>
+<td>执行结果利用</td>
+<td>是否使用工具真实返回的数据</td>
+<td>查到 4 却回答 5</td>
+</tr>
+<tr>
+<td>最终任务结果</td>
+<td>是否完成用户要求</td>
+<td>工具调用看似合理但任务失败</td>
+</tr>
+</tbody></table>
+<h3 id="section-17">9.1 不要把正确工具路径定义得过死</h3>
+<p>有时同一任务可以通过 <code>lookup_rule()</code> 或 <code>lookup_character()</code> 两条路径正确完成，强制要求唯一工具会把合法行为判错。评测时可定义一组可接受路径，或者优先评价最终业务结果。</p>
+<p>只有当<strong>工具选择本身是业务合规要求</strong>时，才应该强约束必须调用哪一个工具（例如余额必须从授权数据库读取，不能凭上下文推测）。</p>
+<h3 id="section-18">9.2 不要只看最后回答</h3>
+<p>如果模型先调用了危险工具，最后又生成一段看似正确的回复，不能判为完整成功。应该同时记录：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">task_id / case_id
+ ├─ 真实模型请求与版本
+ ├─ 工具意图（工具名 + 参数）
+ ├─ 程序参数校验与授权
+ ├─ 工具执行真实结果
+ ├─ 模型续接生成
+ ├─ 最终回答与引用
+ └─ 评分及错误归因</code></pre></div><p>这里的轨迹是<strong>可观察执行行为</strong>，不是模型内部隐含推理的证明。</p>
+<h2 id="section-19">10. 如何组织真实模型端到端评测</h2>
+<p>对一个问题，严格的真实模型效果测试可以包括：</p>
+<ol>
+<li>加载固定输入及知识库快照。</li>
+<li>调用真实模型，并提供与生产一致的工具 Schema。</li>
+<li>记录模型是否提出工具调用，以及工具名、参数和 <code>call_id</code>。</li>
+<li>后端独立校验工具参数与权限；在<strong>只读且受控</strong>的测试环境执行。</li>
+<li>将真实工具执行结果回传给模型，继续至完成或有界停止。</li>
+<li>记录最终回答、引用、异常、工具轨迹、延迟、用量。</li>
+<li>用事先冻结的正确答案/可接受路径评分。</li>
+<li>输出逐条结果与整体统计，人工复核争议案例。</li>
+</ol>
+<p>如果直接把正确答案放入系统提示词，测试会产生信息泄漏；如果在 Prompt 中强制调用指定工具，就不再是在测试自主工具选择。相同条件下比较工具选择效果时，通常应保持候选工具集、Schema 和资料快照一致。</p>
+<h2 id="section-20">11. 实际需要记录的评测元数据</h2>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>case_id</code></td>
+<td>固定问题的唯一标识</td>
+</tr>
+<tr>
+<td><code>dataset_version</code></td>
+<td>测试集版本</td>
+</tr>
+<tr>
+<td><code>reference_version</code></td>
+<td>独立标准答案和来源版本</td>
+</tr>
+<tr>
+<td><code>model_requested</code> / <code>model_returned</code></td>
+<td>请求的模型名及接口实际返回的模型标识</td>
+</tr>
+<tr>
+<td><code>prompt_version</code> / <code>prompt_hash</code></td>
+<td>提示词版本和内容哈希</td>
+</tr>
+<tr>
+<td><code>tool_schema_hash</code></td>
+<td>工具定义快照</td>
+</tr>
+<tr>
+<td><code>knowledge_snapshot</code></td>
+<td>RAG/业务数据快照</td>
+</tr>
+<tr>
+<td><code>code_commit</code></td>
+<td>应用程序 Git Commit</td>
+</tr>
+<tr>
+<td><code>sampling_config</code></td>
+<td>采样参数（仅记录提供商实际支持的项）</td>
+</tr>
+<tr>
+<td><code>output</code>, <code>tool_trace</code>, <code>citations</code></td>
+<td>可观察结果</td>
+</tr>
+<tr>
+<td><code>latency_ms</code>, <code>usage</code></td>
+<td>耗时和 API 使用量</td>
+</tr>
+<tr>
+<td><code>failure_category</code></td>
+<td>错误类型</td>
+</tr>
+<tr>
+<td><code>grader_version</code></td>
+<td>评分器规则版本</td>
+</tr>
+</tbody></table>
+<p>真实日志可能包含用户输入、工具结果或敏感信息，应遵守脱敏与访问控制要求；不要在 CI 日志中输出 API Key 或私人聊天内容。</p>
+<h2 id="section-21">12. 配对评测：修改模型或 Prompt 后怎样比较</h2>
+<p>设固定评测集包含同一批 <code>case_id</code>。将旧版系统视为 Baseline，新版系统视为 Candidate：</p>
+<ul>
+<li>对同一条案例分别记录回答、工具路径、引用、耗时和用量。</li>
+<li>先计算每条案例的得分，再算通过率；不能先汇总回答文字直接打一个“整体感觉分”。</li>
+<li>明确<strong>改进</strong>（旧失败、新通过）和<strong>回归</strong>（旧通过、新失败）。</li>
+<li>将高风险案例（错误权限、错误扣费、错误删除）单独设置上线门槛；平均分高不能抵消关键安全回归。</li>
+<li>对具有随机性的模型，采用重复运行估计稳定性，而不仅取一次随机输出。</li>
+</ul>
+<p>例如，四条虚构样例出现以下配对结果：</p>
+<table>
+<thead>
+<tr>
+<th>案例</th>
+<th>Baseline</th>
+<th>Candidate</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td>通过</td>
+<td>失败（回归）</td>
+</tr>
+<tr>
+<td>B</td>
+<td>通过</td>
+<td>通过</td>
+</tr>
+<tr>
+<td>C</td>
+<td>失败</td>
+<td>通过（改进）</td>
+</tr>
+<tr>
+<td>D</td>
+<td>失败</td>
+<td>通过（改进）</td>
+</tr>
+</tbody></table>
+<p>Baseline 为 2/4，Candidate 为 3/4；虽然总体通过率从 50% 增至 75%，仍存在案例 A 的回归，需要分析其业务风险。</p>
+<h3 id="section-22">12.1 为什么需要重复实验</h3>
+<p>同样输入、同样提示词，模型也可能有不同输出。建议按业务场景重复运行，并报告每项任务的成功次数、失败次数与波动，而不是把一次 <code>pass</code> 当成稳定保证。</p>
+<p>例如，某项任务 10 次只成功 7 次，代表在这 10 次观测中经验成功率是 70%；样本量有限，不能断言真实成功概率恰好是 70%。对关键操作，除了平均成功率，还应测试最坏情况、失败恢复及人工介入路径。</p>
+<h3 id="section-23">12.2 对比质量与资源消耗</h3>
+<p>可同时统计：</p>
+<ul>
+<li>回答正确率、引用支持率、工具调用正确率。</li>
+<li>业务任务成功率、无答案时的可靠弃答率。</li>
+<li>平均耗时、P50/P95 延迟。</li>
+<li>输入/输出 Token、API 费用、每个成功任务的成本。</li>
+<li>失败重试次数、工具调用次数、人工复核工作量。</li>
+</ul>
+<p>若新版 Prompt 质量略好但成本翻倍，是否接受应由预先规定的业务阈值决定；不能只以模型回答看起来更长、更流畅判断收益。</p>
+<h2 id="section-24">13. 自动评分和 LLM-as-a-Judge 的边界</h2>
+<p>评分器一般有三类：</p>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>适合检验</th>
+<th>限制</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>确定性代码评分</td>
+<td>固定答案、字段、工具 ID、参数、真实副作用</td>
+<td>不容易理解自由文本的语义</td>
+</tr>
+<tr>
+<td>模型评分器</td>
+<td>解释完整度、语义支持、回答有用性</td>
+<td>本身存在偏差、漂移和评分误差</td>
+</tr>
+<tr>
+<td>人工评审</td>
+<td>复杂业务情境、引用是否真正支持、争议案例</td>
+<td>成本高、主观差异、速度慢</td>
+</tr>
+</tbody></table>
+<p>建议优先使用能被程序明确判断的指标；无法确定性评分的部分再引入 LLM-as-a-Judge，并使用人工标注集定期检验它的错误率和一致性。不要让评分模型直接读取 Baseline/Candidate 标签后再打分，避免版本名偏差。</p>
+<h2 id="section-25">14. CI 测试分层：避免日常提交触发付费 API</h2>
+<p>建议将测试划分为三条互不混淆的运行路径：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">每次提交 / Pull Request
+  ├─ pytest：逻辑、故障注入、模型替身（无 API 费用）
+  ├─ FastAPI + 测试数据库集成测试（无需真实模型）
+  └─ 静态检查、类型检查、依赖与安全检查
+
+人工显式触发 / 受控周期性执行
+  └─ 固定数据集 → 真实模型与工具 → 评测报告（可能付费）
+
+发布前 / 重要架构变更
+  └─ 真实 PostgreSQL/Kafka/Redis + 故障与恢复集成测试</code></pre></div><p>“周期性”不等于无条件每天都跑付费模型。可以按成本预算、发布频率或实际需要选择触发规则。每个实际付费模型评测都应设置调用上限、成本上限、超时，以及日志脱敏。</p>
+<h3 id="section-26">14.1 CI 门槛的设计</h3>
+<p>程序层的关键不变量可以设置<strong>严格的必须通过</strong>条件：</p>
+<ul>
+<li>参数非法不能越权执行工具。</li>
+<li>未授权写入/删除不能发生。</li>
+<li>重复业务请求不得造成重复最终记录。</li>
+<li>超时后不得把不完整结果当作成功。</li>
+</ul>
+<p>真实模型能力需要<strong>可解释的统计门槛</strong>：例如工具选择正确率、业务结果成功率不能低于基线；对于关键安全场景可以要求无错误或强制人工审批。门槛应基于实际数据量、业务风险与测量噪声设定，不应把少量样例上的偶然改进当成可靠结论。</p>
+<h2 id="section-27">15. 反模式与常见误判</h2>
+<ol>
+<li><strong>用替身返回正确答案后宣称模型准确率 100%</strong>：只能证明模拟输入下的程序正确性。</li>
+<li><strong>用真实模型答对一次来证明程序可靠</strong>：没有覆盖异常和边界条件。</li>
+<li><strong>仅测试最终文本，不记录工具轨迹</strong>：可能隐藏错误工具调用和副作用。</li>
+<li><strong>让被测模型自己写标准答案</strong>：会引入循环验证和偏差。</li>
+<li><strong>只比较平均分</strong>：忽略单条高风险回归。</li>
+<li><strong>仅检查引用 ID 出现</strong>：不能证明引用内容支持陈述。</li>
+<li><strong>用工具强制选择测试模型自主工具选择</strong>：测试目标被改变。</li>
+<li><strong>让 Mock 重写业务逻辑</strong>：测试失去对真实代码的覆盖。</li>
+<li><strong>把模型失败一律标成超时</strong>：掩盖 JSON、权限、工具等不同故障。</li>
+<li><strong>把模拟 SQLite 事务测试称为 PostgreSQL 集成验证</strong>：不能推断真实数据库并发行为。</li>
+<li><strong>CI 中默认调用付费接口</strong>：带来不可控成本、网络不稳定和隐私风险。</li>
+<li><strong>修改模型、提示词、工具描述与数据快照，却只记录模型版本</strong>：结果不可归因。</li>
+</ol>
+<h2 id="section-28">16. 本节的工程示例：同一业务逻辑，两套测试入口</h2>
+<p>附录代码分为以下模块：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">llm_testing_ch03/
+├── system.py          # 真实被测业务控制器 + 模型抽象
+├── evaluate.py        # 独立效果评分器
+├── test_system.py     # 离线模型替身程序测试
+├── test_evaluate.py   # 评分器自身的确定性单元测试
+└── live_eval.py       # 可选真实模型 API 入口；默认不执行</code></pre></div><h3 id="section-29">16.1 业务控制器包含的关键保证</h3>
+<ul>
+<li>服务独立于具体模型提供商。</li>
+<li>模型调用具有单次超时、总超时与最大尝试次数。</li>
+<li>只允许执行已登记的只读工具。</li>
+<li>用 Pydantic 校验工具参数及最终 JSON 输出。</li>
+<li>将工具实际返回的数据交给模型续接，而不是预先写死最终回答。</li>
+<li>当模型轮次超限或输出不满足契约时明确报错。</li>
+</ul>
+<h3 id="section-30">16.2 评分器的设计</h3>
+<p>评分器独立于程序测试：</p>
+<ul>
+<li><code>GoldCase</code> 定义人工确认的参考答案和可接受的工具路径。</li>
+<li><code>Observation</code> 保存模型实际回答、工具调用、引用标识和用量。</li>
+<li><code>grade()</code> 分别计算回答、工具路径、参数、引用 ID 的正确情况。</li>
+<li><code>paired_comparison()</code> 强制比较两版相同的 <code>case_id</code>，输出改进和回归案例。</li>
+</ul>
+<p><strong>实现限制：</strong> 示例采用简单规范化后的精确字符串匹配，不具备完整语义判断能力；引用评分只检查已指定来源 ID 是否出现，不自动证明证据真实支持断言。这正是把独立语义评分器和人工核验单独保留的原因。</p>
+<h2 id="section-31">17. 本地验证范围与复现命令</h2>
+<p>以下命令在示例目录中运行：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python <span class="hljs-literal">-m</span> pip install pytest pydantic
+python <span class="hljs-literal">-m</span> pytest <span class="hljs-literal">-q</span></code></pre></div><p>本示例已在 Python 3.13.5、pytest 9.0.2、Pydantic 2.13.5 环境中运行。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">33 passed in 0.08s</code></pre></div><p>这 33 项属于<strong>离线确定性测试</strong>。它们验证了服务如何处理预置模型响应与异常，以及评分器的计算是否正确。它们<strong>没有调用真实模型、没有测出模型实际准确率，也没有连接 Kafka 或 PostgreSQL</strong>。</p>
+<p>真实模型脚本需要安装 <code>openai</code> SDK、设置兼容 Chat Completions 的服务地址和 API Key，且只能在显式执行时产生网络请求和费用。由于当前环境未配置可用密钥，也未执行远程模型评测，不能声称真实模型已通过。</p>
+<h3 id="section-32">17.1 真实模型测试的显式启动方式</h3>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python <span class="hljs-literal">-m</span> pip install openai
+<span class="hljs-variable">$env:MODEL_API_KEY</span>=<span class="hljs-string">"你的密钥"</span>
+<span class="hljs-variable">$env:MODEL_ID</span>=<span class="hljs-string">"服务商支持的模型ID"</span>
+<span class="hljs-variable">$env:MODEL_BASE_URL</span>=<span class="hljs-string">"兼容Chat Completions的服务地址"</span>
+python live_eval.py</code></pre></div><p><code>live_eval.py</code> 只使用本地演示用只读规则和角色查询工具，不执行写入、删除或发送。对不支持 Chat Completions 或特定采样参数的模型，必须按照服务商当前 API 文档调整 Adapter。出于安全考虑，不要把真实 API Key 写入 Markdown、源码、Git 仓库或日志。</p>
+<h2 id="section-33">18. 真实模型评测与程序测试的结合方式</h2>
+<p>一种典型流程是：</p>
+<p><strong>阶段 A：替身保证程序可靠</strong>。运行快速、可重复的 pytest；非法 JSON、超时、工具失败、权限拒绝全部得到预期处理。</p>
+<p><strong>阶段 B：真实模型保证决策有效</strong>。使用固定的问题和独立资料验证答案、工具选择、参数和引用；找出模型产生的真实错误。</p>
+<p><strong>阶段 C：将真实失败转化为可复现测试</strong>。从真实评测的错误案例中提取非敏感、脱敏后的输出，加入替身测试验证程序是否正确处理；同时保留真实模型评测样例，防止模型侧回归。</p>
+<p><strong>阶段 D：部署集成保证跨组件可靠</strong>。使用 PostgreSQL、Kafka、Redis 的真实测试实例验证事务、消息重投、并发和故障恢复，而不是用一个内存 Fake 代替全部真实服务。</p>
+<p>四个阶段的关系是互补，而不是先做一次之后就可以永久省略其中任意一项。</p>
+<h2 id="section-34">19. 参考资料与接口版本说明</h2>
+<ol>
+<li>OpenAI：Evaluation best practices — <a href="https://developers.openai.com/api/docs/guides/evaluation-best-practices">https://developers.openai.com/api/docs/guides/evaluation-best-practices</a></li>
+<li>OpenAI：Evaluate agent workflows — <a href="https://developers.openai.com/api/docs/guides/agent-evals">https://developers.openai.com/api/docs/guides/agent-evals</a></li>
+<li>OpenAI：Function calling — <a href="https://developers.openai.com/api/docs/guides/function-calling">https://developers.openai.com/api/docs/guides/function-calling</a></li>
+<li>OpenAI：Datasets — <a href="https://developers.openai.com/api/docs/guides/evaluation-getting-started">https://developers.openai.com/api/docs/guides/evaluation-getting-started</a></li>
+<li>Anthropic（2026）：Demystifying evals for AI agents — <a href="https://www.anthropic.com/research/demystifying-evals-for-ai-agents">https://www.anthropic.com/research/demystifying-evals-for-ai-agents</a></li>
+<li>pytest：Parametrize — <a href="https://docs.pytest.org/en/stable/how-to/parametrize.html">https://docs.pytest.org/en/stable/how-to/parametrize.html</a></li>
+<li>FastAPI：Testing dependencies with overrides — <a href="https://fastapi.tiangolo.com/advanced/testing-dependencies/">https://fastapi.tiangolo.com/advanced/testing-dependencies/</a></li>
+<li>Python：unittest.mock — <a href="https://docs.python.org/3/library/unittest.mock.html">https://docs.python.org/3/library/unittest.mock.html</a></li>
+<li>Python：asyncio — <a href="https://docs.python.org/3/library/asyncio.html">https://docs.python.org/3/library/asyncio.html</a></li>
+</ol>
+<p><strong>版本与服务变化提示（2026-11）：</strong> OpenAI 官方文档说明其既有 Evals 平台正进入退役流程，已于 2026-10-31 起转为只读、计划 2026-11-30 关闭。若选择托管评测服务，应核对当前提供的 Datasets、Trace Grading 等能力。本知识手册采用独立的 Python 评测器，不依赖即将退役的服务。</p>
+<hr />
+<h2 id="section-35">附录 A：完整可执行的业务控制器（system.py）</h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Offline-testable orchestration: model inference is injected, never hardwired."""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+<span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">from</span> collections <span class="hljs-keyword">import</span> deque
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass, field
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> <span class="hljs-type">Any</span>, Protocol
+<span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, ConfigDict, Field, ValidationError
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">TemporaryModelError</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ModelCallFailed</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">InvalidModelOutput</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ToolRejected</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ToolFailed</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">TooManyModelTurns</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ModelTurn</span>:
+    content: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+    tool_name: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+    tool_args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ModelGateway</span>(<span class="hljs-title class_ inherited__">Protocol</span>):
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">generate</span>(<span class="hljs-params">self, messages: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]]</span>) -&gt; ModelTurn: ...
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ScriptStep</span>:
+    outcome: ModelTurn | Exception
+    delay_seconds: <span class="hljs-built_in">float</span> = <span class="hljs-number">0.0</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ScriptedGateway</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, steps: <span class="hljs-built_in">list</span>[ScriptStep]</span>):
+        <span class="hljs-variable language_">self</span>.steps = deque(steps)
+        <span class="hljs-variable language_">self</span>.call_count = <span class="hljs-number">0</span>
+        <span class="hljs-variable language_">self</span>.received: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]]] = []
+        <span class="hljs-variable language_">self</span>.cancel_count = <span class="hljs-number">0</span>
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">generate</span>(<span class="hljs-params">self, messages: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]]</span>) -&gt; ModelTurn:
+        <span class="hljs-variable language_">self</span>.call_count += <span class="hljs-number">1</span>
+        <span class="hljs-variable language_">self</span>.received.append([<span class="hljs-built_in">dict</span>(item) <span class="hljs-keyword">for</span> item <span class="hljs-keyword">in</span> messages])
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-variable language_">self</span>.steps:
+            <span class="hljs-keyword">raise</span> AssertionError(<span class="hljs-string">"No scripted model step left"</span>)
+        step = <span class="hljs-variable language_">self</span>.steps.popleft()
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">if</span> step.delay_seconds:
+                <span class="hljs-keyword">await</span> asyncio.sleep(step.delay_seconds)
+        <span class="hljs-keyword">except</span> asyncio.CancelledError:
+            <span class="hljs-variable language_">self</span>.cancel_count += <span class="hljs-number">1</span>
+            <span class="hljs-keyword">raise</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(step.outcome, Exception):
+            <span class="hljs-keyword">raise</span> step.outcome
+        <span class="hljs-keyword">return</span> step.outcome
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Answer</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    model_config = ConfigDict(extra=<span class="hljs-string">"forbid"</span>, strict=<span class="hljs-literal">True</span>)
+    answer: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>)
+    source_id: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>  <span class="hljs-comment"># required, but nullable</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">LookupArgs</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    model_config = ConfigDict(extra=<span class="hljs-string">"forbid"</span>, strict=<span class="hljs-literal">True</span>)
+    rule_id: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>)
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ServiceResult</span>:
+    answer: <span class="hljs-built_in">str</span>
+    source_id: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>
+    tools_executed: <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, ...]
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AgentService</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">
+        self,
+        gateway: ModelGateway,
+        rules: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">str</span>],
+        *,
+        per_attempt_timeout: <span class="hljs-built_in">float</span> = <span class="hljs-number">0.1</span>,
+        total_timeout: <span class="hljs-built_in">float</span> = <span class="hljs-number">0.5</span>,
+        max_attempts: <span class="hljs-built_in">int</span> = <span class="hljs-number">2</span>,
+        max_model_turns: <span class="hljs-built_in">int</span> = <span class="hljs-number">3</span>,
+    </span>):
+        <span class="hljs-variable language_">self</span>.gateway = gateway
+        <span class="hljs-variable language_">self</span>.rules = rules
+        <span class="hljs-variable language_">self</span>.per_attempt_timeout = per_attempt_timeout
+        <span class="hljs-variable language_">self</span>.total_timeout = total_timeout
+        <span class="hljs-variable language_">self</span>.max_attempts = max_attempts
+        <span class="hljs-variable language_">self</span>.max_model_turns = max_model_turns
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">_ask_model</span>(<span class="hljs-params">self, messages: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]]</span>) -&gt; ModelTurn:
+        <span class="hljs-keyword">for</span> attempt <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-variable language_">self</span>.max_attempts):
+            <span class="hljs-keyword">try</span>:
+                <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.timeout(<span class="hljs-variable language_">self</span>.per_attempt_timeout):
+                    <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> <span class="hljs-variable language_">self</span>.gateway.generate(messages)
+            <span class="hljs-keyword">except</span> (TimeoutError, TemporaryModelError) <span class="hljs-keyword">as</span> exc:
+                <span class="hljs-keyword">if</span> attempt + <span class="hljs-number">1</span> == <span class="hljs-variable language_">self</span>.max_attempts:
+                    <span class="hljs-keyword">raise</span> ModelCallFailed(<span class="hljs-string">"Model unavailable after bounded retries"</span>) <span class="hljs-keyword">from</span> exc
+        <span class="hljs-keyword">raise</span> AssertionError(<span class="hljs-string">"unreachable"</span>)
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">run</span>(<span class="hljs-params">self, question: <span class="hljs-built_in">str</span></span>) -&gt; ServiceResult:
+        messages: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]] = [{<span class="hljs-string">"role"</span>: <span class="hljs-string">"user"</span>, <span class="hljs-string">"content"</span>: question}]
+        executed: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.timeout(<span class="hljs-variable language_">self</span>.total_timeout):
+            <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-variable language_">self</span>.max_model_turns):
+                turn = <span class="hljs-keyword">await</span> <span class="hljs-variable language_">self</span>._ask_model(messages)
+                <span class="hljs-keyword">if</span> turn.tool_name <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+                    <span class="hljs-keyword">if</span> turn.tool_name != <span class="hljs-string">"lookup_rule"</span>:
+                        <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">"Tool is not on the read-only allowlist"</span>)
+                    <span class="hljs-keyword">try</span>:
+                        args = LookupArgs.model_validate(turn.tool_args)
+                    <span class="hljs-keyword">except</span> ValidationError <span class="hljs-keyword">as</span> exc:
+                        <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">"Invalid tool arguments"</span>) <span class="hljs-keyword">from</span> exc
+                    <span class="hljs-keyword">try</span>:
+                        data = <span class="hljs-variable language_">self</span>.rules[args.rule_id]
+                    <span class="hljs-keyword">except</span> KeyError <span class="hljs-keyword">as</span> exc:
+                        <span class="hljs-keyword">raise</span> ToolFailed(<span class="hljs-string">"Rule not found"</span>) <span class="hljs-keyword">from</span> exc
+                    executed.append(turn.tool_name)
+                    messages.append({<span class="hljs-string">"role"</span>: <span class="hljs-string">"assistant"</span>, <span class="hljs-string">"tool_call"</span>: {<span class="hljs-string">"name"</span>: turn.tool_name, <span class="hljs-string">"args"</span>: turn.tool_args}})
+                    messages.append({<span class="hljs-string">"role"</span>: <span class="hljs-string">"tool"</span>, <span class="hljs-string">"name"</span>: turn.tool_name, <span class="hljs-string">"content"</span>: data})
+                    <span class="hljs-keyword">continue</span>
+                <span class="hljs-keyword">if</span> turn.content <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                    <span class="hljs-keyword">raise</span> InvalidModelOutput(<span class="hljs-string">"Missing final content"</span>)
+                <span class="hljs-keyword">try</span>:
+                    raw = json.loads(turn.content)
+                    answer = Answer.model_validate(raw)
+                <span class="hljs-keyword">except</span> (json.JSONDecodeError, ValidationError) <span class="hljs-keyword">as</span> exc:
+                    <span class="hljs-keyword">raise</span> InvalidModelOutput(<span class="hljs-string">"Invalid final answer"</span>) <span class="hljs-keyword">from</span> exc
+                <span class="hljs-keyword">return</span> ServiceResult(answer=answer.answer, source_id=answer.source_id, tools_executed=<span class="hljs-built_in">tuple</span>(executed))
+            <span class="hljs-keyword">raise</span> TooManyModelTurns(<span class="hljs-string">"Agent exceeded configured model-turn limit"</span>)</code></pre></div><h2 id="section-36">附录 B：完整示例代码（evaluate.py）</h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Model-effect scoring: use ground truth created independently of the model."""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> <span class="hljs-type">Any</span>, Mapping
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ToolCall</span>:
+    name: <span class="hljs-built_in">str</span>
+    arguments: Mapping[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">GoldCase</span>:
+    case_id: <span class="hljs-built_in">str</span>
+    question: <span class="hljs-built_in">str</span>
+    expected_answer: <span class="hljs-built_in">str</span>
+    accepted_tool_sequences: <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, ...], ...]
+    expected_args: Mapping[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>] | <span class="hljs-literal">None</span>
+    supporting_source_ids: <span class="hljs-built_in">frozenset</span>[<span class="hljs-built_in">str</span>]
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Observation</span>:
+    answer: <span class="hljs-built_in">str</span>
+    tool_calls: <span class="hljs-built_in">tuple</span>[ToolCall, ...]
+    cited_source_ids: <span class="hljs-built_in">frozenset</span>[<span class="hljs-built_in">str</span>]
+    latency_ms: <span class="hljs-built_in">float</span> = <span class="hljs-number">0</span>
+    input_tokens: <span class="hljs-built_in">int</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+    output_tokens: <span class="hljs-built_in">int</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Score</span>:
+    case_id: <span class="hljs-built_in">str</span>
+    answer_ok: <span class="hljs-built_in">bool</span>
+    tool_path_ok: <span class="hljs-built_in">bool</span>
+    arguments_ok: <span class="hljs-built_in">bool</span>
+    cited_ids_ok: <span class="hljs-built_in">bool</span>
+
+<span class="hljs-meta">    @property</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">passed</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.answer_ok <span class="hljs-keyword">and</span> <span class="hljs-variable language_">self</span>.tool_path_ok <span class="hljs-keyword">and</span> <span class="hljs-variable language_">self</span>.arguments_ok <span class="hljs-keyword">and</span> <span class="hljs-variable language_">self</span>.cited_ids_ok
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">normalize</span>(<span class="hljs-params">text: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> <span class="hljs-string">" "</span>.join(text.split()).casefold()
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">grade</span>(<span class="hljs-params"><span class="hljs-keyword">case</span>: GoldCase, observation: Observation</span>) -&gt; Score:
+    actual_names = <span class="hljs-built_in">tuple</span>(c.name <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> observation.tool_calls)
+    tool_ok = actual_names <span class="hljs-keyword">in</span> <span class="hljs-keyword">case</span>.accepted_tool_sequences
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">case</span>.expected_args <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        args_ok = <span class="hljs-literal">True</span>
+    <span class="hljs-keyword">else</span>:
+        args_ok = <span class="hljs-built_in">bool</span>(observation.tool_calls) <span class="hljs-keyword">and</span> <span class="hljs-built_in">dict</span>(observation.tool_calls[<span class="hljs-number">0</span>].arguments) == <span class="hljs-built_in">dict</span>(<span class="hljs-keyword">case</span>.expected_args)
+    <span class="hljs-comment"># An ID match proves only citation identity, not that its contents semantically entail a claim.</span>
+    citations_ok = <span class="hljs-keyword">case</span>.supporting_source_ids.issubset(observation.cited_source_ids)
+    <span class="hljs-keyword">return</span> Score(
+        case_id=<span class="hljs-keyword">case</span>.case_id,
+        answer_ok=normalize(<span class="hljs-keyword">case</span>.expected_answer) == normalize(observation.answer),
+        tool_path_ok=tool_ok,
+        arguments_ok=args_ok,
+        cited_ids_ok=citations_ok,
+    )
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">paired_comparison</span>(<span class="hljs-params">cases: <span class="hljs-built_in">list</span>[GoldCase], baseline: Mapping[<span class="hljs-built_in">str</span>, Observation], candidate: Mapping[<span class="hljs-built_in">str</span>, Observation]</span>) -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]:
+    ids = {c.case_id <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> cases}
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(ids) != <span class="hljs-built_in">len</span>(cases) <span class="hljs-keyword">or</span> <span class="hljs-built_in">set</span>(baseline) != ids <span class="hljs-keyword">or</span> <span class="hljs-built_in">set</span>(candidate) != ids:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"Dataset and both result sets must have identical unique case IDs"</span>)
+    before = {c.case_id: grade(c, baseline[c.case_id]) <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> cases}
+    after = {c.case_id: grade(c, candidate[c.case_id]) <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> cases}
+    improvements = <span class="hljs-built_in">sorted</span>(i <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> ids <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> before[i].passed <span class="hljs-keyword">and</span> after[i].passed)
+    regressions = <span class="hljs-built_in">sorted</span>(i <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> ids <span class="hljs-keyword">if</span> before[i].passed <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> after[i].passed)
+    n = <span class="hljs-built_in">len</span>(ids)
+    <span class="hljs-keyword">return</span> {
+        <span class="hljs-string">"baseline_passed"</span>: <span class="hljs-built_in">sum</span>(s.passed <span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> before.values()),
+        <span class="hljs-string">"candidate_passed"</span>: <span class="hljs-built_in">sum</span>(s.passed <span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> after.values()),
+        <span class="hljs-string">"baseline_rate"</span>: <span class="hljs-built_in">sum</span>(s.passed <span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> before.values()) / n <span class="hljs-keyword">if</span> n <span class="hljs-keyword">else</span> <span class="hljs-number">0</span>,
+        <span class="hljs-string">"candidate_rate"</span>: <span class="hljs-built_in">sum</span>(s.passed <span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> after.values()) / n <span class="hljs-keyword">if</span> n <span class="hljs-keyword">else</span> <span class="hljs-number">0</span>,
+        <span class="hljs-string">"improvements"</span>: improvements,
+        <span class="hljs-string">"regressions"</span>: regressions,
+    }</code></pre></div><h2 id="section-37">附录 C：完整示例代码（test_system.py）</h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> pytest
+<span class="hljs-keyword">from</span> system <span class="hljs-keyword">import</span> (
+    AgentService, InvalidModelOutput, ModelCallFailed, ModelTurn,
+    ScriptedGateway, ScriptStep, TemporaryModelError, ToolFailed,
+    ToolRejected, TooManyModelTurns,
+)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">run</span>(<span class="hljs-params">coro</span>):
+    <span class="hljs-keyword">return</span> asyncio.run(coro)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">final</span>(<span class="hljs-params">answer=<span class="hljs-string">"4"</span>, source_id=<span class="hljs-string">"rule:v1:a"</span></span>):
+    <span class="hljs-keyword">return</span> ScriptStep(ModelTurn(content=json.dumps({<span class="hljs-string">"answer"</span>: answer, <span class="hljs-string">"source_id"</span>: source_id})))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">service</span>(<span class="hljs-params">*steps, **kwargs</span>):
+    model = ScriptedGateway(<span class="hljs-built_in">list</span>(steps))
+    <span class="hljs-keyword">return</span> AgentService(model, {<span class="hljs-string">"r1"</span>: <span class="hljs-string">"角色A生命值为4"</span>}, **kwargs), model
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_plain_answer</span>():
+    svc, model = service(final())
+    result = run(svc.run(<span class="hljs-string">"角色A生命值？"</span>))
+    <span class="hljs-keyword">assert</span> result.answer == <span class="hljs-string">"4"</span> <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> result.tools_executed
+    <span class="hljs-keyword">assert</span> model.call_count == <span class="hljs-number">1</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_successful_two_turn_tool_loop</span>():
+    svc, model = service(ScriptStep(ModelTurn(tool_name=<span class="hljs-string">"lookup_rule"</span>, tool_args={<span class="hljs-string">"rule_id"</span>: <span class="hljs-string">"r1"</span>})), final())
+    result = run(svc.run(<span class="hljs-string">"查规则"</span>))
+    <span class="hljs-keyword">assert</span> result.tools_executed == (<span class="hljs-string">"lookup_rule"</span>,)
+    <span class="hljs-keyword">assert</span> model.received[<span class="hljs-number">1</span>][-<span class="hljs-number">1</span>][<span class="hljs-string">"content"</span>] == <span class="hljs-string">"角色A生命值为4"</span>
+
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params"><span class="hljs-string">"raw"</span>, [<span class="hljs-string">'{'</span>, <span class="hljs-string">'{}'</span>, <span class="hljs-string">'{"answer":1,"source_id":null}'</span>, <span class="hljs-string">'{"answer":"","source_id":null}'</span>, <span class="hljs-string">'{"answer":"ok","source_id":null,"extra":9}'</span>]</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_invalid_answers</span>(<span class="hljs-params">raw</span>):
+    svc, _ = service(ScriptStep(ModelTurn(content=raw)))
+    <span class="hljs-keyword">with</span> pytest.raises(InvalidModelOutput):
+        run(svc.run(<span class="hljs-string">"question"</span>))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_missing_final_response</span>():
+    svc, _ = service(ScriptStep(ModelTurn()))
+    <span class="hljs-keyword">with</span> pytest.raises(InvalidModelOutput):
+        run(svc.run(<span class="hljs-string">"question"</span>))
+
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params"><span class="hljs-string">"name,args"</span>, [
+    (<span class="hljs-params"><span class="hljs-string">"delete_database"</span>, {<span class="hljs-string">"rule_id"</span>:<span class="hljs-string">"r1"</span>}</span>),
+    (<span class="hljs-params"><span class="hljs-string">"lookup_rule"</span>, {}</span>),
+    (<span class="hljs-params"><span class="hljs-string">"lookup_rule"</span>, {<span class="hljs-string">"rule_id"</span>:<span class="hljs-number">12</span>}</span>),
+    (<span class="hljs-params"><span class="hljs-string">"lookup_rule"</span>, {<span class="hljs-string">"rule_id"</span>:<span class="hljs-string">"r1"</span>,<span class="hljs-string">"admin"</span>:<span class="hljs-literal">True</span>}</span>),
+]</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_tool_validation</span>(<span class="hljs-params">name,args</span>):
+    svc, _ = service(ScriptStep(ModelTurn(tool_name=name, tool_args=args)))
+    <span class="hljs-keyword">with</span> pytest.raises(ToolRejected):
+        run(svc.run(<span class="hljs-string">"question"</span>))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_nonexistent_rule_is_tool_error</span>():
+    svc, _ = service(ScriptStep(ModelTurn(tool_name=<span class="hljs-string">"lookup_rule"</span>, tool_args={<span class="hljs-string">"rule_id"</span>:<span class="hljs-string">"missing"</span>})))
+    <span class="hljs-keyword">with</span> pytest.raises(ToolFailed):
+        run(svc.run(<span class="hljs-string">"question"</span>))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_retries_transient_failure</span>():
+    svc, model = service(ScriptStep(TemporaryModelError(<span class="hljs-string">"busy"</span>)), final())
+    <span class="hljs-keyword">assert</span> run(svc.run(<span class="hljs-string">"question"</span>)).answer == <span class="hljs-string">"4"</span>
+    <span class="hljs-keyword">assert</span> model.call_count == <span class="hljs-number">2</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_bounded_retries</span>():
+    svc, model = service(ScriptStep(TemporaryModelError(<span class="hljs-string">"busy"</span>)), ScriptStep(TemporaryModelError(<span class="hljs-string">"busy"</span>)))
+    <span class="hljs-keyword">with</span> pytest.raises(ModelCallFailed):
+        run(svc.run(<span class="hljs-string">"question"</span>))
+    <span class="hljs-keyword">assert</span> model.call_count == <span class="hljs-number">2</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_attempt_timeout_cancels_async_gateway</span>():
+    svc, model = service(ScriptStep(ModelTurn(content=<span class="hljs-string">"{}"</span>), delay_seconds=<span class="hljs-number">0.04</span>),
+                         ScriptStep(ModelTurn(content=<span class="hljs-string">"{}"</span>), delay_seconds=<span class="hljs-number">0.04</span>),
+                         per_attempt_timeout=<span class="hljs-number">0.005</span>)
+    <span class="hljs-keyword">with</span> pytest.raises(ModelCallFailed):
+        run(svc.run(<span class="hljs-string">"question"</span>))
+    <span class="hljs-keyword">assert</span> model.cancel_count == <span class="hljs-number">2</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_global_timeout</span>():
+    svc, _ = service(ScriptStep(TemporaryModelError(<span class="hljs-string">"busy"</span>)), final(), total_timeout=<span class="hljs-number">0.001</span>, max_attempts=<span class="hljs-number">2</span>)
+    <span class="hljs-comment"># global timeout may be reached or call may complete promptly; force a deterministic slow step instead</span>
+    svc, _ = service(ScriptStep(ModelTurn(content=<span class="hljs-string">'{}'</span>), delay_seconds=<span class="hljs-number">0.05</span>), total_timeout=<span class="hljs-number">0.005</span>, per_attempt_timeout=<span class="hljs-number">0.1</span>)
+    <span class="hljs-keyword">with</span> pytest.raises(TimeoutError):
+        run(svc.run(<span class="hljs-string">"question"</span>))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_model_turn_budget</span>():
+    tool = ScriptStep(ModelTurn(tool_name=<span class="hljs-string">"lookup_rule"</span>,tool_args={<span class="hljs-string">"rule_id"</span>:<span class="hljs-string">"r1"</span>}))
+    svc, _ = service(tool, tool, max_model_turns=<span class="hljs-number">2</span>)
+    <span class="hljs-keyword">with</span> pytest.raises(TooManyModelTurns):
+        run(svc.run(<span class="hljs-string">"question"</span>))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_shared_script_state</span>():
+    one,_ = service(final(<span class="hljs-string">"A"</span>))
+    two,_ = service(final(<span class="hljs-string">"B"</span>))
+    <span class="hljs-keyword">assert</span> run(one.run(<span class="hljs-string">"x"</span>)).answer == <span class="hljs-string">"A"</span>
+    <span class="hljs-keyword">assert</span> run(two.run(<span class="hljs-string">"x"</span>)).answer == <span class="hljs-string">"B"</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_model_temporary_error_does_not_mask_tool_rejection</span>():
+    svc, model = service(ScriptStep(TemporaryModelError(<span class="hljs-string">"busy"</span>)), ScriptStep(ModelTurn(tool_name=<span class="hljs-string">"send_money"</span>,tool_args={})))
+    <span class="hljs-keyword">with</span> pytest.raises(ToolRejected):
+        run(svc.run(<span class="hljs-string">"x"</span>))
+    <span class="hljs-keyword">assert</span> model.call_count == <span class="hljs-number">2</span></code></pre></div><h2 id="section-38">附录 D：完整示例代码（test_evaluate.py）</h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> pytest
+<span class="hljs-keyword">from</span> evaluate <span class="hljs-keyword">import</span> GoldCase, Observation, ToolCall, grade, paired_comparison
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">case</span>(<span class="hljs-params">case_id=<span class="hljs-string">"x"</span>, answer=<span class="hljs-string">"4"</span>, expected_tool=(<span class="hljs-params"><span class="hljs-string">"lookup_rule"</span>,</span>), source=<span class="hljs-string">"rule:v1:a"</span></span>):
+    <span class="hljs-keyword">return</span> GoldCase(case_id, <span class="hljs-string">"question"</span>, answer, (expected_tool,), {<span class="hljs-string">"rule_id"</span>: <span class="hljs-string">"r1"</span>} <span class="hljs-keyword">if</span> expected_tool <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>,
+                    <span class="hljs-built_in">frozenset</span>([source]) <span class="hljs-keyword">if</span> source <span class="hljs-keyword">else</span> <span class="hljs-built_in">frozenset</span>())
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">obs</span>(<span class="hljs-params">answer=<span class="hljs-string">"4"</span>, tool=<span class="hljs-string">"lookup_rule"</span>, args=<span class="hljs-literal">None</span>, source=<span class="hljs-string">"rule:v1:a"</span></span>):
+    calls = (ToolCall(tool, args <span class="hljs-keyword">if</span> args <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> {<span class="hljs-string">"rule_id"</span>: <span class="hljs-string">"r1"</span>}),) <span class="hljs-keyword">if</span> tool <span class="hljs-keyword">else</span> ()
+    <span class="hljs-keyword">return</span> Observation(answer, calls, <span class="hljs-built_in">frozenset</span>([source]) <span class="hljs-keyword">if</span> source <span class="hljs-keyword">else</span> <span class="hljs-built_in">frozenset</span>())
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_matching_truth_scores_pass</span>():
+    <span class="hljs-keyword">assert</span> grade(<span class="hljs-keyword">case</span>(), obs()).passed
+
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params"><span class="hljs-string">"response,flag"</span>, [
+    (<span class="hljs-params">obs(<span class="hljs-params">answer=<span class="hljs-string">"5"</span></span>), <span class="hljs-string">"answer_ok"</span></span>),
+    (<span class="hljs-params">obs(<span class="hljs-params">tool=<span class="hljs-string">"other"</span></span>), <span class="hljs-string">"tool_path_ok"</span></span>),
+    (<span class="hljs-params">obs(<span class="hljs-params">args={<span class="hljs-string">"rule_id"</span>:<span class="hljs-string">"other"</span>}</span>), <span class="hljs-string">"arguments_ok"</span></span>),
+    (<span class="hljs-params">obs(<span class="hljs-params">source=<span class="hljs-string">"unrelated"</span></span>), <span class="hljs-string">"cited_ids_ok"</span></span>),
+]</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_independent_scores</span>(<span class="hljs-params">response, flag</span>):
+    result = grade(<span class="hljs-keyword">case</span>(), response)
+    <span class="hljs-keyword">assert</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">getattr</span>(result, flag)
+    <span class="hljs-keyword">assert</span> <span class="hljs-keyword">not</span> result.passed
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_tool_allowed_for_one_case</span>():
+    c=<span class="hljs-keyword">case</span>(expected_tool=(), source=<span class="hljs-string">""</span>)
+    <span class="hljs-keyword">assert</span> grade(c, obs(tool=<span class="hljs-literal">None</span>, source=<span class="hljs-string">""</span>)).passed
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_alternative_valid_tools_not_overconstrained</span>():
+    c=GoldCase(<span class="hljs-string">"c"</span>, <span class="hljs-string">"question"</span>, <span class="hljs-string">"4"</span>, ((<span class="hljs-string">"lookup_rule"</span>,),(<span class="hljs-string">"lookup_character"</span>,)), <span class="hljs-literal">None</span>, <span class="hljs-built_in">frozenset</span>())
+    <span class="hljs-keyword">assert</span> grade(c,obs(tool=<span class="hljs-string">"lookup_character"</span>,source=<span class="hljs-string">""</span>)).passed
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_normalization_only_not_semantic_truth</span>():
+    <span class="hljs-keyword">assert</span> grade(<span class="hljs-keyword">case</span>(answer=<span class="hljs-string">"  FOUR  "</span>,source=<span class="hljs-string">""</span>),obs(answer=<span class="hljs-string">"four"</span>,source=<span class="hljs-string">""</span>)).answer_ok
+    <span class="hljs-keyword">assert</span> <span class="hljs-keyword">not</span> grade(<span class="hljs-keyword">case</span>(answer=<span class="hljs-string">"四"</span>,source=<span class="hljs-string">""</span>),obs(answer=<span class="hljs-string">"4"</span>,source=<span class="hljs-string">""</span>)).answer_ok
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_citation_id_is_not_semantic_entailment</span>():
+    <span class="hljs-comment"># Citation ID matches even when answer is wrong: this is deliberate and needs a separate groundedness grader.</span>
+    g=grade(<span class="hljs-keyword">case</span>(),obs(answer=<span class="hljs-string">"5"</span>))
+    <span class="hljs-keyword">assert</span> g.cited_ids_ok <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> g.answer_ok
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_paired_comparison_detects_regression</span>():
+    c=[GoldCase(<span class="hljs-built_in">str</span>(i), <span class="hljs-string">"question"</span>, <span class="hljs-built_in">str</span>(i), ((),), <span class="hljs-literal">None</span>, <span class="hljs-built_in">frozenset</span>()) <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">4</span>)]
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">o</span>(<span class="hljs-params">text</span>): <span class="hljs-keyword">return</span> Observation(<span class="hljs-built_in">str</span>(text), (), <span class="hljs-built_in">frozenset</span>())
+    baseline={<span class="hljs-string">"0"</span>:o(<span class="hljs-number">0</span>),<span class="hljs-string">"1"</span>:o(<span class="hljs-number">1</span>),<span class="hljs-string">"2"</span>:o(<span class="hljs-string">"bad"</span>),<span class="hljs-string">"3"</span>:o(<span class="hljs-string">"bad"</span>)}
+    candidate={<span class="hljs-string">"0"</span>:o(<span class="hljs-string">"bad"</span>),<span class="hljs-string">"1"</span>:o(<span class="hljs-number">1</span>),<span class="hljs-string">"2"</span>:o(<span class="hljs-number">2</span>),<span class="hljs-string">"3"</span>:o(<span class="hljs-number">3</span>)}
+    comparison=paired_comparison(c,baseline,candidate)
+    <span class="hljs-keyword">assert</span> comparison == {
+        <span class="hljs-string">"baseline_passed"</span>:<span class="hljs-number">2</span>,<span class="hljs-string">"candidate_passed"</span>:<span class="hljs-number">3</span>,<span class="hljs-string">"baseline_rate"</span>:<span class="hljs-number">0.5</span>,<span class="hljs-string">"candidate_rate"</span>:<span class="hljs-number">0.75</span>,
+        <span class="hljs-string">"improvements"</span>:[<span class="hljs-string">"2"</span>,<span class="hljs-string">"3"</span>],<span class="hljs-string">"regressions"</span>:[<span class="hljs-string">"0"</span>],
+    }
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_dataset_alignment_required</span>():
+    <span class="hljs-keyword">with</span> pytest.raises(ValueError):
+        paired_comparison([<span class="hljs-keyword">case</span>()], {<span class="hljs-string">"x"</span>:obs()}, {<span class="hljs-string">"other"</span>:obs()})
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_unique_case_id_required</span>():
+    <span class="hljs-keyword">with</span> pytest.raises(ValueError):
+        paired_comparison([<span class="hljs-keyword">case</span>(), <span class="hljs-keyword">case</span>()], {<span class="hljs-string">"x"</span>:obs()}, {<span class="hljs-string">"x"</span>:obs()})
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_empty_dataset_not_divide_by_zero</span>():
+    <span class="hljs-keyword">assert</span> paired_comparison([], {}, {})[<span class="hljs-string">"candidate_rate"</span>] == <span class="hljs-number">0</span></code></pre></div><h2 id="section-39">附录 E：完整示例代码（live_eval.py）</h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""OPTIONAL paid live-model probe. Run only when explicitly chosen; not imported by pytest.
+
+Usage:
+    pip install openai
+    # supply these env variables via your own environment/secret manager
+    # MODEL_API_KEY, MODEL_ID, MODEL_BASE_URL (if provider uses compatible API)
+    python live_eval.py
+
+This script uses Chat Completions-compatible function tools. Adapt it if your provider
+requires another endpoint. It will incur API charges and never performs writes.
+"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+<span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">import</span> time
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> asdict, dataclass
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> <span class="hljs-type">Any</span>
+
+<span class="hljs-keyword">from</span> evaluate <span class="hljs-keyword">import</span> GoldCase, Observation, ToolCall, grade
+
+<span class="hljs-comment"># An independent, frozen sample knowledge base, deliberately separate from the model.</span>
+RULES = {<span class="hljs-string">"r1"</span>: {<span class="hljs-string">"source_id"</span>: <span class="hljs-string">"rule:v1:a"</span>, <span class="hljs-string">"text"</span>: <span class="hljs-string">"在版本1中，角色A的基础生命值为4。"</span>}}
+CHARACTERS = {<span class="hljs-string">"a"</span>: {<span class="hljs-string">"source_id"</span>: <span class="hljs-string">"char:v1:a"</span>, <span class="hljs-string">"name"</span>: <span class="hljs-string">"角色A"</span>, <span class="hljs-string">"hp"</span>: <span class="hljs-number">4</span>}}
+
+TOOLS = [
+    {<span class="hljs-string">"type"</span>: <span class="hljs-string">"function"</span>, <span class="hljs-string">"function"</span>: {
+        <span class="hljs-string">"name"</span>: <span class="hljs-string">"lookup_rule"</span>, <span class="hljs-string">"description"</span>: <span class="hljs-string">"按 rule_id 查询指定规则原文，不做写入。"</span>, 
+        <span class="hljs-string">"parameters"</span>: {<span class="hljs-string">"type"</span>: <span class="hljs-string">"object"</span>, <span class="hljs-string">"properties"</span>: {<span class="hljs-string">"rule_id"</span>: {<span class="hljs-string">"type"</span>: <span class="hljs-string">"string"</span>}},
+                       <span class="hljs-string">"required"</span>: [<span class="hljs-string">"rule_id"</span>], <span class="hljs-string">"additionalProperties"</span>: <span class="hljs-literal">False</span>},
+    }},
+    {<span class="hljs-string">"type"</span>: <span class="hljs-string">"function"</span>, <span class="hljs-string">"function"</span>: {
+        <span class="hljs-string">"name"</span>: <span class="hljs-string">"lookup_character"</span>, <span class="hljs-string">"description"</span>: <span class="hljs-string">"按 character_id 查询游戏角色结构化属性，不做写入。"</span>,
+        <span class="hljs-string">"parameters"</span>: {<span class="hljs-string">"type"</span>: <span class="hljs-string">"object"</span>, <span class="hljs-string">"properties"</span>: {<span class="hljs-string">"character_id"</span>: {<span class="hljs-string">"type"</span>: <span class="hljs-string">"string"</span>}},
+                       <span class="hljs-string">"required"</span>: [<span class="hljs-string">"character_id"</span>], <span class="hljs-string">"additionalProperties"</span>: <span class="hljs-literal">False</span>},
+    }},
+]
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">execute_readonly_tool</span>(<span class="hljs-params">name: <span class="hljs-built_in">str</span>, raw_arguments: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]:
+    <span class="hljs-keyword">try</span>:
+        args = json.loads(raw_arguments)
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">isinstance</span>(args, <span class="hljs-built_in">dict</span>):
+            <span class="hljs-keyword">return</span> {<span class="hljs-string">"error"</span>: <span class="hljs-string">"INVALID_ARGUMENTS"</span>}
+        <span class="hljs-keyword">if</span> name == <span class="hljs-string">"lookup_rule"</span> <span class="hljs-keyword">and</span> <span class="hljs-built_in">set</span>(args) == {<span class="hljs-string">"rule_id"</span>} <span class="hljs-keyword">and</span> <span class="hljs-built_in">isinstance</span>(args[<span class="hljs-string">"rule_id"</span>], <span class="hljs-built_in">str</span>):
+            <span class="hljs-keyword">return</span> RULES.get(args[<span class="hljs-string">"rule_id"</span>], {<span class="hljs-string">"error"</span>: <span class="hljs-string">"NOT_FOUND"</span>})
+        <span class="hljs-keyword">if</span> name == <span class="hljs-string">"lookup_character"</span> <span class="hljs-keyword">and</span> <span class="hljs-built_in">set</span>(args) == {<span class="hljs-string">"character_id"</span>} <span class="hljs-keyword">and</span> <span class="hljs-built_in">isinstance</span>(args[<span class="hljs-string">"character_id"</span>], <span class="hljs-built_in">str</span>):
+            <span class="hljs-keyword">return</span> CHARACTERS.get(args[<span class="hljs-string">"character_id"</span>], {<span class="hljs-string">"error"</span>: <span class="hljs-string">"NOT_FOUND"</span>})
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">"error"</span>: <span class="hljs-string">"TOOL_DENIED_OR_INVALID_ARGUMENTS"</span>}
+    <span class="hljs-keyword">except</span> (ValueError, TypeError):
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">"error"</span>: <span class="hljs-string">"INVALID_JSON_ARGUMENTS"</span>}
+
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">observe_live</span>(<span class="hljs-params">question: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">tuple</span>[Observation, <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]]:
+    <span class="hljs-keyword">from</span> openai <span class="hljs-keyword">import</span> AsyncOpenAI  <span class="hljs-comment"># delayed import, not required for offline tests</span>
+
+    key = os.environ[<span class="hljs-string">"MODEL_API_KEY"</span>]
+    model = os.environ[<span class="hljs-string">"MODEL_ID"</span>]
+    base_url = os.environ.get(<span class="hljs-string">"MODEL_BASE_URL"</span>) <span class="hljs-keyword">or</span> <span class="hljs-literal">None</span>
+    client = AsyncOpenAI(api_key=key, base_url=base_url, timeout=<span class="hljs-number">30.0</span>, max_retries=<span class="hljs-number">0</span>)
+    messages: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]] = [
+        {<span class="hljs-string">"role"</span>: <span class="hljs-string">"system"</span>, <span class="hljs-string">"content"</span>: (
+            <span class="hljs-string">"Answer the question using tools where necessary. Do not invent facts. "</span>
+            <span class="hljs-string">"The final assistant message must be a JSON object with fields "</span>
+            <span class="hljs-string">"answer (string) and citations (array of source_id strings). "</span>
+            <span class="hljs-string">"Missing evidence: answer '资料不足' and use no citations."</span>
+        )},
+        {<span class="hljs-string">"role"</span>: <span class="hljs-string">"user"</span>, <span class="hljs-string">"content"</span>: question},
+    ]
+    tool_calls: <span class="hljs-built_in">list</span>[ToolCall] = []
+    raw_events: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]] = []
+    input_tokens = <span class="hljs-number">0</span>
+    output_tokens = <span class="hljs-number">0</span>
+    answer = <span class="hljs-string">""</span>
+    citations: <span class="hljs-built_in">frozenset</span>[<span class="hljs-built_in">str</span>] = <span class="hljs-built_in">frozenset</span>()
+    started = time.perf_counter()
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">for</span> step <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">3</span>):
+            result = <span class="hljs-keyword">await</span> client.chat.completions.create(
+                model=model, messages=messages, tools=TOOLS, tool_choice=<span class="hljs-string">"auto"</span>,
+            )
+            <span class="hljs-keyword">if</span> result.usage:
+                input_tokens += result.usage.prompt_tokens
+                output_tokens += result.usage.completion_tokens
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> result.choices:
+                raw_events.append({<span class="hljs-string">"error"</span>: <span class="hljs-string">"NO_CHOICES"</span>})
+                <span class="hljs-keyword">break</span>
+            message = result.choices[<span class="hljs-number">0</span>].message
+            tool_items = message.tool_calls <span class="hljs-keyword">or</span> []
+            raw_events.append({<span class="hljs-string">"turn"</span>: step, <span class="hljs-string">"finish_reason"</span>: result.choices[<span class="hljs-number">0</span>].finish_reason,
+                               <span class="hljs-string">"model"</span>: result.model, <span class="hljs-string">"tool_names"</span>: [x.function.name <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> tool_items]})
+            <span class="hljs-keyword">if</span> tool_items:
+                messages.append({
+                    <span class="hljs-string">"role"</span>: <span class="hljs-string">"assistant"</span>, <span class="hljs-string">"content"</span>: message.content,
+                    <span class="hljs-string">"tool_calls"</span>: [{<span class="hljs-string">"id"</span>: x.<span class="hljs-built_in">id</span>, <span class="hljs-string">"type"</span>: <span class="hljs-string">"function"</span>, <span class="hljs-string">"function"</span>: {
+                        <span class="hljs-string">"name"</span>: x.function.name, <span class="hljs-string">"arguments"</span>: x.function.arguments}}
+                        <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> tool_items],
+                })
+                <span class="hljs-keyword">for</span> item <span class="hljs-keyword">in</span> tool_items:
+                    name, args_text = item.function.name, item.function.arguments
+                    <span class="hljs-keyword">try</span>:
+                        args = json.loads(args_text)
+                    <span class="hljs-keyword">except</span> json.JSONDecodeError:
+                        args = {}
+                    tool_calls.append(ToolCall(name, args <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(args, <span class="hljs-built_in">dict</span>) <span class="hljs-keyword">else</span> {}))
+                    <span class="hljs-comment"># Read-only local execution. All unrecognized tools are rejected.</span>
+                    observed = execute_readonly_tool(name, args_text)
+                    raw_events.append({<span class="hljs-string">"tool"</span>: name, <span class="hljs-string">"result"</span>: observed})
+                    messages.append({<span class="hljs-string">"role"</span>: <span class="hljs-string">"tool"</span>, <span class="hljs-string">"tool_call_id"</span>: item.<span class="hljs-built_in">id</span>,
+                                     <span class="hljs-string">"content"</span>: json.dumps(observed, ensure_ascii=<span class="hljs-literal">False</span>)})
+                <span class="hljs-keyword">continue</span>
+            <span class="hljs-keyword">try</span>:
+                obj = json.loads(message.content <span class="hljs-keyword">or</span> <span class="hljs-string">""</span>)
+                <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(obj, <span class="hljs-built_in">dict</span>) <span class="hljs-keyword">and</span> <span class="hljs-built_in">isinstance</span>(obj.get(<span class="hljs-string">"answer"</span>), <span class="hljs-built_in">str</span>):
+                    answer = obj[<span class="hljs-string">"answer"</span>]
+                    ids = obj.get(<span class="hljs-string">"citations"</span>, [])
+                    <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(ids, <span class="hljs-built_in">list</span>) <span class="hljs-keyword">and</span> <span class="hljs-built_in">all</span>(<span class="hljs-built_in">isinstance</span>(x, <span class="hljs-built_in">str</span>) <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> ids):
+                        citations = <span class="hljs-built_in">frozenset</span>(ids)
+                    <span class="hljs-keyword">else</span>:
+                        raw_events.append({<span class="hljs-string">"error"</span>: <span class="hljs-string">"INVALID_CITATION_IDS"</span>})
+                <span class="hljs-keyword">else</span>:
+                    raw_events.append({<span class="hljs-string">"error"</span>: <span class="hljs-string">"INVALID_FINAL_SHAPE"</span>})
+            <span class="hljs-keyword">except</span> json.JSONDecodeError:
+                raw_events.append({<span class="hljs-string">"error"</span>: <span class="hljs-string">"INVALID_FINAL_JSON"</span>})
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">else</span>:
+            raw_events.append({<span class="hljs-string">"error"</span>: <span class="hljs-string">"MAX_MODEL_TURNS"</span>})
+    <span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> exc:
+        raw_events.append({<span class="hljs-string">"error"</span>: <span class="hljs-string">"MODEL_REQUEST_FAILED"</span>, <span class="hljs-string">"exception_type"</span>: <span class="hljs-built_in">type</span>(exc).__name__})
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> client.close()
+    observation = Observation(answer, <span class="hljs-built_in">tuple</span>(tool_calls), citations,
+                              latency_ms=(time.perf_counter() - started) * <span class="hljs-number">1000</span>,
+                              input_tokens=input_tokens, output_tokens=output_tokens)
+    metadata = {<span class="hljs-string">"model_requested"</span>: model, <span class="hljs-string">"raw_events"</span>: raw_events}
+    <span class="hljs-keyword">return</span> observation, metadata
+
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> os.environ.get(<span class="hljs-string">"MODEL_API_KEY"</span>) <span class="hljs-keyword">or</span> <span class="hljs-keyword">not</span> os.environ.get(<span class="hljs-string">"MODEL_ID"</span>):
+        <span class="hljs-keyword">raise</span> SystemExit(<span class="hljs-string">"Set MODEL_API_KEY and MODEL_ID explicitly to opt into paid live evaluation"</span>)
+    <span class="hljs-keyword">case</span> = GoldCase(<span class="hljs-string">"sample1"</span>, <span class="hljs-string">"查询规则 r1：角色A在版本1的基础生命值是多少？"</span>, <span class="hljs-string">"4"</span>,
+                    ((<span class="hljs-string">"lookup_rule"</span>,),), <span class="hljs-literal">None</span>,
+                    <span class="hljs-built_in">frozenset</span>({<span class="hljs-string">"rule:v1:a"</span>}))
+    observation, metadata = <span class="hljs-keyword">await</span> observe_live(<span class="hljs-keyword">case</span>.question)
+    result = {<span class="hljs-string">"case_id"</span>: <span class="hljs-keyword">case</span>.case_id, <span class="hljs-string">"score"</span>: asdict(grade(<span class="hljs-keyword">case</span>, observation)),
+              <span class="hljs-string">"observation"</span>: asdict(observation), <span class="hljs-string">"metadata"</span>: metadata}
+    <span class="hljs-comment"># Example data is synthetic, but real-world prompts/results need redaction before storage.</span>
+    Path(<span class="hljs-string">"live_eval_result.json"</span>).write_text(json.dumps(result, ensure_ascii=<span class="hljs-literal">False</span>, indent=<span class="hljs-number">2</span>, default=<span class="hljs-built_in">list</span>), encoding=<span class="hljs-string">"utf-8"</span>)
+    <span class="hljs-built_in">print</span>(json.dumps({<span class="hljs-string">"case_id"</span>: <span class="hljs-keyword">case</span>.case_id, <span class="hljs-string">"passed"</span>: grade(<span class="hljs-keyword">case</span>, observation).passed,
+                      <span class="hljs-string">"latency_ms"</span>: <span class="hljs-built_in">round</span>(observation.latency_ms, <span class="hljs-number">1</span>)}, ensure_ascii=<span class="hljs-literal">False</span>))
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(main())</code></pre></div><hr />
+<p>本文内容仅用于软件工程知识教学；本地模拟验证不应被解释为真实模型、真实数据库或生产运行环境的性能证明。</p>

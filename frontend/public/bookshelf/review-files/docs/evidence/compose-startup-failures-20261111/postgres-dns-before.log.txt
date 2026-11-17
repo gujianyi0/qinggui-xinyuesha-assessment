@@ -1,0 +1,150 @@
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+api-1  |     await self.app(scope, receive, send)
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/starlette/routing.py", line 683, in __call__
+api-1  |     await self.middleware_stack(scope, receive, send)
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 2811, in app
+api-1  |     await route.handle(scope, receive, send)
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 1330, in handle
+api-1  |     await super().handle(scope, receive, send)
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/starlette/routing.py", line 289, in handle
+api-1  |     await self.app(scope, receive, send)
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 166, in app
+api-1  |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+api-1  |     raise exc
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+api-1  |     await app(scope, receive, sender)
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 152, in app
+api-1  |     response = await f(request)
+api-1  |                ^^^^^^^^^^^^^^^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 745, in app
+api-1  |     raw_response = await run_endpoint_function(
+api-1  |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |     ...<3 lines>...
+api-1  |     )
+api-1  |     ^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 372, in run_endpoint_function
+api-1  |     return await dependant.call(**values)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/app/backend/app/main.py", line 168, in health
+api-1  |     await db.execute(text("SELECT 1"))
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/ext/asyncio/session.py", line 652, in execute
+api-1  |     result = await greenlet_spawn(
+api-1  |              ^^^^^^^^^^^^^^^^^^^^^
+api-1  |     ...<6 lines>...
+api-1  |     )
+api-1  |     ^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/util/concurrency.py", line 210, in greenlet_spawn
+api-1  |     result = context.throw(*sys.exc_info())
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 2555, in execute
+api-1  |     return self._execute_internal(
+api-1  |            ~~~~~~~~~~~~~~~~~~~~~~^
+api-1  |         statement,
+api-1  |         ^^^^^^^^^^
+api-1  |     ...<4 lines>...
+api-1  |         _add_event=_add_event,
+api-1  |         ^^^^^^^^^^^^^^^^^^^^^^
+api-1  |     )
+api-1  |     ^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 2432, in _execute_internal
+api-1  |     conn = self._connection_for_bind(bind)
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 2255, in _connection_for_bind
+api-1  |     return trans._connection_for_bind(engine, execution_options)
+api-1  |            ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "<sqlalchemy generated _go() wrapper for sqlalchemy.orm.session.SessionTransaction._connection_for_bind>", line 2, in _connection_for_bind
+api-1  |     return target(fn, self, bind, execution_options)
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+api-1  |     ret_value = fn(self, *arg, **kw)
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 1282, in _connection_for_bind
+api-1  |     conn = bind.connect()
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 3279, in connect
+api-1  |     return self._connection_cls(self)
+api-1  |            ~~~~~~~~~~~~~~~~~~~~^^^^^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 154, in __init__
+api-1  |     self._dbapi_connection = engine.raw_connection()
+api-1  |                              ~~~~~~~~~~~~~~~~~~~~~^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 3303, in raw_connection
+api-1  |     return self.pool.connect()
+api-1  |            ~~~~~~~~~~~~~~~~~^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 445, in connect
+api-1  |     return _ConnectionFairy._checkout(self)
+api-1  |            ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 1340, in _checkout
+api-1  |     fairy = _ConnectionRecord.checkout(pool)
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 718, in checkout
+api-1  |     with util.safe_reraise():
+api-1  |          ~~~~~~~~~~~~~~~~~^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py", line 166, in __exit__
+api-1  |     raise exc_value.with_traceback(exc_tb)
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 716, in checkout
+api-1  |     dbapi_connection = rec.get_connection()
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 893, in get_connection
+api-1  |     self.__connect()
+api-1  |     ~~~~~~~~~~~~~~^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 932, in __connect
+api-1  |     with util.safe_reraise():
+api-1  |          ~~~~~~~~~~~~~~~~~^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py", line 166, in __exit__
+api-1  |     raise exc_value.with_traceback(exc_tb)
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/pool/base.py", line 928, in __connect
+api-1  |     self.dbapi_connection = connection = pool._invoke_creator(self)
+api-1  |                                          ~~~~~~~~~~~~~~~~~~~~^^^^^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/engine/create.py", line 645, in connect
+api-1  |     return dialect.connect(*cargs_tup, **cparams)
+api-1  |            ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py", line 869, in connect
+api-1  |     return self.loaded_dbapi.connect(*cargs, **cparams)  # type: ignore[no-any-return]  # NOQA: E501
+api-1  |            ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 967, in connect
+api-1  |     return await_(
+api-1  |         AsyncAdapt_asyncpg_connection.create(
+api-1  |     ...<4 lines>...
+api-1  |         )
+api-1  |     )
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/util/concurrency.py", line 167, in await_
+api-1  |     return current.parent.switch(awaitable)  # type: ignore[no-any-return]
+api-1  |            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/util/concurrency.py", line 205, in greenlet_spawn
+api-1  |     value = await result
+api-1  |             ^^^^^^^^^^^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/connectors/asyncio.py", line 378, in create
+api-1  |     cls._handle_exception_no_connection(dbapi, error)
+api-1  |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 841, in _handle_exception_no_connection
+api-1  |     super()._handle_exception_no_connection(dbapi, error)
+api-1  |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/connectors/asyncio.py", line 409, in _handle_exception_no_connection
+api-1  |     raise error.with_traceback(exc_info[2])
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/sqlalchemy/connectors/asyncio.py", line 376, in create
+api-1  |     connection = await connection_awaitable
+api-1  |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connection.py", line 2498, in connect
+api-1  |     return await connect_utils._connect(
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |     ...<22 lines>...
+api-1  |     )
+api-1  |     ^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1307, in _connect
+api-1  |     raise last_error or exceptions.TargetServerAttributeNotMatched(
+api-1  |     ...<2 lines>...
+api-1  |     )
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1278, in _connect
+api-1  |     conn = await _connect_addr(
+api-1  |            ^^^^^^^^^^^^^^^^^^^^
+api-1  |     ...<6 lines>...
+api-1  |     )
+api-1  |     ^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1092, in _connect_addr
+api-1  |     return await __connect_addr(params, True, *args)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 1162, in __connect_addr
+api-1  |     tr, pr = await connector
+api-1  |              ^^^^^^^^^^^^^^^
+api-1  |   File "/app/.venv/lib/python3.13/site-packages/asyncpg/connect_utils.py", line 996, in _create_ssl_connection
+api-1  |     tr, pr = await loop.create_connection(
+api-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |     ...<2 lines>...
+api-1  |         host, port)
+api-1  |         ^^^^^^^^^^^
+api-1  |   File "uvloop/loop.pyx", line 1979, in create_connection
+api-1  | socket.gaierror: [Errno -3] Temporary failure in name resolution

@@ -1,0 +1,1 @@
+{"label": "SC04", "exit_code": 0, "passed": true, "tests_run": 1, "tail": ""}

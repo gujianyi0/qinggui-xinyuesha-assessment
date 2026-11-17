@@ -1,0 +1,262 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>验收矩阵.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><blockquote>
+<p>2026-11-17口径纠正：用户本人持续真实使用、提出问题并完成多轮修改与复测，试用与改进已完成，见<a href="/bookshelf/review-files/docs/%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md.html">当前试用记录</a>。下文关于取消招募、没有外部试用者的历史状态按当时日期理解；“没有真人反馈或改进闭环”不再代表当前事实。QQ仍移出运行范围。</p>
+</blockquote>
+<h1>入职考核验收矩阵（1.11补充，保留1.9基线）</h1>
+<p>1.11补充（2026-11-14）：来源按钮跳动有实际坐标复现，修复按钮布局和自动滚动；前端25项通过。本轮只更新网页，后端业务与真实模型32条仍按原验证轮次解释，见<a href="/bookshelf/review-files/docs/1.11-%E6%9D%A5%E6%BA%90%E6%8C%89%E9%92%AE%E8%B7%B3%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md.html">1.11报告</a>。</p>
+<p>1.10补充（2026-11-14）：回答正文与末尾来源按钮分离，前端22项、后端相关49项通过；固定记录免责声明误判修正见<a href="/bookshelf/review-files/docs/1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md.html">1.10报告</a>。本轮没有重跑完整32条；下表及其“本轮”描述保留为1.9基线，不能当作1.10全量验证。整浏览器无响应的内存压力仍需单独治理，不标已修复。</p>
+<p>更新：2026-11-13。编号用于本项目核对原学习目标，不是新增公司评分线。最新测试、修正和费用以 <a href="/bookshelf/review-files/docs/1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md.html">1.9报告</a>为准；历史证据明确标轮次。工程验证不替代 Leader 验收。</p>
+<table>
+<thead>
+<tr>
+<th>要求</th>
+<th>实现与证据</th>
+<th>当前状态与边界</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>P01 玩家场景</td>
+<td>规则、实体、固定裁定、反馈，React 本机和公网客户端</td>
+<td>已实现；QQ、真人试用移除</td>
+</tr>
+<tr>
+<td>P02 指定主链路</td>
+<td>Python/FastAPI/PG/pgvector/Agno，容器源码比对</td>
+<td>已验证；正式部署限定单 API</td>
+</tr>
+<tr>
+<td>P03 RAG/引用</td>
+<td>三包 198 资料、659 向量块、锁定 BGE；另有项目维护的版本范围说明</td>
+<td>真实检索/引用完整性验证；额外召回并非全部必要依据</td>
+</tr>
+<tr>
+<td>P04 受控工具</td>
+<td>检索、实体、固定裁定及持久回执</td>
+<td>无任意 SQL、路径或外部账号访问</td>
+</tr>
+<tr>
+<td>P05 多轮/流式</td>
+<td>M01–M03；本机受理后 GET SSE，公网轮询；同请求编号恢复</td>
+<td>本轮新增断线/刷新/取消、短追问裁定边界验证</td>
+</tr>
+<tr>
+<td>P06 草稿/缺项</td>
+<td>I01/I02/M03、程序缺项清单、已提供信息保留</td>
+<td>聊天文字草稿与网页保存/确认独立</td>
+</tr>
+<tr>
+<td>P07 确认幂等</td>
+<td>revision、归属、反馈唯一约束</td>
+<td>自动化新回归；真实网页确认沿用 1.6/1.7 证据</td>
+</tr>
+<tr>
+<td>P08 持久化/隔离</td>
+<td>两身份、请求恢复归属、主库独立恢复比对</td>
+<td>旧原生副本不能直接重新当主库</td>
+</tr>
+<tr>
+<td>P09 异常</td>
+<td>SDK协议、超时、供应商错误、连接关闭、真实 F01</td>
+<td>F01仅在隔离库注入；主服务始终关闭注入</td>
+</tr>
+<tr>
+<td>P10 复现</td>
+<td>Compose、Alembic 0002、依赖锁、下载客户端</td>
+<td>构建/迁移/CI分别报告；未在另一台物理电脑全套部署</td>
+</tr>
+<tr>
+<td>B01 独立Worker</td>
+<td>Kafka导入、按任务释放BGE进程</td>
+<td>沿用1.4/1.6真实容器证据，本轮健康检查；未新跑一小时</td>
+</tr>
+<tr>
+<td>B02 Redis</td>
+<td>公共检索缓存、过期/断连回源</td>
+<td>历史容器验证＋本轮自动化；PG为业务权威</td>
+</tr>
+<tr>
+<td>B03 幂等</td>
+<td>Outbox/任务唯一键、状态/代次、请求编号派生Run</td>
+<td>后台历史证据＋本轮并发提交/取消先到测试</td>
+</tr>
+<tr>
+<td>B04 位点/崩溃</td>
+<td>持久化后提交位点、Outbox重放</td>
+<td>1.6真实故障证据保留，不记作1.9重新注入</td>
+</tr>
+<tr>
+<td>B05 有限重试</td>
+<td>三次、10/30秒退避、坏输入终止</td>
+<td>1.6实测＋本轮自动化回归</td>
+</tr>
+<tr>
+<td>B06 取消/终态</td>
+<td>分块/发布前取消、迟到提交受取消标记保护</td>
+<td>费用不因取消撤销，终态不回退</td>
+</tr>
+<tr>
+<td>B07 恢复</td>
+<td>历史一小时/故障矩阵，本轮当前主库备份和新库恢复</td>
+<td>新恢复证据见报告；不是多实例高可用或正式灾难切换</td>
+</tr>
+<tr>
+<td>T01–T02 固定真实评测</td>
+<td>同一 cases.json 四组完整32条，回答/工具/引用/用量留档</td>
+<td>最终轮逐条结果见报告，中间失败不删除</td>
+</tr>
+<tr>
+<td>T03 ≥3修正</td>
+<td>历史FIX01–36＋本轮裁定、断线、引用、错误前提等</td>
+<td>失败、定位、修改及复测分别记录</td>
+</tr>
+<tr>
+<td>T04 自动化</td>
+<td>pytest、前端、SDK、迁移、公开仓库CI</td>
+<td>精确数量见报告；CI不包含付费模型和全套基础设施</td>
+</tr>
+<tr>
+<td>T05 AI代码修复</td>
+<td>历史Schema/缓存/轮询；本轮恢复按钮加载状态及评测前置校验</td>
+<td>记录调用方影响和真实失败</td>
+</tr>
+<tr>
+<td>T06 演示/试用</td>
+<td>真实成功请求、隔离F01、反馈确认和恢复手册</td>
+<td>真人试用已移除，原文该项没有完成</td>
+</tr>
+<tr>
+<td>DOC01–04</td>
+<td>本地1.9、用户授权的公开GitHub、最新文档入口</td>
+<td>远端与Actions以实际结果为准；公司验收待安排</td>
+</tr>
+</tbody></table>
+<p>15174本机网页演示完整后台任务和流式；公网/15176下载客户端用于共享问答与反馈，采用轮询且不开放访客后台任务。密钥留本机，不新增按人/按天配额，保留200元总账。正式期限、验收人及演示安排待公司确认。QQ不列待联调，试用不列待招募，也不记为通过。</p>
+<p>见 <a href="/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261113.md.html">当前进度</a>、<a href="/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E5%A4%87%E4%BB%BD%E4%B8%8E%E6%81%A2%E5%A4%8D.md.html">备份恢复</a>。</p>
+<h2>历史：1.8矩阵（不代表本轮重跑）</h2>
+<p>更新：2026-11-12，版本1.8。已重新读取语雀项目实战原文；下表标工程验证范围，不替代Leader验收。当前入口Docker React网页，QQ与真人试用按用户决定移出。</p>
+<p>本轮共享部署补充：公网/下载客户端均连接提供者本机真实API，模型密钥不分发；每浏览器访客隔离、公共运行去重及原200元总账验证。184项Python、11项前端通过。真实新增问答含失败及重试，最终3条有引用回答通过、10引用完整性问题0；不将失败覆盖为成功，不把额外检索引用都记为必要。前两轮连接恢复失败和最终HTTPS通过分别留档，见<a href="/bookshelf/review-files/docs/1.8-%E6%9C%AC%E6%9C%BA%E5%85%B1%E4%BA%AB%E7%9C%9F%E5%AE%9E%E9%97%AE%E7%AD%94%E4%B8%8E%E9%AA%8C%E8%AF%81-20261112.md.html">1.8报告</a>。下表原1.6/1.7功能与故障证据继续保留，不标成本轮全量重跑。</p>
+<table>
+<thead>
+<tr>
+<th>要求</th>
+<th>当前证据与结果</th>
+<th>状态/边界</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>P01 玩家场景</td>
+<td>规则、数据、固定裁定及反馈网页走通</td>
+<td>模拟场景验证；无独立真人试用</td>
+</tr>
+<tr>
+<td>P02 指定主链路</td>
+<td>Python/FastAPI/PG/Agno，最终31条34回合真实模型完成</td>
+<td>本轮实测</td>
+</tr>
+<tr>
+<td>P03 RAG/引用</td>
+<td>198资料659块，BGE/pgvector；111引用完整性问题0</td>
+<td>答案语义另核对，不以哈希代替事实判断</td>
+</tr>
+<tr>
+<td>P04 两类工具</td>
+<td>检索、实体查询，另加固定裁定</td>
+<td>实际tool_calls及来源可追溯</td>
+</tr>
+<tr>
+<td>P05 多轮/流式/边界</td>
+<td>M01–M03及V/N类逐条检查；网页真实流式</td>
+<td>选定断言通过，不保证任意输出</td>
+</tr>
+<tr>
+<td>P06 草稿及缺失信息</td>
+<td>I01补齐武将/技能/卡牌/时机/局面；I02/M03及新增FI01多轮通过</td>
+<td>Q01已关闭，程序清单与用户事实分开</td>
+</tr>
+<tr>
+<td>P07 确认/去重</td>
+<td>单元修订/归属/幂等；容器8并发确认；真实网页编辑确认</td>
+<td>本轮验证</td>
+</tr>
+<tr>
+<td>P08 持久化/隔离</td>
+<td>两身份、容器重建、主库维护前后18表一致</td>
+<td>单API部署；旧原生写入被阻止</td>
+</tr>
+<tr>
+<td>P09 校验/异常</td>
+<td>184项Python、19项SDK协议；清单不能掩盖空正文，原失败留档</td>
+<td>F01隔离及协议通过，当前主库不注入故障</td>
+</tr>
+<tr>
+<td>P10 启动/迁移/Compose</td>
+<td>新卷迁移、17组矩阵、前端构建与当前源码哈希</td>
+<td>追加重建遇网络故障用已验证基础镜像；未做另一台机器完整下载</td>
+</tr>
+<tr>
+<td>B01 独立Worker</td>
+<td>新库真实CPU导入659块；状态/失败/次数可查</td>
+<td>本轮验证</td>
+</tr>
+<tr>
+<td>B02 Redis边界</td>
+<td>缓存命中、默认TTL自然过期、停机回PG及重连</td>
+<td>本轮验证，PG为业务权威</td>
+</tr>
+<tr>
+<td>B03 幂等</td>
+<td>8并发提交、重复消息、并发领取测试</td>
+<td>最终发布唯一，旧暂存另计</td>
+</tr>
+<tr>
+<td>B04 提交位点/中断</td>
+<td>业务提交后退出82、Outbox退出81、重放</td>
+<td>业务与发布未重复，位点在持久结果后推进</td>
+</tr>
+<tr>
+<td>B05 有限重试</td>
+<td>3次失败终止，实际间隔不小于10/30秒；坏输入后正常任务完成</td>
+<td>本轮验证</td>
+</tr>
+<tr>
+<td>B06 取消/终态</td>
+<td>排队与运行取消、旧租约回写保护、发布前竞争</td>
+<td>本轮验证；已发生费用不撤销</td>
+</tr>
+<tr>
+<td>B07 停机/恢复</td>
+<td>Worker实际终止、60秒租约恢复；PG503、Kafka/Redis/API故障、down/up</td>
+<td>约15分钟667组探测，预期外失败0；非本轮一小时</td>
+</tr>
+<tr>
+<td>T01–T02 固定及真实样例</td>
+<td>1.6整组保留；1.7定向5条8回合＋新增多轮2回合通过，I01已关闭</td>
+<td>本轮33引用问题0；未重跑全部32条</td>
+</tr>
+<tr>
+<td>T03 ≥3修正</td>
+<td>历史FIX01–30及本轮FIX31–32，失败原记录和防回归</td>
+<td>详见完整反馈及修正全集</td>
+</tr>
+<tr>
+<td>T04 自动化</td>
+<td>1.7：162后端+7前端+7焦点（接口替身）；历史17容器/9Lua保留</td>
+<td>不将历史运行冒充新测试，不将替身当模型准确率</td>
+</tr>
+<tr>
+<td>T05 AI生成代码修复</td>
+<td>FIX01前端Schema调用；FIX19缓存形状</td>
+<td>调用方检查及本轮回归</td>
+</tr>
+<tr>
+<td>T06 演示/试用</td>
+<td>真实成功请求、隔离失败SSE、步骤手册</td>
+<td>演示可复现；试用已移除，原文该部分未完成</td>
+</tr>
+<tr>
+<td>DOC01–04 仓库与文档</td>
+<td>本地git1.7与用户授权的私有GitHub，README/架构/样例/证据/进度</td>
+<td>托管结果以仓库Actions为准；正式验收未完成</td>
+</tr>
+</tbody></table>
+<p><a href="/bookshelf/review-files/docs/1.7-I01%E8%BF%BD%E9%97%AE%E4%B8%8E%E8%BE%93%E5%85%A5%E7%84%A6%E7%82%B9%E4%BF%AE%E5%A4%8D-20261112.md.html">1.7修复与复测</a> · <a href="/bookshelf/review-files/docs/%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%88%98%E6%B5%8B%E8%AF%95%E5%8F%8D%E9%A6%88-20261112.md.html">逐条测试与问题修复反馈</a> · <a href="/bookshelf/review-files/docs/evidence/assessment-audit-20261112-overview.json">本轮汇总</a> · <a href="/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261112.md.html">当前进度</a> · <a href="/bookshelf/review-files/docs/%E9%97%AE%E9%A2%98%E4%BF%AE%E6%AD%A3%E8%AE%B0%E5%BD%95.md.html">问题修正全集</a>。正式截止日期、验收人和演示安排待确认，不将QQ列待联调，也不将移出的真人试用记成通过。</p>
+</article></body></html>

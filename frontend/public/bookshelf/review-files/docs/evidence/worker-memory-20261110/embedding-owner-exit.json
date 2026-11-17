@@ -1,0 +1,12 @@
+{
+  "owner_pid": 29768,
+  "owned_pids": [
+    8020,
+    29468,
+    33556
+  ],
+  "remaining": [],
+  "owner_exit_code": 75,
+  "passed": true,
+  "scope": "Real Windows Job Object cleanup after abrupt owning-process exit; test vectors, no actual memory exhaustion"
+}

@@ -1,0 +1,48 @@
+{
+  "passed": true,
+  "health_before_stop": {
+    "status": "ok",
+    "cache": "available",
+    "model_mode": "mock",
+    "model_id": "",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 0.0,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "api_worker_modes": {
+    "api": {
+      "model_mode": "mock",
+      "fault_injection_enabled": false,
+      "qq_live_enabled": false,
+      "embedding_mode": "local"
+    },
+    "worker": {
+      "model_mode": "mock",
+      "fault_injection_enabled": false,
+      "qq_live_enabled": false,
+      "embedding_mode": "local"
+    }
+  },
+  "running_project_containers_before_stop": [
+    "qinggui-assessment-verify-14-fixed-worker-1",
+    "qinggui-assessment-verify-14-fixed-web-1",
+    "qinggui-assessment-verify-14-fixed-api-1",
+    "qinggui-assessment-verify-14-fixed-redis-1",
+    "qinggui-assessment-verify-14-fixed-postgres-1",
+    "qinggui-assessment-verify-14-fixed-kafka-1"
+  ],
+  "all_project_containers_stopped": true,
+  "named_volumes_preserved": true,
+  "desktop_stop_exit": 0,
+  "desktop_stop_output": "✓ Stopping Docker Desktop\n",
+  "images_json": "[{\"ID\":\"sha256:d729f835c01b23637d17375e801a55cbe23cccd55c11352dbb2042aa42c985bd\",\"ContainerName\":\"qinggui-assessment-verify-14-fixed-migrate-1\",\"Repository\":\"qinggui-assessment-migrate\",\"Tag\":\"latest\",\"Platform\":\"linux/amd64\",\"Size\":1881739381,\"Created\":\"2026-11-11T14:52:02.963143072Z\",\"LastTagTime\":\"2026-11-11T14:52:05.699857478Z\"},{\"ID\":\"sha256:4ceccc577f03f51f6af8dbfda55194d0d892f4fa7913ffbded567ce3895622ed\",\"ContainerName\":\"qinggui-assessment-verify-14-fixed-kafka-1\",\"Repository\":\"apache/kafka\",\"Tag\":\"3.9.1\",\"Platform\":\"linux/amd64\",\"Size\":562654878,\"Created\":\"2025-05-12T06:39:59.993614012Z\",\"LastTagTime\":\"2026-11-11T13:59:10.059762908Z\"},{\"ID\":\"sha256:2ed16f80b9ab57ed18211f748c722f6df25616e3fd63c507d7693143b713ff32\",\"ContainerName\":\"qinggui-assessment-verify-14-fixed-worker-1\",\"Repository\":\"qinggui-assessment-worker\",\"Tag\":\"latest\",\"Platform\":\"linux/amd64\",\"Size\":1881739380,\"Created\":\"2026-11-11T14:52:02.963143072Z\",\"LastTagTime\":\"2026-11-11T14:52:05.715349576Z\"},{\"ID\":\"sha256:7d0a41464797aeb9862dfdc0bbf1526b82cfd324cdd8036df19e3545f4a9ccb8\",\"ContainerName\":\"qinggui-assessment-verify-14-fixed-postgres-1\",\"Repository\":\"pgvector/pgvector\",\"Tag\":\"pg17\",\"Platform\":\"linux/amd64\",\"Size\":627202175,\"Created\":\"2026-10-31T10:03:12.681704667Z\",\"LastTagTime\":\"2026-11-11T14:05:05.231120769Z\"},{\"ID\":\"sha256:7b1753b4c5ad8458906c272a8132b8c15f5557b000379eb115fb239706a384b7\",\"ContainerName\":\"qinggui-assessment-verify-14-fixed-redis-1\",\"Repository\":\"redis\",\"Tag\":\"7-alpine\",\"Platform\":\"linux/amd64\",\"Size\":57976413,\"Created\":\"2026-11-09T20:09:32.419853068Z\",\"LastTagTime\":\"2026-11-11T14:05:27.41028413Z\"},{\"ID\":\"sha256:488cf38eb40d4eec74efdbe47b2d62f5e092ac381799497030daaa5d67ce0deb\",\"ContainerName\":\"qinggui-assessment-verify-14-fixed-api-1\",\"Repository\":\"qinggui-assessment-api\",\"Tag\":\"latest\",\"Platform\":\"linux/amd64\",\"Size\":1881739377,\"Created\":\"2026-11-11T14:52:02.963143072Z\",\"LastTagTime\":\"2026-11-11T14:52:05.686573632Z\"},{\"ID\":\"sha256:8ca3004e0c20198587e6152e5b57f2aded0cc957ac903e445ff216f09f7e51cf\",\"ContainerName\":\"qinggui-assessment-verify-14-fixed-web-1\",\"Repository\":\"qinggui-assessment-web\",\"Tag\":\"latest\",\"Platform\":\"linux/amd64\",\"Size\":74039710,\"Created\":\"2026-11-11T13:53:58.513782413Z\",\"LastTagTime\":\"2026-11-11T14:52:01.690239034Z\"}]",
+  "scope": "Stop own test infrastructure after successful checks to release memory before restoring native live preview; no volume deletion"
+}

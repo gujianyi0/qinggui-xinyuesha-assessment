@@ -1,0 +1,26 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>B00-耗时任务的选择与范围.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>B00 耗时任务的选择与范围</h1>
+<p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
+<p>状态：<strong>已选定并实现资料批量导入</strong>。</p>
+<h2>对应要求（原段要点，转述）</h2>
+<p>在同一项目加入一种耗时任务，并围绕后续条目验证其行为。</p>
+<p>来源：<a href="https://biteagle.yuque.com/mw0520/rzyee0/ay7550zlq5vyq27t#uf38ba41e">故剑遗学习目标 · 后台任务与可靠性 · 本段</a>。
+对应编号：B00。原段SHA256：<code>d20c81840a901ca1f8b2cca3a4e6539280698aba028bd0b23726fc8880c5cb22</code>。</p>
+<p>这是原文一个段落的对应回答。要点使用转述；原段定位和哈希用于复核边界，不把此处概括当作公司新要求。</p>
+<h2>回答</h2>
+<p>选择的任务是“批量导入、解析并索引指定游戏资料快照”。它和问答共用资料版本、PostgreSQL和发布索引，因此不是另建一个演示队列项目。耗时主要来自解析、分块和CPU向量化，HTTP无需等待全部完成。</p>
+<h2>本项目如何实现</h2>
+<p>输入是已登记的snapshot_id和本用户的idempotency_key。API同事务建立Job与Outbox，返回202；独立Worker投递/消费Kafka、分批计算并写暂存索引，全部成功后切换PublishedIndex。</p>
+<p>固定资料有198条，分块后659块；处理期间按批次更新progress，成功后返回documents、chunks、分块参数、向量模式/模型/revision。失败和取消均保留Job，不靠浏览器内存记进度。</p>
+<h2>已有验证与证据</h2>
+<ul>
+<li><a href="/bookshelf/review-files/backend/app/jobs.py">Jobs实现</a>：create、claim、process、fail、recover。</li>
+<li><a href="/bookshelf/review-files/backend/app/worker.py">Worker入口</a>及<a href="/bookshelf/review-files/compose.yaml">Compose</a>。</li>
+<li><a href="/bookshelf/review-files/docs/evidence/compose-linux-20261111-04/summary.json">完整容器验证</a>：真实CPU BGE与659块发布，后台故障17组分别留档。</li>
+</ul>
+<p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
+<h2>怎样核对或演示</h2>
+<p>查看已有成功任务的result以及对应PublishedIndex；再按B01–B07文档检查重复、崩溃、重试、取消和依赖故障证据。需要现场跑新导入时使用隔离库/独立Topic，不为这份回答破坏正式已发布索引。</p>
+<h2>结论与边界</h2>
+<p>本轮只整理已有实现和证据，不重新注入故障。这里实现一种耗时任务已经符合原段，不需要同时再做“批量整理反馈”。聊天问答本身不经过Kafka，后台本地BGE不需要调用付费聊天模型。</p>
+<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+</article></body></html>

@@ -1,0 +1,587 @@
+{
+  "exit_code": 0,
+  "stdout": "\r2026-11-12 15:43:48.211 Main[I] [ModManager] Loading extensions...\r\n\r2026-11-12 15:43:48.212 Main[I] [ModManager] Loaded 4 extension(s):\r\n - standard, standard_cards, maneuvering, test\r\n\r2026-11-12 15:43:48.214 Main[I] [LunarLtk] Loaded 29 generals.\r\n\r2026-11-12 15:43:48.215 Main[I] [LunarLtk] Loaded 121 skills.\r\n\r2026-11-12 15:43:48.215 Main[I] [LunarLtk] Loaded 43 card types.\r\n\r2026-11-12 15:43:48.215 Main[I] [Core] Loaded 1 boardgame(s).\r\n\r2026-11-12 15:43:48.215 Main[I] [Core] Loaded 1 game mode(s).\r\n\r\n███████╗██████╗ ███████╗███████╗██╗  ██╗██╗██╗     ██╗     \r\n██╔════╝██╔══██╗██╔════╝██╔════╝██║ ██╔╝██║██║     ██║     \r\n█████╗  ██████╔╝█████╗  █████╗  █████╔╝ ██║██║     ██║     \r\n██╔══╝  ██╔══██╗██╔══╝  ██╔══╝  ██╔═██╗ ██║██║     ██║     \r\n██║     ██║  ██║███████╗███████╗██║  ██╗██║███████╗███████╗\r\n╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝\r\n\r\n        Free          Open         Flexible\r\n\r\n   Git: <https://github.com/Qsgs-Fans/FreeKill>\r\n   Doc: <https://fkbook-all-in-one.readthedocs.io>\r\n\r\n.\r\nRan 1 tests in 0.047 seconds, 1 success, 0 failures\r\nOK\r\n",
+  "stderr": "",
+  "label": "SC01",
+  "arguments": [
+    "--testfile",
+    "assessment_scenes/SC01.lua"
+  ],
+  "cwd": ".local/engine",
+  "executed_at": "2026-11-12T07:43:48.318643+00:00",
+  "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+  "server_log": "2026-11-12 15:43:48.211 Main[I] [ModManager] Loading extensions...\n2026-11-12 15:43:48.212 Main[I] [ModManager] Loaded 4 extension(s):\n - standard, standard_cards, maneuvering, test\n2026-11-12 15:43:48.214 Main[I] [LunarLtk] Loaded 29 generals.\n2026-11-12 15:43:48.215 Main[I] [LunarLtk] Loaded 121 skills.\n2026-11-12 15:43:48.215 Main[I] [LunarLtk] Loaded 43 card types.\n2026-11-12 15:43:48.215 Main[I] [Core] Loaded 1 boardgame(s).\n2026-11-12 15:43:48.215 Main[I] [Core] Loaded 1 game mode(s).\n",
+  "tests_run": 1,
+  "successes": 1,
+  "failures": 0,
+  "passed": true,
+  "trace": {
+    "scene_id": "SC01",
+    "actions": [
+      {
+        "action": "equip",
+        "card": "blade",
+        "player": 1
+      }
+    ],
+    "events": [
+      {
+        "after_hp": 4,
+        "before_hp": 4,
+        "target": 2,
+        "event": "fk.PreparingGeneral"
+      },
+      {
+        "after_hp": 3,
+        "before_hp": 3,
+        "target": 2,
+        "event": "fk.EventAcquireSkill"
+      },
+      {
+        "card": "blade",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.PreCardUse"
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "card": "blade",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.AfterCardUseDeclared"
+      },
+      {
+        "card": "blade",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.AfterCardTargetDeclared"
+      },
+      {
+        "card": "blade",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.CardUsing"
+      },
+      {
+        "card": "blade",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.TargetSpecifying"
+      },
+      {
+        "card": "blade",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.TargetConfirming"
+      },
+      {
+        "card": "blade",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.TargetSpecified"
+      },
+      {
+        "card": "blade",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.TargetConfirmed"
+      },
+      {
+        "card": "blade",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.BeforeCardUseEffect"
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "card": "blade",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.CardUseFinished"
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "card": "slash",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.PreCardUse"
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "card": "slash",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.AfterCardUseDeclared"
+      },
+      {
+        "card": "slash",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.AfterCardTargetDeclared"
+      },
+      {
+        "card": "slash",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.CardUsing"
+      },
+      {
+        "card": "slash",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.TargetSpecifying"
+      },
+      {
+        "card": "slash",
+        "before_hp": 3,
+        "after_hp": 3,
+        "target": 2,
+        "event": "fk.TargetConfirming"
+      },
+      {
+        "card": "slash",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.TargetSpecified"
+      },
+      {
+        "card": "slash",
+        "before_hp": 3,
+        "after_hp": 3,
+        "target": 2,
+        "event": "fk.TargetConfirmed"
+      },
+      {
+        "card": "slash",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.BeforeCardUseEffect"
+      },
+      {
+        "card": "slash",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.PreCardEffect"
+      },
+      {
+        "after_hp": 3,
+        "before_hp": 3,
+        "target": 2,
+        "event": "fk.AskForCardUse"
+      },
+      {
+        "after_hp": 3,
+        "before_hp": 3,
+        "target": 2,
+        "event": "fk.HandleAskForPlayCard"
+      },
+      {
+        "event": "fk.BeforeRequestAsk"
+      },
+      {
+        "event": "fk.AfterRequestAsk"
+      },
+      {
+        "after_hp": 3,
+        "before_hp": 3,
+        "target": 2,
+        "event": "fk.HandleAskForPlayCard"
+      },
+      {
+        "after_hp": 3,
+        "before_hp": 3,
+        "target": 2,
+        "event": "fk.AfterAskForCardUse"
+      },
+      {
+        "card": "jink",
+        "before_hp": 3,
+        "after_hp": 3,
+        "target": 2,
+        "event": "fk.PreCardUse"
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "card": "jink",
+        "before_hp": 3,
+        "after_hp": 3,
+        "target": 2,
+        "event": "fk.AfterCardUseDeclared"
+      },
+      {
+        "card": "jink",
+        "before_hp": 3,
+        "after_hp": 3,
+        "target": 2,
+        "event": "fk.AfterCardTargetDeclared"
+      },
+      {
+        "card": "jink",
+        "before_hp": 3,
+        "after_hp": 3,
+        "target": 2,
+        "event": "fk.CardUsing"
+      },
+      {
+        "card": "jink",
+        "before_hp": 3,
+        "after_hp": 3,
+        "target": 2,
+        "event": "fk.BeforeCardUseEffect"
+      },
+      {
+        "card": "jink",
+        "before_hp": 3,
+        "after_hp": 3,
+        "target": 2,
+        "event": "fk.PreCardEffect"
+      },
+      {
+        "card": "jink",
+        "event": "fk.BeforeCardEffect"
+      },
+      {
+        "card": "jink",
+        "event": "fk.CardEffecting"
+      },
+      {
+        "after_hp": 3,
+        "before_hp": 3,
+        "target": 2,
+        "event": "fk.SkillEffect"
+      },
+      {
+        "after_hp": 3,
+        "before_hp": 3,
+        "target": 2,
+        "event": "fk.AfterSkillEffect"
+      },
+      {
+        "card": "jink",
+        "event": "fk.CardEffectFinished"
+      },
+      {
+        "card": "jink",
+        "before_hp": 3,
+        "after_hp": 3,
+        "target": 2,
+        "event": "fk.CardUseFinished"
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "card": "slash",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.CardEffectCancelledOut"
+      },
+      {
+        "after_hp": 4,
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.AskForCardUse"
+      },
+      {
+        "after_hp": 4,
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.HandleAskForPlayCard"
+      },
+      {
+        "event": "fk.BeforeRequestAsk"
+      },
+      {
+        "event": "fk.AfterRequestAsk"
+      },
+      {
+        "after_hp": 4,
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.HandleAskForPlayCard"
+      },
+      {
+        "after_hp": 4,
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.AfterAskForCardUse"
+      },
+      {
+        "after_hp": 4,
+        "before_hp": 4,
+        "target": 1,
+        "event": "fk.BeforeTriggerSkillUse"
+      },
+      {
+        "card": "slash",
+        "before_hp": 3,
+        "after_hp": 3,
+        "target": 2,
+        "event": "fk.CardEffectFinished"
+      },
+      {
+        "card": "slash",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.CardUseFinished"
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      }
+    ],
+    "summary": "诸葛亮打出最后一张闪后满足空城。青龙追杀不能绕过空城的目标禁止。",
+    "scope": "fixed-snapshot Lua rules / fake_backend",
+    "final_players": [
+      {
+        "general": "caocao",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [
+          {
+            "suit": 2,
+            "number": 8,
+            "id": -5,
+            "name": "slash"
+          }
+        ],
+        "equip": [
+          {
+            "id": -2,
+            "name": "blade"
+          }
+        ],
+        "id": 1
+      },
+      {
+        "general": "zhugeliang",
+        "hp": 3,
+        "chained": false,
+        "max_hp": 3,
+        "hand": [],
+        "equip": [],
+        "id": 2
+      },
+      {
+        "general": "liubei",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 3
+      },
+      {
+        "general": "zhangfei",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 4
+      },
+      {
+        "general": "ganning",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 5
+      },
+      {
+        "general": "guanyu",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 6
+      },
+      {
+        "general": "xuchu",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 7
+      },
+      {
+        "general": "lvbu",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 8
+      }
+    ],
+    "assertions": [
+      {
+        "passed": true,
+        "actual": true,
+        "expected": true,
+        "label": "有手牌时可指定诸葛亮"
+      },
+      {
+        "passed": true,
+        "actual": 3,
+        "expected": 3,
+        "label": "第一张杀被闪抵消，空城后追杀未造成伤害"
+      },
+      {
+        "passed": true,
+        "actual": true,
+        "expected": true,
+        "label": "最后一张闪离手后为空城"
+      },
+      {
+        "passed": true,
+        "actual": false,
+        "expected": false,
+        "label": "青龙绕过次数距离，仍不绕过空城禁止指定"
+      }
+    ],
+    "passed": true,
+    "initial_players": [
+      {
+        "general": "caocao",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 1
+      },
+      {
+        "general": "sunquan",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 2
+      },
+      {
+        "general": "liubei",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 3
+      },
+      {
+        "general": "zhangfei",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 4
+      },
+      {
+        "general": "ganning",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 5
+      },
+      {
+        "general": "guanyu",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 6
+      },
+      {
+        "general": "xuchu",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 7
+      },
+      {
+        "general": "lvbu",
+        "hp": 4,
+        "chained": false,
+        "max_hp": 4,
+        "hand": [],
+        "equip": [],
+        "id": 8
+      }
+    ]
+  },
+  "scenario_sha256": "0cd11e8425887b8856c96175853c38765d63dbe37d899bb2a894c9d35c5a2e16",
+  "common_sha256": "36798d608cfcf75ac91db1e372ac99e9abbf178f8487be4bd9f5b4b73edee96e"
+}

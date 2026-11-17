@@ -1,0 +1,782 @@
+<h1 id="section-1">Agent、工具调用与执行边界（七）：写入、删除、发送操作的确认边界与执行内容绑定</h1>
+<blockquote>
+<p>对应学习目标：<strong>写入、删除、发送等操作的确认边界；确认后执行的对象和内容必须与用户看到的一致。</strong></p>
+<p>文档性质：独立技术知识手册。范围包括模型工具调用、权限、操作预览、内容一致性、一次性确认、并发安全、外部副作用和可追溯审计。代码示例为不依赖模型 API 的可运行教学实现。</p>
+</blockquote>
+<h2 id="section-2">1. 为什么需要确认边界</h2>
+<p>Agent 可以生成计划、选择工具、填写参数，但其生成的建议与现实世界中的动作并非同一回事：</p>
+<ul>
+<li><strong>生成意图</strong>：模型提出“更新用户的配置”“删除一条记录”“向某地址发送邮件”。此时是未执行的候选动作。</li>
+<li><strong>验证操作</strong>：可信后端检查发起人身份、授权范围、工具白名单、参数、资源所有权与业务约束。</li>
+<li><strong>生成预览</strong>：服务器把最终将执行的对象、内容与影响展示出来。预览应由<strong>受信任的、已经过校验并冻结的操作快照</strong>生成，而不是让模型另写一段可能不一致的描述。</li>
+<li><strong>获得确认</strong>：有权限的人对该具体动作表达同意、拒绝或请求修改。若内容变更，应重新生成预览并重新确认。</li>
+<li><strong>执行副作用</strong>：程序实际对数据库、文件或外部服务做出操作，保留执行日志。</li>
+</ul>
+<p>关键原则：<strong>模型决定建议什么，程序决定有没有资格做，确认人决定是否批准这一份具体的操作快照，执行器只能执行被批准的内容。</strong></p>
+<p><code>confirm=true</code> 这样的模型参数，不是用户确认；聊天中出现“可以”也不能自动替代当前操作所需的显式批准。确认与会话上下文、操作、对象、参数、审批身份及有效期有关。对于风险低且事先明确定义了授权范围的操作，也可由可信程序按策略自动批准；这仍然是程序授权，不是模型自行扩大权限。</p>
+<h2 id="section-3">2. 三种操作的共同点和差异</h2>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>典型副作用</th>
+<th>应展示什么</th>
+<th>执行后可否撤销</th>
+<th>典型风险</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>WRITE</code>：写入/修改</td>
+<td>更改数据库、配置或文件</td>
+<td>目标、旧值、新值、变更差异、影响范围</td>
+<td>视系统版本与备份而定</td>
+<td>覆盖并发修改、错误更新</td>
+</tr>
+<tr>
+<td><code>DELETE</code>：删除</td>
+<td>软删除、硬删除或撤销资源</td>
+<td>具体对象、数量、名称、是否可恢复、连带影响</td>
+<td>软删除通常可恢复，硬删除不一定</td>
+<td>错删、批量删除、不可逆损失</td>
+</tr>
+<tr>
+<td><code>SEND</code>：发送</td>
+<td>向第三方发送邮件、通知或请求</td>
+<td>完整收件人、抄送/密送、标题、正文、附件、发送账户</td>
+<td>通常不可收回</td>
+<td>误发、泄漏、重复发送</td>
+</tr>
+</tbody></table>
+<p>“写入”不仅是数据库 <code>UPDATE</code>；还可能是上传文件、提交反馈、推送代码、更改权限、支付、调用外部 SaaS 写入 API。这些行为的共同点是<strong>产生现实副作用</strong>。</p>
+<p>风险越高、越不可撤销，审批内容越需要明确、可理解，并限制批准的作用范围。一个只写“即将发送通知，请确认”的按钮，无法证明用户批准的是哪个收件人和哪份正文。</p>
+<h2 id="section-4">3. 正确的执行状态机</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">模型提出操作意图
+       ↓
+后端校验参数、身份和权限
+       ↓
+PREPARED：生成不可变候选操作快照
+       ↓
+向有权限用户展示同一份快照的预览
+       ↓
+       ├─ REJECTED：拒绝，禁止执行
+       ├─ EXPIRED：过期，重新预览
+       └─ APPROVED：经确认进入执行路径
+                       ↓
+          再次校验身份、权限、资源版本与快照
+                       ↓
+              条件性领取/执行操作
+                       ↓
+          ├─ APPLIED：本地副作用已提交
+          ├─ QUEUED：外部副作用已经可靠入队
+          ├─ CONFLICT：对象或版本变化，需重新确认
+          └─ FAILED / UNKNOWN：明确失败或结果未知</code></pre></div><p><strong>两个不能混同的概念：</strong></p>
+<ol>
+<li><code>APPROVED</code> 是批准决策，<strong>不是</strong>操作成功；确认 API 返回 200 也不必然意味着第三方已完成动作。</li>
+<li><code>QUEUED</code> 表示已建立可靠待处理记录，<strong>不是</strong> <code>SENT</code> 或 <code>DELIVERED</code>。尤其是邮件、支付、外部工单等，需要等待外部调用结果或回执。</li>
+</ol>
+<p>对于纯数据库修改，审批状态和业务修改通常应放在<strong>同一事务</strong>中完成；对于外部系统，通常需要可靠队列/Outbox 与额外的投递状态。</p>
+<h2 id="section-5">4. “用户看到的”和“程序执行的”必须是同一份内容</h2>
+<h3 id="section-6">4.1 操作快照的构成</h3>
+<p>一个实用的待确认对象至少包含：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"approval_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"opaque-approval-id"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"principal"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"user_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"alice"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"tenant_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"org-1"</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"operation"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"tool"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"document.update"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"resource_type"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"document"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"resource_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"doc-42"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"expected_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"arguments"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">"new_body"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"最终写入的全文"</span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"policy_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"approval-policy-v3"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"expires_at"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2026-11-11T08:00:00Z"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"payload_digest"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"sha256:..."</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"state"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"PENDING"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>以上为<strong>示意结构</strong>，其中时间和标识仅为示例。<code>approval_id</code> 应使用不可猜测标识，但它<strong>不是身份凭证</strong>；<code>user_id</code> 应来自服务端可信身份鉴别，不应从用户提交的表单里直接相信。</p>
+<p>若动作可更新多个对象，快照应列明<strong>准确目标集合及各目标版本</strong>。若目标来自“删除符合条件的全部记录”这类查询，应在确认时冻结目标清单或采用能验证查询结果未漂移的机制，不能在批准后重新执行一个可能返回不同目标的新查询。</p>
+<h3 id="section-7">4.2 规范化（Canonicalization）</h3>
+<p>同样的 JSON 内容可能具有不同的键顺序、空白和编码方式。因此需要定义一个明确的规范化过程：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> hashlib
+<span class="hljs-keyword">import</span> json
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">canonical_json</span>(<span class="hljs-params">value: <span class="hljs-built_in">dict</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> json.dumps(
+        value,
+        ensure_ascii=<span class="hljs-literal">False</span>,
+        sort_keys=<span class="hljs-literal">True</span>,
+        separators=(<span class="hljs-string">","</span>, <span class="hljs-string">":"</span>),
+        allow_nan=<span class="hljs-literal">False</span>,
+    )
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">fingerprint</span>(<span class="hljs-params">value: <span class="hljs-built_in">dict</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> hashlib.sha256(canonical_json(value).encode(<span class="hljs-string">"utf-8"</span>)).hexdigest()</code></pre></div><p>要点：</p>
+<ul>
+<li>一次确认只绑定某一份已经规范化的完整参数；不能在确认后让模型重新生成参数。</li>
+<li><code>SHA-256</code> 指纹有助于发现“预览版本”与“执行版本”不同，但<strong>哈希本身不提供用户身份认证</strong>；如果攻击者可以同时修改服务端快照和哈希，单纯重新计算哈希不能防止篡改。</li>
+<li>可信数据库存储、权限检查、事务约束才是主要安全边界。跨系统流转需要完整性保护时，可以考虑服务器密钥签名/HMAC 或可信的服务间认证。</li>
+<li>实际预览若经过模板、Markdown/HTML 渲染、富文本转换、附件转换，则还需要验证<strong>可见内容的语义一致性</strong>。例如 HTML 中隐藏文字、收件人显示名与实际地址不一致、邮件附件版本不同，都不能只依赖原始 JSON 哈希解决。</li>
+<li>不应把包含个人隐私和密钥的完整操作数据直接输出到公共日志。</li>
+</ul>
+<h3 id="section-8">4.3 预览必须包含关键对象标识</h3>
+<p>正确的邮件确认信息可以是：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">操作：发送邮件
+发件账户：support@example.org
+收件人：user@example.org
+抄送：无
+密送：无
+主题：反馈问题复现步骤
+正文：
+  你好，以下是我们确认的复现过程：...
+附件：无
+发送后：无法保证撤回</code></pre></div><p>错误的预览：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">操作：发送邮件
+内容：已为你准备好邮件，请点击确认。</code></pre></div><p>错误原因不是“没有按钮”，而是<strong>用户不知道按钮批准了什么</strong>。</p>
+<h2 id="section-9">5. 一次性批准与幂等性</h2>
+<p>网络错误和双击可以让“确认”请求重复到达，必须避免重复副作用。</p>
+<p><strong>一次性批准</strong>：同一审批对象只能完成一次从 <code>PENDING</code> 到 <code>APPLIED</code> 或 <code>QUEUED</code> 的有效状态转换。</p>
+<p><strong>幂等执行</strong>：对于同一个明确业务操作标识，多次确认得到等价的最终效果，例如同一条反馈只被创建一次。</p>
+<p>一个典型的数据库条件更新：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">UPDATE</span> approvals
+<span class="hljs-keyword">SET</span> state <span class="hljs-operator">=</span> <span class="hljs-string">'CLAIMED'</span>
+<span class="hljs-keyword">WHERE</span> approval_id <span class="hljs-operator">=</span> :approval_id
+  <span class="hljs-keyword">AND</span> state <span class="hljs-operator">=</span> <span class="hljs-string">'PENDING'</span>
+  <span class="hljs-keyword">AND</span> expires_at <span class="hljs-operator">&gt;</span> <span class="hljs-built_in">CURRENT_TIMESTAMP</span>;</code></pre></div><p>然后检查受影响行数是否恰好为 1。不过单独执行这条 SQL 还不够：<strong>领取与业务写入必须纳入一致的事务策略</strong>，否则可能出现审批已消耗却没有实际业务记录的情况。</p>
+<p>可以设计：</p>
+<ul>
+<li><code>UNIQUE (approval_id)</code> 防止同一批准重复生成业务操作。</li>
+<li><code>UNIQUE (user_id, idempotency_key)</code> 或业务唯一约束，防止相同业务请求重复落库。</li>
+<li>资源版本条件更新：<code>WHERE id=? AND version=?</code> 防止对已经变化的数据继续执行旧预览。</li>
+<li>对成功的重复确认返回以前的结果，不重复执行；对被拒绝或过期的批准拒绝复活。</li>
+</ul>
+<p>跨进程和多 Worker 环境要使用数据库事务、原子条件状态迁移或适用的行锁；单进程内存锁、Python 全局变量不足以提供此保证。</p>
+<h2 id="section-10">6. TOCTOU：预览到执行之间的竞争</h2>
+<p>TOCTOU = <em>Time of Check to Time of Use</em>，表示“检查”和“使用”之间对象可能发生变化。</p>
+<p>例子：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">T1：用户看到文档 v7 的预览，准备将标题改成 A
+T2：另一用户把该文档更新为 v8
+T3：用户确认旧的 v7 预览</code></pre></div><p>如果 T3 不重新检查版本，就可能覆盖 T2 的修改。</p>
+<p>正确处理通常是：</p>
+<ol>
+<li>预览时记录资源版本、ETag 或其他可靠的并发控制标识。</li>
+<li>执行前在事务中检查目标仍存在，且用户仍有权限。</li>
+<li>通过条件写入或锁保证检查与更新之间没有竞态。</li>
+<li>对版本冲突返回 <code>409 Conflict</code> 等明确状态，要求重新加载、重新生成预览与重新确认。</li>
+</ol>
+<p>PostgreSQL 的 <code>SELECT ... FOR UPDATE</code> 能对选取的行加锁；也可用乐观并发控制：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">UPDATE</span> documents
+<span class="hljs-keyword">SET</span> body <span class="hljs-operator">=</span> :new_body,
+    version <span class="hljs-operator">=</span> version <span class="hljs-operator">+</span> <span class="hljs-number">1</span>
+<span class="hljs-keyword">WHERE</span> id <span class="hljs-operator">=</span> :id
+  <span class="hljs-keyword">AND</span> tenant_id <span class="hljs-operator">=</span> :tenant_id
+  <span class="hljs-keyword">AND</span> version <span class="hljs-operator">=</span> :expected_version
+  <span class="hljs-keyword">AND</span> deleted_at <span class="hljs-keyword">IS</span> <span class="hljs-keyword">NULL</span>;</code></pre></div><p>检查受影响记录数是否为 1。数据库隔离级别、触发器、外键级联和其他更新者也会影响具体语义，应结合真实表结构设计。</p>
+<p><strong>注意</strong>：如果一个对外发送任务已经成功进入 Outbox，后续编辑原始草稿不能悄悄改变已确认的发送内容。Worker 应读取<strong>快照中的收件人和正文</strong>，不能临时重新读取草稿并发送新版本。</p>
+<h2 id="section-11">7. 确认者的授权必须独立于模型</h2>
+<p>存在三种不同权限：</p>
+<ul>
+<li><strong>提出请求的权限</strong>：可以向 Agent 描述意图。</li>
+<li><strong>预览资源的权限</strong>：可以查看目标和拟变更内容。</li>
+<li><strong>批准和执行权限</strong>：可以授权此动作实际产生副作用。</li>
+</ul>
+<p>它们不一定相同。比如一名普通员工可以提出删除项目的申请，但只有项目管理员可以批准。</p>
+<p>应检查：</p>
+<ul>
+<li>经过认证的操作者身份是否符合审批人要求。</li>
+<li>租户范围是否一致，资源是否仍属于该租户。</li>
+<li>操作工具是否在策略白名单，且属于允许的角色权限。</li>
+<li>审批人是否拥有该对象的具体操作权限，而不只是知道 <code>resource_id</code>。</li>
+<li>是否涉及超过一定金额、人数或删除范围的二次审批。</li>
+<li>操作是否仍符合当前业务状态与政策要求。</li>
+</ul>
+<p>真实应用还应考虑 CSRF 防护、身份会话有效期、多因素认证/二次验证（适用于高风险操作）、审批代理机制及审计责任。</p>
+<p>对于浏览器端审批，不应接收客户端传回的完整审批快照并直接反序列化执行。客户端应该发送批准 ID 和决定，服务器从可信存储读取原始快照并重新验证。</p>
+<p>OpenAI Agents SDK 的 Human-in-the-loop 能暂停工具调用并在确认后续接，但 SDK 的批准状态不能代替<strong>应用自己</strong>的身份认证、资源授权、快照完整性和重放保护。对于权限变化的运行，持续有效的 <code>always_approve</code> 类许可还可能扩大作用范围，应特别谨慎。</p>
+<h2 id="section-12">8. 写入：从普通编辑到批量更新</h2>
+<p>普通写入的预览应包含：</p>
+<ul>
+<li>目标资源的稳定 ID、人类可辨识名称及版本。</li>
+<li>变更前与变更后的关键字段，以及差异。</li>
+<li>原有数据是否被覆盖，是否触发额外副作用。</li>
+<li>写入是否可恢复，是否已有其他人修改。</li>
+</ul>
+<p>对于文本差异，可以使用 diff；但最终执行器必须以<strong>已经冻结的完整最终内容</strong>为准，而不是在执行时重新让模型合并 diff。</p>
+<p>对于批量更新，应显示明确目标数量和样本，必要时要求展开全量清单。若新记录不断满足筛选条件，不应在确认之后继续将它们纳入同一批准。</p>
+<h2 id="section-13">9. 删除：软删除、硬删除、级联和恢复</h2>
+<p>删除不只是调用 <code>DELETE FROM table</code>：</p>
+<ul>
+<li><strong>软删除</strong>：设置 <code>deleted_at</code> 等标记，通常能够恢复，但仍可能触发索引和业务可见性变化。</li>
+<li><strong>硬删除</strong>：物理删除数据，恢复依赖备份或审计，未必可撤销。</li>
+<li><strong>级联删除</strong>：可能同时删除子对象或关联资源。</li>
+<li><strong>外部删除</strong>：云文件、消息平台等资源删除后未必可以恢复。</li>
+</ul>
+<p>预览不仅要显示主对象，还应展示估计影响数量、下游关联和不可逆风险；涉及多人共享资源的批量删除应采取更严格授权。</p>
+<p>确认后如目标发生变化，通常应返回冲突，而不是“尝试删除一个名称相同的新对象”。</p>
+<h2 id="section-14">10. 发送：最重要的是区分入队、发送和送达</h2>
+<p>发送操作涉及两个系统：本地数据库与外部服务。它们无法天然共享一个数据库事务。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">用户确认
+   ↓
+本地事务：冻结邮件内容 + 写入 Outbox
+   ↓ commit
+状态 QUEUED（不等于已发送）
+   ↓
+Worker 读取 Outbox
+   ↓
+使用冻结的 recipient / subject / body 发送
+   ↓
+外部服务返回成功、失败或未知
+   ↓
+保存 provider_message_id、状态和审计记录</code></pre></div><h3 id="section-15">10.1 Transactional Outbox</h3>
+<p>在同一数据库事务中写入“已经确认的业务动作”和“待发布/待发送记录”，避免“业务已经提交却忘记发送事件”。Worker 随后读取 Outbox 并发送。该模式依然可能产生<strong>至少一次投递</strong>，因此需结合幂等性和去重。</p>
+<h3 id="section-16">10.2 结果未知（UNKNOWN）</h3>
+<p>设想：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Worker 调用了第三方发送接口
+第三方已经完成发送
+但 Worker 在收到响应前断线</code></pre></div><p>此时本地不知道外部是否真正完成。若盲目重试，可能重复发送。</p>
+<p>优先考虑以下方案：</p>
+<ol>
+<li>若供应商支持幂等键，使用稳定的业务键重试，并理解其有效期和请求匹配规则。</li>
+<li>若供应商提供查询接口或回调，先根据第三方消息 ID / 操作 ID 对账。</li>
+<li>如果都不支持，不要声称“绝对只发送一次”；应保留 <code>UNKNOWN</code> 状态，依据风险进行人工核验或受控重试。</li>
+<li>状态区分 <code>QUEUED</code>、<code>SENDING</code>、<code>ACCEPTED_BY_PROVIDER</code>、<code>DELIVERED</code>、<code>FAILED</code>、<code>UNKNOWN</code>，但只有在供应商真实提供相应证据时才标记已送达。</li>
+</ol>
+<p>邮件实际送到收件箱还可能涉及投递/退信，HTTP 200 或第三方接受请求通常只能证明其已接收处理请求。</p>
+<h2 id="section-17">11. “批准一次”不等于“授权未来所有操作”</h2>
+<p>审批应该限定：</p>
+<ul>
+<li>单个操作或明确定义的批次。</li>
+<li>特定工具与参数。</li>
+<li>特定资源或确切的对象集合。</li>
+<li>具体用户/租户与审批人。</li>
+<li>有效时间窗口。</li>
+<li>可接受的金额、数量和资源成本上限。</li>
+</ul>
+<p>不能因为用户允许 Agent 发送一封邮件，就默认批准它以后发送所有邮件。同样，Agent 在暂停审批后不应把已经确认的草稿重新交给模型改写，然后执行新版内容。</p>
+<p>如需批量预授权，应将<strong>业务策略</strong>明确设置在可信程序内，例如仅允许特定收件域、单次最多 N 条、禁止敏感附件，超出阈值必须重新确认。</p>
+<h2 id="section-18">12. 前端确认 UI 也是安全边界的一部分</h2>
+<p>后端保存快照只是第一步。实际产品还应保证用户能看到<strong>足以做出决策的信息</strong>：</p>
+<ul>
+<li><strong>防混淆</strong>：展示真实邮箱地址/资源 ID，而非仅显示可伪装的昵称或标题。</li>
+<li><strong>防隐藏</strong>：正文过长时可折叠，但不可隐去关键变更；有附件时显示名称、数量、必要时文件摘要。</li>
+<li><strong>防替换</strong>：确认按钮对应当前的审批 ID；如果新预览到来，旧确认按钮不能误指向新内容。</li>
+<li><strong>防误触</strong>：高风险删除可采用二次确认、输入对象名称等机制。</li>
+<li><strong>拒绝与修改</strong>：拒绝不应执行；点击“编辑”应创建新快照而非修改已确认版本。</li>
+<li><strong>无障碍与移动端</strong>：确保按钮、内容、提示在不同尺寸下仍然可见、可读、可操作。</li>
+<li><strong>XSS 防护</strong>：工具返回的正文和资源标题来自不可信来源，渲染 HTML 时必须进行上下文相关转义；防止恶意文本伪造确认 UI。</li>
+</ul>
+<p><strong>更严格的表述</strong>：应用通常能证明“服务器为审批生成了某份完整的预览数据”和“批准对应这一份数据”；如果用户界面存在裁剪、隐藏或渲染错误，不能仅凭服务端哈希就证明用户实际肉眼看到了全部内容。因此生产环境还应把 UI 展示与交互测试纳入质量保证。</p>
+<h2 id="section-19">13. 工具调用与审批接口如何衔接</h2>
+<p>一种应用层接口设计如下：</p>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>方法</th>
+<th>功能</th>
+<th>主要边界</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>/actions/preview</code></td>
+<td>POST</td>
+<td>对模型候选动作校验并生成预览</td>
+<td>资源权限、参数、策略</td>
+</tr>
+<tr>
+<td><code>/approvals/{id}</code></td>
+<td>GET</td>
+<td>返回当前审批预览与状态</td>
+<td>审批人授权、敏感内容脱敏</td>
+</tr>
+<tr>
+<td><code>/approvals/{id}/decision</code></td>
+<td>POST</td>
+<td>接收 <code>approve</code> 或 <code>reject</code></td>
+<td>原子状态转换、过期、并发版本</td>
+</tr>
+<tr>
+<td><code>/operations/{id}</code></td>
+<td>GET</td>
+<td>查询执行状态和结果</td>
+<td>对象级授权</td>
+</tr>
+<tr>
+<td><code>/operations/{id}/retry</code></td>
+<td>POST</td>
+<td>受控重试</td>
+<td>幂等与结果未知审查</td>
+</tr>
+</tbody></table>
+<p>对外错误码可以表达：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"CONFLICT"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"RESOURCE_VERSION_CHANGED"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"待操作资源在确认前已更新，需要重新生成预览。"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"approval_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"opaque-id"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p><code>403</code>：无权限；<code>404</code>：不可见或不存在；<code>409</code>：状态或版本冲突；<code>410</code>：过期审批（也可按接口契约用 <code>409</code>）；<code>422</code>：请求字段不合法；<code>202</code>：外部发送仅已入队。HTTP 状态码和业务状态应共同使用，不宜把所有确认成功都报告为“外部操作已完成”。</p>
+<h2 id="section-20">14. 审计记录：保留可追溯的真实操作</h2>
+<p>至少应记录：</p>
+<ul>
+<li><code>request_id / run_id / tool_call_id / approval_id / operation_id</code> 的关联。</li>
+<li>生成时的工具、对象、参数摘要、资源版本、政策版本。</li>
+<li>审批人、审批时间、批准/拒绝决定以及是否过期。</li>
+<li>实际执行器使用的冻结参数版本和条件写入结果。</li>
+<li>外部服务响应的状态、供应商操作 ID、重试次数与最终结果。</li>
+<li>对敏感数据的访问控制、必要脱敏与保留期限。</li>
+</ul>
+<p>审计日志应该支持回答：<strong>模型想执行什么？用户具体批准了什么？真正执行了什么？它们是否一致？</strong></p>
+<p>不能只保存模型说“已经发送成功”的文本；该文本不能代替外部 API 的真实响应和持久化执行记录。</p>
+<h2 id="section-21">15. 容易误解的五个安全结论</h2>
+<ol>
+<li><strong>“用户说过允许” ≠ 每一次具体动作都已批准。</strong> 授权范围需要明确，尤其是外部副作用。</li>
+<li><strong>“有 approval_id” ≠ 有操作权限。</strong> ID 是引用，服务端仍要核验当前登录身份。</li>
+<li><strong>“JSON 与哈希相等” ≠ 用户真的看到了完整界面。</strong> 还需要可信渲染和展示验证。</li>
+<li><strong>“事务提交成功” ≠ 邮件/支付已送达。</strong> 数据库与外部系统存在分布式一致性问题。</li>
+<li><strong>“重复确认被去重” ≠ 外部接口绝对不会重复执行。</strong> 还需要外部幂等能力、回执核验与状态恢复。</li>
+</ol>
+<h2 id="section-22">16. 示例架构与技术适用范围</h2>
+<p>后文附上的演示采用 Python 标准库 <code>sqlite3</code> 完成：</p>
+<ul>
+<li>冻结写入、软删除与发送草稿快照。</li>
+<li>绑定用户、租户、目标对象与资源版本。</li>
+<li>确认和拒绝、过期控制、一次性状态转换。</li>
+<li>写入/删除直接使用事务完成；发送只入队到 Outbox。</li>
+<li>检查重复确认、资源版本冲突和授权失败。</li>
+</ul>
+<p><strong>重要限制：</strong> 演示中 <code>Actor</code> 是由测试代码直接构造的，生产环境应由可信认证中间件建立身份；SQLite 用于便于教学的本地事务示例，未等同于 PostgreSQL 分布式部署测试；<code>SEND</code> 仅将冻结消息写入 Outbox，没有发送真实邮件。用户界面的真实渲染、真实第三方 API、异步任务消费者及故障后对账需要进一步集成实现。</p>
+<p>运行环境：Python 3.10+ 标准库。命令：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m unittest -v test_approval_example.py</code></pre></div><p>请将附录 A 和附录 B 的代码分别保存为 <code>approval_example.py</code> 和 <code>test_approval_example.py</code>，然后在同一目录中执行。</p>
+<h2 id="section-23">17. 工程进一步深化：多审批人、跨系统与策略版本</h2>
+<h3 id="section-24">17.1 多人批准</h3>
+<p>对于资金操作、公开发布与批量删除，可能要求两个不同角色的批准。此时不能把多个布尔值简单相加，必须为审批步骤保存参与者、角色、执行顺序、撤销条件与冲突规则，并防止同一身份重复签署。</p>
+<h3 id="section-25">17.2 审批期间策略改变</h3>
+<p>如果管理员撤销了用户权限、工具被禁用或合规政策变更，旧审批不应绕过新的限制。执行前需要重新校验<strong>当前硬性规则</strong>，而不是只看审批创建时的策略版本。某些变化可能导致审批必须失效并重新展示。</p>
+<h3 id="section-26">17.3 分布式运行状态恢复</h3>
+<p>Agent 可在“等待批准”阶段暂停，而 HTTP 连接不必一直保持。恢复运行时，从可信服务端持久化存储读取待确认状态，先核验审批权限与操作快照，再续接。同一状态不能被两个 Worker 同时消费执行。</p>
+<h3 id="section-27">17.4 真实环境中的复合副作用</h3>
+<p>比如“修改商品价格并通知所有客户”，包含数据库修改与外部群发，无法天然原子化。可以拆为：</p>
+<ol>
+<li>本地事务提交商品新价格与待通知消息。</li>
+<li>Outbox Worker 可靠发送。</li>
+<li>为每个收件人保留明确发送记录和去重键。</li>
+<li>发生部分失败时给出真实的成功数、失败数与未知数。</li>
+</ol>
+<p>这类操作要预先明确“批准的是最终目标状态，还是批准某批具体单次动作”，否则在恢复重试时容易超出确认范围。</p>
+<h2 id="section-28">18. 核心结论</h2>
+<p><strong>确认机制不是在工具调用前加一个按钮，而是为副作用建立完整的可验证协议。</strong></p>
+<p>可信系统必须同时满足：</p>
+<ul>
+<li>确认对象明确：操作名称、目标、内容、版本、影响范围清楚。</li>
+<li>确认权限明确：操作者与审批人身份可信且持续授权。</li>
+<li>确认内容不可悄悄变化：预览快照和执行参数同源。</li>
+<li>执行只发生一次或具有幂等保障：重复确认不重复落库。</li>
+<li>并发状态可检测：资源版本变化必须冲突或重新确认。</li>
+<li>外部副作用有真实状态：入队、发送、接受、交付各自区分。</li>
+<li>审计记录可核查：能对照批准前后的真实内容和实际结果。</li>
+</ul>
+<h2 id="section-29">19. 官方技术参考</h2>
+<ol>
+<li>OpenAI — <a href="https://developers.openai.com/api/docs/guides/agents/guardrails-approvals">Guardrails and human review</a>：工具批准、暂停和续接的官方流程。</li>
+<li>OpenAI Agents SDK Python — <a href="https://openai.github.io/openai-agents-python/human_in_the_loop/">Human-in-the-loop</a>：运行中断、审批状态、服务端持久化、确认权限与重放保护。</li>
+<li>PostgreSQL — <a href="https://www.postgresql.org/docs/current/sql-select.htm">SELECT and locking clauses</a>：行级锁、<code>FOR UPDATE</code>、<code>NOWAIT</code> 等。</li>
+<li>AWS Prescriptive Guidance — <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html">Transactional outbox pattern</a>：本地事务与异步外部副作用的可靠衔接。</li>
+<li>OpenAI Agents SDK Python — <a href="https://openai.github.io/openai-agents-python/tools/">Tools</a>：工具执行、批准策略与控制边界。</li>
+</ol>
+<blockquote>
+<p>以上官方资料用于核对所述框架与数据库机制；本文的示例状态机和 API 命名属于应用层教学设计，不是声称各供应商使用相同的内置协议。</p>
+</blockquote>
+<h2 id="section-30">附录 A：可运行的 Python 审批控制器</h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Teaching demo for server-owned action previews and one-time confirmations.
+
+SQLite is used for local, deterministic demonstration. No network sending occurs.
+"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">import</span> hashlib
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> sqlite3
+<span class="hljs-keyword">import</span> time
+<span class="hljs-keyword">import</span> uuid
+<span class="hljs-keyword">from</span> contextlib <span class="hljs-keyword">import</span> contextmanager
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ApprovalError</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Forbidden</span>(<span class="hljs-title class_ inherited__">ApprovalError</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Expired</span>(<span class="hljs-title class_ inherited__">ApprovalError</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Conflict</span>(<span class="hljs-title class_ inherited__">ApprovalError</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">InvalidDecision</span>(<span class="hljs-title class_ inherited__">ApprovalError</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Actor</span>:
+    user_id: <span class="hljs-built_in">str</span>
+    tenant_id: <span class="hljs-built_in">str</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">canonical</span>(<span class="hljs-params">data: <span class="hljs-built_in">dict</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> json.dumps(data, ensure_ascii=<span class="hljs-literal">False</span>, sort_keys=<span class="hljs-literal">True</span>, separators=(<span class="hljs-string">","</span>, <span class="hljs-string">":"</span>), allow_nan=<span class="hljs-literal">False</span>)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">digest</span>(<span class="hljs-params">payload_json: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> hashlib.sha256(payload_json.encode(<span class="hljs-string">"utf-8"</span>)).hexdigest()
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ApprovalDB</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, filename: <span class="hljs-built_in">str</span> | Path</span>):
+        <span class="hljs-variable language_">self</span>.filename = <span class="hljs-built_in">str</span>(filename)
+        <span class="hljs-variable language_">self</span>._create_schema()
+
+<span class="hljs-meta">    @contextmanager</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">connection</span>(<span class="hljs-params">self</span>):
+        conn = sqlite3.connect(<span class="hljs-variable language_">self</span>.filename, timeout=<span class="hljs-number">5.0</span>)
+        conn.row_factory = sqlite3.Row
+        conn.execute(<span class="hljs-string">"PRAGMA foreign_keys = ON"</span>)
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">yield</span> conn
+        <span class="hljs-keyword">finally</span>:
+            conn.close()
+
+<span class="hljs-meta">    @contextmanager</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">transaction</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.connection() <span class="hljs-keyword">as</span> conn:
+            conn.execute(<span class="hljs-string">"BEGIN IMMEDIATE"</span>)
+            <span class="hljs-keyword">try</span>:
+                <span class="hljs-keyword">yield</span> conn
+                conn.commit()
+            <span class="hljs-keyword">except</span> BaseException:
+                conn.rollback()
+                <span class="hljs-keyword">raise</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_create_schema</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.connection() <span class="hljs-keyword">as</span> conn:
+            conn.executescript(<span class="hljs-string">"""
+                CREATE TABLE IF NOT EXISTS documents (
+                    id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    owner_id TEXT NOT NULL,
+                    body TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 1,
+                    deleted INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE IF NOT EXISTS drafts (
+                    id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    owner_id TEXT NOT NULL,
+                    recipient TEXT NOT NULL,
+                    subject TEXT NOT NULL,
+                    body TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 1
+                );
+                CREATE TABLE IF NOT EXISTS approvals (
+                    id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    target_id TEXT NOT NULL,
+                    expected_version INTEGER NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    payload_hash TEXT NOT NULL,
+                    expires_at REAL NOT NULL,
+                    state TEXT NOT NULL DEFAULT 'PENDING',
+                    result TEXT
+                );
+                CREATE TABLE IF NOT EXISTS outbox (
+                    approval_id TEXT PRIMARY KEY REFERENCES approvals(id),
+                    message_json TEXT NOT NULL,
+                    state TEXT NOT NULL DEFAULT 'QUEUED'
+                );
+                CREATE TABLE IF NOT EXISTS audit (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    approval_id TEXT NOT NULL,
+                    event TEXT NOT NULL,
+                    happened_at REAL NOT NULL
+                );
+            """</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">put_document</span>(<span class="hljs-params">self, actor: Actor, <span class="hljs-built_in">id</span>: <span class="hljs-built_in">str</span>, body: <span class="hljs-built_in">str</span></span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.transaction() <span class="hljs-keyword">as</span> conn:
+            conn.execute(<span class="hljs-string">"INSERT INTO documents(id,tenant_id,owner_id,body) VALUES(?,?,?,?)"</span>,
+                         (<span class="hljs-built_in">id</span>, actor.tenant_id, actor.user_id, body))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">put_draft</span>(<span class="hljs-params">self, actor: Actor, <span class="hljs-built_in">id</span>: <span class="hljs-built_in">str</span>, recipient: <span class="hljs-built_in">str</span>, subject: <span class="hljs-built_in">str</span>, body: <span class="hljs-built_in">str</span></span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.transaction() <span class="hljs-keyword">as</span> conn:
+            conn.execute(<span class="hljs-string">"INSERT INTO drafts(id,tenant_id,owner_id,recipient,subject,body) VALUES(?,?,?,?,?,?)"</span>,
+                         (<span class="hljs-built_in">id</span>, actor.tenant_id, actor.user_id, recipient, subject, body))
+
+<span class="hljs-meta">    @staticmethod</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_owned</span>(<span class="hljs-params">conn, table: <span class="hljs-built_in">str</span>, actor: Actor, target_id: <span class="hljs-built_in">str</span></span>):
+        <span class="hljs-keyword">if</span> table <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> (<span class="hljs-string">'documents'</span>, <span class="hljs-string">'drafts'</span>):
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'unapproved table'</span>)
+        row = conn.execute(<span class="hljs-string">f"SELECT * FROM <span class="hljs-subst">{table}</span> WHERE id=? AND tenant_id=? AND owner_id=?"</span>,
+                           (target_id, actor.tenant_id, actor.user_id)).fetchone()
+        <span class="hljs-keyword">if</span> row <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">or</span> (table == <span class="hljs-string">'documents'</span> <span class="hljs-keyword">and</span> row[<span class="hljs-string">'deleted'</span>]):
+            <span class="hljs-keyword">raise</span> Forbidden(<span class="hljs-string">'resource not accessible'</span>)
+        <span class="hljs-keyword">return</span> row
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">prepare</span>(<span class="hljs-params">self, actor: Actor, action: <span class="hljs-built_in">str</span>, target_id: <span class="hljs-built_in">str</span>, *, new_body: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>,
+                ttl_seconds: <span class="hljs-built_in">float</span> = <span class="hljs-number">300</span></span>) -&gt; <span class="hljs-built_in">dict</span>:
+        <span class="hljs-keyword">if</span> action <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> (<span class="hljs-string">'WRITE'</span>, <span class="hljs-string">'DELETE'</span>, <span class="hljs-string">'SEND'</span>):
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'unsupported action'</span>)
+        <span class="hljs-keyword">if</span> ttl_seconds &lt;= <span class="hljs-number">0</span>:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'ttl must be positive'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.transaction() <span class="hljs-keyword">as</span> conn:
+            table = <span class="hljs-string">'drafts'</span> <span class="hljs-keyword">if</span> action == <span class="hljs-string">'SEND'</span> <span class="hljs-keyword">else</span> <span class="hljs-string">'documents'</span>
+            row = <span class="hljs-variable language_">self</span>._owned(conn, table, actor, target_id)
+            <span class="hljs-keyword">if</span> action == <span class="hljs-string">'WRITE'</span>:
+                <span class="hljs-keyword">if</span> new_body <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">or</span> <span class="hljs-keyword">not</span> new_body.strip():
+                    <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'new body must be nonempty'</span>)
+                payload = {<span class="hljs-string">'action'</span>: action, <span class="hljs-string">'document_id'</span>: target_id,
+                           <span class="hljs-string">'old_body'</span>: row[<span class="hljs-string">'body'</span>], <span class="hljs-string">'new_body'</span>: new_body, <span class="hljs-string">'version'</span>: row[<span class="hljs-string">'version'</span>]}
+            <span class="hljs-keyword">elif</span> action == <span class="hljs-string">'DELETE'</span>:
+                payload = {<span class="hljs-string">'action'</span>: action, <span class="hljs-string">'document_id'</span>: target_id,
+                           <span class="hljs-string">'old_body'</span>: row[<span class="hljs-string">'body'</span>], <span class="hljs-string">'version'</span>: row[<span class="hljs-string">'version'</span>]}
+            <span class="hljs-keyword">else</span>:
+                payload = {<span class="hljs-string">'action'</span>: action, <span class="hljs-string">'draft_id'</span>: target_id,
+                           <span class="hljs-string">'to'</span>: row[<span class="hljs-string">'recipient'</span>], <span class="hljs-string">'subject'</span>: row[<span class="hljs-string">'subject'</span>],
+                           <span class="hljs-string">'body'</span>: row[<span class="hljs-string">'body'</span>], <span class="hljs-string">'version'</span>: row[<span class="hljs-string">'version'</span>]}
+            payload_json = canonical(payload)
+            approval_id = uuid.uuid4().<span class="hljs-built_in">hex</span>
+            conn.execute(<span class="hljs-string">"""INSERT INTO approvals
+                (id,tenant_id,user_id,action,target_id,expected_version,payload_json,payload_hash,expires_at)
+                VALUES(?,?,?,?,?,?,?,?,?)"""</span>,
+                (approval_id, actor.tenant_id, actor.user_id, action, target_id,
+                 row[<span class="hljs-string">'version'</span>], payload_json, digest(payload_json), time.time() + ttl_seconds))
+            conn.execute(<span class="hljs-string">'INSERT INTO audit(approval_id,event,happened_at) VALUES(?,?,?)'</span>,
+                         (approval_id, <span class="hljs-string">'PREPARED'</span>, time.time()))
+            <span class="hljs-keyword">return</span> {<span class="hljs-string">'approval_id'</span>: approval_id, <span class="hljs-string">'display'</span>: payload,
+                    <span class="hljs-string">'fingerprint'</span>: digest(payload_json)}
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">decide</span>(<span class="hljs-params">self, actor: Actor, approval_id: <span class="hljs-built_in">str</span>, approved: <span class="hljs-built_in">bool</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">isinstance</span>(approved, <span class="hljs-built_in">bool</span>):
+            <span class="hljs-keyword">raise</span> InvalidDecision(<span class="hljs-string">'approval decision must be boolean'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.transaction() <span class="hljs-keyword">as</span> conn:
+            approval = conn.execute(<span class="hljs-string">'SELECT * FROM approvals WHERE id=?'</span>, (approval_id,)).fetchone()
+            <span class="hljs-keyword">if</span> approval <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">or</span> approval[<span class="hljs-string">'user_id'</span>] != actor.user_id <span class="hljs-keyword">or</span> approval[<span class="hljs-string">'tenant_id'</span>] != actor.tenant_id:
+                <span class="hljs-keyword">raise</span> Forbidden(<span class="hljs-string">'approval not accessible'</span>)
+            <span class="hljs-keyword">if</span> approval[<span class="hljs-string">'state'</span>] <span class="hljs-keyword">in</span> (<span class="hljs-string">'APPLIED'</span>, <span class="hljs-string">'QUEUED'</span>):
+                <span class="hljs-keyword">if</span> approved:
+                    <span class="hljs-keyword">return</span> approval[<span class="hljs-string">'result'</span>]
+                <span class="hljs-keyword">raise</span> Conflict(<span class="hljs-string">'already executed'</span>)
+            <span class="hljs-keyword">if</span> approval[<span class="hljs-string">'state'</span>] == <span class="hljs-string">'REJECTED'</span>:
+                <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> approved:
+                    <span class="hljs-keyword">return</span> <span class="hljs-string">'REJECTED'</span>
+                <span class="hljs-keyword">raise</span> Conflict(<span class="hljs-string">'already rejected'</span>)
+            <span class="hljs-keyword">if</span> approval[<span class="hljs-string">'state'</span>] != <span class="hljs-string">'PENDING'</span>:
+                <span class="hljs-keyword">raise</span> Conflict(<span class="hljs-string">'invalid state'</span>)
+            <span class="hljs-keyword">if</span> time.time() &gt;= approval[<span class="hljs-string">'expires_at'</span>]:
+                conn.execute(<span class="hljs-string">"UPDATE approvals SET state='EXPIRED' WHERE id=?"</span>, (approval_id,))
+                conn.execute(<span class="hljs-string">'INSERT INTO audit(approval_id,event,happened_at) VALUES(?,?,?)'</span>,
+                             (approval_id, <span class="hljs-string">'EXPIRED'</span>, time.time()))
+                <span class="hljs-keyword">return</span> <span class="hljs-string">'EXPIRED'</span>
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> approved:
+                conn.execute(<span class="hljs-string">"UPDATE approvals SET state='REJECTED',result='REJECTED' WHERE id=?"</span>, (approval_id,))
+                conn.execute(<span class="hljs-string">'INSERT INTO audit(approval_id,event,happened_at) VALUES(?,?,?)'</span>,
+                             (approval_id, <span class="hljs-string">'REJECTED'</span>, time.time()))
+                <span class="hljs-keyword">return</span> <span class="hljs-string">'REJECTED'</span>
+
+            action = approval[<span class="hljs-string">'action'</span>]
+            table = <span class="hljs-string">'drafts'</span> <span class="hljs-keyword">if</span> action == <span class="hljs-string">'SEND'</span> <span class="hljs-keyword">else</span> <span class="hljs-string">'documents'</span>
+            resource = <span class="hljs-variable language_">self</span>._owned(conn, table, actor, approval[<span class="hljs-string">'target_id'</span>])
+            payload_json = approval[<span class="hljs-string">'payload_json'</span>]
+            <span class="hljs-keyword">if</span> digest(payload_json) != approval[<span class="hljs-string">'payload_hash'</span>]:
+                <span class="hljs-keyword">raise</span> Conflict(<span class="hljs-string">'preview integrity mismatch'</span>)
+            payload = json.loads(payload_json)
+            <span class="hljs-keyword">if</span> resource[<span class="hljs-string">'version'</span>] != approval[<span class="hljs-string">'expected_version'</span>]:
+                <span class="hljs-keyword">raise</span> Conflict(<span class="hljs-string">'resource changed after preview'</span>)
+            <span class="hljs-comment"># In this demo the full current source is also compared to the stored snapshot.</span>
+            <span class="hljs-keyword">if</span> action <span class="hljs-keyword">in</span> (<span class="hljs-string">'WRITE'</span>, <span class="hljs-string">'DELETE'</span>) <span class="hljs-keyword">and</span> resource[<span class="hljs-string">'body'</span>] != payload[<span class="hljs-string">'old_body'</span>]:
+                <span class="hljs-keyword">raise</span> Conflict(<span class="hljs-string">'current content differs from preview'</span>)
+            <span class="hljs-keyword">if</span> action == <span class="hljs-string">'WRITE'</span>:
+                rowcount = conn.execute(<span class="hljs-string">"""UPDATE documents SET body=?,version=version+1
+                    WHERE id=? AND tenant_id=? AND owner_id=? AND version=? AND deleted=0"""</span>,
+                    (payload[<span class="hljs-string">'new_body'</span>], approval[<span class="hljs-string">'target_id'</span>], actor.tenant_id, actor.user_id,
+                     approval[<span class="hljs-string">'expected_version'</span>])).rowcount
+                result, state = <span class="hljs-string">'APPLIED'</span>, <span class="hljs-string">'APPLIED'</span>
+            <span class="hljs-keyword">elif</span> action == <span class="hljs-string">'DELETE'</span>:
+                rowcount = conn.execute(<span class="hljs-string">"""UPDATE documents SET deleted=1,version=version+1
+                    WHERE id=? AND tenant_id=? AND owner_id=? AND version=? AND deleted=0"""</span>,
+                    (approval[<span class="hljs-string">'target_id'</span>], actor.tenant_id, actor.user_id,
+                     approval[<span class="hljs-string">'expected_version'</span>])).rowcount
+                result, state = <span class="hljs-string">'APPLIED'</span>, <span class="hljs-string">'APPLIED'</span>
+            <span class="hljs-keyword">else</span>:
+                current = {<span class="hljs-string">'action'</span>: <span class="hljs-string">'SEND'</span>, <span class="hljs-string">'draft_id'</span>: resource[<span class="hljs-string">'id'</span>],
+                           <span class="hljs-string">'to'</span>: resource[<span class="hljs-string">'recipient'</span>], <span class="hljs-string">'subject'</span>: resource[<span class="hljs-string">'subject'</span>],
+                           <span class="hljs-string">'body'</span>: resource[<span class="hljs-string">'body'</span>], <span class="hljs-string">'version'</span>: resource[<span class="hljs-string">'version'</span>]}
+                <span class="hljs-keyword">if</span> canonical(current) != payload_json:
+                    <span class="hljs-keyword">raise</span> Conflict(<span class="hljs-string">'draft differs from preview'</span>)
+                conn.execute(<span class="hljs-string">'INSERT INTO outbox(approval_id,message_json) VALUES(?,?)'</span>,
+                             (approval_id, payload_json))
+                rowcount = <span class="hljs-number">1</span>
+                result, state = <span class="hljs-string">'QUEUED'</span>, <span class="hljs-string">'QUEUED'</span>
+            <span class="hljs-keyword">if</span> rowcount != <span class="hljs-number">1</span>:
+                <span class="hljs-keyword">raise</span> Conflict(<span class="hljs-string">'concurrent modification'</span>)
+            conn.execute(<span class="hljs-string">'UPDATE approvals SET state=?,result=? WHERE id=? AND state=\'PENDING\''</span>,
+                         (state, result, approval_id))
+            conn.execute(<span class="hljs-string">'INSERT INTO audit(approval_id,event,happened_at) VALUES(?,?,?)'</span>,
+                         (approval_id, state, time.time()))
+            <span class="hljs-keyword">return</span> result
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_document</span>(<span class="hljs-params">self, <span class="hljs-built_in">id</span>: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">int</span>, <span class="hljs-built_in">bool</span>]:
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.connection() <span class="hljs-keyword">as</span> conn:
+            row = conn.execute(<span class="hljs-string">'SELECT body,version,deleted FROM documents WHERE id=?'</span>, (<span class="hljs-built_in">id</span>,)).fetchone()
+            <span class="hljs-keyword">return</span> (row[<span class="hljs-string">'body'</span>], row[<span class="hljs-string">'version'</span>], <span class="hljs-built_in">bool</span>(row[<span class="hljs-string">'deleted'</span>]))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">outbox_count</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">int</span>:
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.connection() <span class="hljs-keyword">as</span> conn:
+            <span class="hljs-keyword">return</span> conn.execute(<span class="hljs-string">'SELECT COUNT(*) AS n FROM outbox'</span>).fetchone()[<span class="hljs-string">'n'</span>]
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_outbox_message</span>(<span class="hljs-params">self, approval_id: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">dict</span>:
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.connection() <span class="hljs-keyword">as</span> conn:
+            row = conn.execute(<span class="hljs-string">'SELECT message_json FROM outbox WHERE approval_id=?'</span>, (approval_id,)).fetchone()
+            <span class="hljs-keyword">if</span> row <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'no message queued'</span>)
+            <span class="hljs-keyword">return</span> json.loads(row[<span class="hljs-string">'message_json'</span>])
+</code></pre></div><h2 id="section-31">附录 B：完整自动化测试</h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> sqlite3
+<span class="hljs-keyword">import</span> tempfile
+<span class="hljs-keyword">import</span> time
+<span class="hljs-keyword">import</span> unittest
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<span class="hljs-keyword">from</span> approval_example <span class="hljs-keyword">import</span> ApprovalDB, Actor, Forbidden, Conflict, InvalidDecision
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ApprovalTests</span>(unittest.TestCase):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">setUp</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.tmp = tempfile.TemporaryDirectory()
+        <span class="hljs-variable language_">self</span>.addCleanup(<span class="hljs-variable language_">self</span>.tmp.cleanup)
+        <span class="hljs-variable language_">self</span>.db = ApprovalDB(Path(<span class="hljs-variable language_">self</span>.tmp.name) / <span class="hljs-string">'test.db'</span>)
+        <span class="hljs-variable language_">self</span>.alice = Actor(<span class="hljs-string">'alice'</span>, <span class="hljs-string">'org1'</span>)
+        <span class="hljs-variable language_">self</span>.bob = Actor(<span class="hljs-string">'bob'</span>, <span class="hljs-string">'org1'</span>)
+        <span class="hljs-variable language_">self</span>.external = Actor(<span class="hljs-string">'alice'</span>, <span class="hljs-string">'org2'</span>)
+        <span class="hljs-variable language_">self</span>.db.put_document(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'doc1'</span>, <span class="hljs-string">'Original'</span>)
+        <span class="hljs-variable language_">self</span>.db.put_draft(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'draft1'</span>, <span class="hljs-string">'user@example.org'</span>, <span class="hljs-string">'Subject'</span>, <span class="hljs-string">'Mail body'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_update_exact_preview</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'WRITE'</span>, <span class="hljs-string">'doc1'</span>, new_body=<span class="hljs-string">'Revised'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(p[<span class="hljs-string">'display'</span>][<span class="hljs-string">'new_body'</span>], <span class="hljs-string">'Revised'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>), <span class="hljs-string">'APPLIED'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.get_document(<span class="hljs-string">'doc1'</span>), (<span class="hljs-string">'Revised'</span>, <span class="hljs-number">2</span>, <span class="hljs-literal">False</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_repeat_confirmation_is_idempotent</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'WRITE'</span>, <span class="hljs-string">'doc1'</span>, new_body=<span class="hljs-string">'Revised'</span>)
+        <span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>), <span class="hljs-string">'APPLIED'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.get_document(<span class="hljs-string">'doc1'</span>)[<span class="hljs-number">1</span>], <span class="hljs-number">2</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_delete_is_soft</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'DELETE'</span>, <span class="hljs-string">'doc1'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>), <span class="hljs-string">'APPLIED'</span>)
+        <span class="hljs-variable language_">self</span>.assertTrue(<span class="hljs-variable language_">self</span>.db.get_document(<span class="hljs-string">'doc1'</span>)[<span class="hljs-number">2</span>])
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_reject_does_not_modify</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'DELETE'</span>, <span class="hljs-string">'doc1'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">False</span>), <span class="hljs-string">'REJECTED'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.get_document(<span class="hljs-string">'doc1'</span>), (<span class="hljs-string">'Original'</span>, <span class="hljs-number">1</span>, <span class="hljs-literal">False</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_rejected_cannot_be_approved</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'DELETE'</span>, <span class="hljs-string">'doc1'</span>)
+        <span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">False</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Conflict):
+            <span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cross_user_denied</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'DELETE'</span>, <span class="hljs-string">'doc1'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Forbidden):
+            <span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.bob, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Forbidden):
+            <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.bob, <span class="hljs-string">'DELETE'</span>, <span class="hljs-string">'doc1'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cross_tenant_denied</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'DELETE'</span>, <span class="hljs-string">'doc1'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Forbidden):
+            <span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.external, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_expired</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'DELETE'</span>, <span class="hljs-string">'doc1'</span>, ttl_seconds=<span class="hljs-number">0.001</span>)
+        time.sleep(<span class="hljs-number">0.01</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>), <span class="hljs-string">'EXPIRED'</span>)
+        <span class="hljs-variable language_">self</span>.assertFalse(<span class="hljs-variable language_">self</span>.db.get_document(<span class="hljs-string">'doc1'</span>)[<span class="hljs-number">2</span>])
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_resource_version_conflict</span>(<span class="hljs-params">self</span>):
+        p1 = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'WRITE'</span>, <span class="hljs-string">'doc1'</span>, new_body=<span class="hljs-string">'A'</span>)
+        p2 = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'WRITE'</span>, <span class="hljs-string">'doc1'</span>, new_body=<span class="hljs-string">'B'</span>)
+        <span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p1[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Conflict):
+            <span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p2[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.get_document(<span class="hljs-string">'doc1'</span>)[<span class="hljs-number">0</span>], <span class="hljs-string">'A'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_confirmation_does_not_accept_changed_payload</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'WRITE'</span>, <span class="hljs-string">'doc1'</span>, new_body=<span class="hljs-string">'Approved'</span>)
+        <span class="hljs-comment"># Client cannot supply replacement target or content to decide().</span>
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(TypeError):
+            <span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>, new_body=<span class="hljs-string">'Malicious'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>), <span class="hljs-string">'APPLIED'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.get_document(<span class="hljs-string">'doc1'</span>)[<span class="hljs-number">0</span>], <span class="hljs-string">'Approved'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_send_only_queues</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'SEND'</span>, <span class="hljs-string">'draft1'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>), <span class="hljs-string">'QUEUED'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.outbox_count(), <span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.get_outbox_message(p[<span class="hljs-string">'approval_id'</span>])[<span class="hljs-string">'to'</span>], <span class="hljs-string">'user@example.org'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_send_duplicate_no_duplicate_outbox</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'SEND'</span>, <span class="hljs-string">'draft1'</span>)
+        <span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>), <span class="hljs-string">'QUEUED'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.outbox_count(), <span class="hljs-number">1</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_send_draft_change_disallowed</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'SEND'</span>, <span class="hljs-string">'draft1'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.db.transaction() <span class="hljs-keyword">as</span> conn:
+            conn.execute(<span class="hljs-string">"UPDATE drafts SET recipient='changed@example.org', version=version+1 WHERE id='draft1'"</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Conflict):
+            <span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.outbox_count(), <span class="hljs-number">0</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_boolean_coercion</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'DELETE'</span>, <span class="hljs-string">'doc1'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(InvalidDecision):
+            <span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-string">'true'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_preview_fingerprint_integrity</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'WRITE'</span>, <span class="hljs-string">'doc1'</span>, new_body=<span class="hljs-string">'New'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.db.transaction() <span class="hljs-keyword">as</span> conn:
+            conn.execute(<span class="hljs-string">'UPDATE approvals SET payload_json=? WHERE id=?'</span>, (<span class="hljs-string">'{"tampered":true}'</span>, p[<span class="hljs-string">'approval_id'</span>]))
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Conflict):
+            <span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_actor_mutations_not_taken_from_confirmation</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-variable language_">self</span>.db.prepare(<span class="hljs-variable language_">self</span>.alice, <span class="hljs-string">'DELETE'</span>, <span class="hljs-string">'doc1'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">True</span>), <span class="hljs-string">'APPLIED'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Conflict):
+            <span class="hljs-variable language_">self</span>.db.decide(<span class="hljs-variable language_">self</span>.alice, p[<span class="hljs-string">'approval_id'</span>], <span class="hljs-literal">False</span>)
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">'__main__'</span>:
+    unittest.main()
+</code></pre></div><h2 id="section-32">附录 C：本地验证记录</h2>
+<ul>
+<li>验证命令：<code>python test_approval_example.py -v</code>。</li>
+<li>本次运行结果：16 项离线 <code>unittest</code> 测试通过。</li>
+<li>覆盖写入与删除、拒绝与过期、跨用户/租户隔离、重复确认、资源版本冲突、冻结邮件入队、重复入队、草稿更新冲突、批准参数篡改和快照指纹不一致。</li>
+<li>未测试：真实邮件供应商、浏览器界面、PostgreSQL 多进程、Kafka 消费、第三方 webhook、真实 Agent SDK 模型调用。</li>
+</ul>

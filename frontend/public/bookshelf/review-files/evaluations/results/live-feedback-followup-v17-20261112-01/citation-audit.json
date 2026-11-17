@@ -1,0 +1,42 @@
+{
+  "scope": "Citation file/hash/line/tool-binding integrity only; semantic review is separate",
+  "case_count": 1,
+  "citation_count": 3,
+  "issues_count": 0,
+  "cases": [
+    {
+      "case_id": "FI01",
+      "turns": [
+        {
+          "run_id": "e25cdb60-4c48-4cd4-8e2b-c85f4d662eab",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "user-statement:e62c1056-610a-4731-9ef2-bc427259e87a",
+              "path": "conversation/15cfef23-cf27-4861-916b-91ec66098e41/e62c1056-610a-4731-9ef2-bc427259e87a",
+              "issues": []
+            }
+          ],
+          "issues": []
+        },
+        {
+          "run_id": "0c729663-5b7f-48b5-82c0-52f8a0f69b69",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "user-statement:e62c1056-610a-4731-9ef2-bc427259e87a",
+              "path": "conversation/15cfef23-cf27-4861-916b-91ec66098e41/e62c1056-610a-4731-9ef2-bc427259e87a",
+              "issues": []
+            },
+            {
+              "id": "user-statement:2dd2e130-8f93-4bd4-93d6-4b5c784addfc",
+              "path": "conversation/15cfef23-cf27-4861-916b-91ec66098e41/2dd2e130-8f93-4bd4-93d6-4b5c784addfc",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    }
+  ]
+}

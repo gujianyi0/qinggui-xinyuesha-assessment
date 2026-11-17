@@ -1,0 +1,43 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GitHub内测版本同步-20261117.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>GitHub内测版本同步 — 2026-11-17</h1>
+<p>本次按用户要求上传2.0.1当前代码、此前v2前端改造、README及文档导航QA。源码共享不等于生产发布：v2网页继续本地内测，不执行Cloudflare部署、不更换公网静态资源，也不直接改写main正式基线。</p>
+<table>
+<thead>
+<tr>
+<th>内容</th>
+<th>对应记录</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>内测分支</td>
+<td><a href="https://github.com/gujianyi0/qinggui-xinyuesha-assessment/tree/feat/v2-local-preview">feat/v2-local-preview</a></td>
+</tr>
+<tr>
+<td>代码版本</td>
+<td><code>2.0.1-local.1</code>，代码检查点<code>f4a1358</code>；README与导航文档检查点<code>01a2cb6</code>，本次追加源码共享状态说明</td>
+</tr>
+<tr>
+<td>版本标签</td>
+<td><code>v2.0.0-local.1</code>、<code>v2.0.1-local.1</code>，沿用已有标签，不移动、不覆盖</td>
+</tr>
+<tr>
+<td>评审入口</td>
+<td>上传内测分支后创建PR，main按原分支/评审流程处理，不把源码上传当作正式验收</td>
+</tr>
+<tr>
+<td>已有本地验证</td>
+<td><a href="/bookshelf/review-files/docs/2.0.1-%E8%A3%81%E5%AE%9A%E8%AF%9D%E9%A2%98%E4%B8%8E%E8%BE%93%E5%85%A5%E8%8D%89%E7%A8%BF%E4%BF%AE%E5%A4%8D-20261117.md.html">2.0.1报告</a>：230项后端、49项前端，真实问答与浏览器定向复测；本轮不重复付费评测</td>
+</tr>
+<tr>
+<td>文档核对</td>
+<td>README八项及三组导航；190个原有本地链接已核对，本轮新增链接另做静态检查</td>
+</tr>
+<tr>
+<td>新的远端检查</td>
+<td><a href="https://github.com/gujianyi0/qinggui-xinyuesha-assessment/actions">GitHub Actions</a>，以实际分支和提交SHA查看；没有用本地通过代替远端通过</td>
+</tr>
+</tbody></table>
+<p>允许上传：源码、依赖锁、迁移、示例配置、精选资料/许可、固定样例、测试、公开脱敏证据、README和导航。</p>
+<p>不上传：<code>.env</code>/<code>.env.docker-live</code>、模型或网关凭据、浏览器认证文件、数据库、私有备份、<code>.local</code>、虚拟环境、node_modules、模型缓存。当前本机演示密码123已验证并写在文档中；实际密码配置和数据库哈希仍留本机，独立环境仍以自己的DEMO_PASSWORD为准。</p>
+<p>已知差距继续按<a href="/bookshelf/index.html#read/8-04">分项进度</a>记录：Storybook/Lighthouse、v2完整隔离浏览器写入、新版本全量32条及新一小时并未因上传自动完成；真人试用移出范围不记为通过。</p>
+<p>上传前核对远端、当前分支、文件范围与真实凭据；推送使用普通非强制方式，只推内测分支和上述两个新标签。旧1.x标签与main不改写，最终提交SHA、标签解析和CI结果以远端核对为准。</p>
+</article></body></html>

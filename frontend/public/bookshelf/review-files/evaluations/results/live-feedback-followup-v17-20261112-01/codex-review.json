@@ -1,0 +1,11 @@
+{
+  "reviewer": "Codex",
+  "independent_human_review": false,
+  "cases": [
+    {
+      "case_id": "FI01",
+      "status": "passed_selected_assertions",
+      "note": "第二轮保留曹操、奸雄、身份模式、受杀伤害后无提示、Windows和0.5.25本地修改版；仍走反馈整理，未检索技能原文、未自动提交。"
+    }
+  ]
+}

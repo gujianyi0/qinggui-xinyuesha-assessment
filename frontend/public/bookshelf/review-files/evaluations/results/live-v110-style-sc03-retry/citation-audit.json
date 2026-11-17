@@ -1,0 +1,25 @@
+{
+  "scope": "Citation file/hash/line/tool-binding integrity only; semantic review is separate",
+  "case_count": 1,
+  "citation_count": 1,
+  "issues_count": 0,
+  "cases": [
+    {
+      "case_id": "STYLE03-R1",
+      "turns": [
+        {
+          "run_id": "78e97fae-ee10-4b21-b256-0e2b8390a042",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "verified-ruling:freekill-local-b9dc701220bc:SC03",
+              "path": "rulings/evidence/SC03.json",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    }
+  ]
+}

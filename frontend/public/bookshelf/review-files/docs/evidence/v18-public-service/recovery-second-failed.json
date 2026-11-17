@@ -1,0 +1,122 @@
+{
+  "finished_utc": "2026-11-12T10:47:32.849086+00:00",
+  "duration_seconds": 148.351,
+  "recovery_seconds_including_setup": 6.73,
+  "probes": [
+    {
+      "elapsed_seconds": 3.849,
+      "phase": "recovering",
+      "status": 503
+    },
+    {
+      "elapsed_seconds": 5.13,
+      "phase": "recovering",
+      "status": 503
+    },
+    {
+      "elapsed_seconds": 6.73,
+      "phase": "recovering",
+      "status": 200
+    },
+    {
+      "elapsed_seconds": 7.667,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 14.31,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 20.929,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 27.45,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 34.011,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 40.496,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 48.653,
+      "phase": "stable",
+      "status": 200,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 95.08,
+      "phase": "stable",
+      "status": 503,
+      "owner_status": 200,
+      "web_status": 200
+    },
+    {
+      "elapsed_seconds": 141.703,
+      "phase": "stable",
+      "status": 503,
+      "owner_status": 200,
+      "web_status": 200
+    }
+  ],
+  "budget_before": {
+    "spent_cny": 11.841986000000006,
+    "reserved_cny": 0.0,
+    "limit_cny": 200.0,
+    "warning": false
+  },
+  "budget_after": {
+    "spent_cny": 11.841986000000006,
+    "reserved_cny": 0.0,
+    "limit_cny": 200.0,
+    "warning": false
+  },
+  "sessions_unchanged": true,
+  "state_before": {
+    "state": "online",
+    "public_url": "https://qinggui-assessment.c2115259095.workers.dev",
+    "reconnects": 2,
+    "transport": "wss-443",
+    "gateway_pid": 16348,
+    "updated_at": "2026-11-12T10:44:39.756585+00:00",
+    "pid": 38864
+  },
+  "state_after": {
+    "state": "online",
+    "public_url": "https://qinggui-assessment.c2115259095.workers.dev",
+    "reconnects": 5,
+    "transport": "wss-443",
+    "gateway_pid": 16348,
+    "updated_at": "2026-11-12T10:47:27.385244+00:00",
+    "pid": 38864
+  },
+  "remote_status": {
+    "connected": true,
+    "pending": 0
+  },
+  "paid_requests": 0,
+  "passed": false
+}

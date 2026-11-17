@@ -1,0 +1,976 @@
+<h1 id="section-1">消息队列与后台任务可靠性（三）</h1>
+<h1 id="section-2">至少一次投递、业务幂等键、最终结果唯一性与消息标识</h1>
+<blockquote>
+<p>对应学习目标：<strong>至少一次投递意味着可能重复处理。业务幂等键、最终结果唯一性与消息标识分别解决什么问题。</strong><br />核心技术：Apache Kafka、Consumer Group、Offset、幂等消费者、PostgreSQL 唯一约束、数据库事务、Inbox/Outbox 模式。<br />文档性质：独立知识教材；代码可在无 Kafka Broker 的本地环境中复现关键数据库语义。<br />验证说明：文末 27 项测试使用 Python 标准库 + SQLite 真实数据库文件运行通过；<strong>未</strong>声称已完成真实 Kafka、PostgreSQL 或外部服务集成测试。</p>
+</blockquote>
+<hr />
+<h2 id="section-3">1. 从“至少一次投递”开始</h2>
+<h3 id="section-4">1.1 At-least-once 的准确含义</h3>
+<p>Kafka 消费者常见的处理方式是：读取消息、完成业务、提交消费位点（Offset）。如果业务操作已经成功，但位点尚未提交便发生崩溃或重平衡，后续消费者就可能再次读到这条消息。</p>
+<p>因此，在正确配置和满足相应持久性假设时，<strong>至少一次（At-least-once）语义允许同一逻辑消息被交付一次或多次</strong>。它重视不遗漏已可靠投递的消息，却不会自动保证下游业务只产生一次效果。</p>
+<p>必须把以下概念拆开：</p>
+<ul>
+<li><strong>交付（Delivery）</strong>：Kafka 将记录交给消费端。</li>
+<li><strong>处理尝试（Attempt）</strong>：某个 Worker 试图处理它。</li>
+<li><strong>数据库提交（Database Commit）</strong>：业务结果在数据库内完成提交。</li>
+<li><strong>消费位点提交（Offset Commit）</strong>：Kafka 记录该消费组下一次从哪里继续读取。</li>
+<li><strong>业务效果（Business Effect）</strong>：反馈记录被创建、余额被改变、邮件被发送、资料被索引等实际后果。</li>
+</ul>
+<p>这些操作并不天然构成同一个原子事务。</p>
+<h3 id="section-5">1.2 为什么重投不是 Kafka 的 Bug</h3>
+<p>考虑如下故障时间线：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">时刻 T1：Consumer 读到事件 E，位点 offset=15
+时刻 T2：Consumer 将反馈记录写入 PostgreSQL
+时刻 T3：PostgreSQL COMMIT 成功
+时刻 T4：Worker 崩溃，还没提交 Kafka offset=16
+时刻 T5：新的 Worker 从上次已提交的位置恢复
+时刻 T6：事件 E 再次被读取</code></pre></div><p>如果在 T6 无条件执行 <code>INSERT</code>，就会产生第二份业务记录。这个重复是消费恢复的正常后果；正确系统应当把它识别为既有操作，而非再次产生业务副作用。</p>
+<h3 id="section-6">1.3 重复发生的几种不同原因</h3>
+<ol>
+<li><strong>消费端重新交付</strong>：业务完成后位点没有成功提交。</li>
+<li><strong>生产端重复发布</strong>：生产端在网络超时后无法确认先前发送是否成功，于是再次发布逻辑相同的事件。</li>
+<li><strong>重平衡与并发</strong>：消费者归属变化时，旧执行尚未完全结束，新消费者可能继续处理同一逻辑任务。</li>
+<li><strong>客户端重复发起</strong>：浏览器双击提交、网络重试或业务系统重新派发任务。</li>
+<li><strong>应用层错误</strong>：定时任务或恢复程序重新创建了已存在的操作。</li>
+</ol>
+<p>这些来源不一定共享相同的 Kafka 物理位置或事件标识，需要从消息层和业务层同时处理。</p>
+<hr />
+<h2 id="section-7">2. 五种容易混淆的标识</h2>
+<h3 id="section-8">2.1 标识对照表</h3>
+<table>
+<thead>
+<tr>
+<th>标识</th>
+<th>示例</th>
+<th>表示什么</th>
+<th>通常是否稳定</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>event_id</code> / <code>message_id</code></td>
+<td><code>evt-8c5</code></td>
+<td>一条<strong>逻辑事件</strong>的身份</td>
+<td>同一事件重投时应保持稳定</td>
+</tr>
+<tr>
+<td><code>topic + partition + offset</code></td>
+<td><code>feedbacks/2/15</code></td>
+<td>Kafka 日志中的<strong>一条物理记录</strong>的位置</td>
+<td>对该条日志记录稳定；重复发布可能有新 Offset</td>
+</tr>
+<tr>
+<td><code>business_idempotency_key</code></td>
+<td><code>confirm-2026-001</code></td>
+<td><strong>一次逻辑业务操作</strong>的身份</td>
+<td>同一次操作的所有重试必须一致</td>
+</tr>
+<tr>
+<td><code>correlation_id</code></td>
+<td><code>trace-user-request-31</code></td>
+<td>将一组相关请求、事件或结果串起来</td>
+<td>可以跨多条不同事件共用</td>
+</tr>
+<tr>
+<td><code>attempt_id</code></td>
+<td><code>attempt-04</code></td>
+<td>一次具体执行尝试</td>
+<td>每次重试都可以不同</td>
+</tr>
+</tbody></table>
+<p>Kafka 自身并不自动为业务提供可用于跨重复发布去重的通用 <code>event_id</code>；需要生产端通过消息体或 Header 定义并维护稳定的事件身份。</p>
+<h3 id="section-9">2.2 Message Key 不是 Message ID</h3>
+<p>Kafka 记录还可以包含一个 <code>key</code>（消息键），它常用于分区选择或分组语义。例如 <code>user-123</code> 的消息可以通过一致分区策略路由到同一分区。但多个不同事件完全可以共享同一个 Kafka Key。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Kafka key = user-123
+事件 1：用户注册
+事件 2：用户修改昵称
+事件 3：用户修改昵称（另一次真实操作）</code></pre></div><p>因此不能直接把 Kafka 的 <code>key</code> 认作每条消息的唯一编号，也不能把 <code>offset</code> 认作业务操作 ID。</p>
+<h3 id="section-10">2.3 Correlation ID 不是幂等键</h3>
+<p>一个导入请求可能产生三条事件：<code>DocumentParsed</code>、<code>EmbeddingCreated</code>、<code>IndexActivated</code>。它们可能共用一个 <code>correlation_id</code>，用于追踪业务链路，但不是同一事件，也不能合并成一个结果。</p>
+<p>错误设计：把所有使用同一 <code>correlation_id</code> 的事件都判定为重复。</p>
+<p>正确设计：用 Correlation ID 建立关联；用 Event ID 识别事件；用业务操作键决定哪些副作用必须保持唯一。</p>
+<h3 id="section-11">2.4 标识必须带正确作用域</h3>
+<p><code>event_id</code> 可能只在特定事件源内唯一；<code>operation_id</code> 可能只在特定租户内唯一。因此唯一约束应体现其真实作用域。例如：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">PRIMARY KEY</span> (consumer_group, source, event_id)
+<span class="hljs-keyword">UNIQUE</span> (tenant_id, operation_id)</code></pre></div><p>不能默认所有系统使用的字符串 ID 都天然全局唯一。</p>
+<hr />
+<h2 id="section-12">3. 三个核心机制到底分别解决什么问题</h2>
+<h3 id="section-13">3.1 消息标识：辨认“是不是同一个事件”</h3>
+<p>如果同一事件 <code>evt-001</code> 在故障恢复后被再次交付：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">第一次：event_id=evt-001 → 处理成功
+第二次：event_id=evt-001 → 发现已处理，跳过业务操作</code></pre></div><p>可以在 <code>processed_events</code> / Inbox 表中记录已处理的事件 ID。它主要解决<strong>同一逻辑事件的重复交付和审计</strong>。</p>
+<p>但如果原生产者重新发布一条新事件，分配了新的 ID：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">event_id=evt-001, operation_id=confirm-001
+
+event_id=evt-002, operation_id=confirm-001</code></pre></div><p>单靠 Event ID 会认为是两条不同事件。此时还需要业务层去重。</p>
+<h3 id="section-14">3.2 业务幂等键：辨认“是不是同一次操作”</h3>
+<p>业务幂等键（Idempotency Key）不是“消息出现在哪”的编号，而是“用户究竟想执行哪次业务”的编号。</p>
+<p>例如用户确认一条反馈：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"tenant_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"team-a"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"operation_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"confirm-001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"event_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"evt-1001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"content"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"角色技能描述不准确"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>客户端等待超时，重试时产生了新事件：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"tenant_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"team-a"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"operation_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"confirm-001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"event_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"evt-1002"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"content"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"角色技能描述不准确"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>对于业务而言，这仍然是<strong>同一次确认</strong>。需要把同一 <code>tenant_id + operation_id</code> 关联到相同的最终结果。</p>
+<p><strong>关键条件：业务幂等键必须由真正代表该次操作的可信流程产生并在重试中复用。</strong> 如果每次 HTTP 重试都生成新的业务键，幂等性便失效。</p>
+<h3 id="section-15">3.3 最终结果唯一约束：让数据库执行不可违反的规则</h3>
+<p>业务程序可以先查询“有没有相同结果”，但仅有这一步不够。两个并发 Worker 可能都读到“不存在”，随后都试图写入。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Worker A：SELECT → 不存在
+Worker B：SELECT → 不存在
+Worker A：INSERT → 成功
+Worker B：INSERT → 如果没有 UNIQUE，也成功 → 重复记录</code></pre></div><p>为最终结果建立唯一约束：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">UNIQUE</span> INDEX uq_feedback_operation
+<span class="hljs-keyword">ON</span> feedback_results (tenant_id, operation_id);</code></pre></div><p>数据库将该业务不变量放在最终写入处强制执行。对于 PostgreSQL，可配合 <code>INSERT ... ON CONFLICT</code> 处理冲突，但在冲突后还应核对同一业务键是否对应<strong>相同内容</strong>，不能静默接受不同内容。</p>
+<h3 id="section-16">3.4 三者的互补关系</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Event ID / processed_events
+      解决：重复交付、事件审计
+                 ↓
+Business Idempotency Key
+      解决：多条消息代表同一次业务
+                 ↓
+UNIQUE + Transaction
+      解决：并发情况下最终结果只创建一次，且不出现部分写入</code></pre></div><p><strong>数据库唯一约束是最终数据不变量的强制执行点；消息标识和业务幂等键为它提供不同层次的身份语义。</strong></p>
+<hr />
+<h2 id="section-17">4. 幂等性在数学与业务中的含义</h2>
+<h3 id="section-18">4.1 幂等性的状态含义</h3>
+<p>对同一个逻辑操作 <code>x</code>，当操作第一次执行产生状态 <code>S1</code> 后，再次执行它不应产生新的业务效果：</p>
+<p>[
+F(F(S,x),x)=F(S,x)
+]</p>
+<p>这不代表每一次执行的 HTTP 状态码、审计时间或执行次数都必须完全相同；它强调<strong>业务可观察的目标效果</strong>保持一致。</p>
+<h3 id="section-19">4.2 天然幂等与非幂等操作</h3>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>通常是否天然幂等</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>SET balance = 100</code></td>
+<td>在受控并发与相同前提下是</td>
+<td>重复赋相同值不继续累积</td>
+</tr>
+<tr>
+<td><code>balance = balance + 100</code></td>
+<td>否</td>
+<td>重试会重复增加</td>
+</tr>
+<tr>
+<td><code>UPDATE task SET status='DONE'</code></td>
+<td>在状态转换约束充分时可能是</td>
+<td>不能用它掩盖终态覆盖风险</td>
+</tr>
+<tr>
+<td><code>INSERT feedback</code></td>
+<td>通常否</td>
+<td>可能重复创建反馈</td>
+</tr>
+<tr>
+<td><code>DELETE WHERE id=...</code></td>
+<td>对最终资源不存在的状态通常是</td>
+<td>仍需区分审计、级联与副作用</td>
+</tr>
+<tr>
+<td>向外部 API 发邮件</td>
+<td>不可默认幂等</td>
+<td>请求重试可能重复发送</td>
+</tr>
+</tbody></table>
+<p>天然幂等性不能代替对象授权、事务、一致性和状态机控制。</p>
+<h3 id="section-20">4.3 幂等键冲突要区分“同操作重试”与“篡改内容”</h3>
+<p>如果调用方再次使用 <code>confirm-001</code>，但把反馈正文改为另一条内容，不能把它直接当成合法重试：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">相同 operation_id + 相同规范化业务内容 → 返回已有结果
+相同 operation_id + 不同规范化业务内容 → 拒绝，报告幂等键冲突</code></pre></div><p>一个常用实现是记录 <code>payload_hash</code>，用稳定的业务字段经过规范化序列化后计算 SHA-256。要注意：JSON 对象字段顺序、浮点数表示、Unicode 规范化、时间精度以及不应计入身份的临时字段，都需要明确规范；简单哈希不能取代业务语义判断。</p>
+<hr />
+<h2 id="section-21">5. 正确设计业务幂等键</h2>
+<h3 id="section-22">5.1 按“操作”而非“资源”设计</h3>
+<p>假设文档 <code>document-88</code> 在不同日期合法导入两次，对应版本 A 和版本 B。如果把 <code>document-88</code> 永远作为幂等键，第二次真正更新可能被误删。</p>
+<p>更合适的是：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">operation_id = import-document-88-version-A
+operation_id = import-document-88-version-B</code></pre></div><p>也可以使用由入口服务生成的稳定 UUID，再把文档 ID 与资料版本作为受控参数保存。</p>
+<h3 id="section-23">5.2 租户隔离</h3>
+<p>同一业务键在不同租户中可能合法重复。因此最终唯一键通常为：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">UNIQUE</span> (tenant_id, operation_id)</code></pre></div><p>如果一种操作同时涉及多个业务实体，可能还需要引入 <code>operation_type</code>，但不要在没有需求时堆砌标识。</p>
+<h3 id="section-24">5.3 生命周期与保留周期</h3>
+<p>若幂等记录只保留 24 小时，但 Kafka 中的旧消息可能在一周后重新处理，已过期的键可能失去去重能力。因此必须对齐：</p>
+<ul>
+<li>Kafka 重投和人工重放的最长期限。</li>
+<li>消费组位点回退的可操作范围。</li>
+<li>业务允许再次执行的语义。</li>
+<li>Inbox 去重记录的保留策略。</li>
+<li>最终结果的持久保存与归档策略。</li>
+</ul>
+<p><strong>删除 Inbox 记录后，只要最终结果的唯一键仍然存在，同一业务键的重复写入仍可被阻止。</strong> 但如果两层记录同时被清除，系统可能无法识别旧操作。</p>
+<hr />
+<h2 id="section-25">6. PostgreSQL 的数据模型</h2>
+<p>下面以“玩家反馈确认”作为固定业务场景：一个用户一次确认只能生成一条最终反馈，而系统可能收到同事件重投或多事件重复请求。</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE TABLE</span> feedback_results (
+    id              <span class="hljs-type">BIGINT</span> GENERATED ALWAYS <span class="hljs-keyword">AS</span> <span class="hljs-keyword">IDENTITY</span> <span class="hljs-keyword">PRIMARY KEY</span>,
+    tenant_id       TEXT <span class="hljs-keyword">NOT NULL</span>,
+    operation_id    TEXT <span class="hljs-keyword">NOT NULL</span>,
+    payload_hash    TEXT <span class="hljs-keyword">NOT NULL</span>,
+    feedback_json   JSONB <span class="hljs-keyword">NOT NULL</span>,
+    status          TEXT <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> <span class="hljs-string">'SUCCEEDED'</span>,
+    created_at      TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> now(),
+    <span class="hljs-keyword">UNIQUE</span> (tenant_id, operation_id)
+);
+
+<span class="hljs-keyword">CREATE TABLE</span> processed_events (
+    consumer_group  TEXT <span class="hljs-keyword">NOT NULL</span>,
+    source          TEXT <span class="hljs-keyword">NOT NULL</span>,
+    event_id        TEXT <span class="hljs-keyword">NOT NULL</span>,
+    event_hash      TEXT <span class="hljs-keyword">NOT NULL</span>,
+    tenant_id       TEXT <span class="hljs-keyword">NOT NULL</span>,
+    operation_id    TEXT <span class="hljs-keyword">NOT NULL</span>,
+    processed_at    TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> now(),
+    <span class="hljs-keyword">PRIMARY KEY</span> (consumer_group, source, event_id)
+);</code></pre></div><p><code>processed_events</code> 解决特定消费者处理过哪些逻辑事件的问题；<code>feedback_results</code> 保证业务结果唯一。两张表不能简单互相替代。</p>
+<h3 id="section-26">6.1 并发写入时使用 <code>ON CONFLICT</code></h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">INSERT INTO</span> feedback_results
+    (tenant_id, operation_id, payload_hash, feedback_json)
+<span class="hljs-keyword">VALUES</span>
+    ($<span class="hljs-number">1</span>, $<span class="hljs-number">2</span>, $<span class="hljs-number">3</span>, $<span class="hljs-number">4</span>)
+<span class="hljs-keyword">ON</span> CONFLICT (tenant_id, operation_id) DO NOTHING
+RETURNING id;</code></pre></div><p>如果插入没有返回记录，可能已经有相同业务键的结果。此时仍应在事务中查询旧结果，<strong>比较 <code>payload_hash</code></strong>：</p>
+<ul>
+<li>一致：作为重复操作，使用已提交的最终结果。</li>
+<li>不一致：返回 Idempotency Conflict，而不是默默忽略新的不同内容。</li>
+</ul>
+<p>注意在特定隔离级别或并发快照下，冲突处理与后续可见性可能需要额外处理（例如重新查询或重试事务）。不能仅凭一次没有返回行就武断判断全部原因。</p>
+<h3 id="section-27">6.2 业务结果与 Inbox 必须在同一个事务</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">BEGIN
+  ├─ 检查消息是否已经处理
+  ├─ 检查业务幂等键
+  ├─ 首次执行则创建最终反馈
+  └─ 插入 processed_events
+COMMIT
+↓
+提交 Kafka Offset</code></pre></div><p>如果把“最终反馈写入”和“已处理事件标记”拆成两个独立事务，就可能出现业务已经成功但 Inbox 记录未写入，增加恢复的复杂度。</p>
+<h3 id="section-28">6.3 为什么“先查再插”无法解决竞态</h3>
+<p>即使业务层写了：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> exists(operation_id):
+    insert_feedback()</code></pre></div><p>多个 Worker 仍可能同时通过 <code>exists()</code> 判断。只有数据库约束、事务和正确的冲突处理，才能在真正并发的执行条件下保证不变量。</p>
+<hr />
+<h2 id="section-29">7. 完整的重复消费和故障恢复时间线</h2>
+<h3 id="section-30">7.1 正常路径</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Kafka E1 (offset=20)
+    ↓
+读取并校验 event_id、operation_id
+    ↓
+BEGIN 数据库事务
+    ↓
+创建业务结果 + Inbox 记录
+    ↓
+COMMIT 成功
+    ↓
+提交 Kafka offset=21</code></pre></div><h3 id="section-31">7.2 故障矩阵</h3>
+<table>
+<thead>
+<tr>
+<th>故障发生位置</th>
+<th>数据库状态</th>
+<th>Kafka 位点</th>
+<th>恢复处理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>业务事务开始前</td>
+<td>未写入</td>
+<td>通常未推进</td>
+<td>重新处理消息</td>
+</tr>
+<tr>
+<td>业务事务执行中崩溃</td>
+<td>未提交事务回滚</td>
+<td>通常未推进</td>
+<td>再次处理</td>
+</tr>
+<tr>
+<td>业务事务提交成功后崩溃</td>
+<td>业务结果已持久化</td>
+<td>可能未推进</td>
+<td>重投后由 Inbox / 业务键识别</td>
+</tr>
+<tr>
+<td>Offset Commit 发出但结果未知</td>
+<td>业务已持久化</td>
+<td>可能已提交，也可能未提交</td>
+<td>查询恢复位置；重复时幂等跳过</td>
+</tr>
+<tr>
+<td>同事件被两个 Worker 并发执行</td>
+<td>可能存在竞争</td>
+<td>各自处理状态不确定</td>
+<td>数据库 UNIQUE 与事务裁决</td>
+</tr>
+</tbody></table>
+<p>Kafka 提交进度为<strong>下一条应该读取的 Offset</strong>。如果已经安全完成 offset=20，则提交的是 21，而不是 20。</p>
+<h3 id="section-32">7.3 同分区并发处理的额外问题</h3>
+<p>如果分区的 offset=20 和 offset=21 同时交给两个内部任务处理：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">offset=21 先完成
+offset=20 还在运行</code></pre></div><p>此时不能直接提交 offset=22，因为这样会越过尚未完成的 20，导致重启后可能漏掉 20。需要按分区维护“连续完成水位”，或先采用同分区顺序处理。</p>
+<p><strong>业务幂等保护的是重复产生的效果，不能替代正确的 Offset 提交顺序。</strong></p>
+<hr />
+<h2 id="section-33">8. 消息标识和业务键冲突时应该怎样处理</h2>
+<h3 id="section-34">8.1 相同 Event ID + 相同内容</h3>
+<p>这是典型的重复交付；可返回 <code>ALREADY_PROCESSED_EVENT</code>，无需再次执行业务。</p>
+<h3 id="section-35">8.2 不同 Event ID + 相同业务键 + 相同内容</h3>
+<p>这通常是同一业务操作被重新发布。应返回已有业务结果，但可以按消费者作用域记录第二条实际事件，方便追踪消息传播。</p>
+<h3 id="section-36">8.3 相同 Event ID + 不同内容</h3>
+<p>不应悄悄接受，因为逻辑事件身份被复用，却指向不同消息。应标记 <code>EVENT_IDENTITY_CONFLICT</code>，记录事件源，并进入人工排查或错误流程。</p>
+<h3 id="section-37">8.4 相同业务键 + 不同内容</h3>
+<p>不应把新内容覆盖旧内容，也不应返回“成功执行了新操作”。应标记 <code>IDEMPOTENCY_KEY_CONFLICT</code>，提示调用方换新操作身份，或重新确认真正想要执行的业务。</p>
+<h3 id="section-38">8.5 相同内容 + 不同业务键</h3>
+<p>两次真正独立的反馈确认，即使正文一致，也可能需要保存两条结果。不能单凭文本相似或哈希相同判定为重复。</p>
+<hr />
+<h2 id="section-39">9. 不同 Consumer Group 的去重状态为什么不同</h2>
+<p>如果 <code>analytics-group</code> 和 <code>feedback-group</code> 都订阅相同 Topic，它们负责不同的业务消费结果。</p>
+<ul>
+<li><code>processed_events</code> 一般以 <code>consumer_group + source + event_id</code> 为唯一键。</li>
+<li>相同 Event ID 可以被两个不同消费组分别处理。</li>
+<li>不应让分析系统处理过事件，就阻止反馈系统处理它。</li>
+</ul>
+<p>本教程示例故意把<strong>全局业务最终结果</strong>设计成一份：两个组收到同一个 <code>operation_id</code> 时不会创建重复最终反馈，但各自可记录已处理事件。真实项目中，不同业务消费组通常维护各自不同的结果表或去重命名空间，不应误把所有消费组都绑定到同一个最终结果表。</p>
+<hr />
+<h2 id="section-40">10. Kafka 的幂等 Producer 与业务幂等不是一回事</h2>
+<p>Kafka 支持幂等 Producer，目的是抑制同一 Producer 会话中因协议级重试产生的重复日志写入。Kafka 事务还可以协调 Kafka 内部消息消费与生产的恰好一次处理场景。</p>
+<p>但以下行为不会自动被 Kafka 的 Producer 幂等性识别为相同业务：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">HTTP 请求 #1 → 应用构造 evt-A → Producer 发送
+HTTP 重试   → 应用重新构造 evt-B → Producer 发送</code></pre></div><p>两条应用层独立构造的事件并非 Producer 协议级的同一发送尝试。更重要的是，Kafka 内部 EOS（Exactly-Once Semantics）并不能自动使 PostgreSQL、邮件服务或支付系统中的副作用恰好发生一次。</p>
+<p><strong>传输层、事件层、业务层的“恰好一次”必须分别定义保障范围。</strong></p>
+<p>参考 Kafka 设计文档关于投递语义、幂等生产者及事务范围的说明：<a href="https://kafka.apache.org/documentation/">https://kafka.apache.org/documentation/</a></p>
+<hr />
+<h2 id="section-41">11. 外部副作用：为什么数据库唯一约束仍可能不够</h2>
+<p>假设 Worker 需要发送一封通知邮件：</p>
+<ol>
+<li>Worker 调用邮件 API。</li>
+<li>邮件服务已经接受请求。</li>
+<li>Worker 在保存发送成功状态前崩溃。</li>
+<li>Kafka 重投消息。</li>
+<li>Worker 再次调用邮件 API。</li>
+</ol>
+<p>数据库里面即使只有一条反馈结果，外部邮件也可能被发送两次。数据库事务无法回滚外部服务已经发生的动作。</p>
+<p>可选解决方式包括：</p>
+<ul>
+<li>使用外部服务支持的<strong>幂等请求 ID</strong>，并保持重试使用同一个 ID。</li>
+<li>使用 Transactional Outbox 将发送意图与业务记录原子落库，再异步发送。</li>
+<li>记录 <code>PENDING / SENDING / SENT / UNKNOWN</code> 等状态，对结果未知的发送进行对账，而不是盲目重试。</li>
+<li>如果外部服务不具备可核查的幂等能力，要承认无法保证绝对“仅发送一次”。</li>
+</ul>
+<p><strong>Outbox 保证的是数据库事件意图不因发布过程故障而丢失；它本身并不自动消除消费者重复处理或第三方重复副作用。</strong></p>
+<hr />
+<h2 id="section-42">12. 面向模型调用与资料导入的特殊考虑</h2>
+<h3 id="section-43">12.1 批量 Embedding</h3>
+<p>资料版本 <code>doc-55:v3</code> 的 Embedding 任务可能重试多次。合理的业务键可以是：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">embedding:&lt;document_id&gt;:&lt;version&gt;:&lt;model_id&gt;:&lt;chunking_version&gt;</code></pre></div><p>其中真正影响结果语义的模型和分块配置应明确纳入操作身份，而不是把所有版本的索引混为一条。</p>
+<h3 id="section-44">12.2 大模型 API 调用</h3>
+<p>本地数据库幂等只能保证最终结果记录不会重复，<strong>不必然保证模型 API 没有被重复调用或计费</strong>。如果第一次模型返回成功但结果尚未持久化便崩溃，重试可能再次产生费用。要在预算管理中记录该风险。</p>
+<h3 id="section-45">12.3 用户确认操作</h3>
+<p>一次“确认提交”必须复用同一个 <code>confirmation_id</code>。若用户修改了内容，应创建新的草稿版本与新的确认操作身份，不能在相同业务键上偷偷替换待执行内容。</p>
+<hr />
+<h2 id="section-46">13. 指标、审计与排查</h2>
+<p>可以分别记录：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>解释</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>events_received_total</code></td>
+<td>消费者实际收到的事件次数</td>
+</tr>
+<tr>
+<td><code>events_deduplicated_total</code></td>
+<td>因事件标识已处理而跳过的次数</td>
+</tr>
+<tr>
+<td><code>operations_reused_total</code></td>
+<td>新事件复用已有业务结果的次数</td>
+</tr>
+<tr>
+<td><code>idempotency_conflicts_total</code></td>
+<td>同业务键指向不同内容的冲突数</td>
+</tr>
+<tr>
+<td><code>business_results_created_total</code></td>
+<td>新建最终业务结果数量</td>
+</tr>
+<tr>
+<td><code>processing_failures_total</code></td>
+<td>事务、校验和工具处理失败数</td>
+</tr>
+<tr>
+<td><code>offset_commit_failures_total</code></td>
+<td>Kafka 位点提交失败数</td>
+</tr>
+</tbody></table>
+<p>审计日志建议保存 <code>tenant_id</code>、<code>source</code>、<code>event_id</code>、<code>operation_id</code>、<code>consumer_group</code>、<code>topic</code>、<code>partition</code>、<code>offset</code>、<code>attempt_id</code>、结果状态和耗时。不要为了调试直接记录密钥、敏感个人数据或未脱敏的完整工具响应。</p>
+<hr />
+<h2 id="section-47">14. 易错实现与反例</h2>
+<h3 id="section-48">14.1 错误：只用内存 Set 去重</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">processed_ids: <span class="hljs-built_in">set</span>[<span class="hljs-built_in">str</span>] = <span class="hljs-built_in">set</span>()</code></pre></div><p>进程重启、多个 Worker 或跨服务器部署后，状态无法可靠共享和恢复。可用于局部优化，不能作为最终可靠性保证。</p>
+<h3 id="section-49">14.2 错误：只用 Redis 的 <code>SETNX</code></h3>
+<p>Redis 原子键操作可以帮助控制短期竞争，但键到期、主从故障、缓存丢失或锁租约过期时，仍可能再执行。关键业务结果应依赖数据库的唯一约束和事务。</p>
+<h3 id="section-50">14.3 错误：先查数据库，后插入，但没有 UNIQUE</h3>
+<p>并发请求都可能通过“检查不存在”，然后各自创建记录。必须在数据库层建立最终约束。</p>
+<h3 id="section-51">14.4 错误：同一个操作重试生成新的业务键</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 错误：每次重试都重新生成 operation_id</span>
+operation_id = <span class="hljs-built_in">str</span>(uuid.uuid4())</code></pre></div><p>如果这是同一次逻辑操作的重试，必须复用最初的 <code>operation_id</code>。</p>
+<h3 id="section-52">14.5 错误：只看 Kafka Offset 去重</h3>
+<p>Kafka Offset 标识具体分区日志位置。应用重复发布的两条事件可能拥有不同 Offset，却代表同一次业务。</p>
+<h3 id="section-53">14.6 错误：对所有重复消息直接抛异常并无限重试</h3>
+<p>已成功的重复业务应该作为可正常确认的处理结果，安全推进 Offset；不可恢复的数据冲突则应通过明确的失败记录与 DLQ/人工处理流程结束，避免阻塞分区。</p>
+<hr />
+<h2 id="section-54">15. Python 离线教学实现：代码设计说明</h2>
+<p>下面的完整实现采用 <code>sqlite3</code> 文件数据库（无第三方包），使用 <code>BEGIN IMMEDIATE</code> 将写事务串行化，便于在本地稳定复现并发处理的业务语义。</p>
+<p><strong>注意：这是教学简化，不代表 PostgreSQL 必须使用相同的全局写串行策略。</strong> PostgreSQL 生产实现应根据并发量使用 UNIQUE、<code>ON CONFLICT</code>、必要的行锁和事务重试。</p>
+<p>实体模型：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Event
+ ├─ tenant_id：租户标识
+ ├─ operation_id：一次业务操作的幂等键
+ ├─ event_id：逻辑事件 ID
+ ├─ source：事件源
+ ├─ body：业务内容
+ └─ consumer_group：消费组
+
+Store
+ ├─ business_results：每个业务键最多一条最终结果
+ └─ processed_events：按消费组记录逻辑事件是否已处理</code></pre></div><p>期望输出：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">CREATED_BUSINESS_RESULT
+ALREADY_PROCESSED_EVENT
+REUSED_BUSINESS_RESULT
+business_results= 1 processed_events= 2</code></pre></div><p>这些输出分别表示首次执行业务、同消息重投、不同消息复用同一业务结果。</p>
+<hr />
+<h2 id="section-55">16. aiokafka 消费端接入示意（需真实 Kafka 环境）</h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">from</span> aiokafka <span class="hljs-keyword">import</span> AIOKafkaConsumer, TopicPartition
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">consume_forever</span>(<span class="hljs-params">store</span>):
+    consumer = AIOKafkaConsumer(
+        <span class="hljs-string">"feedback-events"</span>,
+        bootstrap_servers=<span class="hljs-string">"localhost:9092"</span>,
+        group_id=<span class="hljs-string">"feedback-worker-v1"</span>,
+        enable_auto_commit=<span class="hljs-literal">False</span>,
+        auto_offset_reset=<span class="hljs-string">"earliest"</span>,
+    )
+    <span class="hljs-keyword">await</span> consumer.start()
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">for</span> msg <span class="hljs-keyword">in</span> consumer:
+            payload = json.loads(msg.value.decode(<span class="hljs-string">"utf-8"</span>))
+            <span class="hljs-comment"># 这里应通过 Pydantic 等机制校验 payload，</span>
+            <span class="hljs-comment"># 并从经过认证的可信链路确定 tenant_id。</span>
+            event = Event(
+                tenant_id=payload[<span class="hljs-string">"tenant_id"</span>],
+                operation_id=payload[<span class="hljs-string">"operation_id"</span>],
+                event_id=payload[<span class="hljs-string">"event_id"</span>],
+                source=payload[<span class="hljs-string">"source"</span>],
+                body=payload[<span class="hljs-string">"body"</span>],
+            )
+            <span class="hljs-comment"># store.apply 是同步数据库操作。此处为示意，</span>
+            <span class="hljs-comment"># 使用线程卸载，不阻塞 asyncio 事件循环。</span>
+            <span class="hljs-comment"># 生产环境可替换为 SQLAlchemy AsyncSession。</span>
+            outcome = <span class="hljs-keyword">await</span> asyncio.to_thread(store.apply, event)
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">"result:"</span>, outcome)
+            tp = TopicPartition(msg.topic, msg.partition)
+            <span class="hljs-keyword">await</span> consumer.commit({tp: msg.offset + <span class="hljs-number">1</span>})
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> consumer.stop()</code></pre></div><p><strong>接入示例的边界条件：</strong></p>
+<ul>
+<li><code>Event</code> 与 <code>Store</code> 来自文档后面的本地示例代码；实际程序须显式导入。</li>
+<li>一次只处理一个获取到的消息，再提交该分区的位点；不展示批量乱序提交。</li>
+<li>异常时不推进当前消息的 Offset；生产环境还需要明确的错误分类、重试上限、DLQ、Rebalance Listener 和优雅停机控制。</li>
+<li>真实 <code>tenant_id</code> 不能只因为消息中写了该字段就直接视为已经授权。</li>
+<li>在外部消息内容已经损坏、永远无法处理时，不能无限卡住分区；要先<strong>持久记录</strong>失败，再按策略推进。</li>
+</ul>
+<p><code>aiokafka</code> 的手动提交文档明确要求提交<strong>下一条应该读取的 Offset</strong>：<a href="https://aiokafka.readthedocs.io/en/stable/consumer.html">https://aiokafka.readthedocs.io/en/stable/consumer.html</a></p>
+<hr />
+<h2 id="section-56">17. 常见问题的边界澄清</h2>
+<p><strong>Q：有了 <code>UNIQUE(tenant_id, operation_id)</code>，还需要 Event ID 吗？</strong><br />需要视业务而定。唯一约束能够确保最终业务结果不重复，但 Event ID 仍可用于事件级审计、检测消息身份异常、不同消费组独立去重与重放诊断。并非所有系统都必须建立两张表，但两种身份语义不能混为一谈。</p>
+<p><strong>Q：是否应该用请求正文哈希作为幂等键？</strong><br />一般不建议直接这样做。同样的正文可能对应两次合法操作，而不同但语义等价的正文也未必应该重复执行。应先定义逻辑操作身份，再用哈希辅助检测同一键下的参数是否变化。</p>
+<p><strong>Q：只使用 Kafka Producer 的 <code>enable.idempotence=true</code> 可以吗？</strong><br />不够。它主要解决生产端重试写入日志的特定重复问题，不能自动去重应用层重新发起的两个独立业务命令，也不能保护外部数据库副作用。</p>
+<p><strong>Q：为什么已处理重复消息仍应该提交 Offset？</strong><br />因为它已经被安全识别且无需再次执行。若一直不提交，恢复时还会反复读到同一条消息。</p>
+<p><strong>Q：<code>ON CONFLICT DO NOTHING</code> 就已经完成业务幂等了吗？</strong><br />不一定。它阻止冲突插入，但还需判断旧结果与新请求内容是否一致，并决定如何复用已有结果或报告冲突。</p>
+<p><strong>Q：从数据库看最终只有一条结果，就等于整个系统恰好执行一次吗？</strong><br />不等于。模型请求、外部发送和执行日志都可能发生多次。更准确的结论是：在约束生效的作用域内，<strong>最终数据库业务结果至多有一条</strong>。</p>
+<hr />
+<h2 id="section-57">18. 本节完整知识关系</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">                At-least-once Kafka Delivery
+                           │
+                  可能再次读取相同事件
+                           │
+            ┌──────────────┴──────────────┐
+            │                             │
+       同一逻辑事件                     新逻辑事件
+       event_id 相同                  event_id 不同
+            │                             │
+   Inbox / 事件去重                  检查业务幂等键
+            │                             │
+            └──────────────┬──────────────┘
+                           │
+                   数据库唯一约束
+                           │
+                  事务内写业务结果
+                           │
+                  事务内写 Inbox
+                           │
+                    COMMIT 成功
+                           │
+              Kafka Offset 手动提交
+                           │
+             重启后允许再次识别重复</code></pre></div><p>关键规律可以概括为：</p>
+<ul>
+<li>Event ID 管理事件身份。</li>
+<li>Business Idempotency Key 管理操作身份。</li>
+<li>UNIQUE 管理最终数据的不变量。</li>
+<li>Transaction 管理多个数据库修改的原子性。</li>
+<li>Offset Commit 管理 Kafka 消费恢复的位置。</li>
+<li>Outbox / 外部幂等接口管理跨系统副作用的不确定性。</li>
+</ul>
+<p>这几种机制有联系，但互不等价。</p>
+<hr />
+<h2 id="section-58">19. 可直接运行的完整 Python 实现</h2>
+<p>以下代码保存为 <code>idempotency_demo.py</code>，只依赖 Python 标准库。为了让代码演示清晰，它在 SQLite 中维护 <code>business_results</code> 和 <code>processed_events</code> 两张表，并以同一事务写入最终业务数据与事件处理记录。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Kafka consumer idempotency: local SQLite teaching model (no broker required)."""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">import</span> hashlib
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> sqlite3
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<span class="hljs-keyword">from</span> tempfile <span class="hljs-keyword">import</span> gettempdir
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> <span class="hljs-type">Callable</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">IdentityConflict</span>(<span class="hljs-title class_ inherited__">ValueError</span>):
+    <span class="hljs-string">"""The same logical event identity was reused for different content."""</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">BusinessConflict</span>(<span class="hljs-title class_ inherited__">ValueError</span>):
+    <span class="hljs-string">"""The same business operation key was reused for different content."""</span>
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Event</span>:
+    tenant_id: <span class="hljs-built_in">str</span>
+    operation_id: <span class="hljs-built_in">str</span>
+    event_id: <span class="hljs-built_in">str</span>
+    source: <span class="hljs-built_in">str</span>
+    body: <span class="hljs-built_in">dict</span>
+    consumer_group: <span class="hljs-built_in">str</span> = <span class="hljs-string">"feedback-worker-v1"</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">digest</span>(<span class="hljs-params">obj: <span class="hljs-built_in">object</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    raw = json.dumps(obj, ensure_ascii=<span class="hljs-literal">False</span>, sort_keys=<span class="hljs-literal">True</span>, separators=(<span class="hljs-string">","</span>, <span class="hljs-string">":"</span>), allow_nan=<span class="hljs-literal">False</span>)
+    <span class="hljs-keyword">return</span> hashlib.sha256(raw.encode(<span class="hljs-string">"utf-8"</span>)).hexdigest()
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">event_fingerprint</span>(<span class="hljs-params">e: Event</span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> digest({<span class="hljs-string">"tenant"</span>: e.tenant_id, <span class="hljs-string">"operation"</span>: e.operation_id, <span class="hljs-string">"body"</span>: e.body})
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">validate</span>(<span class="hljs-params">e: Event</span>) -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">for</span> value <span class="hljs-keyword">in</span> [e.tenant_id, e.operation_id, e.event_id, e.source, e.consumer_group]:
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">isinstance</span>(value, <span class="hljs-built_in">str</span>) <span class="hljs-keyword">or</span> <span class="hljs-keyword">not</span> value.strip():
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"Identifiers must be nonempty strings"</span>)
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">isinstance</span>(e.body, <span class="hljs-built_in">dict</span>) <span class="hljs-keyword">or</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">isinstance</span>(e.body.get(<span class="hljs-string">"content"</span>), <span class="hljs-built_in">str</span>) <span class="hljs-keyword">or</span> <span class="hljs-keyword">not</span> e.body[<span class="hljs-string">"content"</span>].strip():
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"body.content must be a nonempty string"</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Store</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, path: <span class="hljs-built_in">str</span> | Path</span>):
+        <span class="hljs-variable language_">self</span>.path = <span class="hljs-built_in">str</span>(path)
+        conn = <span class="hljs-variable language_">self</span>.connect()
+        <span class="hljs-keyword">try</span>:
+            conn.executescript(<span class="hljs-string">"""
+                PRAGMA journal_mode=WAL;
+                CREATE TABLE IF NOT EXISTS business_results (
+                    tenant_id TEXT NOT NULL,
+                    operation_id TEXT NOT NULL,
+                    payload_hash TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    result_status TEXT NOT NULL DEFAULT 'SUCCEEDED',
+                    PRIMARY KEY(tenant_id, operation_id)
+                );
+                CREATE TABLE IF NOT EXISTS processed_events (
+                    consumer_group TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    event_id TEXT NOT NULL,
+                    event_hash TEXT NOT NULL,
+                    tenant_id TEXT NOT NULL,
+                    operation_id TEXT NOT NULL,
+                    PRIMARY KEY(consumer_group, source, event_id)
+                );
+            """</span>)
+            conn.commit()
+        <span class="hljs-keyword">finally</span>:
+            conn.close()
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">connect</span>(<span class="hljs-params">self</span>):
+        conn = sqlite3.connect(<span class="hljs-variable language_">self</span>.path, timeout=<span class="hljs-number">5</span>, isolation_level=<span class="hljs-literal">None</span>)
+        conn.execute(<span class="hljs-string">"PRAGMA busy_timeout=5000"</span>)
+        <span class="hljs-keyword">return</span> conn
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">apply</span>(<span class="hljs-params">self, e: Event, before_event_record: <span class="hljs-type">Callable</span>[[], <span class="hljs-literal">None</span>] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+        validate(e)
+        fingerprint = event_fingerprint(e)
+        payload_hash = digest(e.body)
+        conn = <span class="hljs-variable language_">self</span>.connect()
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-comment"># SQLite teaching simplification: serialize writes. In PostgreSQL</span>
+            <span class="hljs-comment"># rely on UNIQUE indexes + INSERT ... ON CONFLICT and transactions.</span>
+            conn.execute(<span class="hljs-string">"BEGIN IMMEDIATE"</span>)
+            seen = conn.execute(
+                <span class="hljs-string">"SELECT event_hash FROM processed_events WHERE consumer_group=? AND source=? AND event_id=?"</span>,
+                (e.consumer_group, e.source, e.event_id),
+            ).fetchone()
+            <span class="hljs-keyword">if</span> seen:
+                <span class="hljs-keyword">if</span> seen[<span class="hljs-number">0</span>] != fingerprint:
+                    <span class="hljs-keyword">raise</span> IdentityConflict(<span class="hljs-string">"event identity reused for different payload"</span>)
+                conn.commit()
+                <span class="hljs-keyword">return</span> <span class="hljs-string">"ALREADY_PROCESSED_EVENT"</span>
+
+            existing = conn.execute(
+                <span class="hljs-string">"SELECT payload_hash FROM business_results WHERE tenant_id=? AND operation_id=?"</span>,
+                (e.tenant_id, e.operation_id),
+            ).fetchone()
+            <span class="hljs-keyword">if</span> existing <span class="hljs-keyword">and</span> existing[<span class="hljs-number">0</span>] != payload_hash:
+                <span class="hljs-keyword">raise</span> BusinessConflict(<span class="hljs-string">"idempotency key reused for different business content"</span>)
+
+            outcome = <span class="hljs-string">"REUSED_BUSINESS_RESULT"</span> <span class="hljs-keyword">if</span> existing <span class="hljs-keyword">else</span> <span class="hljs-string">"CREATED_BUSINESS_RESULT"</span>
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> existing:
+                conn.execute(
+                    <span class="hljs-string">"INSERT INTO business_results(tenant_id, operation_id, payload_hash, content) VALUES(?,?,?,?)"</span>,
+                    (e.tenant_id, e.operation_id, payload_hash, e.body[<span class="hljs-string">"content"</span>]),
+                )
+
+            <span class="hljs-keyword">if</span> before_event_record <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+                before_event_record()  <span class="hljs-comment"># test failure after result write, before event audit</span>
+
+            conn.execute(
+                <span class="hljs-string">"INSERT INTO processed_events(consumer_group,source,event_id,event_hash,tenant_id,operation_id) "</span>
+                <span class="hljs-string">"VALUES(?,?,?,?,?,?)"</span>,
+                (e.consumer_group, e.source, e.event_id, fingerprint, e.tenant_id, e.operation_id),
+            )
+            conn.commit()
+            <span class="hljs-keyword">return</span> outcome
+        <span class="hljs-keyword">except</span> BaseException:
+            conn.rollback()
+            <span class="hljs-keyword">raise</span>
+        <span class="hljs-keyword">finally</span>:
+            conn.close()
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">count_results</span>(<span class="hljs-params">self, tenant_id: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span></span>) -&gt; <span class="hljs-built_in">int</span>:
+        conn = <span class="hljs-variable language_">self</span>.connect()
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">if</span> tenant_id <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                <span class="hljs-keyword">return</span> conn.execute(<span class="hljs-string">"SELECT count(*) FROM business_results"</span>).fetchone()[<span class="hljs-number">0</span>]
+            <span class="hljs-keyword">return</span> conn.execute(<span class="hljs-string">"SELECT count(*) FROM business_results WHERE tenant_id=?"</span>, (tenant_id,)).fetchone()[<span class="hljs-number">0</span>]
+        <span class="hljs-keyword">finally</span>:
+            conn.close()
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">count_events</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">int</span>:
+        conn = <span class="hljs-variable language_">self</span>.connect()
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">return</span> conn.execute(<span class="hljs-string">"SELECT count(*) FROM processed_events"</span>).fetchone()[<span class="hljs-number">0</span>]
+        <span class="hljs-keyword">finally</span>:
+            conn.close()
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">example</span>(<span class="hljs-params">path: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span></span>) -&gt; <span class="hljs-literal">None</span>:
+    p = Path(path) <span class="hljs-keyword">if</span> path <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> Path(gettempdir()) / <span class="hljs-string">"idempotency_demo.sqlite3"</span>
+    p.unlink(missing_ok=<span class="hljs-literal">True</span>)
+    s = Store(p)
+    e = Event(<span class="hljs-string">"tenant-a"</span>, <span class="hljs-string">"confirm-001"</span>, <span class="hljs-string">"evt-101"</span>, <span class="hljs-string">"feedback-service"</span>, {<span class="hljs-string">"content"</span>: <span class="hljs-string">"技能描述错误"</span>})
+    <span class="hljs-built_in">print</span>(s.apply(e))
+    <span class="hljs-built_in">print</span>(s.apply(e))  <span class="hljs-comment"># same event redelivery after offset-commit failure</span>
+    new_event = Event(<span class="hljs-string">"tenant-a"</span>, <span class="hljs-string">"confirm-001"</span>, <span class="hljs-string">"evt-102"</span>, <span class="hljs-string">"feedback-service"</span>, {<span class="hljs-string">"content"</span>: <span class="hljs-string">"技能描述错误"</span>})
+    <span class="hljs-built_in">print</span>(s.apply(new_event))  <span class="hljs-comment"># different event, same logical operation</span>
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"business_results="</span>, s.count_results(), <span class="hljs-string">"processed_events="</span>, s.count_events())
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    example()</code></pre></div><hr />
+<h2 id="section-59">20. 27 项自动化测试：完整源码</h2>
+<p>以下内容保存为 <code>test_idempotency.py</code>，与 <code>idempotency_demo.py</code> 放在同一目录。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> tempfile
+<span class="hljs-keyword">import</span> unittest
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> replace
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<span class="hljs-keyword">from</span> concurrent.futures <span class="hljs-keyword">import</span> ThreadPoolExecutor
+<span class="hljs-keyword">from</span> threading <span class="hljs-keyword">import</span> Barrier
+<span class="hljs-keyword">from</span> idempotency_demo <span class="hljs-keyword">import</span> Store, Event, IdentityConflict, BusinessConflict, digest
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">TestIdempotentConsumer</span>(unittest.TestCase):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">setUp</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.<span class="hljs-built_in">dir</span> = tempfile.TemporaryDirectory()
+        <span class="hljs-variable language_">self</span>.store = Store(Path(<span class="hljs-variable language_">self</span>.<span class="hljs-built_in">dir</span>.name)/<span class="hljs-string">'test.sqlite'</span>)
+        <span class="hljs-variable language_">self</span>.ev = Event(<span class="hljs-string">'t1'</span>,<span class="hljs-string">'op1'</span>,<span class="hljs-string">'ev1'</span>,<span class="hljs-string">'svc'</span>,{<span class="hljs-string">'content'</span>:<span class="hljs-string">'report 1'</span>})
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">tearDown</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.<span class="hljs-built_in">dir</span>.cleanup()
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_initial_result_created</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev), <span class="hljs-string">'CREATED_BUSINESS_RESULT'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_identical_redelivery_is_detected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev),<span class="hljs-string">'ALREADY_PROCESSED_EVENT'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_redelivery_does_not_duplicate_final_result</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">5</span>): <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_results(),<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_same_business_operation_new_message_id</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,event_id=<span class="hljs-string">'ev2'</span>)),<span class="hljs-string">'REUSED_BUSINESS_RESULT'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_both_delivery_records_preserved</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,event_id=<span class="hljs-string">'ev2'</span>))
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_events(),<span class="hljs-number">2</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_same_message_id_changed_body_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(IdentityConflict): <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,body={<span class="hljs-string">'content'</span>:<span class="hljs-string">'changed'</span>}))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_same_business_key_changed_body_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(BusinessConflict): <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,event_id=<span class="hljs-string">'ev2'</span>,body={<span class="hljs-string">'content'</span>:<span class="hljs-string">'changed'</span>}))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_distinct_operation_same_content_is_allowed</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,event_id=<span class="hljs-string">'ev2'</span>,operation_id=<span class="hljs-string">'op2'</span>))
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_results(),<span class="hljs-number">2</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_distinct_tenant_same_key_is_allowed</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,tenant_id=<span class="hljs-string">'t2'</span>,event_id=<span class="hljs-string">'ev2'</span>))
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_results(),<span class="hljs-number">2</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_distinct_groups_audit_separately</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev, consumer_group=<span class="hljs-string">'group2'</span>)),<span class="hljs-string">'REUSED_BUSINESS_RESULT'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_events(),<span class="hljs-number">2</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_results(),<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_distinct_source_same_event_id</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,source=<span class="hljs-string">'other'</span>)),<span class="hljs-string">'REUSED_BUSINESS_RESULT'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_events(),<span class="hljs-number">2</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_same_message_id_changed_business_id_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(IdentityConflict): <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,operation_id=<span class="hljs-string">'op2'</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_same_message_id_changed_tenant_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(IdentityConflict): <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,tenant_id=<span class="hljs-string">'t2'</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_blank_id_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,event_id=<span class="hljs-string">''</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_missing_content_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,body={}))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_blank_content_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,body={<span class="hljs-string">'content'</span>:<span class="hljs-string">'  '</span>}))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_transaction_rollback_on_failure</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(RuntimeError):
+            <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev, before_event_record=<span class="hljs-keyword">lambda</span>: (_ <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> ()).throw(RuntimeError(<span class="hljs-string">'crash'</span>)))
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_results(),<span class="hljs-number">0</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_events(),<span class="hljs-number">0</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_retry_after_rolled_back_failure</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">try</span>: <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev,before_event_record=<span class="hljs-keyword">lambda</span>: <span class="hljs-number">1</span>/<span class="hljs-number">0</span>)
+        <span class="hljs-keyword">except</span> ZeroDivisionError: <span class="hljs-keyword">pass</span>
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev),<span class="hljs-string">'CREATED_BUSINESS_RESULT'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_crash_after_commit_before_broker_ack</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-comment"># crash before committing Kafka offset; broker redelivers same event</span>
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev),<span class="hljs-string">'ALREADY_PROCESSED_EVENT'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_json_canonical_hash_order_independence</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(digest({<span class="hljs-string">'a'</span>:<span class="hljs-number">1</span>,<span class="hljs-string">'b'</span>:<span class="hljs-number">2</span>}),digest({<span class="hljs-string">'b'</span>:<span class="hljs-number">2</span>,<span class="hljs-string">'a'</span>:<span class="hljs-number">1</span>}))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_hash_differs_for_different_value</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertNotEqual(digest({<span class="hljs-string">'a'</span>:<span class="hljs-number">1</span>}),digest({<span class="hljs-string">'a'</span>:<span class="hljs-number">2</span>}))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_concurrent_identical_redelivery</span>(<span class="hljs-params">self</span>):
+        e = <span class="hljs-variable language_">self</span>.ev
+        <span class="hljs-keyword">with</span> ThreadPoolExecutor(max_workers=<span class="hljs-number">6</span>) <span class="hljs-keyword">as</span> pool:
+            results=<span class="hljs-built_in">list</span>(pool.<span class="hljs-built_in">map</span>(<span class="hljs-variable language_">self</span>.store.apply,[e]*<span class="hljs-number">6</span>))
+        <span class="hljs-variable language_">self</span>.assertEqual(results.count(<span class="hljs-string">'CREATED_BUSINESS_RESULT'</span>),<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(results.count(<span class="hljs-string">'ALREADY_PROCESSED_EVENT'</span>),<span class="hljs-number">5</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_results(),<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_concurrent_new_event_ids_same_business_key</span>(<span class="hljs-params">self</span>):
+        events=[replace(<span class="hljs-variable language_">self</span>.ev,event_id=<span class="hljs-string">f'ev<span class="hljs-subst">{i}</span>'</span>) <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">8</span>)]
+        <span class="hljs-keyword">with</span> ThreadPoolExecutor(max_workers=<span class="hljs-number">8</span>) <span class="hljs-keyword">as</span> pool:
+            results=<span class="hljs-built_in">list</span>(pool.<span class="hljs-built_in">map</span>(<span class="hljs-variable language_">self</span>.store.apply,events))
+        <span class="hljs-variable language_">self</span>.assertEqual(results.count(<span class="hljs-string">'CREATED_BUSINESS_RESULT'</span>),<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(results.count(<span class="hljs-string">'REUSED_BUSINESS_RESULT'</span>),<span class="hljs-number">7</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_results(),<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_events(),<span class="hljs-number">8</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_business_conflict_does_not_write_message_record</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(BusinessConflict): <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,event_id=<span class="hljs-string">'ev2'</span>,body={<span class="hljs-string">'content'</span>:<span class="hljs-string">'oops'</span>}))
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_events(),<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_event_conflict_does_not_change_result</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(IdentityConflict): <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,body={<span class="hljs-string">'content'</span>:<span class="hljs-string">'oops'</span>}))
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_results(),<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_empty_group_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,consumer_group=<span class="hljs-string">''</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_source_scoping_prevents_false_collision</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.apply(<span class="hljs-variable language_">self</span>.ev)
+        <span class="hljs-variable language_">self</span>.store.apply(replace(<span class="hljs-variable language_">self</span>.ev,source=<span class="hljs-string">'service2'</span>))
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_events(),<span class="hljs-number">2</span>)
+
+<span class="hljs-keyword">if</span> __name__==<span class="hljs-string">'__main__'</span>: unittest.main()</code></pre></div><h3 id="section-60">20.1 测试运行命令</h3>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m unittest -v test_idempotency.py
+python idempotency_demo.py</code></pre></div><p>Windows PowerShell、macOS Terminal 和 Linux Shell 均可执行；前提是使用支持这些类型标注语法的 Python 3.10+，建议 Python 3.13。</p>
+<h3 id="section-61">20.2 实际验证结果</h3>
+<p>本节在本地执行上述离线测试，运行结果：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Ran 27 tests
+
+OK</code></pre></div><p>示例程序的实际输出：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">CREATED_BUSINESS_RESULT
+ALREADY_PROCESSED_EVENT
+REUSED_BUSINESS_RESULT
+business_results= 1 processed_events= 2</code></pre></div><p>测试包括 27 项：首次写入、完全相同的重复消息、重复次数增长、不同事件同一业务、事件 ID 复用冲突、业务键参数冲突、不同真实操作不误去重、租户作用域、消费组作用域、消息源作用域、输入合法性、事务异常回滚、重试后恢复、业务提交后模拟 Kafka 位点未提交、JSON 哈希稳定性、多线程同时收到同一事件及不同事件对应同一操作等。</p>
+<p><strong>重要限定：</strong> 这些是 SQLite 文件数据库里的真实事务与本地多线程测试，Kafka 重投由代码调用模拟。它们不是“Kafka 真实 Broker 断电测试”，也不检验 PostgreSQL 特有锁、隔离级别与网络故障。</p>
+<hr />
+<h2 id="section-62">21. 进一步的真实集成验证设计（未执行）</h2>
+<p>若在真实环境验证，可使用 Kafka + PostgreSQL + aiokafka：</p>
+<table>
+<thead>
+<tr>
+<th>验证场景</th>
+<th>操作方法</th>
+<th>应检查的结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>同消息重投</td>
+<td>完成数据库 COMMIT 后、提交 Offset 前终止 Worker</td>
+<td>重启消费后最终结果仍只有一条</td>
+</tr>
+<tr>
+<td>不同 Event ID 同一业务</td>
+<td>发布两条不同事件，保持 operation_id 相同</td>
+<td>两条消息可被审计，最终业务只创建一次</td>
+</tr>
+<tr>
+<td>同键不同正文</td>
+<td>使用相同 operation_id 提交不同内容</td>
+<td>明确报告冲突，不覆盖旧值</td>
+</tr>
+<tr>
+<td>并发消费</td>
+<td>同时启动多个 Worker，并人为触发重处理</td>
+<td>数据库唯一约束仍生效</td>
+</tr>
+<tr>
+<td>事务中途失败</td>
+<td>在业务结果与 Inbox 写入之间抛错</td>
+<td>两类记录共同回滚</td>
+</tr>
+<tr>
+<td>位点提交失败</td>
+<td>模拟 broker 不可达或 Rebalance</td>
+<td>重启后可以安全重投</td>
+</tr>
+<tr>
+<td>不同消费组</td>
+<td>两组分别消费相同消息</td>
+<td>各组保存各自处理记录；业务规则自行决定结果作用域</td>
+</tr>
+<tr>
+<td>外部模型超时</td>
+<td>让模型 API 在计算后网络断开</td>
+<td>标记结果未知，不声称外部调用一定未执行</td>
+</tr>
+<tr>
+<td>旧消息重放</td>
+<td>回退消费位点</td>
+<td>仍在保留期的业务键不会生成额外结果</td>
+</tr>
+</tbody></table>
+<p>要验证 PostgreSQL 的并发行为，应优先使用独立数据库连接与多个进程或线程，而非只用单进程内的 <code>asyncio.Lock</code>。对 Kafka 的 Rebalance、批量消费、分区并发与 Offset 维护，必须使用真实 Kafka 环境。</p>
+<hr />
+<h2 id="section-63">22. 官方资料与进一步阅读</h2>
+<ol>
+<li><p><strong>Apache Kafka：设计与消息交付语义</strong><br /><a href="https://kafka.apache.org/documentation/">https://kafka.apache.org/documentation/</a><br />主题：At-least-once、Exactly-once、Producer Idempotence、事务、Consumer Group。</p>
+</li>
+<li><p><strong>aiokafka：Manual Commit</strong><br /><a href="https://aiokafka.readthedocs.io/en/stable/examples/manual_commit.html">https://aiokafka.readthedocs.io/en/stable/examples/manual_commit.html</a><br />主题：先处理业务再提交 Offset、自动与手动提交的区别。</p>
+</li>
+<li><p><strong>aiokafka：Consumer Client</strong><br /><a href="https://aiokafka.readthedocs.io/en/stable/consumer.html">https://aiokafka.readthedocs.io/en/stable/consumer.html</a><br />主题：Offset、Consumer Position、Commit 的 <code>offset + 1</code> 语义以及 Rebalance 注意事项。</p>
+</li>
+<li><p><strong>PostgreSQL：INSERT / ON CONFLICT</strong><br /><a href="https://www.postgresql.org/docs/current/sql-insert.html">https://www.postgresql.org/docs/current/sql-insert.html</a><br />主题：唯一约束冲突处理与 UPSERT 的原子性。</p>
+</li>
+<li><p><strong>PostgreSQL：Constraints</strong><br /><a href="https://www.postgresql.org/docs/current/ddl-constraints.html">https://www.postgresql.org/docs/current/ddl-constraints.html</a><br />主题：PRIMARY KEY、UNIQUE、FOREIGN KEY 与数据不变量。</p>
+</li>
+<li><p><strong>Confluent：Idempotent Reader</strong><br /><a href="https://developer.confluent.io/patterns/event-processing/idempotent-reader/">https://developer.confluent.io/patterns/event-processing/idempotent-reader/</a><br />主题：为什么重复事件可能来自生产与消费两端，如何建立幂等消费者。</p>
+</li>
+<li><p><strong>Confluent：Event Design Best Practices</strong><br /><a href="https://developer.confluent.io/courses/event-design/best-practices/">https://developer.confluent.io/courses/event-design/best-practices/</a><br />主题：Event ID、事件审计与重复检测。</p>
+</li>
+<li><p><strong>Microsoft Architecture Center：Idempotent Consumer</strong><br /><a href="https://learn.microsoft.com/en-us/azure/architecture/patterns/idempotent-consumer">https://learn.microsoft.com/en-us/azure/architecture/patterns/idempotent-consumer</a><br />主题：持久化去重、唯一约束、重复副作用、外部服务处理边界。</p>
+</li>
+</ol>
+<hr />
+<h2 id="section-64">23. 术语速查</h2>
+<table>
+<thead>
+<tr>
+<th>中文</th>
+<th>英文</th>
+<th>定义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>至少一次投递</td>
+<td>At-least-once Delivery</td>
+<td>消息可能被交付一次或多次</td>
+</tr>
+<tr>
+<td>幂等</td>
+<td>Idempotency</td>
+<td>对同一次逻辑操作重复执行不增加业务效果</td>
+</tr>
+<tr>
+<td>业务幂等键</td>
+<td>Business Idempotency Key</td>
+<td>标识一次逻辑业务操作的稳定键</td>
+</tr>
+<tr>
+<td>事件标识</td>
+<td>Event ID</td>
+<td>标识一条逻辑事件的身份</td>
+</tr>
+<tr>
+<td>物理消息位置</td>
+<td>Topic–Partition–Offset</td>
+<td>Kafka 分区日志中单条记录的位置</td>
+</tr>
+<tr>
+<td>最终结果唯一约束</td>
+<td>Final-result Uniqueness</td>
+<td>数据库强制同一业务键至多有一份结果</td>
+</tr>
+<tr>
+<td>去重记录</td>
+<td>Inbox / Processed Events</td>
+<td>记录某一消费主体已处理哪些逻辑事件</td>
+</tr>
+<tr>
+<td>消费位点</td>
+<td>Committed Offset</td>
+<td>消费组用于故障恢复的下次读取位置</td>
+</tr>
+<tr>
+<td>幂等消费者</td>
+<td>Idempotent Consumer</td>
+<td>能安全处理重复事件、避免重复业务效果的消费者</td>
+</tr>
+<tr>
+<td>事务性发件箱</td>
+<td>Transactional Outbox</td>
+<td>业务修改与待发布事件意图在同一 DB 事务中持久化</td>
+</tr>
+<tr>
+<td>并发竞争</td>
+<td>Race Condition</td>
+<td>同时操作依赖执行时序而导致结果不确定</td>
+</tr>
+<tr>
+<td>数据不变量</td>
+<td>Invariant</td>
+<td>无论并发与重试如何发生都必须满足的规则</td>
+</tr>
+</tbody></table>
+<hr />
+<p><strong>本节结论：</strong> Kafka 的至少一次投递意味着必须做好重复消费准备。<code>event_id</code> 用于辨认逻辑事件，业务幂等键用于辨认同一次操作，数据库 <code>UNIQUE</code> 用于约束最终结果，事务用于把处理记录和业务修改合成一个原子单元。只有将它们与 Offset 提交次序、错误分类和外部副作用处理共同设计，才能在故障和重试中获得可解释的可靠性。</p>

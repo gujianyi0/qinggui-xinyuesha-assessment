@@ -1,0 +1,120 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>演示与故障恢复手册.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><blockquote>
+<p>2026-11-12：当前主库为Docker，使用start_docker_live.ps1；旧原生启动已阻止，QQ不再演示。运行与恢复以<a href="/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E8%BF%81%E7%A7%BB%E4%B8%8E%E8%BF%90%E8%A1%8C%E6%89%8B%E5%86%8C.md.html">最新手册</a>为准，文末1.4环境切换描述保留为历史。</p>
+</blockquote>
+<h1>演示与故障恢复手册</h1>
+<p>演示与故障注入均在本项目隔离环境进行。以下为操作规格，完成状态以相应运行记录为准。</p>
+<h2>1. 演示前准备</h2>
+<ol>
+<li>按根README安装依赖、配置本项目环境、执行迁移、启动API与独立Worker。</li>
+<li>检查<code>/health</code>返回的数据库、模型模式和资料快照。需要真实模型证据时确认<code>model_mode=live</code>，模型ID与价格已配置且剩余额度足够。</li>
+<li>准备两个测试身份alice和bob，分别登录，确认会话与数据范围。</li>
+<li>查看<code>rulings</code>当前状态。只有已执行并保存断言的裁定才能标记“引擎已验证”。</li>
+<li>当前不演示QQ；相关历史实现已归档，运行配置已清理。</li>
+</ol>
+<h2>2. 一次成功请求</h2>
+<p>网页新建会话，输入“查询标准诸葛亮的势力、体力和技能”，查看逐步输出、结构化工具记录、引用及版本。继续追问“其中没有手牌时针对哪些牌”，检查上下文。刷新或重启API后重新查询本次会话。</p>
+<p>保留：运行号、工具调用、最终回答、引用路径、资料快照、耗时和用量。模型替身与真实模型分别报告。</p>
+<h2>3. 一次失败请求</h2>
+<p>非法输入演示：空消息或超过输入限制的消息应在开始流前返回明确校验错误，不创建伪成功结果。</p>
+<p>工具故障演示：在隔离实例显式启用受控故障注入，运行固定F01。检查用户看到原因和重试提示，工具审计记失败，最终运行状态落库；结束后关闭注入。未启用注入时F01应记blocked，不把普通回答算作失败演示。</p>
+<h2>4. 草稿与重复确认</h2>
+<ol>
+<li>输入“技能没生效，帮我反馈”，检查缺失的武将、技能、步骤、现象、预期和版本。</li>
+<li>在反馈页补充字段，查看当前修订号。确认之前正式反馈列表不增加记录。</li>
+<li>点击确认，重复发送相同确认请求，验证返回同一反馈ID。</li>
+<li>编辑草稿后尝试旧修订号确认，应提示重新查看；不静默接受旧内容。</li>
+<li>本轮使用网页确认，不启用历史QQ入口。</li>
+</ol>
+<h2>5. 两身份隔离</h2>
+<p>alice创建会话、反馈和任务，记录其ID；bob使用自己的token访问这些ID，应被拒绝或视为不存在。反向再检查一次。重启API后重测。公共游戏资料可共享，私人会话、反馈、运行和任务状态不能跨身份读取。</p>
+<h2>6. 后台故障矩阵</h2>
+<table>
+<thead>
+<tr>
+<th>故障点</th>
+<th>操作</th>
+<th>应观察到的结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>同一请求重复提交</td>
+<td>重复同一幂等键</td>
+<td>返回原任务，不产生重复最终记录</td>
+</tr>
+<tr>
+<td>Kafka重复投递</td>
+<td>投递同任务与执行代次</td>
+<td>业务唯一性与状态校验生效</td>
+</tr>
+<tr>
+<td>Outbox已发送未标记</td>
+<td>在指定故障点终止隔离Worker</td>
+<td>重启可能重复投递，最终业务幂等</td>
+</tr>
+<tr>
+<td>写库后位点提交前</td>
+<td>使用受控故障点终止Worker</td>
+<td>重启识别已提交结果，正确确认位点</td>
+</tr>
+<tr>
+<td>运行中退出</td>
+<td>终止本项目Worker实例</td>
+<td>租约过期后可恢复，不永久处理中</td>
+</tr>
+<tr>
+<td>临时依赖失败</td>
+<td>暂停依赖后恢复</td>
+<td>最多3次尝试，记录原因与下次时间</td>
+</tr>
+<tr>
+<td>坏输入</td>
+<td>提交无效白名单快照</td>
+<td>最终失败，其他正常任务继续</td>
+</tr>
+<tr>
+<td>取消与完成竞争</td>
+<td>导入时取消</td>
+<td>最后发布事务核对取消，终态不回退</td>
+</tr>
+<tr>
+<td>旧Worker迟到回写</td>
+<td>恢复后提交旧代次结果</td>
+<td>旧代次不能覆盖新结果</td>
+</tr>
+<tr>
+<td>Redis失效</td>
+<td>过期或停Redis</td>
+<td>公共检索回源，任务仍可由数据库查询</td>
+</tr>
+<tr>
+<td>Kafka暂时不可用</td>
+<td>停Broker后提交任务</td>
+<td>数据库任务可查，恢复后投递，不丢任务</td>
+</tr>
+<tr>
+<td>PostgreSQL不可用</td>
+<td>暂停数据库</td>
+<td>请求明确失败，恢复后可重试</td>
+</tr>
+</tbody></table>
+<p>每次记录故障点、请求/任务号、终止时机、恢复步骤、数据库最终状态和日志。服务操作只针对本项目Compose服务，避免终止原轻归、原游戏或其他工作进程。</p>
+<h2>7. 裁定演示</h2>
+<p>选择一个已验证SC场景，展示固定条件、脚本化选择、关键事件、最终状态、断言数量和执行文件哈希；随后通过网页提问同一场景。修改一个必要条件，检查系统追问或标明超出已验证范围。</p>
+<p>规则快照变动后重新运行场景。离线测试使用真实Lua规则逻辑及测试后端，不将其描述为完整客户端或线上对局验收。</p>
+<h2>8. 历史QQ方案</h2>
+<p>2026-11-12已移出当前范围，不再执行真实连接、白名单、送达或断线联调。历史说明与协议测试保留在integrations/onebot及原始证据中，原轻归不改动。</p>
+<h2>9. 完成提交前</h2>
+<ul>
+<li>干净目录复现启动、迁移、资料、请求、任务和重启查询。</li>
+<li>核对P01–P10、B01–B07证据及未完成项。</li>
+<li>核对32条样例的同组前后结果、3个真实修复、AI代码修复及演示步骤；真人试用已移出执行范围。</li>
+<li>仓库记录依赖版本、资料来源和许可；使用示例凭据。</li>
+<li>按已确认的共享对象提交同一仓库；正式截止日及验收结论由公司确认。</li>
+</ul>
+<h2>1.1 Redis演示与验证</h2>
+<p>准备<code>python scripts/prepare_native_redis.py</code>后重启原生预览。GET /api/health应显示cache=available。Redis故障时cache=unavailable_fallback但status保持ok，公共检索回源PG；本机监督器仅重启所属Redis。不要结束其他程序的Redis或使用未核对归属的PID。</p>
+<p>独立复验使用<code>python scripts/verify_redis_postgres.py --label 唯一标签</code>，等待真实300秒自然失效，保留summary和TTL采样。脚本在原生PG上建立独立测试数据库，使用16479，不改变预览16379的缓存和主库会话。无手动EXPIRE、无付费模型或QQ发送。Windows社区版本不作为Linux容器证明。</p>
+<h2>1.4 Linux容器复查与环境切换</h2>
+<p>按README使用新的qinggui-assessment-verify前缀项目及英文label运行scripts/verify_compose.py。聊天替身、实际PG/Kafka/Redis/BGE，约13分钟的本轮17项结果见1.4报告；重跑时间以实测为准。脚本中down不带--volumes，模型及业务数据保留；正常运行不启用故障开关。</p>
+<p>本机16GB，当前已停止测试容器及Docker Desktop并恢复原生15174。切换容器：先stop_native.ps1，再启动Docker Desktop（可运行docker desktop start），按README启动；恢复原生：停止对应Compose项目，必要时停止Desktop释放内存，再start_native.ps1并核对15174/api/health。正式切换真实模型前迁移已有会话和用量账本，测试库0费用不代表新增200元额度。</p>
+</article></body></html>

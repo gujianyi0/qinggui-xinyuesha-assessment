@@ -3,6 +3,7 @@ import hashlib
 import json
 import math
 import re
+import time
 from pathlib import Path
 
 from sqlalchemy import select, text
@@ -86,6 +87,15 @@ class Catalog:
                 ranked.append((score, entity))
         return [entity for _, entity in sorted(ranked, key=lambda pair: pair[0], reverse=True)[:limit]]
 
+    def exact_card(self, message: str, snapshot_id: str) -> dict | None:
+        """Only a whole, unambiguous card name can bypass model interpretation."""
+        name = message.strip()
+        if name.startswith("【") and name.endswith("】"):
+            name = name[1:-1]
+        matches = [e for e in self.entities if e["kind"] == "card" and e["name"] == name
+                   and e["source"].get("snapshot_id") == snapshot_id and e.get("description")]
+        return matches[0] if len(matches) == 1 else None
+
     def rulings(self) -> list[dict]:
         data = read_json(self.settings.rulings_dir / "catalog.json")
         return data if isinstance(data, list) else data.get("scenes", data.get("rulings", []))
@@ -121,6 +131,20 @@ class Embedder:
         self.settings = settings
         self.model = None
         self.lock = asyncio.Lock()
+        self.ready = settings.embedding_mode == "test"
+        self.warmup_status = "not_started"
+        self.load_ms = None
+
+    async def warmup(self):
+        self.warmup_status = "loading"
+        try:
+            await self.encode(["资料检索准备"], query=True)
+            self.warmup_status = "ready"
+        except Exception:
+            self.warmup_status = "failed"
+
+    def diagnostics(self) -> dict:
+        return {"ready": self.ready, "warmup": self.warmup_status, "load_ms": self.load_ms}
 
     async def encode(self, texts: list[str], *, query: bool = False) -> list[list[float]]:
         if self.settings.embedding_mode == "test":
@@ -139,6 +163,7 @@ class Embedder:
             raise RuntimeError("本地向量模型 revision 尚未锁定，请运行 scripts/prepare_embedding.py")
         async with self.lock:
             if self.model is None:
+                load_started = time.perf_counter()
                 def load():
                     import torch
                     from sentence_transformers import SentenceTransformer
@@ -148,10 +173,12 @@ class Embedder:
                         raise RuntimeError("本地向量模型尚未准备，请运行 scripts/prepare_embedding.py --download")
                     return SentenceTransformer(str(folder), device="cpu", local_files_only=True, trust_remote_code=False)
                 self.model = await asyncio.to_thread(load)
+                self.load_ms = round((time.perf_counter() - load_started) * 1000)
             inputs = [("为这个句子生成表示以用于检索相关文章：" + t[:400]) if query else t for t in texts]
             if any(len(tokens) > self.model.max_seq_length for tokens in self.model.tokenizer(inputs, truncation=False)["input_ids"]):
                 raise ValueError("资料超过向量模型长度限制，请先分块，禁止静默截断")
             vectors = await asyncio.to_thread(self.model.encode, inputs, normalize_embeddings=True, batch_size=16, show_progress_bar=False)
+            self.ready = True
             return vectors.tolist()
 
 

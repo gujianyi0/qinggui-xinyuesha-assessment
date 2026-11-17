@@ -1,0 +1,78 @@
+{
+  "checked_at": "2026-11-11T05:02:56.881470+00:00",
+  "web_status": 200,
+  "health": {
+    "status": "ok",
+    "cache": "available",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 5.682864,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "native_status": {
+    "owner": "qinggui-assessment-native-demo",
+    "project": "F:\\Work\\Biteagle\\入职考核",
+    "supervisor_pid": 21396,
+    "started_at": "2026-11-11T04:50:34.705018+00:00",
+    "ports": {
+      "web": 15174,
+      "api": 18081,
+      "postgres": 15433,
+      "kafka": 19094,
+      "controller": 19095,
+      "redis": 16379
+    },
+    "url": "http://127.0.0.1:15174",
+    "stage": "running",
+    "model_mode": "live",
+    "embedding_mode": "local",
+    "database": "postgresql",
+    "redis": "running",
+    "evaluation_faults": false,
+    "updated_at": "2026-11-11T05:02:51.891706+00:00",
+    "temporary_dos_drive": "R:",
+    "postgres_pid": 34036,
+    "kafka_pid": 47436,
+    "redis_pid": 37820,
+    "api_pid": 34988,
+    "worker_pid": 47216,
+    "web_pid": 25744,
+    "redis_service": {
+      "state": "running",
+      "pid": 37820,
+      "restart_count": 1,
+      "last_exit": {
+        "pid": 28252,
+        "code": 1
+      }
+    },
+    "worker": {
+      "state": "running",
+      "pid": 47216,
+      "restart_count": 0,
+      "last_exit": null
+    },
+    "kafka": {
+      "state": "running",
+      "pid": 47436,
+      "restart_count": 0,
+      "last_exit": null
+    }
+  },
+  "natural_ttl_seconds": 300.001,
+  "pg_bge_redis_checks": 6,
+  "ttl_http_pairs": 60,
+  "live_cases": 4,
+  "live_turns": 5,
+  "source_integrity": 0,
+  "notice": "Native Windows Redis proof, not Linux Compose or a repeated one-hour soak"
+}

@@ -1,0 +1,821 @@
+<h1 id="section-1">大模型原理、API 与输出校验（五）</h1>
+<h1 id="section-2">用 Python 直接调用模型：请求、响应、结束状态、Token 用量与 AI 编程工具的区别</h1>
+<blockquote>
+<p>适用知识目标：<strong>能用 Python 直接完成一次模型调用，读懂请求、响应、结束状态和用量；区分模型调用与使用 AI 编程工具。</strong><br />整理日期：2026-11-11。接口细节以调用时的供应商官方文档和 SDK 版本为准。<br />阅读定位：独立技术知识手册。所列网络调用代码需要实际 API Key、网络和可用余额；离线解析示例可在没有 API Key 时运行。没有实际连接供应商接口的操作，不应当记作“真实模型调用成功”。</p>
+</blockquote>
+<hr />
+<h2 id="section-3">1. 模型 API 调用到底是什么</h2>
+<p>**模型调用（model inference request）**是应用程序向已部署的模型推理服务提交输入、配置生成行为，并取得输出和用量信息的过程。它不会因为被调用而自动更新模型参数，也不代表应用程序具备检索、读文件、执行命令等能力。</p>
+<p>一个典型的请求链路是：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Python 程序
+  │ 组装消息、模型名称和生成参数
+  ▼
+模型 SDK / HTTP 客户端
+  │ HTTPS：URL、Authorization、JSON 请求体
+  ▼
+API 网关（身份验证、配额/限流、路由）
+  ▼
+模型推理服务（分词、上下文处理、推理、生成）
+  ▼
+HTTP 响应（结果、停止原因、用量、标识等）
+  ▼
+Python 程序（检查状态、提取文本、记录用量、处理异常）</code></pre></div><p>必须区分三个层次：</p>
+<ol>
+<li><strong>HTTP 层</strong>：请求是否成功抵达服务、HTTP 状态码是多少、是否超时。</li>
+<li><strong>模型协议层</strong>：响应对象里有没有 <code>choices</code> 或 <code>output</code>，生成为什么结束，是否要求工具调用。</li>
+<li><strong>业务层</strong>：答案是否有依据，是否符合输出格式与业务规则，能否交给用户或继续执行后续操作。</li>
+</ol>
+<p>HTTP 200 表示请求在协议层被接受并返回成功响应，并<strong>不</strong>意味着文本事实正确、JSON 合法或业务已完成。</p>
+<h3 id="section-4">1.1 SDK 与 API 的关系</h3>
+<ul>
+<li><strong>HTTP API</strong> 是服务器提供的网络接口，例如 <code>POST /chat/completions</code>。</li>
+<li><strong>SDK</strong> 是语言封装。Python SDK 负责创建 HTTP 请求、序列化 JSON、认证、解析响应，以及提供部分重试/异常功能。</li>
+<li><strong>模型</strong> 是实际承担生成任务的推理系统；SDK 不是模型本身。</li>
+<li><strong>API Key</strong> 是请求服务的凭证；它决定身份和配额权限，不提供独立的“智能能力”。</li>
+</ul>
+<p>同一个服务可以通过 Python、JavaScript、curl 或其他 HTTP 客户端访问。使用 Python SDK 并不必然意味着调用了对应 SDK 厂商自家的模型：例如 DeepSeek 提供兼容 OpenAI SDK 的 API 地址。</p>
+<hr />
+<h2 id="section-5">2. 一次 HTTP 请求由哪些部分构成</h2>
+<p>以 Chat Completions 风格接口为例：</p>
+<div class="code-wrap"><div class="code-label"><span>http</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">POST</span> <span class="hljs-string">/chat/completions</span> <span class="hljs-meta">HTTP/1.1</span>
+<span class="hljs-attribute">Host</span><span class="hljs-punctuation">: </span>api.deepseek.com
+<span class="hljs-attribute">Authorization</span><span class="hljs-punctuation">: </span>Bearer &lt;YOUR_API_KEY&gt;
+<span class="hljs-attribute">Content-Type</span><span class="hljs-punctuation">: </span>application/json
+
+<span class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"model"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"deepseek-flash"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"messages"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-punctuation">{</span><span class="hljs-attr">"role"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"system"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"content"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"你是一名准确、简洁的技术助手。"</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-punctuation">{</span><span class="hljs-attr">"role"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"user"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"content"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"用一句话解释 Python 协程。"</span><span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"max_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">256</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"stream"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">false</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"thinking"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-attr">"type"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"disabled"</span><span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span></span></code></pre></div><p>上面请求体展示的是 DeepSeek 当前文档支持的一种非思考模式调用形式。具体模型、参数范围和兼容性可能随服务版本变化；不要把一个提供商的扩展字段认为所有兼容 API 都支持。</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>所在层</th>
+<th>含义</th>
+<th>注意事项</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>URL / base_url</td>
+<td>HTTP / SDK</td>
+<td>服务入口</td>
+<td>写错会导致 404、连接错误或路由错误</td>
+</tr>
+<tr>
+<td>Authorization</td>
+<td>HTTP</td>
+<td>API 访问凭据</td>
+<td>不应写入源码、仓库或日志</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td>请求体</td>
+<td>指定模型标识</td>
+<td>不存在或无权限会导致错误</td>
+</tr>
+<tr>
+<td><code>messages</code></td>
+<td>请求体</td>
+<td>输入对话内容</td>
+<td>包含 system/user/assistant 等角色</td>
+</tr>
+<tr>
+<td><code>max_tokens</code></td>
+<td>请求体</td>
+<td>限制本次生成的 Token 上限</td>
+<td>不保证精确输出长度；推理 Token 可能计入该预算</td>
+</tr>
+<tr>
+<td><code>stream</code></td>
+<td>请求体</td>
+<td>非流式/流式</td>
+<td>本节以 <code>false</code> 为主；流式另有事件协议</td>
+</tr>
+<tr>
+<td><code>thinking</code></td>
+<td>服务商扩展</td>
+<td>控制 DeepSeek 思考模式</td>
+<td>非通用 OpenAI 参数；通过 <code>extra_body</code> 传入</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td>客户端配置</td>
+<td>网络调用等待时间</td>
+<td>客户端超时不保证服务端立即停止执行</td>
+</tr>
+</tbody></table>
+<p><strong>请求中的消息与模型返回的回答是两个方向的数据</strong>。<code>messages</code> 不是模型的“持久数据库”；多数无状态接口要求程序自行维护并在下次请求时提供必要历史。尤其 DeepSeek 的 Responses API 当前官方文档明确标注为无状态，不支持 <code>previous_response_id</code> 的服务端延续会话语义。</p>
+<hr />
+<h2 id="section-6">3. Python 直接调用：DeepSeek Chat Completions 完整入门</h2>
+<h3 id="section-7">3.1 准备项目与 Python 环境</h3>
+<p>在 Windows PowerShell 下：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">py <span class="hljs-literal">-3</span> <span class="hljs-literal">-m</span> venv .venv
+.\.venv\Scripts\python.exe <span class="hljs-literal">-m</span> pip install <span class="hljs-literal">--upgrade</span> openai</code></pre></div><p>给<strong>当前 PowerShell 会话</strong>注入密钥：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-variable">$env:DEEPSEEK_API_KEY</span> = <span class="hljs-string">"请替换为你自己的真实Key"</span></code></pre></div><p>实际操作应避免把密钥放进提交到 Git 的脚本、终端录屏或共享日志。也可使用受保护的环境变量、CI Secret 或密钥管理系统。<code>DEEPSEEK_API_KEY</code> 应由调用 DeepSeek API 的 Python 进程读取；<strong>ChatGPT 网页订阅和 API 服务不是同一个凭据体系</strong>。</p>
+<h3 id="section-8">3.2 可运行的非流式调用示例</h3>
+<p>保存为 <code>call_model.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">import</span> time
+<span class="hljs-keyword">import</span> openai
+<span class="hljs-keyword">from</span> openai <span class="hljs-keyword">import</span> OpenAI
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:
+    api_key = os.getenv(<span class="hljs-string">"DEEPSEEK_API_KEY"</span>)
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> api_key:
+        <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"缺少 DEEPSEEK_API_KEY 环境变量"</span>)
+
+    started = time.perf_counter()
+
+    <span class="hljs-comment"># OpenAI SDK 是 HTTP 客户端封装，此处真正访问的是 DeepSeek。</span>
+    <span class="hljs-keyword">with</span> OpenAI(
+        api_key=api_key,
+        base_url=<span class="hljs-string">"https://api.deepseek.com"</span>,
+        timeout=<span class="hljs-number">30.0</span>,
+        max_retries=<span class="hljs-number">1</span>,
+    ) <span class="hljs-keyword">as</span> client:
+        <span class="hljs-keyword">try</span>:
+            response = client.chat.completions.create(
+                model=<span class="hljs-string">"deepseek-flash"</span>,
+                messages=[
+                    {<span class="hljs-string">"role"</span>: <span class="hljs-string">"system"</span>, <span class="hljs-string">"content"</span>: <span class="hljs-string">"你是一名准确、简洁的技术助手。"</span>},
+                    {<span class="hljs-string">"role"</span>: <span class="hljs-string">"user"</span>, <span class="hljs-string">"content"</span>: <span class="hljs-string">"用一句话解释 Python 协程。"</span>},
+                ],
+                max_tokens=<span class="hljs-number">256</span>,
+                stream=<span class="hljs-literal">False</span>,
+                extra_body={<span class="hljs-string">"thinking"</span>: {<span class="hljs-string">"type"</span>: <span class="hljs-string">"disabled"</span>}},
+            )
+        <span class="hljs-keyword">except</span> openai.APITimeoutError:
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">"模型请求超时；无法由此断定服务端没有产生用量"</span>)
+            <span class="hljs-keyword">return</span>
+        <span class="hljs-keyword">except</span> openai.APIConnectionError <span class="hljs-keyword">as</span> exc:
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">f"网络连接失败：<span class="hljs-subst">{<span class="hljs-built_in">type</span>(exc).__name__}</span>"</span>)
+            <span class="hljs-keyword">return</span>
+        <span class="hljs-keyword">except</span> openai.APIStatusError <span class="hljs-keyword">as</span> exc:
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">f"API HTTP 错误：<span class="hljs-subst">{exc.status_code}</span>"</span>)
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">f"请求 ID：<span class="hljs-subst">{<span class="hljs-built_in">getattr</span>(exc, <span class="hljs-string">'request_id'</span>, <span class="hljs-literal">None</span>)}</span>"</span>)
+            <span class="hljs-keyword">return</span>
+
+    elapsed = time.perf_counter() - started
+
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> response.choices:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"响应中没有可用的 choices"</span>)
+        <span class="hljs-keyword">return</span>
+
+    choice = response.choices[<span class="hljs-number">0</span>]
+    finish_reason = choice.finish_reason
+    content = choice.message.content
+
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"实际返回模型："</span>, response.model)
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"请求响应 ID："</span>, response.<span class="hljs-built_in">id</span>)
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"结束原因："</span>, finish_reason)
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"耗时（秒）："</span>, <span class="hljs-built_in">round</span>(elapsed, <span class="hljs-number">3</span>))
+
+    <span class="hljs-keyword">if</span> finish_reason == <span class="hljs-string">"stop"</span> <span class="hljs-keyword">and</span> content <span class="hljs-keyword">and</span> content.strip():
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"文本内容："</span>, content)
+    <span class="hljs-keyword">elif</span> finish_reason == <span class="hljs-string">"tool_calls"</span>:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"模型请求调用工具，不等于工具已经执行"</span>)
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"工具请求："</span>, choice.message.tool_calls)
+    <span class="hljs-keyword">else</span>:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"回答尚不可直接当作完整有效结果："</span>, <span class="hljs-built_in">repr</span>(content))
+
+    <span class="hljs-keyword">if</span> response.usage <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-comment"># 使用 model_dump 避免服务商扩展字段被 SDK 类型提示遗漏。</span>
+        usage = response.usage.model_dump(exclude_none=<span class="hljs-literal">True</span>)
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"用量信息："</span>, usage)
+    <span class="hljs-keyword">else</span>:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"服务未提供 usage；不能据此把用量记作 0"</span>)
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    main()</code></pre></div><p>运行：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">.\.venv\Scripts\python.exe call_model.py</code></pre></div><p><strong>该脚本会发起真实网络请求并可能产生 API 费用。</strong> 没有密钥和网络时，不能通过它完成端到端调用。脚本中的 <code>max_retries=1</code> 表示 SDK 可在规定的可重试错误下进行至多一次额外尝试；不代表 HTTP 请求最多只能发送一次，具体行为以 SDK 实现为准。</p>
+<h3 id="section-9">3.3 为什么代码要先看 <code>finish_reason</code> 再消费文本</h3>
+<p>因为返回的 <code>content</code> 即使非空，也可能是：</p>
+<ul>
+<li>超出长度限制前生成的<strong>不完整半句话</strong>；</li>
+<li>模型提出工具调用的同时附带的内容；</li>
+<li>一段格式上完整但缺少业务事实依据的文字；</li>
+<li>遭到内容限制或服务资源中断后的部分结果。</li>
+</ul>
+<p>所以**“取得字符串”不是“得到可交付结果”**。正常完成后仍要按任务进行 JSON、Schema、事实和业务校验。</p>
+<hr />
+<h2 id="section-10">4. 不使用 SDK：直接通过 HTTP 观察请求</h2>
+<p>SDK 并不是必需品。下面的 <code>httpx</code> 示例能够直观看到 HTTP 状态和响应 JSON。</p>
+<p>安装：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">.\.venv\Scripts\python.exe <span class="hljs-literal">-m</span> pip install httpx</code></pre></div><div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">import</span> httpx
+
+api_key = os.environ[<span class="hljs-string">"DEEPSEEK_API_KEY"</span>]
+payload = {
+    <span class="hljs-string">"model"</span>: <span class="hljs-string">"deepseek-flash"</span>,
+    <span class="hljs-string">"messages"</span>: [
+        {<span class="hljs-string">"role"</span>: <span class="hljs-string">"user"</span>, <span class="hljs-string">"content"</span>: <span class="hljs-string">"解释一次 HTTP POST 请求"</span>}
+    ],
+    <span class="hljs-string">"max_tokens"</span>: <span class="hljs-number">128</span>,
+    <span class="hljs-string">"stream"</span>: <span class="hljs-literal">False</span>,
+    <span class="hljs-string">"thinking"</span>: {<span class="hljs-string">"type"</span>: <span class="hljs-string">"disabled"</span>},
+}
+
+<span class="hljs-keyword">with</span> httpx.Client(timeout=<span class="hljs-number">30.0</span>) <span class="hljs-keyword">as</span> client:
+    response = client.post(
+        <span class="hljs-string">"https://api.deepseek.com/chat/completions"</span>,
+        headers={<span class="hljs-string">"Authorization"</span>: <span class="hljs-string">f"Bearer <span class="hljs-subst">{api_key}</span>"</span>},
+        json=payload,
+    )
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"HTTP 状态码："</span>, response.status_code)
+    response.raise_for_status()
+    data = response.json()
+
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"完成原因："</span>, data[<span class="hljs-string">"choices"</span>][<span class="hljs-number">0</span>][<span class="hljs-string">"finish_reason"</span>])
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"模型回答："</span>, data[<span class="hljs-string">"choices"</span>][<span class="hljs-number">0</span>][<span class="hljs-string">"message"</span>].get(<span class="hljs-string">"content"</span>))
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"用量："</span>, data.get(<span class="hljs-string">"usage"</span>))</code></pre></div><p>SDK 与 <code>httpx</code> 的主要区别不是“谁更智能”，而是 SDK 封装了参数类型、认证、异常与部分重试策略。使用裸 HTTP 需要自行处理更多协议细节；使用 SDK 仍需要理解底层 HTTP 请求是什么。</p>
+<p>如果服务返回 400、401、429、500 等状态，<code>raise_for_status()</code> 将抛出 HTTPX 异常；它和 <code>openai.APIStatusError</code> 属于<strong>不同客户端库</strong>的异常体系，不要混着捕获。</p>
+<hr />
+<h2 id="section-11">5. 如何逐层读懂模型响应</h2>
+<p>下面是<strong>为讲解而构造的示例 JSON</strong>，结构取自当前 Chat Completions 文档；其中 ID、数字和回答文本<strong>不是真实调用记录</strong>。</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"example_completion_001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"object"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"chat.completion"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"created"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1790000000</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"model"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"deepseek-flash"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"choices"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">"index"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">"role"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"assistant"</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">"content"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"协程是可以在等待时挂起、由事件循环调度继续执行的代码单元。"</span>
+      <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"finish_reason"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"stop"</span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"usage"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"prompt_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">52</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"completion_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">27</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"total_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">79</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"prompt_cache_hit_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"prompt_cache_miss_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">52</span>
+  <span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span></code></pre></div><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义</th>
+<th>正确理解</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>id</code></td>
+<td>此次生成的响应标识</td>
+<td>适合做日志关联；不等于业务会话 ID</td>
+</tr>
+<tr>
+<td><code>object</code></td>
+<td>对象类型</td>
+<td>这里是 <code>chat.completion</code></td>
+</tr>
+<tr>
+<td><code>created</code></td>
+<td>服务端创建时间</td>
+<td>通常是 Unix 秒时间戳，不是耗时</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td>实际返回的模型标识</td>
+<td>可用于审计模型配置</td>
+</tr>
+<tr>
+<td><code>choices</code></td>
+<td>候选生成结果列表</td>
+<td>不能无条件假设必有一项</td>
+</tr>
+<tr>
+<td><code>index</code></td>
+<td>候选结果序号</td>
+<td>与业务消息编号无关</td>
+</tr>
+<tr>
+<td><code>message.role</code></td>
+<td>消息角色</td>
+<td>常见为 <code>assistant</code></td>
+</tr>
+<tr>
+<td><code>message.content</code></td>
+<td>回答正文</td>
+<td>可以为空或 <code>null</code>；并非所有输出都是文本</td>
+</tr>
+<tr>
+<td><code>finish_reason</code></td>
+<td>为什么停止生成</td>
+<td>必须检查，不能与 HTTP 状态混淆</td>
+</tr>
+<tr>
+<td><code>usage</code></td>
+<td>本次用量统计</td>
+<td>是 Token 统计，不是直接的美元金额</td>
+</tr>
+</tbody></table>
+<h3 id="section-12">5.1 <code>choices[0].message.content</code> 为什么有时是 <code>None</code></h3>
+<p>可能原因包括：模型要求客户端调用工具、发生特殊终止、供应商/模式下回答在其他字段、服务端只生成推理内容但尚未给出最终文本等。应先看 <code>finish_reason</code>、<code>tool_calls</code>、模型响应结构和对应接口文档，而非简单调用 <code>.strip()</code> 导致 <code>AttributeError</code>。</p>
+<h3 id="section-13">5.2 其他有价值的元数据</h3>
+<p>部分服务返回 <code>system_fingerprint</code>、请求 ID、缓存命中详情或推理 Token 详情。它们适合用于版本回归、成本统计与故障定位，但<strong>并不能保证重放同一请求就得到逐字相同的回答</strong>。</p>
+<hr />
+<h2 id="section-14">6. 结束状态（finish_reason）的语义</h2>
+<p>以下是 DeepSeek 当前 Chat Completions 文档列出的停止原因；其他厂商、接口版本可能有所不同。</p>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>语义</th>
+<th>应用程序应如何处理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>stop</code></td>
+<td>正常停止或触发指定停止序列</td>
+<td>可以进入下游内容校验；不能直接视为事实正确</td>
+</tr>
+<tr>
+<td><code>length</code></td>
+<td>达到生成 Token 或上下文等长度限制</td>
+<td>视为可能截断；重要 JSON 应拒绝直接采用并按策略重试</td>
+</tr>
+<tr>
+<td><code>tool_calls</code></td>
+<td>模型提出工具调用</td>
+<td>校验参数与授权、执行工具并回传结果；此时还不是最终文本答案</td>
+</tr>
+<tr>
+<td><code>content_filter</code></td>
+<td>内容被过滤或省略</td>
+<td>记录受限状态，不能将空值当成功</td>
+</tr>
+<tr>
+<td><code>insufficient_system_resource</code></td>
+<td>推理系统资源不足导致中断</td>
+<td>作为服务端资源问题处理，可按规则有限重试</td>
+</tr>
+<tr>
+<td><code>aborted</code></td>
+<td>生成被中断</td>
+<td>标记中断，不应当将部分输出当作完成</td>
+</tr>
+</tbody></table>
+<p><strong>不要把 <code>finish_reason</code> 当 HTTP 状态码。</strong> 服务器可以返回 HTTP 200，但选择的候选结果标记为 <code>length</code>，这表示<strong>这次生成在业务上可能不完整</strong>。</p>
+<h3 id="section-15">6.1 常见判定流程</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">获得 HTTP 响应
+  ├─ 非 2xx → 网络/认证/参数/限流/服务器错误分支
+  └─ 2xx
+      ├─ 缺少候选输出 → 协议异常或异常响应
+      └─ 有候选输出
+          ├─ stop → 读取内容 → 格式/事实/业务校验
+          ├─ length → 截断处理
+          ├─ tool_calls → 校验并执行工具循环
+          └─ 其他 → 记录中断或受限状态</code></pre></div><p>注意：<code>stop</code> 时如果 <code>content</code> 为空，也不能当作有效答案；服务商的 JSON 模式在某些条件下可能产生空白内容，所以实际系统需要判空。</p>
+<hr />
+<h2 id="section-16">7. Token 用量与费用怎样计算</h2>
+<h3 id="section-17">7.1 输入与输出的含义</h3>
+<ul>
+<li><strong>输入 Token（prompt_tokens / input_tokens）</strong>：为本次调用提供给模型的内容，常包含系统指令、用户消息、历史消息、工具定义或资料等；最终统计按供应商规则计算。</li>
+<li><strong>输出 Token（completion_tokens / output_tokens）</strong>：模型在本次生成中产生并计入输出的 Token；推理模式可能还包含不直接呈现在最终正文中的推理 Token。</li>
+<li><strong>总 Token（total_tokens）</strong>：通常是输入与输出用量之和。</li>
+</ul>
+<p>Chat Completions 结构中常见字段：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">usage.prompt_tokens
+usage.completion_tokens
+usage.total_tokens
+usage.prompt_cache_hit_tokens
+usage.prompt_cache_miss_tokens
+usage.completion_tokens_details.reasoning_tokens</code></pre></div><p>其中缓存命中 Token 是<strong>输入 Token 的分类</strong>，不是在总量之外额外增加的一份 Token。DeepSeek 当前文档给出：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">prompt_tokens = prompt_cache_hit_tokens + prompt_cache_miss_tokens</code></pre></div><p>但不是所有服务都提供上述所有字段。必须允许某些细分字段缺失。</p>
+<h3 id="section-18">7.2 成本公式</h3>
+<p>假设供应商对缓存未命中输入、缓存命中输入、输出分别采用不同单价（以每百万 Token 的货币金额计）：</p>
+<p>[
+\text{估算成本}=\frac{T_{miss}P_{miss}+T_{hit}P_{hit}+T_{out}P_{out}}{10^6}
+]</p>
+<p>这是一种常见的估算方式，不能代替供应商最终账单。额外的工具调用、特殊推理服务、存储、图像或其他资源可能有独立计费项目。输入和输出价格、地区、服务层级、模型版本均可能变化，必须使用调用时有效的价格表。</p>
+<p><strong>示例</strong>（所有价格均为演示假设，不代表实际供应商价格）：</p>
+<ul>
+<li>缓存未命中输入 1200 Token，单价 1.00/百万 Token。</li>
+<li>缓存命中输入 800 Token，单价 0.20/百万 Token。</li>
+<li>输出 600 Token，单价 2.00/百万 Token。</li>
+</ul>
+<p>那么估算成本：</p>
+<p>[
+(1200\times1+800\times0.2+600\times2)/10^6=0.00256
+]</p>
+<p>金额单位取决于上述假设单价所采用的货币单位。</p>
+<h3 id="section-19">7.3 读取用量的 Python 代码</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">summarize_usage</span>(<span class="hljs-params">usage: <span class="hljs-built_in">dict</span></span>) -&gt; <span class="hljs-built_in">dict</span>:
+    input_tokens = usage.get(<span class="hljs-string">"prompt_tokens"</span>, usage.get(<span class="hljs-string">"input_tokens"</span>))
+    output_tokens = usage.get(<span class="hljs-string">"completion_tokens"</span>, usage.get(<span class="hljs-string">"output_tokens"</span>))
+    total_tokens = usage.get(<span class="hljs-string">"total_tokens"</span>)
+
+    <span class="hljs-comment"># 无统计字段时不要伪造 0；None 表示未知。</span>
+    <span class="hljs-keyword">if</span> total_tokens <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">and</span> input_tokens <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">and</span> output_tokens <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+        total_tokens = input_tokens + output_tokens
+
+    <span class="hljs-keyword">return</span> {
+        <span class="hljs-string">"input_tokens"</span>: input_tokens,
+        <span class="hljs-string">"output_tokens"</span>: output_tokens,
+        <span class="hljs-string">"total_tokens"</span>: total_tokens,
+        <span class="hljs-string">"cache_hit"</span>: usage.get(<span class="hljs-string">"prompt_cache_hit_tokens"</span>),
+        <span class="hljs-string">"cache_miss"</span>: usage.get(<span class="hljs-string">"prompt_cache_miss_tokens"</span>),
+    }</code></pre></div><p><code>usage</code> 为 <code>None</code> 时应在调用函数外单独处理，不能假定一切失败请求都会返回完整的 Token 用量。<strong>服务端超时或客户端断开之后仍可能产生计费</strong>，应以服务商账单为最终结算依据。</p>
+<h3 id="section-20">7.4 为什么“输出文本很短”用量仍可能很高</h3>
+<p>可能的原因包括：系统提示词和检索资料很长、历史消息重复发送、工具定义占用输入、思考模式消耗不可见的推理 Token，或调用链进行了多次模型请求。不要仅根据最后显示给用户的字数推断成本。</p>
+<hr />
+<h2 id="section-21">8. 模型调用和程序业务调用之间的区别</h2>
+<p>当一段 Python 代码写成：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">response = client.chat.completions.create(...)</code></pre></div><p>它通常只是<strong>一次模型 API 请求</strong>，不意味着完成了整个产品业务流程。</p>
+<p>例如一个“游戏规则查询”业务需要：</p>
+<ol>
+<li>HTTP 接口接收用户问题；</li>
+<li>检索数据库中的相关版本规则；</li>
+<li>将可靠资料和问题组织成模型输入；</li>
+<li>调用模型 API；</li>
+<li>解析 <code>finish_reason</code> 与用量；</li>
+<li>检查引用是否真实支持答案；</li>
+<li>保存会话及日志；</li>
+<li>向前端返回最终结果。</li>
+</ol>
+<p>第 4 步才是直接模型调用，其余属于应用层工程设计。因此，掌握 SDK 是必要条件，却不足以证明已实现可靠 AI 产品。</p>
+<hr />
+<h2 id="section-22">9. Chat Completions 与 Responses API：不同的返回结构</h2>
+<p>同一个 SDK 可能支持多类接口。</p>
+<h3 id="section-23">9.1 Chat Completions 风格</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">completion = client.chat.completions.create(...)
+text = completion.choices[<span class="hljs-number">0</span>].message.content
+finish_reason = completion.choices[<span class="hljs-number">0</span>].finish_reason
+usage = completion.usage</code></pre></div><p>关注点：<code>choices[*].message</code>、<code>finish_reason</code>、<code>usage.prompt_tokens</code>、<code>usage.completion_tokens</code>。</p>
+<h3 id="section-24">9.2 Responses 风格</h3>
+<p>DeepSeek 当前也支持兼容 Responses API 的接口：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">from</span> openai <span class="hljs-keyword">import</span> OpenAI
+
+<span class="hljs-keyword">with</span> OpenAI(
+    api_key=os.environ[<span class="hljs-string">"DEEPSEEK_API_KEY"</span>],
+    base_url=<span class="hljs-string">"https://api.deepseek.com"</span>,
+) <span class="hljs-keyword">as</span> client:
+    response = client.responses.create(
+        model=<span class="hljs-string">"deepseek-flash"</span>,
+        instructions=<span class="hljs-string">"请清晰回答技术问题。"</span>,
+        <span class="hljs-built_in">input</span>=<span class="hljs-string">"什么是 Python 协程？"</span>,
+    )
+
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"文本："</span>, response.output_text)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"响应状态："</span>, response.status)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"用量："</span>, response.usage)</code></pre></div><p>Responses 风格通常关注 <code>output</code>/<code>output_text</code>、<code>status</code>、<code>usage.input_tokens</code>、<code>usage.output_tokens</code> 和 <code>incomplete_details</code> 等，而<strong>不是</strong> <code>choices[0].finish_reason</code>。</p>
+<p>要注意跨供应商兼容并不意味着每个参数都具有相同的语义。DeepSeek 当前 Responses 文档明确标注 <code>previous_response_id</code>、<code>store</code>、<code>background</code> 等能力不受支持或被忽略；因此不能把另一家服务的会话状态行为直接套用到 DeepSeek。</p>
+<p><strong>两个 API 风格都能完成一次模型调用；应用应根据实际返回协议编写解析逻辑。</strong></p>
+<hr />
+<h2 id="section-25">10. 真实请求常见错误与异常处理</h2>
+<table>
+<thead>
+<tr>
+<th>HTTP 状态 / 事件</th>
+<th>典型原因</th>
+<th>合理处理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>400 / 422</td>
+<td>JSON 或参数不符合接口要求</td>
+<td>修改请求，不要盲目重试</td>
+</tr>
+<tr>
+<td>401</td>
+<td>API Key 错误或失效</td>
+<td>更新凭据，不应自动重试相同凭据</td>
+</tr>
+<tr>
+<td>402</td>
+<td>余额不足（DeepSeek 示例）</td>
+<td>检查余额与配额</td>
+</tr>
+<tr>
+<td>403</td>
+<td>权限被拒绝</td>
+<td>检查账户及模型授权</td>
+</tr>
+<tr>
+<td>404</td>
+<td>模型或接口路径不存在</td>
+<td>核实模型名与 base_url</td>
+</tr>
+<tr>
+<td>429</td>
+<td>速率或并发限制</td>
+<td>退避重试、削峰与限流</td>
+</tr>
+<tr>
+<td>500 / 503</td>
+<td>服务端错误、过载</td>
+<td>有界退避重试，并结合幂等性判断</td>
+</tr>
+<tr>
+<td>Timeout</td>
+<td>客户端等待时间超出限制</td>
+<td>记录超时，不应直接推断零成本或零执行</td>
+</tr>
+<tr>
+<td>网络断开</td>
+<td>DNS、代理、TLS、网络波动</td>
+<td>记录错误类别并按策略重试</td>
+</tr>
+</tbody></table>
+<h3 id="section-26">10.1 何时不要盲目重试</h3>
+<ul>
+<li>错误原因是 400 / 401 / 402 等用户或配置问题。</li>
+<li>生成操作会触发实际工具动作（发送消息、支付、写入数据），但没有幂等保证。</li>
+<li>之前请求可能已被服务端处理，程序只是没有收到最终响应。</li>
+<li>重试预算、延迟预算或费用预算已经耗尽。</li>
+</ul>
+<p>官方 Python SDK 可能默认重试部分网络或 5xx 错误。应用若再套一层重试，需要计算<strong>总体实际尝试次数</strong>，否则可能无意中扩大费用和时延。</p>
+<h3 id="section-27">10.2 可记录与不可记录的信息</h3>
+<p>建议记录：业务请求号、响应 ID、模型标识、请求耗时、结束原因、Token 用量、错误类别、提示词版本、必要时经过脱敏的输入摘要。</p>
+<p>不建议记录：API Key、Authorization Header、完整私人聊天、原样的敏感提示词或未经允许的业务资料。</p>
+<p>“请求 ID”有多个层次：业务请求 ID 由应用生成，供应商响应 ID 由模型服务生成，HTTP 请求追踪 ID 由网关或传输层生成。它们最好关联，但并不是同一个字段。</p>
+<hr />
+<h2 id="section-28">11. 代码层面：输出解析的最小可信判定器</h2>
+<p>下面的示例<strong>不调用网络，也不消耗 API 费用</strong>。它展示为什么在读取文本之前需要检查模型结束状态，以及怎样将 Token 用量与正文分开处理。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> <span class="hljs-type">Any</span>
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ParsedResult</span>:
+    status: <span class="hljs-built_in">str</span>
+    text: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>
+    finish_reason: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>
+    input_tokens: <span class="hljs-built_in">int</span> | <span class="hljs-literal">None</span>
+    output_tokens: <span class="hljs-built_in">int</span> | <span class="hljs-literal">None</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">parse_chat_completion</span>(<span class="hljs-params">data: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]</span>) -&gt; ParsedResult:
+    choices = data.get(<span class="hljs-string">"choices"</span>)
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">isinstance</span>(choices, <span class="hljs-built_in">list</span>) <span class="hljs-keyword">or</span> <span class="hljs-keyword">not</span> choices:
+        <span class="hljs-keyword">return</span> ParsedResult(<span class="hljs-string">"protocol_error"</span>, <span class="hljs-literal">None</span>, <span class="hljs-literal">None</span>, <span class="hljs-literal">None</span>, <span class="hljs-literal">None</span>)
+
+    choice = choices[<span class="hljs-number">0</span>]
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">isinstance</span>(choice, <span class="hljs-built_in">dict</span>):
+        <span class="hljs-keyword">return</span> ParsedResult(<span class="hljs-string">"protocol_error"</span>, <span class="hljs-literal">None</span>, <span class="hljs-literal">None</span>, <span class="hljs-literal">None</span>, <span class="hljs-literal">None</span>)
+
+    reason = choice.get(<span class="hljs-string">"finish_reason"</span>)
+    message = choice.get(<span class="hljs-string">"message"</span>) <span class="hljs-keyword">or</span> {}
+    content = message.get(<span class="hljs-string">"content"</span>) <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(message, <span class="hljs-built_in">dict</span>) <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>
+    usage = data.get(<span class="hljs-string">"usage"</span>) <span class="hljs-keyword">or</span> {}
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">isinstance</span>(usage, <span class="hljs-built_in">dict</span>):
+        usage = {}
+
+    <span class="hljs-keyword">if</span> reason == <span class="hljs-string">"tool_calls"</span>:
+        status = <span class="hljs-string">"requires_tool"</span>
+    <span class="hljs-keyword">elif</span> reason == <span class="hljs-string">"length"</span>:
+        status = <span class="hljs-string">"incomplete"</span>
+    <span class="hljs-keyword">elif</span> reason == <span class="hljs-string">"stop"</span> <span class="hljs-keyword">and</span> <span class="hljs-built_in">isinstance</span>(content, <span class="hljs-built_in">str</span>) <span class="hljs-keyword">and</span> content.strip():
+        status = <span class="hljs-string">"completed_unverified"</span>
+    <span class="hljs-keyword">elif</span> reason == <span class="hljs-string">"stop"</span>:
+        status = <span class="hljs-string">"empty_output"</span>
+    <span class="hljs-keyword">else</span>:
+        status = <span class="hljs-string">"interrupted_or_restricted"</span>
+
+    <span class="hljs-keyword">return</span> ParsedResult(
+        status=status,
+        text=content <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(content, <span class="hljs-built_in">str</span>) <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>,
+        finish_reason=reason,
+        input_tokens=usage.get(<span class="hljs-string">"prompt_tokens"</span>),
+        output_tokens=usage.get(<span class="hljs-string">"completion_tokens"</span>),
+    )
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    complete = {
+        <span class="hljs-string">"choices"</span>: [{<span class="hljs-string">"finish_reason"</span>: <span class="hljs-string">"stop"</span>, <span class="hljs-string">"message"</span>: {<span class="hljs-string">"content"</span>: <span class="hljs-string">"你好"</span>}}],
+        <span class="hljs-string">"usage"</span>: {<span class="hljs-string">"prompt_tokens"</span>: <span class="hljs-number">8</span>, <span class="hljs-string">"completion_tokens"</span>: <span class="hljs-number">3</span>},
+    }
+    truncated = {
+        <span class="hljs-string">"choices"</span>: [{<span class="hljs-string">"finish_reason"</span>: <span class="hljs-string">"length"</span>, <span class="hljs-string">"message"</span>: {<span class="hljs-string">"content"</span>: <span class="hljs-string">"未完成的"</span>}}],
+        <span class="hljs-string">"usage"</span>: {<span class="hljs-string">"prompt_tokens"</span>: <span class="hljs-number">8</span>, <span class="hljs-string">"completion_tokens"</span>: <span class="hljs-number">10</span>},
+    }
+    <span class="hljs-keyword">assert</span> parse_chat_completion(complete).status == <span class="hljs-string">"completed_unverified"</span>
+    <span class="hljs-keyword">assert</span> parse_chat_completion(truncated).status == <span class="hljs-string">"incomplete"</span>
+    <span class="hljs-built_in">print</span>(parse_chat_completion(complete))</code></pre></div><p>这里刻意使用 <code>completed_unverified</code>，而不是 <code>success</code>，因为<strong>生成正常结束只解决了协议完成问题</strong>，并未验证答案是否符合业务规则。</p>
+<hr />
+<h2 id="section-29">12. 一次模型请求与 AI 编程工具到底差在哪</h2>
+<p><strong>AI 编程工具</strong>通常是在模型调用之外叠加工程环境感知、文件系统访问、项目搜索、计划、工具执行和结果反馈的应用或代理系统，例如 Codex、Claude Code、IDE 中的 AI 编程扩展等。</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>直接调用模型 API</th>
+<th>AI 编程工具</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>主要输入</td>
+<td>消息与调用参数</td>
+<td>编程目标、仓库状态、用户授权、工程上下文</td>
+</tr>
+<tr>
+<td>主要输出</td>
+<td>文本、结构化内容、工具调用意图</td>
+<td>代码改动、命令执行结果、测试报告、解释说明等</td>
+</tr>
+<tr>
+<td>文件访问</td>
+<td>默认没有</td>
+<td>在权限允许时可读写工作区文件</td>
+</tr>
+<tr>
+<td>执行终端命令</td>
+<td>默认没有</td>
+<td>有些工具提供受控命令执行</td>
+</tr>
+<tr>
+<td>多步迭代</td>
+<td>需要开发者自己编排</td>
+<td>通常内置一定的代理循环或工作流</td>
+</tr>
+<tr>
+<td>项目上下文</td>
+<td>开发者手动提供</td>
+<td>可能自动搜索文件、读取差异和诊断信息</td>
+</tr>
+<tr>
+<td>测试与验证</td>
+<td>开发者自己实现</td>
+<td>工具可能自动运行测试；仍需核对结果</td>
+</tr>
+<tr>
+<td>权限</td>
+<td>API 密钥权限与应用自身控制</td>
+<td>还涉及工作区、终端、网络、批准策略</td>
+</tr>
+<tr>
+<td>费用</td>
+<td>常按模型 Token 和附加资源计费</td>
+<td>可采用订阅额度、API 用量或工具自己的计费方式</td>
+</tr>
+<tr>
+<td>责任</td>
+<td>应用开发者负责业务可靠性</td>
+<td>人类使用者和工具实现仍需对变更与验证负责</td>
+</tr>
+</tbody></table>
+<h3 id="section-30">12.1 一个对比实例</h3>
+<p>假设需求是“给 FastAPI 项目增加会话记录”。</p>
+<p><strong>仅调用模型 API：</strong></p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">answer = client.chat.completions.create(
+    model=<span class="hljs-string">"deepseek-flash"</span>,
+    messages=[{
+        <span class="hljs-string">"role"</span>: <span class="hljs-string">"user"</span>,
+        <span class="hljs-string">"content"</span>: <span class="hljs-string">"请给出使用 SQLAlchemy 保存会话记录的代码示例"</span>
+    }],
+    extra_body={<span class="hljs-string">"thinking"</span>: {<span class="hljs-string">"type"</span>: <span class="hljs-string">"disabled"</span>}},
+)</code></pre></div><p>得到的是“建议或生成的代码文本”。除非自己编写后续程序，否则它不会自动打开项目、修改文件、运行 Alembic、执行测试或创建 Git 提交。</p>
+<p><strong>使用 AI 编程工具：</strong></p>
+<p>工具在获得相应权限后可能依次：读取仓库结构 → 查找模型/路由 → 修改文件 → 生成迁移 → 运行测试 → 发现错误 → 修复 → 给出差异和结果。</p>
+<p>关键区别不在于“模型智力高低”，而在于<strong>工具环境、执行权、上下文管理、工作流和验证能力</strong>。同一个模型可以用于聊天 API，也可以作为编程代理的后端；使用 AI 编程工具仍可能在底层发生多次模型 API 请求。</p>
+<h3 id="section-31">12.2 使用 AI 工具不等于已经掌握 API 开发</h3>
+<p>熟练使用 IDE 中的 AI 辅助工具，不必然意味着理解：</p>
+<ul>
+<li>HTTP 请求怎样构造，认证失败在哪里发生；</li>
+<li><code>finish_reason</code> 为 <code>length</code> 时如何防止截断结果入库；</li>
+<li>Token 用量怎样统计和控制；</li>
+<li>重试在超时与费用层面造成什么影响；</li>
+<li>如何在后端隔离不同用户的会话和密钥；</li>
+<li>如何将一次模型调用封装成可靠业务 API。</li>
+</ul>
+<p>反过来，会写一次 <code>client.chat.completions.create()</code> 也不意味着掌握多文件改造、系统调试和代理式开发。这是两个相关但不同层次的能力。</p>
+<hr />
+<h2 id="section-32">13. 两个调用层面的常见误解</h2>
+<h3 id="section-33">误解一：“我在 ChatGPT 里能聊天，Python 直接使用同一个账号就能调用 API。”</h3>
+<p><strong>不成立。</strong> ChatGPT 产品登录、订阅与开发者 API 的认证和计费可能分别管理。应按照相应 API 平台创建凭据、查看可用模型及配额。</p>
+<h3 id="section-34">误解二：“用了 OpenAI Python SDK，就一定在调用 OpenAI 模型。”</h3>
+<p><strong>不成立。</strong> SDK 支持配置 <code>base_url</code>；DeepSeek 等服务通过兼容接口允许使用同一 SDK 访问其模型。兼容并不保证所有参数和事件语义完全一致。</p>
+<h3 id="section-35">误解三：“返回 HTTP 200 代表任务成功。”</h3>
+<p><strong>不成立。</strong> 还要检查响应结构、完成状态、内容完整性、格式与业务正确性。</p>
+<h3 id="section-36">误解四：“<code>finish_reason='stop'</code> 表示答案正确。”</h3>
+<p><strong>不成立。</strong> <code>stop</code> 只反映生成停止方式，不证明事实性。</p>
+<h3 id="section-37">误解五：“输入 Token 只有用户那一句话。”</h3>
+<p><strong>不成立。</strong> 系统指令、历史消息、检索资料、工具描述等都可能消耗输入 Token。</p>
+<h3 id="section-38">误解六：“只调用一次 SDK 方法，就只会产生一次 HTTP 请求。”</h3>
+<p><strong>不一定。</strong> SDK 自动重试和应用层重试可能增加实际请求次数。</p>
+<h3 id="section-39">误解七：“模型告诉我已经修改文件，就是工程已经修改。”</h3>
+<p><strong>不成立。</strong> 除非有受控工具真实执行并检查实际文件、命令、Git diff，否则模型文本不是文件操作证据。</p>
+<h3 id="section-40">误解八：“所有兼容 OpenAI 的 API 都支持 Responses 的全部能力。”</h3>
+<p><strong>不成立。</strong> 第三方兼容服务可能仅支持一部分字段，忽略不支持的字段，或提供不同的会话状态行为。必须查阅对应供应商的兼容性说明。</p>
+<hr />
+<h2 id="section-41">14. 把一次模型调用纳入可观测的工程系统</h2>
+<p>实际工程可以记录一条简化调用元数据（以下为数据结构示例，不含用户原文）：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"business_request_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"req_example_001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"provider"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"deepseek"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"model"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"deepseek-flash"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"api_family"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"chat_completions"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"prompt_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"v1.2"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"response_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"example_completion_001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"finish_reason"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"stop"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"latency_ms"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">752</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"prompt_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">52</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"completion_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">27</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"total_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">79</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"validation_status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"passed"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"error_type"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>上述数据是<strong>演示记录，不是真实模型调用结果</strong>。</p>
+<p>建议将 <code>validation_status</code> 与 <code>finish_reason</code> 分开。一个请求可能生成正常结束但校验失败，也可能生成部分文本后因超时失败。为了能进行同一组问题的 A/B 回归，还应保存经批准的模型版本、提示词版本、测试样本 ID 和必要的参数配置。</p>
+<p>在多次工具调用的 Agent 中，一个用户请求可能派生多个模型调用，需分别记录其 Token 用量和响应状态，再汇总到业务请求维度。</p>
+<hr />
+<h2 id="section-42">15. 知识点之间的最终关系</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">用户需求
+   │
+   ├── 直接调用模型 API：开发者自行编排
+   │    ├── 组装输入消息
+   │    ├── 设置模型、参数和凭证
+   │    ├── 使用 HTTP / SDK 请求
+   │    ├── 判断 HTTP 与模型完成状态
+   │    ├── 读取 usage 与返回内容
+   │    └── 事实、格式、业务校验
+   │
+   └── 使用 AI 编程工具：工具编排 + 多次模型调用
+        ├── 检查工程与上下文
+        ├── 请求模型提出方案/补丁
+        ├── 按权限调用文件/终端/测试工具
+        ├── 读取执行结果并继续调用模型
+        └── 核对差异和最终结果</code></pre></div><p>这一条学习目标的本质，是掌握 <strong>“直接模型推理接口”与“构建在模型之上的工程工具”之间的责任边界</strong>。仅有模型文本不等于业务成功；只有在协议、输出、业务与操作证据均被检查之后，结果才可以进入后续流程。</p>
+<hr />
+<h2 id="section-43">16. 官方资料与进一步阅读</h2>
+<p>以下链接来自模型和 SDK 的官方文档。由于 API 与模型标识会迭代，实践时请以项目锁定的 SDK 版本和当时文档为准。</p>
+<ol>
+<li><a href="https://api-docs.deepseek.com/">DeepSeek — Your First API Call</a>：Python 首次调用、<code>base_url</code>、当前模型名、SDK 兼容方式。</li>
+<li><a href="https://api-docs.deepseek.com/api/create-chat-completion/">DeepSeek — Chat Completions API</a>：请求字段、响应结构、<code>finish_reason</code>、Token 用量。</li>
+<li><a href="https://api-docs.deepseek.com/guides/responses_api/">DeepSeek — Responses API Guide</a>：Responses 风格、<code>output_text</code>、响应状态与兼容限制。</li>
+<li><a href="https://api-docs.deepseek.com/quick_start/error_codes/">DeepSeek — Error Codes</a>：HTTP 状态码与常见错误。</li>
+<li><a href="https://api-docs.deepseek.com/quick_start/pricing/">DeepSeek — Models &amp; Pricing</a>：模型版本、价格和计费单位；不要使用本文示例假设价格代替现价。</li>
+<li><a href="https://github.com/openai/openai-python">OpenAI Python SDK 官方仓库</a>：Python SDK 用法、异常、超时与重试。</li>
+<li><a href="https://platform.openai.com/docs/api-reference/chat">OpenAI API — Chat Completions</a>：该接口家族的参考文档。</li>
+<li><a href="https://platform.openai.com/docs/api-reference/responses">OpenAI API — Responses</a>：Responses 接口家族的参考文档。</li>
+</ol>
+<hr />
+<h2 id="section-44">附录 A：两种调用接口的术语对照</h2>
+<table>
+<thead>
+<tr>
+<th>Chat Completions</th>
+<th>Responses</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>messages</code></td>
+<td><code>input</code>、<code>instructions</code> 等</td>
+<td>提交给模型的输入</td>
+</tr>
+<tr>
+<td><code>choices[0].message.content</code></td>
+<td><code>output_text</code> / <code>output</code></td>
+<td>生成内容入口</td>
+</tr>
+<tr>
+<td><code>choices[0].finish_reason</code></td>
+<td><code>status</code> / <code>incomplete_details</code> 等</td>
+<td>生成完成状态，语义并非完全一一对应</td>
+</tr>
+<tr>
+<td><code>usage.prompt_tokens</code></td>
+<td><code>usage.input_tokens</code></td>
+<td>输入用量</td>
+</tr>
+<tr>
+<td><code>usage.completion_tokens</code></td>
+<td><code>usage.output_tokens</code></td>
+<td>输出用量</td>
+</tr>
+<tr>
+<td><code>stream=True</code></td>
+<td><code>stream=True</code></td>
+<td>都有流式模式，但事件格式可能不同</td>
+</tr>
+</tbody></table>
+<h2 id="section-45">附录 B：关键术语简释</h2>
+<ul>
+<li><strong>API（Application Programming Interface）</strong>：程序之间约定的调用接口。</li>
+<li><strong>SDK（Software Development Kit）</strong>：封装接口、类型与开发辅助能力的工具库。</li>
+<li><strong>Inference（推理）</strong>：使用已训练模型的参数计算输出。</li>
+<li><strong>Request / Response</strong>：发送给服务的请求与服务返回的结果。</li>
+<li><strong>Completion</strong>：模型基于输入产生的生成结果。</li>
+<li><strong>Finish reason</strong>：模型生成停止的原因。</li>
+<li><strong>Usage</strong>：本次调用的用量统计。</li>
+<li><strong>Prompt Token</strong>：输入侧使用的 Token。</li>
+<li><strong>Completion Token</strong>：输出侧产生的 Token。</li>
+<li><strong>Rate Limit</strong>：单位时间或并发维度的请求限制。</li>
+<li><strong>Retry</strong>：遇到可重试错误后重新发送请求。</li>
+<li><strong>Idempotency（幂等）</strong>：重复执行不会造成重复业务副作用的性质。</li>
+<li><strong>Coding Agent</strong>：在模型推理基础上具备项目感知、工具执行、反馈循环的编程代理系统。</li>
+</ul>

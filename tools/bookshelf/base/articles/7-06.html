@@ -1,0 +1,885 @@
+<h1 id="section-1">测试、部署与效果验证（六）：GitHub Actions 自动化检查、测试与运行环境复现</h1>
+<blockquote>
+<p>对应学习目标：<strong>在 GitHub Actions 中运行必要的检查与测试，记录实际使用的依赖版本和运行方式。</strong></p>
+<p>知识范围：Workflow / Event / Job / Step / Runner、Python CI、uv 锁文件、格式与静态检查、pytest、接口/数据库/后台任务测试、报告归档、运行环境清单、重现与排障、权限与供应链安全。</p>
+<p>文档编写日期：2026-11-12。涉及 GitHub Actions 和第三方 Action 的版本、产品限制与配置项，会随着时间变化；最终执行时以实际工作流日志及官方文档为准。</p>
+</blockquote>
+<hr />
+<h2 id="section-2">1. CI、CD 与自动化验证的根本概念</h2>
+<p><strong>CI（Continuous Integration，持续集成）</strong> 是在代码变更时自动执行一组事先定义的检查，使不同开发者提交的代码尽早暴露集成问题。它的价值不在于自动显示一个绿色勾选，而在于建立<strong>可重复、可追踪、失败可定位</strong>的质量门槛。</p>
+<p>CD 有两种常见展开：Continuous Delivery（持续交付）强调软件始终具备可发布条件，Continuous Deployment（持续部署）进一步自动部署已通过门槛的更改。<strong>执行测试并不意味着必须自动部署。</strong> 在涉及数据库迁移、Agent 高权限工具和真实模型 API 的系统中，部署往往需要独立审批、回滚策略和部署环境权限。</p>
+<p>一次典型的 Python 项目 CI：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Git Push / Pull Request / 手动触发
+          ↓
+选择 Workflow 与触发事件
+          ↓
+分配 Runner / Checkout 代码
+          ↓
+选择 Python 解释器和依赖管理器
+          ↓
+根据 lockfile 安装依赖
+          ↓
+静态检查 + 格式检查 + 单元测试
+          ↓
+接口/数据库/Worker 集成测试（按组件划分）
+          ↓
+生成 JUnit、覆盖率与环境证据
+          ↓
+上传 Artifact，输出工作流结论</code></pre></div><p>其中“可以执行”和“验证过”严格不同：CI 绿灯仅证明<strong>在该次工作流所覆盖的环境与断言条件下通过</strong>，不能证明真实模型准确、生产 Kafka 恢复、所有浏览器交互正确。</p>
+<h3 id="section-3">1.1 必须区分的四种版本</h3>
+<table>
+<thead>
+<tr>
+<th>层次</th>
+<th>示例</th>
+<th>为什么需要记录</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>源码版本</td>
+<td>Git commit SHA</td>
+<td>明确是哪一次提交被测试</td>
+</tr>
+<tr>
+<td>工具版本</td>
+<td>Python、uv、ruff、pytest</td>
+<td>工具升级可能改变检查和行为</td>
+</tr>
+<tr>
+<td>依赖版本</td>
+<td>fastapi、httpx、SQLAlchemy 等</td>
+<td>同一份源码配不同依赖可能结果不同</td>
+</tr>
+<tr>
+<td>外部环境版本</td>
+<td>Ubuntu Runner、PostgreSQL 镜像、模型 API</td>
+<td>外部服务与运行环境也影响结果</td>
+</tr>
+</tbody></table>
+<p>仅有 <code>requirements.txt</code> 或 <code>pyproject.toml</code> 不足以证明本次具体安装了什么；还需要锁文件、运行时依赖列表和工作流执行记录。</p>
+<hr />
+<h2 id="section-4">2. GitHub Actions 的对象模型</h2>
+<h3 id="section-5">2.1 Workflow、Event、Job、Step、Action、Runner</h3>
+<ul>
+<li><strong>Workflow</strong>：位于 <code>.github/workflows/*.yml</code>（或 <code>.yaml</code>）的自动化流程定义。</li>
+<li><strong>Event</strong>：触发条件，例如 <code>push</code>、<code>pull_request</code>、<code>workflow_dispatch</code>。</li>
+<li><strong>Job</strong>：在一个 Runner 上执行的一组步骤；不同 Job 默认彼此隔离，除非指定 <code>needs</code> 或共享 Artifact/外部服务。</li>
+<li><strong>Step</strong>：Job 内单次操作，可以执行 shell 命令（<code>run</code>），也可以调用 Action（<code>uses</code>）。同一 Job 的 Step 通常共享工作空间，但运行在不同进程中。</li>
+<li><strong>Action</strong>：可复用步骤，例如 <code>actions/checkout</code>、<code>astral-sh/setup-uv</code>、<code>actions/upload-artifact</code>。</li>
+<li><strong>Runner</strong>：执行 Job 的机器，可由 GitHub 托管，也可自行托管。</li>
+</ul>
+<div class="code-wrap"><div class="code-label"><span>yaml</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-attr">name:</span> <span class="hljs-string">CI</span>
+<span class="hljs-attr">"on":</span> [<span class="hljs-string">push</span>, <span class="hljs-string">pull_request</span>]
+<span class="hljs-attr">permissions:</span>
+  <span class="hljs-attr">contents:</span> <span class="hljs-string">read</span>
+<span class="hljs-attr">jobs:</span>
+  <span class="hljs-attr">test:</span>
+    <span class="hljs-attr">runs-on:</span> <span class="hljs-string">ubuntu-24.04</span>
+    <span class="hljs-attr">steps:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">uses:</span> <span class="hljs-string">actions/checkout@v7</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">run:</span> <span class="hljs-string">python</span> <span class="hljs-string">--version</span></code></pre></div><p><code>"on"</code> 与不加引号的 <code>on</code> 对 GitHub Actions 都是合法的 YAML 键。这里用引号是为了避免某些 YAML 1.1 解析器（例如默认 PyYAML）把 <code>on</code> 误判成布尔值 <code>true</code>。</p>
+<h3 id="section-6">2.2 Job 与 Step 的环境范围</h3>
+<p>每个 Step 是新进程，因此 <code>export X=1</code> 通常不会自动让后续 Step 继承 X。应使用 <code>env:</code> 声明，或按 GitHub 官方机制向 <code>$GITHUB_ENV</code> 写入被允许的环境变量。共享文件则可以保留在同一 Job 的工作空间。</p>
+<p>不同 Job 不应该假设共享同一文件系统，传递测试结果应使用 Artifact、明确的 Job Output 或外部存储，而不是依赖上一个 Job 的临时路径。</p>
+<h3 id="section-7">2.3 触发条件与检查范围</h3>
+<ul>
+<li><code>push</code>：合并或直接推送后验证代码状态。</li>
+<li><code>pull_request</code>：在代码评审阶段验证待合并更改。</li>
+<li><code>workflow_dispatch</code>：手动运行，适用于诊断和不宜每次自动执行的较重检查。</li>
+<li><code>schedule</code>：需要周期性巡检的情况下使用，但不是普通 PR 检查的必要组成。</li>
+</ul>
+<p>使用路径过滤时要特别注意：如果被分支保护规则要求的检查因路径过滤没有执行，可能出现状态一直 Pending 的情况。应按仓库规则设计检查名称、触发条件和 Required Status Checks。</p>
+<hr />
+<h2 id="section-8">3. 运行环境不是“默认一致”的</h2>
+<h3 id="section-9">3.1 Python 版本</h3>
+<p><code>runs-on: ubuntu-latest</code> 是可移动的系统镜像标签，不能保证任意两次运行的工具版本完全相同。<code>runs-on: ubuntu-24.04</code> 固定了系统发行版本系列，但 GitHub 仍会更新相应 Runner 镜像及预装组件，因此应保存运行时信息。</p>
+<p>Python 可以通过 <code>actions/setup-python</code> 指定：</p>
+<div class="code-wrap"><div class="code-label"><span>yaml</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-bullet">-</span> <span class="hljs-attr">uses:</span> <span class="hljs-string">actions/setup-python@v7</span>
+  <span class="hljs-attr">with:</span>
+    <span class="hljs-attr">python-version:</span> <span class="hljs-string">"3.13"</span>
+<span class="hljs-bullet">-</span> <span class="hljs-attr">run:</span> <span class="hljs-string">python</span> <span class="hljs-string">--version</span></code></pre></div><p>其中 <code>3.13</code> 表示兼容的 3.13.x 补丁版本，而非一个固定补丁号。需要严格复现时，指定准确补丁版本并记录 <code>python --version</code>。</p>
+<p>也可使用 <code>uv python install 3.13</code>。<strong>一个项目选定一种明确的 Python 安装方式即可，不必无理由叠加 setup-python 和 uv 的解释器安装。</strong></p>
+<h3 id="section-10">3.2 开发机与 CI 系统差异</h3>
+<p>Windows 开发机与 Ubuntu CI 之间存在路径、换行、文件大小写、编码、可执行权限以及服务地址差异。因此：</p>
+<ul>
+<li>核心单元测试尽量跨平台；</li>
+<li>Linux 生产部署使用至少一个 Linux CI Job 验证；</li>
+<li>若 Windows 行为关键，可通过 <code>strategy.matrix.os</code> 增加 Windows Runner；</li>
+<li>依赖真实数据库的测试应使用明确的数据库服务，而不能仅用 SQLite 冒充 PostgreSQL。</li>
+</ul>
+<h3 id="section-11">3.3 Python 环境、venv、依赖声明和锁文件</h3>
+<p>不同概念分别是：</p>
+<table>
+<thead>
+<tr>
+<th>文件/工具</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>pyproject.toml</code></td>
+<td>声明项目、最低 Python 版本与直接依赖范围</td>
+</tr>
+<tr>
+<td><code>uv.lock</code></td>
+<td>记录解析出的依赖图与具体版本，是项目可复现安装的关键输入</td>
+</tr>
+<tr>
+<td><code>.python-version</code></td>
+<td>约定 Python 解释器版本</td>
+</tr>
+<tr>
+<td><code>.venv/</code></td>
+<td>本地实际安装依赖的环境，通常不提交仓库</td>
+</tr>
+<tr>
+<td>CI 环境清单</td>
+<td>记录某次运行<strong>实际</strong>安装的包与版本，属于执行证据</td>
+</tr>
+</tbody></table>
+<p><code>uv sync --locked</code> 将检查锁文件是否与项目要求一致；若需要更新锁文件则报错，而不是静默修改。<code>uv run --locked ...</code> 同样可防止运行前自动改锁。<code>--frozen</code> 的语义不同，不应简单当作 <code>--locked</code> 的同义词。</p>
+<p>推荐在修改依赖时：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">uv add fastapi
+uv add <span class="hljs-literal">--group</span> dev pytest ruff httpx
+uv lock
+uv sync <span class="hljs-literal">--locked</span> <span class="hljs-literal">--all-groups</span>
+uv run <span class="hljs-literal">--locked</span> pytest <span class="hljs-literal">-q</span></code></pre></div><p>把 <code>pyproject.toml</code>、<code>uv.lock</code> 和必要的项目配置一起提交。CI 不应该通过“发现依赖不匹配 → 自动重新锁定 → 继续测试”掩盖声明与锁文件漂移。</p>
+<hr />
+<h2 id="section-12">4. 检查与测试应分层</h2>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>典型命令</th>
+<th>测试什么</th>
+<th>不证明什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>语法</td>
+<td><code>python -m compileall -q .</code></td>
+<td>Python 能否解析/编译</td>
+<td>类型正确、业务行为正确</td>
+</tr>
+<tr>
+<td>格式</td>
+<td><code>ruff format --check .</code></td>
+<td>代码格式符合团队约定</td>
+<td>是否能运行</td>
+</tr>
+<tr>
+<td>静态检查</td>
+<td><code>ruff check .</code></td>
+<td>常见错误和编码规范</td>
+<td>运行时所有异常均可发现</td>
+</tr>
+<tr>
+<td>单元测试</td>
+<td><code>pytest -q tests/unit</code></td>
+<td>核心函数和失败分支</td>
+<td>数据库真实协议一致</td>
+</tr>
+<tr>
+<td>API 测试</td>
+<td>FastAPI <code>TestClient</code></td>
+<td>路由、校验、错误契约</td>
+<td>网络代理、真实生产负载</td>
+</tr>
+<tr>
+<td>数据库集成</td>
+<td>PostgreSQL + ORM</td>
+<td>事务、约束、迁移、SQL</td>
+<td>Kafka Offset 提交与外部系统一致性</td>
+</tr>
+<tr>
+<td>后台任务集成</td>
+<td>Kafka + Worker</td>
+<td>消费与恢复、重试、幂等</td>
+<td>完整生产灾难恢复</td>
+</tr>
+<tr>
+<td>模型效果评测</td>
+<td>真实模型与固定样例</td>
+<td>回答、工具选择、引用正确性</td>
+<td>确定性程序在所有故障下正确</td>
+</tr>
+</tbody></table>
+<p>普通 PR 的 CI 应优先运行快速且无真实模型费用的测试。真实模型评测可放在手动或隔离的受控工作流，并设置费用与权限边界。无需为了 CI 自动作业而向不可信 PR 暴露 API Key。</p>
+<h3 id="section-13">4.1 断言要验证结果而非只看状态</h3>
+<p>错误测试：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">assert</span> response.status_code == <span class="hljs-number">200</span></code></pre></div><p>这只能证明 HTTP 请求成功。更完整的测试应检查业务输出：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">assert</span> response.status_code == <span class="hljs-number">200</span>
+<span class="hljs-keyword">assert</span> response.json() == {<span class="hljs-string">"total_cents"</span>: <span class="hljs-number">250</span>}</code></pre></div><p>对于异常分支，必须明确输入、预期的 HTTP 状态、错误结构和数据库副作用。后台任务测试还需要对照任务状态与最终持久化记录，不能只看 Worker 进程是否活着。</p>
+<hr />
+<h2 id="section-14">5. 使用 uv 构建一个最小可复现的 Python CI 项目</h2>
+<p>下面使用 FastAPI 报价接口作为教学项目。其目的不是构建生产业务，而是展示从代码检查、API 测试到环境留证的一整套最小 CI。</p>
+<p>项目文件结构：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">ci-learning-demo/
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── .python-version
+├── app.py
+├── pyproject.toml
+├── uv.lock                   # 执行 uv lock 后生成并提交
+├── tests/
+│   ├── test_app.py
+│   └── test_record_environment.py
+├── scripts/
+│   └── record_environment.py
+└── evidence/                 # CI 产生，不应提交</code></pre></div><h3 id="section-15">5.1 最小项目依赖</h3>
+<div class="code-wrap"><div class="code-label"><span>toml</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-section">[project]</span>
+<span class="hljs-attr">name</span> = <span class="hljs-string">"ci-learning-demo"</span>
+<span class="hljs-attr">version</span> = <span class="hljs-string">"0.1.0"</span>
+<span class="hljs-attr">requires-python</span> = <span class="hljs-string">"&gt;=3.13"</span>
+<span class="hljs-attr">dependencies</span> = [<span class="hljs-string">"fastapi&gt;=0.115,&lt;1"</span>]
+
+<span class="hljs-section">[dependency-groups]</span>
+<span class="hljs-attr">dev</span> = [<span class="hljs-string">"pytest&gt;=8,&lt;10"</span>, <span class="hljs-string">"httpx&gt;=0.27,&lt;1"</span>, <span class="hljs-string">"ruff&gt;=0.9,&lt;1"</span>]
+
+<span class="hljs-section">[tool.uv]</span>
+<span class="hljs-attr">package</span> = <span class="hljs-literal">false</span>
+
+<span class="hljs-section">[tool.pytest.ini_options]</span>
+<span class="hljs-attr">testpaths</span> = [<span class="hljs-string">"tests"</span>]
+
+<span class="hljs-section">[tool.ruff]</span>
+<span class="hljs-attr">line-length</span> = <span class="hljs-number">88</span>
+<span class="hljs-attr">target-version</span> = <span class="hljs-string">"py313"</span></code></pre></div><p>以上是教学用版本约束，<strong>并非安装后实际得到的具体版本</strong>。实际结果由 <code>uv.lock</code> 和运行时清单决定。<code>[tool.uv] package=false</code> 表示此示例不是发布到 PyPI 的安装包；将 <code>app.py</code> 放在项目根目录让测试直接导入即可。复杂系统可改用 <code>src/</code> 包布局并配置构建后端。</p>
+<h3 id="section-16">5.2 本地准备与运行命令</h3>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">uv lock
+uv sync <span class="hljs-literal">--locked</span> <span class="hljs-literal">--all-groups</span>
+uv run <span class="hljs-literal">--locked</span> <span class="hljs-literal">--no-sync</span> ruff check .
+uv run <span class="hljs-literal">--locked</span> <span class="hljs-literal">--no-sync</span> ruff format <span class="hljs-literal">--check</span> .
+uv run <span class="hljs-literal">--locked</span> <span class="hljs-literal">--no-sync</span> pytest <span class="hljs-literal">-q</span>
+uv run <span class="hljs-literal">--locked</span> <span class="hljs-literal">--no-sync</span> python scripts/record_environment.py</code></pre></div><p><code>--no-sync</code> 表示运行时不再次同步环境；前提是已成功执行 <code>uv sync</code>，不能用于跳过依赖安装。添加新依赖时应重新生成并提交 <code>uv.lock</code>。</p>
+<hr />
+<h2 id="section-17">6. GitHub Actions 完整 CI Workflow</h2>
+<p>如下示例使用 GitHub-hosted Ubuntu Runner，Python 3.13 与固定 uv 工具版本，执行 Ruff 检查和 pytest，并归档运行环境清单和 JUnit 报告。</p>
+<p><strong>使用条件</strong>：将示例工程代码及实际生成的 <code>uv.lock</code> 提交至仓库的 <code>main</code> 分支；其中固定 Action SHA 取自对应项目官方示例。第三方 Action 的 SHA 与工具版本应随着项目维护进行审查更新。</p>
+<div class="code-wrap"><div class="code-label"><span>yaml</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-attr">name:</span> <span class="hljs-string">Python</span> <span class="hljs-string">CI</span>
+
+<span class="hljs-attr">"on":</span>
+  <span class="hljs-attr">push:</span>
+    <span class="hljs-attr">branches:</span> [<span class="hljs-string">main</span>]
+  <span class="hljs-attr">pull_request:</span>
+  <span class="hljs-attr">workflow_dispatch:</span>
+
+<span class="hljs-attr">permissions:</span>
+  <span class="hljs-attr">contents:</span> <span class="hljs-string">read</span>
+
+<span class="hljs-attr">concurrency:</span>
+  <span class="hljs-attr">group:</span> <span class="hljs-string">ci-${{</span> <span class="hljs-string">github.workflow</span> <span class="hljs-string">}}-${{</span> <span class="hljs-string">github.ref</span> <span class="hljs-string">}}</span>
+  <span class="hljs-attr">cancel-in-progress:</span> <span class="hljs-literal">true</span>
+
+<span class="hljs-attr">jobs:</span>
+  <span class="hljs-attr">checks:</span>
+    <span class="hljs-attr">runs-on:</span> <span class="hljs-string">ubuntu-24.04</span>
+    <span class="hljs-attr">timeout-minutes:</span> <span class="hljs-number">15</span>
+    <span class="hljs-attr">steps:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Checkout</span> <span class="hljs-string">source</span>
+        <span class="hljs-attr">uses:</span> <span class="hljs-string">actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1</span> <span class="hljs-comment"># v7.0.1</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Install</span> <span class="hljs-string">uv</span>
+        <span class="hljs-attr">uses:</span> <span class="hljs-string">astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9</span> <span class="hljs-comment"># v9.0.0</span>
+        <span class="hljs-attr">with:</span>
+          <span class="hljs-attr">version:</span> <span class="hljs-string">"0.10.0"</span> <span class="hljs-comment"># example: update deliberately with the project</span>
+          <span class="hljs-attr">enable-cache:</span> <span class="hljs-literal">true</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Prepare</span> <span class="hljs-string">Python</span>
+        <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">python</span> <span class="hljs-string">install</span> <span class="hljs-number">3.13</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Install</span> <span class="hljs-string">locked</span> <span class="hljs-string">dependencies</span>
+        <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">sync</span> <span class="hljs-string">--locked</span> <span class="hljs-string">--all-groups</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Record</span> <span class="hljs-string">runtime</span> <span class="hljs-string">and</span> <span class="hljs-string">dependencies</span>
+        <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">run</span> <span class="hljs-string">--locked</span> <span class="hljs-string">--no-sync</span> <span class="hljs-string">python</span> <span class="hljs-string">scripts/record_environment.py</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Lint</span>
+        <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">run</span> <span class="hljs-string">--locked</span> <span class="hljs-string">--no-sync</span> <span class="hljs-string">ruff</span> <span class="hljs-string">check</span> <span class="hljs-string">.</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Check</span> <span class="hljs-string">formatting</span>
+        <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">run</span> <span class="hljs-string">--locked</span> <span class="hljs-string">--no-sync</span> <span class="hljs-string">ruff</span> <span class="hljs-string">format</span> <span class="hljs-string">--check</span> <span class="hljs-string">.</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Unit</span> <span class="hljs-string">and</span> <span class="hljs-string">API</span> <span class="hljs-string">tests</span>
+        <span class="hljs-attr">run:</span> <span class="hljs-string">|
+          mkdir -p evidence
+          uv run --locked --no-sync pytest -q --junitxml=evidence/junit.xml
+</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Upload</span> <span class="hljs-string">evidence</span>
+        <span class="hljs-attr">if:</span> <span class="hljs-string">${{</span> <span class="hljs-type">!cancelled()</span> <span class="hljs-string">}}</span>
+        <span class="hljs-attr">uses:</span> <span class="hljs-string">actions/upload-artifact@v4</span>
+        <span class="hljs-attr">with:</span>
+          <span class="hljs-attr">name:</span> <span class="hljs-string">ci-evidence-${{</span> <span class="hljs-string">github.run_id</span> <span class="hljs-string">}}-${{</span> <span class="hljs-string">github.run_attempt</span> <span class="hljs-string">}}</span>
+          <span class="hljs-attr">path:</span> <span class="hljs-string">evidence/</span>
+          <span class="hljs-attr">if-no-files-found:</span> <span class="hljs-string">warn</span>
+          <span class="hljs-attr">retention-days:</span> <span class="hljs-number">14</span></code></pre></div><h3 id="section-18">6.1 逐项解释</h3>
+<ol>
+<li><code>permissions: contents: read</code>：遵循最小权限，仅允许 CI 获取仓库内容。部署和写入外部服务需要另行设计权限。</li>
+<li><code>"on"</code>：推送、PR 和手动执行均可触发。手动按钮依赖工作流已存在于默认分支等 GitHub 规则。</li>
+<li><code>concurrency</code>：同一分支的旧运行可以被取消，避免连续推送浪费计算；但若任务具有不可中断的外部副作用，不应贸然使用 <code>cancel-in-progress: true</code>。</li>
+<li><code>runs-on: ubuntu-24.04</code>：减少操作系统系列漂移，不代表镜像内容完全冻结。</li>
+<li><code>timeout-minutes</code>：限制卡住的 CI Job，避免无边界执行。</li>
+<li>固定的 <code>checkout</code> 和 <code>setup-uv</code> Action SHA：减少 Action 标签漂移风险，实际仍需验证来源与审计更新。</li>
+<li><code>uv sync --locked --all-groups</code>：根据仓库锁文件安装所有依赖组，检查 lock 与项目配置一致性。</li>
+<li>Ruff：不满足检查即返回非零退出码，Job 标记失败。</li>
+<li>pytest：输出 JUnit XML 供后续审计或测试报告工具消费。</li>
+<li>环境清单：在测试前生成，确保即使后续测试失败，也能保留安装版本与配置哈希。</li>
+<li>Artifact：在工作流未被取消时尝试上传证据，<code>if-no-files-found: warn</code> 避免早期依赖安装故障额外触发“没有 Artifact”的次生失败。</li>
+</ol>
+<h3 id="section-19">6.2 关于固定 Action 版本与 SHA</h3>
+<p><code>actions/checkout@v7</code> 追随可更新的标签；<code>actions/checkout@&lt;40位SHA&gt;</code> 锁定具体提交。后者更加可审计，但需要定期升级并核查发布方。对第三方 Action 应优先采用完整提交 SHA；示例中 <code>upload-artifact@v4</code> 为便于阅读的版本引用，严格生产环境应换成由官方发布信息核实的完整提交 SHA。</p>
+<p><strong>不要从搜索结果、评论或非官方片段随意复制 SHA 并假设可信。</strong> 需要核对仓库所有者、发布标签与提交指向。固定 Action 不等于固定运行镜像、依赖服务器或上游 API。</p>
+<hr />
+<h2 id="section-20">7. 记录实际依赖版本和运行方式</h2>
+<p>这是本条学习目标最容易被忽略、同时也是最重要的交付要求。</p>
+<h3 id="section-21">7.1 仅保存锁文件为什么仍不够？</h3>
+<p><code>uv.lock</code> 证明依赖解析快照，但一次 CI 执行还受这些因素影响：</p>
+<ul>
+<li>Runner 系统镜像及其更新；</li>
+<li>实际 Python 补丁版本与架构；</li>
+<li>实际安装包集合（包含环境附加包）；</li>
+<li>uv 工具版本与 Action 版本；</li>
+<li>源码提交及具体 Job 运行次数；</li>
+<li>执行的测试命令和是否采用了附加环境变量；</li>
+<li>外部服务镜像和数据库迁移版本。</li>
+</ul>
+<p>因此建议为每次运行生成 <code>evidence/environment.json</code>，记录<strong>允许记录的元数据</strong>，而不是将 <code>env</code>、所有请求头或秘密完整输出到日志。</p>
+<h3 id="section-22">7.2 建议的运行环境清单字段</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义</th>
+<th>来源</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>git_commit</code></td>
+<td>本次代码版本</td>
+<td><code>GITHUB_SHA</code> 或 Git</td>
+</tr>
+<tr>
+<td><code>ci.GITHUB_RUN_ID</code></td>
+<td>工作流运行 ID</td>
+<td>GitHub Runner</td>
+</tr>
+<tr>
+<td><code>ci.GITHUB_RUN_ATTEMPT</code></td>
+<td>同一 Run 的重试次数</td>
+<td>GitHub Runner</td>
+</tr>
+<tr>
+<td><code>python</code></td>
+<td>实际 Python 版本</td>
+<td><code>sys.version</code></td>
+</tr>
+<tr>
+<td><code>uv</code></td>
+<td>实际 uv 版本</td>
+<td><code>uv --version</code></td>
+</tr>
+<tr>
+<td><code>platform</code></td>
+<td>运行系统与架构</td>
+<td><code>platform</code></td>
+</tr>
+<tr>
+<td><code>installed_packages</code></td>
+<td>安装包的名称与实际版本</td>
+<td><code>importlib.metadata</code></td>
+</tr>
+<tr>
+<td><code>sha256.uv.lock</code></td>
+<td>锁文件内容指纹</td>
+<td><code>hashlib.sha256</code></td>
+</tr>
+<tr>
+<td><code>sha256.pyproject.toml</code></td>
+<td>项目定义内容指纹</td>
+<td><code>hashlib.sha256</code></td>
+</tr>
+<tr>
+<td><code>commands</code></td>
+<td>该 CI 定义的主要执行命令</td>
+<td>明确维护的命令清单</td>
+</tr>
+</tbody></table>
+<p><code>commands</code> 是<strong>预定义执行命令记录</strong>，不是 shell 实际执行成功的证明；实际执行成败还要看每个 Step 的退出码、Job 日志与 JUnit 测试记录。</p>
+<h3 id="section-23">7.3 最小权限与日志安全</h3>
+<ul>
+<li>只读取<strong>白名单</strong>环境变量，避免记录 <code>OPENAI_API_KEY</code>、<code>DATABASE_URL</code>、<code>GITHUB_TOKEN</code> 等秘密；</li>
+<li>不把完整模型 Prompt、用户输入或数据库记录直接上传 Artifact；</li>
+<li>依赖包名称在企业内部也可能敏感，对 Artifact 设定访问控制和保留期；</li>
+<li>将真实执行结果与测试数据分开保存，避免用手工生成的成功报告冒充 CI 结果。</li>
+</ul>
+<hr />
+<h2 id="section-24">8. 生成并保存 CI 测试证据</h2>
+<h3 id="section-25">8.1 JUnit XML 报告</h3>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-built_in">mkdir</span> -p evidence
+uv run --locked --no-sync pytest -q --junitxml=evidence/junit.xml</code></pre></div><p>JUnit 格式包含测试套件、测试名、失败/错误情况和执行时间等，供 CI 报告页面或审计工具读取；它与代码覆盖率报告不是同一件事。</p>
+<h3 id="section-26">8.2 GitHub Artifact 与 Cache 的本质区别</h3>
+<ul>
+<li><strong>Artifact</strong>：应当保留给用户或后续 Job 的产物，例如测试报告、失败截图、依赖清单、静态分析报告。</li>
+<li><strong>Cache</strong>：为了节约重复下载与构建时间而保存的可再生缓存，例如 uv 包缓存。缓存命中<strong>不等于</strong>依赖版本已锁定，也不能当作可靠的审计记录。</li>
+</ul>
+<p>上传 Artifact 应限制范围：上传 <code>evidence/</code> 比上传整个工作空间更可控。<code>retention-days</code> 决定存储保留期限，并受仓库/组织策略约束。Artifact 过期后，Git commit 和锁文件可能仍在，但历史运行证据不一定能够找回。</p>
+<h3 id="section-27">8.3 输出 Job Summary</h3>
+<p>GitHub 提供 <code>$GITHUB_STEP_SUMMARY</code> 文件路径，可追加 Markdown 作为该次 Job 的摘要。示例：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">{
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"## Python CI"</span>
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"- Commit: <span class="hljs-variable">$GITHUB_SHA</span>"</span>
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"- Python: <span class="hljs-subst">$(python --version 2&gt;&amp;1)</span>"</span>
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"- uv: <span class="hljs-subst">$(uv --version)</span>"</span>
+} &gt;&gt; <span class="hljs-string">"<span class="hljs-variable">$GITHUB_STEP_SUMMARY</span>"</span></code></pre></div><p>摘要适合记录版本与跳转说明，不适合输出所有环境变量和敏感路径。若需要在测试失败后仍生成摘要，应单独处理失败路径和退出码。</p>
+<hr />
+<h2 id="section-28">9. 如何加入真实数据库集成测试</h2>
+<p>SQLite 对 SQLAlchemy 模型和事务行为的测试有价值，但不能证明 PostgreSQL 的 RLS、行锁、JSONB、并发隔离和 Alembic 迁移全部正确。需要真实数据库时，可使用 GitHub Actions 的 PostgreSQL service container：</p>
+<div class="code-wrap"><div class="code-label"><span>yaml</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-attr">jobs:</span>
+  <span class="hljs-attr">postgres-test:</span>
+    <span class="hljs-attr">runs-on:</span> <span class="hljs-string">ubuntu-24.04</span>
+    <span class="hljs-attr">services:</span>
+      <span class="hljs-attr">postgres:</span>
+        <span class="hljs-attr">image:</span> <span class="hljs-string">postgres:17</span>
+        <span class="hljs-attr">env:</span>
+          <span class="hljs-attr">POSTGRES_USER:</span> <span class="hljs-string">ci_user</span>
+          <span class="hljs-attr">POSTGRES_PASSWORD:</span> <span class="hljs-string">ci_password_local_only</span>
+          <span class="hljs-attr">POSTGRES_DB:</span> <span class="hljs-string">ci_db</span>
+        <span class="hljs-attr">ports:</span>
+          <span class="hljs-bullet">-</span> <span class="hljs-number">5432</span><span class="hljs-string">:5432</span>
+        <span class="hljs-attr">options:</span> <span class="hljs-string">&gt;-
+          --health-cmd "pg_isready -U ci_user -d ci_db"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+</span>    <span class="hljs-attr">env:</span>
+      <span class="hljs-attr">TEST_DATABASE_URL:</span> <span class="hljs-string">postgresql+psycopg://ci_user:ci_password_local_only@127.0.0.1:5432/ci_db</span>
+    <span class="hljs-attr">steps:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">uses:</span> <span class="hljs-string">actions/checkout@v7</span>
+      <span class="hljs-comment"># 这里继续安装 Python 与项目依赖</span>
+      <span class="hljs-comment"># 安装 Alembic 与 psycopg 后执行数据库迁移与测试</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">run</span> <span class="hljs-string">--locked</span> <span class="hljs-string">alembic</span> <span class="hljs-string">upgrade</span> <span class="hljs-string">head</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">run</span> <span class="hljs-string">--locked</span> <span class="hljs-string">pytest</span> <span class="hljs-string">-q</span> <span class="hljs-string">tests/integration_db</span></code></pre></div><p>上述是<strong>需要已有 Alembic 工程和 PostgreSQL 驱动的增量模板</strong>，不是本节最小项目可原样运行的完整 Job。数据库口令仅为独立 CI 容器内的演示凭据，不应复制到真实环境，尤其不要在拥有外部生产网络权限的 Runner 上使用。</p>
+<p>在直接运行于 Ubuntu Runner 的 Job 中，通过映射的主机端口访问服务通常是 <code>127.0.0.1:5432</code>；如果 Job 自身运行在容器中，通常使用服务名 <code>postgres:5432</code>。两者不要混淆。服务健康不代表数据库迁移已完成，也不代表业务表一定存在。</p>
+<h3 id="section-29">9.1 PostgreSQL / Kafka 集成测试的边界</h3>
+<ul>
+<li>CI 部署测试数据库应与生产环境<strong>完全隔离</strong>；</li>
+<li>测试启动前执行 <code>alembic upgrade head</code>，而不是自动 <code>create_all()</code> 掩盖迁移缺失；</li>
+<li>并发测试应使用独立、清理明确的测试数据；</li>
+<li>Kafka 故障恢复测试应验证消息重投、Worker 崩溃与最终结果幂等，而不仅是 Broker 能启动；</li>
+<li>较耗时的真实服务测试可以使用独立 Job，并设置 <code>needs</code>、超时和明确的触发条件。</li>
+</ul>
+<hr />
+<h2 id="section-30">10. 多版本测试与 Matrix</h2>
+<p>在需要支持多种 Python 或系统环境时，使用 Matrix：</p>
+<div class="code-wrap"><div class="code-label"><span>yaml</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-attr">strategy:</span>
+  <span class="hljs-attr">fail-fast:</span> <span class="hljs-literal">false</span>
+  <span class="hljs-attr">matrix:</span>
+    <span class="hljs-attr">python-version:</span> [<span class="hljs-string">"3.12"</span>, <span class="hljs-string">"3.13"</span>]
+<span class="hljs-attr">steps:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">uses:</span> <span class="hljs-string">actions/checkout@v7</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">uses:</span> <span class="hljs-string">astral-sh/setup-uv@v9</span>
+    <span class="hljs-attr">with:</span>
+      <span class="hljs-attr">python-version:</span> <span class="hljs-string">${{</span> <span class="hljs-string">matrix.python-version</span> <span class="hljs-string">}}</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">sync</span> <span class="hljs-string">--locked</span> <span class="hljs-string">--all-groups</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">run</span> <span class="hljs-string">--locked</span> <span class="hljs-string">pytest</span> <span class="hljs-string">-q</span></code></pre></div><p><strong>注意：</strong> 这个 Matrix 是单独的机制示例；上面最小项目的 <code>requires-python = "&gt;=3.13"</code> 不支持 3.12，若按原样使用应保留 3.13 或调整项目的 Python 兼容范围并验证代码与依赖。若矩阵包含多个 Job，Artifact 名称必须互不冲突，建议带 Python 版本和操作系统后缀。</p>
+<p><code>fail-fast: false</code> 可以避免某个版本失败就取消其余版本，便于收集完整兼容性证据；代价是增加执行时间和资源消耗。</p>
+<hr />
+<h2 id="section-31">11. 测试结果与合并门槛</h2>
+<p><strong>Required Status Check</strong> 指合并前必须通过的指定检查。建议按真实团队规则设置：</p>
+<ul>
+<li>静态检查和格式检查；</li>
+<li>快速单元及接口测试；</li>
+<li>关键数据库迁移检查；</li>
+<li>必要的授权与跨用户数据隔离测试。</li>
+</ul>
+<p>不要将总是跳过的 Job 错误配置为唯一合并门槛；不要使用 <code>continue-on-error: true</code> 隐藏必须通过的关键测试；也不要把 <code>pytest ... || true</code> 当作“容错”，否则 CI 可能假绿。</p>
+<p>如果某些检测仅供观察，可以在单独 Job 明确标记为实验性或非阻断，并保留真实失败结果。</p>
+<hr />
+<h2 id="section-32">12. 安全：CI 执行的是代码，不能忽略权限</h2>
+<p>Pull Request 可能带来不可信代码。执行测试本身就会运行项目的 Python 代码或构建脚本，必须遵循以下安全原则。</p>
+<p><strong>最低权限原则：</strong> 使用 <code>permissions: contents: read</code>。只有确实需要写入评论、发布包或部署时才增加精确权限。</p>
+<p><strong>避免提权运行未知代码：</strong> 普通 PR 检查使用 <code>pull_request</code>；不应在带有仓库密钥的 <code>pull_request_target</code> 工作流中 checkout 并执行不可信 PR 代码，这可能暴露秘密和写权限。</p>
+<p><strong>密钥分离：</strong> 普通测试使用替身或本地服务，不能随意给外部贡献者提交的 PR 注入生产 API Key。真实模型评测可通过人工触发、受保护环境和权限批准独立运行。</p>
+<p><strong>供应链：</strong> 优先使用官方 Action、经审查的完整 SHA 固定、锁文件、最小化依赖源。对私有包索引和自托管 Runner 应额外考虑凭据和网络隔离。</p>
+<p><strong>Artifact 安全：</strong> 只有经过数据筛选的报告可以上传。Trace、原始请求和数据库快照可能含密钥、个人数据或内部资料，不应默认公开。</p>
+<hr />
+<h2 id="section-33">13. 常见故障的定位方法</h2>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>典型原因</th>
+<th>排查切入点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Workflow 没触发</td>
+<td>文件路径错误、事件过滤、分支不符</td>
+<td><code>.github/workflows/</code>、<code>on</code>、提交到哪个分支</td>
+</tr>
+<tr>
+<td><code>uv sync --locked</code> 报错</td>
+<td>修改了依赖但未提交新锁文件</td>
+<td>对比 <code>pyproject.toml</code>、<code>uv.lock</code>、Python 约束</td>
+</tr>
+<tr>
+<td>本地能跑、CI <code>ModuleNotFoundError</code></td>
+<td>本地环境额外安装依赖、包路径有误</td>
+<td><code>uv.lock</code>、CI 依赖组、导入路径</td>
+</tr>
+<tr>
+<td>Ruff 失败</td>
+<td>代码规范、import 顺序、格式问题</td>
+<td>本地运行完全相同的命令</td>
+</tr>
+<tr>
+<td>pytest 失败</td>
+<td>行为错误、并发竞态、未隔离测试状态</td>
+<td>JUnit、pytest 输出、失败用例原始输入</td>
+</tr>
+<tr>
+<td>数据库连接拒绝</td>
+<td>容器未健康、主机名或端口不对</td>
+<td>Service Health、localhost/服务名区分</td>
+</tr>
+<tr>
+<td>Alembic 迁移失败</td>
+<td>版本链不一致、数据库账号无权限</td>
+<td><code>alembic current</code>、<code>alembic heads</code>、SQL 错误</td>
+</tr>
+<tr>
+<td>测试超时</td>
+<td>死锁、无限重试、外部网络等待</td>
+<td><code>timeout-minutes</code>、单测试超时、业务日志</td>
+</tr>
+<tr>
+<td>Artifact 不见了</td>
+<td>路径错误、上传 Step 被跳过、保留期到期</td>
+<td>上传日志、<code>if</code> 条件、Artifact 设置</td>
+</tr>
+<tr>
+<td>CI 绿灯但功能故障</td>
+<td>测试没有覆盖真实组件或场景</td>
+<td>测试分层、契约与真实集成边界</td>
+</tr>
+</tbody></table>
+<p>排障顺序建议遵循：<strong>先确认有没有触发 → 再确认 Runner 与依赖 → 再找第一个失败的 Step → 再看失败测试与环境证据 → 最后重现同一版本的命令。</strong></p>
+<hr />
+<h2 id="section-34">14. 如何回答“这次 CI 实际用了什么版本、怎么运行的”</h2>
+<p>一份可复现的运行记录，至少应包括：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Source: GITHUB_SHA = &lt;40位提交哈希&gt;
+Run: GITHUB_RUN_ID / GITHUB_RUN_ATTEMPT
+Runner: Ubuntu image + RUNNER_ARCH
+Python: 实际 python --version
+uv: 实际 uv --version
+Declared deps: pyproject.toml 哈希
+Resolved deps: uv.lock 哈希
+Installed deps: 本次 environment.json 的 package name/version
+Commands: Ruff check / Ruff format --check / pytest ...
+Test results: JUnit 报告 / Step 退出状态
+External dependencies: 若有 PostgreSQL/Kafka，记录镜像版本与迁移版本
+Artifacts: 报告名称、生成时间、保留期</code></pre></div><p><strong>Git SHA + lockfile + 实际依赖清单 + Runner 信息 + 执行命令 + 测试结果</strong> 才构成有意义的复现证据链。</p>
+<p>即使这些证据齐全，外部包源和模型 API 的可变性也可能影响完全重现；对于高度敏感的生产构建还应考虑容器镜像 Digest、可验证构建和软件物料清单（SBOM）。</p>
+<hr />
+<h2 id="section-35">15. 与 AI 应用工程的联系</h2>
+<p>对于使用 FastAPI、Agno、PostgreSQL、Redis、Kafka 的 AI 应用，CI 应分清两大目标：</p>
+<ol>
+<li><strong>程序可靠性：</strong> 使用模型替身验证超时、拒答、非法 JSON、工具越权、会话隔离、数据库回滚、消息重复和 Worker 恢复。大部分可以在每次 PR 运行，且不需要付费模型。</li>
+<li><strong>模型效果：</strong> 使用固定样例和独立参考依据，验证回答、引用、工具选择、用量和耗时。根据费用和保密要求单独运行，不应将真实模型随机性误当成 Python 单元测试的不稳定性。</li>
+</ol>
+<p>在 CI 里记录 Agent 模型、提示词模板哈希和 RAG 知识库快照版本，可以帮助把一次效果退步与具体配置变更关联起来。模型 API 版本和模型后端部署状态不一定完全由你控制，因此实际能力评测还需要随运行留存结果。</p>
+<hr />
+<h2 id="section-36">16. 本节完整教学代码与验证附录</h2>
+<p>以下附录是一个独立、可复现的最小工程。重要限制：本环境可以执行 Python/pytest 和 YAML 解析，但<strong>没有真正触发 GitHub Actions Runner</strong>，也没有对 GitHub 远程仓库做推送，因此 CI 运行成功与否仍需要在真实 GitHub 仓库内核验。</p>
+<h3 id="section-37">附录 A：<code>.github/workflows/ci.yml</code></h3>
+<div class="code-wrap"><div class="code-label"><span>yaml</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-attr">name:</span> <span class="hljs-string">Python</span> <span class="hljs-string">CI</span>
+
+<span class="hljs-attr">"on":</span>
+  <span class="hljs-attr">push:</span>
+    <span class="hljs-attr">branches:</span> [<span class="hljs-string">main</span>]
+  <span class="hljs-attr">pull_request:</span>
+  <span class="hljs-attr">workflow_dispatch:</span>
+
+<span class="hljs-attr">permissions:</span>
+  <span class="hljs-attr">contents:</span> <span class="hljs-string">read</span>
+
+<span class="hljs-attr">concurrency:</span>
+  <span class="hljs-attr">group:</span> <span class="hljs-string">ci-${{</span> <span class="hljs-string">github.workflow</span> <span class="hljs-string">}}-${{</span> <span class="hljs-string">github.ref</span> <span class="hljs-string">}}</span>
+  <span class="hljs-attr">cancel-in-progress:</span> <span class="hljs-literal">true</span>
+
+<span class="hljs-attr">jobs:</span>
+  <span class="hljs-attr">checks:</span>
+    <span class="hljs-attr">runs-on:</span> <span class="hljs-string">ubuntu-24.04</span>
+    <span class="hljs-attr">timeout-minutes:</span> <span class="hljs-number">15</span>
+    <span class="hljs-attr">steps:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Checkout</span> <span class="hljs-string">source</span>
+        <span class="hljs-attr">uses:</span> <span class="hljs-string">actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1</span> <span class="hljs-comment"># v7.0.1</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Install</span> <span class="hljs-string">uv</span>
+        <span class="hljs-attr">uses:</span> <span class="hljs-string">astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9</span> <span class="hljs-comment"># v9.0.0</span>
+        <span class="hljs-attr">with:</span>
+          <span class="hljs-attr">version:</span> <span class="hljs-string">"0.10.0"</span> <span class="hljs-comment"># example: update deliberately with the project</span>
+          <span class="hljs-attr">enable-cache:</span> <span class="hljs-literal">true</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Prepare</span> <span class="hljs-string">Python</span>
+        <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">python</span> <span class="hljs-string">install</span> <span class="hljs-number">3.13</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Install</span> <span class="hljs-string">locked</span> <span class="hljs-string">dependencies</span>
+        <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">sync</span> <span class="hljs-string">--locked</span> <span class="hljs-string">--all-groups</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Record</span> <span class="hljs-string">runtime</span> <span class="hljs-string">and</span> <span class="hljs-string">dependencies</span>
+        <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">run</span> <span class="hljs-string">--locked</span> <span class="hljs-string">--no-sync</span> <span class="hljs-string">python</span> <span class="hljs-string">scripts/record_environment.py</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Lint</span>
+        <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">run</span> <span class="hljs-string">--locked</span> <span class="hljs-string">--no-sync</span> <span class="hljs-string">ruff</span> <span class="hljs-string">check</span> <span class="hljs-string">.</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Check</span> <span class="hljs-string">formatting</span>
+        <span class="hljs-attr">run:</span> <span class="hljs-string">uv</span> <span class="hljs-string">run</span> <span class="hljs-string">--locked</span> <span class="hljs-string">--no-sync</span> <span class="hljs-string">ruff</span> <span class="hljs-string">format</span> <span class="hljs-string">--check</span> <span class="hljs-string">.</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Unit</span> <span class="hljs-string">and</span> <span class="hljs-string">API</span> <span class="hljs-string">tests</span>
+        <span class="hljs-attr">run:</span> <span class="hljs-string">|
+          mkdir -p evidence
+          uv run --locked --no-sync pytest -q --junitxml=evidence/junit.xml
+</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Upload</span> <span class="hljs-string">evidence</span>
+        <span class="hljs-attr">if:</span> <span class="hljs-string">${{</span> <span class="hljs-type">!cancelled()</span> <span class="hljs-string">}}</span>
+        <span class="hljs-attr">uses:</span> <span class="hljs-string">actions/upload-artifact@v4</span>
+        <span class="hljs-attr">with:</span>
+          <span class="hljs-attr">name:</span> <span class="hljs-string">ci-evidence-${{</span> <span class="hljs-string">github.run_id</span> <span class="hljs-string">}}-${{</span> <span class="hljs-string">github.run_attempt</span> <span class="hljs-string">}}</span>
+          <span class="hljs-attr">path:</span> <span class="hljs-string">evidence/</span>
+          <span class="hljs-attr">if-no-files-found:</span> <span class="hljs-string">warn</span>
+          <span class="hljs-attr">retention-days:</span> <span class="hljs-number">14</span></code></pre></div><h3 id="section-38">附录 B：<code>app.py</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI
+<span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, Field
+
+app = FastAPI(title=<span class="hljs-string">"CI example"</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">QuoteRequest</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    quantity: <span class="hljs-built_in">int</span> = Field(ge=<span class="hljs-number">1</span>, le=<span class="hljs-number">100</span>)
+    unit_price_cents: <span class="hljs-built_in">int</span> = Field(ge=<span class="hljs-number">0</span>, le=<span class="hljs-number">1_000_000</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">QuoteResponse</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    total_cents: <span class="hljs-built_in">int</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">calculate_total</span>(<span class="hljs-params">quantity: <span class="hljs-built_in">int</span>, unit_price_cents: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">int</span>:
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> (<span class="hljs-number">1</span> &lt;= quantity &lt;= <span class="hljs-number">100</span>):
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"invalid quantity"</span>)
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> (<span class="hljs-number">0</span> &lt;= unit_price_cents &lt;= <span class="hljs-number">1_000_000</span>):
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"invalid price"</span>)
+    <span class="hljs-keyword">return</span> quantity * unit_price_cents
+
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">"/healthz"</span></span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">healthz</span>() -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">str</span>]:
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"status"</span>: <span class="hljs-string">"ok"</span>}
+
+
+<span class="hljs-meta">@app.post(<span class="hljs-params"><span class="hljs-string">"/quote"</span>, response_model=QuoteResponse</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">quote</span>(<span class="hljs-params">req: QuoteRequest</span>) -&gt; QuoteResponse:
+    <span class="hljs-keyword">return</span> QuoteResponse(
+        total_cents=calculate_total(req.quantity, req.unit_price_cents)
+    )</code></pre></div><h3 id="section-39">附录 C：<code>tests/test_app.py</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> pytest
+<span class="hljs-keyword">from</span> fastapi.testclient <span class="hljs-keyword">import</span> TestClient
+
+<span class="hljs-keyword">from</span> app <span class="hljs-keyword">import</span> app, calculate_total
+
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params">
+    (<span class="hljs-params"><span class="hljs-string">"quantity"</span>, <span class="hljs-string">"price"</span>, <span class="hljs-string">"expected"</span></span>),
+    [(<span class="hljs-params"><span class="hljs-number">1</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span></span>), (<span class="hljs-params"><span class="hljs-number">2</span>, <span class="hljs-number">125</span>, <span class="hljs-number">250</span></span>), (<span class="hljs-params"><span class="hljs-number">100</span>, <span class="hljs-number">1_000_000</span>, <span class="hljs-number">100_000_000</span></span>)],
+</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_calculate_total</span>(<span class="hljs-params">quantity: <span class="hljs-built_in">int</span>, price: <span class="hljs-built_in">int</span>, expected: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">assert</span> calculate_total(quantity, price) == expected
+
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params">
+    (<span class="hljs-params"><span class="hljs-string">"quantity"</span>, <span class="hljs-string">"price"</span></span>),
+    [(<span class="hljs-params"><span class="hljs-number">0</span>, <span class="hljs-number">100</span></span>), (<span class="hljs-params"><span class="hljs-number">101</span>, <span class="hljs-number">100</span></span>), (<span class="hljs-params"><span class="hljs-number">1</span>, -<span class="hljs-number">1</span></span>), (<span class="hljs-params"><span class="hljs-number">1</span>, <span class="hljs-number">1_000_001</span></span>)],
+</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_calculate_total_rejects_invalid</span>(<span class="hljs-params">quantity: <span class="hljs-built_in">int</span>, price: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">with</span> pytest.raises(ValueError):
+        calculate_total(quantity, price)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_healthz</span>() -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> client:
+        <span class="hljs-keyword">assert</span> client.get(<span class="hljs-string">"/healthz"</span>).json() == {<span class="hljs-string">"status"</span>: <span class="hljs-string">"ok"</span>}
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_quote_success</span>() -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> client:
+        response = client.post(<span class="hljs-string">"/quote"</span>, json={<span class="hljs-string">"quantity"</span>: <span class="hljs-number">2</span>, <span class="hljs-string">"unit_price_cents"</span>: <span class="hljs-number">125</span>})
+        <span class="hljs-keyword">assert</span> response.status_code == <span class="hljs-number">200</span>
+        <span class="hljs-keyword">assert</span> response.json() == {<span class="hljs-string">"total_cents"</span>: <span class="hljs-number">250</span>}
+
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params">
+    <span class="hljs-string">"payload"</span>,
+    [
+        {<span class="hljs-string">"quantity"</span>: <span class="hljs-number">0</span>, <span class="hljs-string">"unit_price_cents"</span>: <span class="hljs-number">100</span>},
+        {<span class="hljs-string">"quantity"</span>: <span class="hljs-number">1</span>},
+        {<span class="hljs-string">"quantity"</span>: <span class="hljs-string">"not-an-int"</span>, <span class="hljs-string">"unit_price_cents"</span>: <span class="hljs-number">100</span>},
+        {<span class="hljs-string">"quantity"</span>: <span class="hljs-number">1</span>, <span class="hljs-string">"unit_price_cents"</span>: -<span class="hljs-number">1</span>},
+    ],
+</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_quote_invalid_input</span>(<span class="hljs-params">payload: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">object</span>]</span>) -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> client:
+        response = client.post(<span class="hljs-string">"/quote"</span>, json=payload)
+        <span class="hljs-keyword">assert</span> response.status_code == <span class="hljs-number">422</span></code></pre></div><h3 id="section-40">附录 D：<code>scripts/record_environment.py</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Record non-secret, reproducibility-oriented CI evidence."""</span>
+
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">import</span> hashlib
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">import</span> platform
+<span class="hljs-keyword">import</span> subprocess
+<span class="hljs-keyword">import</span> sys
+<span class="hljs-keyword">from</span> importlib <span class="hljs-keyword">import</span> metadata
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+
+ALLOWED_CI_KEYS = (
+    <span class="hljs-string">"CI"</span>, <span class="hljs-string">"GITHUB_REPOSITORY"</span>, <span class="hljs-string">"GITHUB_SHA"</span>, <span class="hljs-string">"GITHUB_RUN_ID"</span>,
+    <span class="hljs-string">"GITHUB_RUN_ATTEMPT"</span>, <span class="hljs-string">"GITHUB_WORKFLOW"</span>, <span class="hljs-string">"RUNNER_OS"</span>, <span class="hljs-string">"RUNNER_ARCH"</span>,
+)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">digest</span>(<span class="hljs-params">path: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>:
+    p = Path(path)
+    <span class="hljs-keyword">return</span> hashlib.sha256(p.read_bytes()).hexdigest() <span class="hljs-keyword">if</span> p.is_file() <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">command_version</span>(<span class="hljs-params">*args: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">try</span>:
+        result = subprocess.run(
+            args, text=<span class="hljs-literal">True</span>, capture_output=<span class="hljs-literal">True</span>, check=<span class="hljs-literal">True</span>, timeout=<span class="hljs-number">5</span>
+        )
+        <span class="hljs-keyword">return</span> result.stdout.strip() <span class="hljs-keyword">or</span> result.stderr.strip()
+    <span class="hljs-keyword">except</span> (OSError, subprocess.SubprocessError):
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">build_manifest</span>() -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">object</span>]:
+    packages = <span class="hljs-built_in">sorted</span>(
+        (
+            {<span class="hljs-string">"name"</span>: (dist.metadata.get(<span class="hljs-string">"Name"</span>) <span class="hljs-keyword">or</span> <span class="hljs-string">"unknown"</span>), <span class="hljs-string">"version"</span>: dist.version}
+            <span class="hljs-keyword">for</span> dist <span class="hljs-keyword">in</span> metadata.distributions()
+        ),
+        key=<span class="hljs-keyword">lambda</span> p: (<span class="hljs-built_in">str</span>(p[<span class="hljs-string">"name"</span>]).casefold(), <span class="hljs-built_in">str</span>(p[<span class="hljs-string">"version"</span>])),
+    )
+    <span class="hljs-keyword">return</span> {
+        <span class="hljs-string">"python"</span>: sys.version.split()[<span class="hljs-number">0</span>],
+        <span class="hljs-string">"python_implementation"</span>: platform.python_implementation(),
+        <span class="hljs-string">"platform"</span>: platform.platform(),
+        <span class="hljs-string">"uv"</span>: command_version(<span class="hljs-string">"uv"</span>, <span class="hljs-string">"--version"</span>),
+        <span class="hljs-string">"git_commit"</span>: os.getenv(<span class="hljs-string">"GITHUB_SHA"</span>) <span class="hljs-keyword">or</span> command_version(<span class="hljs-string">"git"</span>, <span class="hljs-string">"rev-parse"</span>, <span class="hljs-string">"HEAD"</span>),
+        <span class="hljs-string">"ci"</span>: {key: os.environ[key] <span class="hljs-keyword">for</span> key <span class="hljs-keyword">in</span> ALLOWED_CI_KEYS <span class="hljs-keyword">if</span> key <span class="hljs-keyword">in</span> os.environ},
+        <span class="hljs-string">"sha256"</span>: {
+            path: digest(path)
+            <span class="hljs-keyword">for</span> path <span class="hljs-keyword">in</span> (<span class="hljs-string">"pyproject.toml"</span>, <span class="hljs-string">"uv.lock"</span>, <span class="hljs-string">".github/workflows/ci.yml"</span>)
+        },
+        <span class="hljs-string">"installed_packages"</span>: packages,
+        <span class="hljs-string">"commands"</span>: [
+            <span class="hljs-string">"uv sync --locked --all-groups"</span>,
+            <span class="hljs-string">"uv run --locked --no-sync ruff check ."</span>,
+            <span class="hljs-string">"uv run --locked --no-sync ruff format --check ."</span>,
+            <span class="hljs-string">"uv run --locked --no-sync pytest -q --junitxml=evidence/junit.xml"</span>,
+        ],
+    }
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:
+    output = Path(<span class="hljs-string">"evidence"</span>)
+    output.mkdir(exist_ok=<span class="hljs-literal">True</span>)
+    (output / <span class="hljs-string">"environment.json"</span>).write_text(
+        json.dumps(build_manifest(), ensure_ascii=<span class="hljs-literal">False</span>, indent=<span class="hljs-number">2</span>) + <span class="hljs-string">"\n"</span>,
+        encoding=<span class="hljs-string">"utf-8"</span>,
+    )
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"Wrote evidence/environment.json"</span>)
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    main()</code></pre></div><h3 id="section-41">附录 E：<code>tests/test_record_environment.py</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+
+<span class="hljs-keyword">from</span> scripts.record_environment <span class="hljs-keyword">import</span> ALLOWED_CI_KEYS, build_manifest, digest
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_manifest_has_runtime_and_lock_hash</span>() -&gt; <span class="hljs-literal">None</span>:
+    manifest = build_manifest()
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">isinstance</span>(manifest[<span class="hljs-string">"python"</span>], <span class="hljs-built_in">str</span>)
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(manifest[<span class="hljs-string">"installed_packages"</span>]) &gt; <span class="hljs-number">0</span>
+    <span class="hljs-keyword">assert</span> <span class="hljs-string">"uv.lock"</span> <span class="hljs-keyword">in</span> manifest[<span class="hljs-string">"sha256"</span>]
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_manifest_ci_keys_are_allowlisted</span>() -&gt; <span class="hljs-literal">None</span>:
+    manifest = build_manifest()
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">set</span>(manifest[<span class="hljs-string">"ci"</span>]).issubset(<span class="hljs-built_in">set</span>(ALLOWED_CI_KEYS))
+    <span class="hljs-keyword">assert</span> <span class="hljs-string">"SECRET_TOKEN"</span> <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> manifest[<span class="hljs-string">"ci"</span>]
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_digest_distinguishes_files</span>(<span class="hljs-params">tmp_path: Path</span>) -&gt; <span class="hljs-literal">None</span>:
+    a = tmp_path / <span class="hljs-string">"a"</span>
+    b = tmp_path / <span class="hljs-string">"b"</span>
+    a.write_text(<span class="hljs-string">"A"</span>, encoding=<span class="hljs-string">"utf-8"</span>)
+    b.write_text(<span class="hljs-string">"B"</span>, encoding=<span class="hljs-string">"utf-8"</span>)
+    <span class="hljs-keyword">assert</span> digest(<span class="hljs-built_in">str</span>(a)) != digest(<span class="hljs-built_in">str</span>(b))
+    <span class="hljs-keyword">assert</span> digest(<span class="hljs-built_in">str</span>(tmp_path / <span class="hljs-string">"missing"</span>)) <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span></code></pre></div><h3 id="section-42">附录 F：<code>pyproject.toml</code> 和 <code>.python-version</code></h3>
+<div class="code-wrap"><div class="code-label"><span>toml</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-section">[project]</span>
+<span class="hljs-attr">name</span> = <span class="hljs-string">"ci-learning-demo"</span>
+<span class="hljs-attr">version</span> = <span class="hljs-string">"0.1.0"</span>
+<span class="hljs-attr">requires-python</span> = <span class="hljs-string">"&gt;=3.13"</span>
+<span class="hljs-attr">dependencies</span> = [<span class="hljs-string">"fastapi&gt;=0.115,&lt;1"</span>]
+
+<span class="hljs-section">[dependency-groups]</span>
+<span class="hljs-attr">dev</span> = [<span class="hljs-string">"pytest&gt;=8,&lt;10"</span>, <span class="hljs-string">"httpx&gt;=0.27,&lt;1"</span>, <span class="hljs-string">"ruff&gt;=0.9,&lt;1"</span>]
+
+<span class="hljs-section">[tool.uv]</span>
+<span class="hljs-attr">package</span> = <span class="hljs-literal">false</span>
+
+<span class="hljs-section">[tool.pytest.ini_options]</span>
+<span class="hljs-attr">testpaths</span> = [<span class="hljs-string">"tests"</span>]
+
+<span class="hljs-section">[tool.ruff]</span>
+<span class="hljs-attr">line-length</span> = <span class="hljs-number">88</span>
+<span class="hljs-attr">target-version</span> = <span class="hljs-string">"py313"</span></code></pre></div><p><code>.python-version</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">3.13</code></pre></div><h3 id="section-43">附录 G：已执行验证范围</h3>
+<ul>
+<li>Python 解释器：3.13.5；</li>
+<li>pytest：9.0.2；</li>
+<li>FastAPI：0.128.2；</li>
+<li>httpx：0.28.1；</li>
+<li>YAML 解析：PyYAML 6.0.3；</li>
+<li>已本地执行：<strong>16 个 pytest 用例全部通过</strong>；</li>
+<li>已本地执行：工作流 YAML 能被解析为结构化配置；</li>
+<li>已本地执行：<code>scripts/record_environment.py</code> 输出 JSON 证据文件；</li>
+<li>未执行：<code>ruff</code> 静态检查、GitHub Hosted Runner、Artifact 上传、PostgreSQL/Kafka 真实服务；</li>
+<li>未执行：<code>uv sync --locked</code> 在全新独立环境中的安装，因为示例锁文件需在使用者创建项目时运行 <code>uv lock</code> 才能生成。</li>
+</ul>
+<p>这意味着测试证明了<strong>教材代码的本地行为和配置语法</strong>，不应把“CI 工作流示例已经在 GitHub 上通过”作为已完成事实。</p>
+<hr />
+<h2 id="section-44">17. 官方文档与原始资料</h2>
+<ol>
+<li>GitHub Actions：Workflow 语法，<a href="https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax">https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax</a></li>
+<li>GitHub Actions：Python 构建与测试，<a href="https://docs.github.com/en/actions/tutorials/build-and-test-code/python">https://docs.github.com/en/actions/tutorials/build-and-test-code/python</a></li>
+<li>GitHub Actions：使用 PostgreSQL 服务容器，<a href="https://docs.github.com/en/actions/tutorials/use-containerized-services/create-postgresql-service-containers">https://docs.github.com/en/actions/tutorials/use-containerized-services/create-postgresql-service-containers</a></li>
+<li>GitHub Actions：工作流 Artifacts，<a href="https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts">https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts</a></li>
+<li>GitHub Actions：变量参考，<a href="https://docs.github.com/en/actions/reference/workflows-and-actions/variables">https://docs.github.com/en/actions/reference/workflows-and-actions/variables</a></li>
+<li>GitHub Actions：安全实践，<a href="https://docs.github.com/en/actions/reference/security/secure-use">https://docs.github.com/en/actions/reference/security/secure-use</a></li>
+<li>GitHub Actions：不可信 Pull Request 与 <code>pull_request_target</code>，<a href="https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target">https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target</a></li>
+<li>GitHub Actions：仓库 Actions 设置与证据保留，<a href="https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository">https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository</a></li>
+<li>uv：在 GitHub Actions 中使用，<a href="https://docs.astral.sh/uv/guides/integration/github/">https://docs.astral.sh/uv/guides/integration/github/</a></li>
+<li>uv：锁定与同步，<a href="https://docs.astral.sh/uv/concepts/projects/sync/">https://docs.astral.sh/uv/concepts/projects/sync/</a></li>
+<li>actions/setup-python 官方说明，<a href="https://github.com/actions/setup-python">https://github.com/actions/setup-python</a></li>
+<li>pytest 官方文档，<a href="https://docs.pytest.org/en/stable/">https://docs.pytest.org/en/stable/</a></li>
+<li>Ruff 官方文档，<a href="https://docs.astral.sh/ruff/">https://docs.astral.sh/ruff/</a></li>
+<li>FastAPI 测试，<a href="https://fastapi.tiangolo.com/tutorial/testing/">https://fastapi.tiangolo.com/tutorial/testing/</a></li>
+</ol>
+<hr />
+<p><strong>本节技术结论：</strong> 在 GitHub Actions 中运行测试的重点，不是“能把 pytest 写进 YAML”，而是把<strong>同一份源码、锁定的依赖、明确的工具与环境、可核验的测试结果和受控的权限</strong>结合成可复现的自动化质量机制。</p>

@@ -1,0 +1,95 @@
+{
+  "passed": true,
+  "backup": "v19-final-primary",
+  "target": "assessment_restore_v19_final",
+  "archive_sha256": "ebb8b83f79f3359c4d658d11960216b798e1814c72e57730a17b6656303ddfb9",
+  "tables": {
+    "alembic_version": {
+      "rows": 1,
+      "sha256": "6dea7cda7f3e77699d705cbdc54981250e4b47b6a7a23cc65261db9b48de9c55"
+    },
+    "auth_tokens": {
+      "rows": 57,
+      "sha256": "b9e81fb71c741bd6e16a21cb151b75b995f2972772e9280d861d3a9255d8543a"
+    },
+    "budget_account": {
+      "rows": 1,
+      "sha256": "f715b2a3a21c110a7cb3905e91fbf2135a70af48defb4204d6eb01b49c42bdb1"
+    },
+    "budget_grants": {
+      "rows": 2,
+      "sha256": "7a8a814c03c00bbb4b79992f689c31408795444386ca8ff7949e6bd5531f1c50"
+    },
+    "feedback": {
+      "rows": 5,
+      "sha256": "de30e565ca1752e3c99ea2eb1bc2a09d771d9925c15094e1079a7397981c8910"
+    },
+    "feedback_drafts": {
+      "rows": 5,
+      "sha256": "b4c3b9b6fab703178834361073369b25ac87383305b08098eda49f80fb524c19"
+    },
+    "indexed_chunks": {
+      "rows": 9338,
+      "sha256": "f1a95aa3d8f5e86e7096aba2867246ddb3dd2e8a353448c0824e8665793bf28e"
+    },
+    "job_attempts": {
+      "rows": 18,
+      "sha256": "d6254a3f6dd650f73fc9756922e6cef3db151335937a87ef8e2685b7acf19947"
+    },
+    "jobs": {
+      "rows": 21,
+      "sha256": "4b3a1f0284013c7f577bb495f2a6422025cdfad20d565b93e37a943a6491837d"
+    },
+    "messages": {
+      "rows": 790,
+      "sha256": "f0034c7d90a4c1fc1da86d2d97872d1803366f7f77d46eaee7b4f5d48ebbacc3"
+    },
+    "outbox": {
+      "rows": 24,
+      "sha256": "ffee764c9be9010eaae71f73a49dda74167f57fb9eb8508e49681426c90cc83b"
+    },
+    "published_indexes": {
+      "rows": 1,
+      "sha256": "ed7209d5d453ae853d7f268a4490661f0afca181a64963ff456fdb40ed35b251"
+    },
+    "qq_events": {
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs": {
+      "rows": 399,
+      "sha256": "107afd330162a71d022c4dbb4adb5ca509852ff589f6b01aae3274c8dc92452f"
+    },
+    "sessions": {
+      "rows": 357,
+      "sha256": "dffe451adaa91f9b4dfe242fd550348400d526bd40294cff26f4954c5aedce9a"
+    },
+    "tool_calls": {
+      "rows": 717,
+      "sha256": "ac491a3320b62e9613e4d487d3b7461683ef1ede68e47bd6ab75808603c1c035"
+    },
+    "usage_records": {
+      "rows": 396,
+      "sha256": "3dbdd9fb198c7e8f45b3680ab8f3f05421ae467eb570daa544aa0e9833ce6cb3"
+    },
+    "users": {
+      "rows": 11,
+      "sha256": "a4f0f5c63260493947f97b98d5680c8483d7a6cf4bd351933f8dfa272a29e665"
+    },
+    "vector_chunks": {
+      "rows": 9338,
+      "sha256": "d9f8baa862fef93973574fa0da4212509eb77d69bbfebabca9faaa2b8ad065e4"
+    }
+  },
+  "budget": {
+    "id": 1,
+    "spent": 15.169532000000007,
+    "reserved": 0.0
+  },
+  "migration": "0002",
+  "pgvector": "0.8.7",
+  "checked_at": "2026-11-13T03:02:29.827873+00:00",
+  "elapsed_seconds": 79.479,
+  "primary_overwritten": false,
+  "private_configuration_restored_to_service": false
+}

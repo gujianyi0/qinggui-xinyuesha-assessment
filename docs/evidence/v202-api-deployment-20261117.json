@@ -1,0 +1,54 @@
+{
+  "version": "2.0.2-local.1",
+  "before": [
+    {
+      "Id": "9e70c68b168bba6fe745480a1705861d92ea7e0e52508c2c2cb37d3228323a76",
+      "Image": "sha256:b523357d0b7f935d38fd7f896654c4e273dc9ad2008fe40d8a9b8656f1179d50",
+      "started": "2026-11-17T09:10:18.699211281Z"
+    },
+    {
+      "Id": "e9d0feeb837d6a0c1fb08c0f6e3e6c2d19724349254afcd93241e6a68219d789",
+      "Image": "sha256:bf036977c3d636a235ad7311ac4a0f8e35bfb4c950fefe1a0c5371c117e9f27e",
+      "started": "2026-11-14T09:43:19.939017778Z"
+    },
+    {
+      "Id": "91b13b7bd128bd10c1aa61047859682b4c09e3962f085c07ebe86758ad94b7f2",
+      "Image": "sha256:dfb0c5569fd2011b147a5995ef528a51dad0ab1d2299838ebd08ddf09b3c9b9b",
+      "started": "2026-11-14T11:21:51.370055525Z"
+    }
+  ],
+  "after": [
+    {
+      "Id": "d37638da9891f1c76b7042a7139dcc3383f1c39b79b32699463d8edc9411a71e",
+      "Image": "sha256:184ec3633b3db00195249d769270d48c05d4a281b3d150a4ecc2f954a642c1f9",
+      "started": "2026-11-17T10:46:50.465265353Z"
+    },
+    {
+      "Id": "e9d0feeb837d6a0c1fb08c0f6e3e6c2d19724349254afcd93241e6a68219d789",
+      "Image": "sha256:bf036977c3d636a235ad7311ac4a0f8e35bfb4c950fefe1a0c5371c117e9f27e",
+      "started": "2026-11-14T09:43:19.939017778Z"
+    },
+    {
+      "Id": "91b13b7bd128bd10c1aa61047859682b4c09e3962f085c07ebe86758ad94b7f2",
+      "Image": "sha256:dfb0c5569fd2011b147a5995ef528a51dad0ab1d2299838ebd08ddf09b3c9b9b",
+      "started": "2026-11-14T11:21:51.370055525Z"
+    }
+  ],
+  "budget_before": {
+    "running": 0,
+    "spent": 15.61562800000001,
+    "reserved": 0.0
+  },
+  "budget_after": {
+    "running": 0,
+    "spent": 15.61562800000001,
+    "reserved": 0.0
+  },
+  "worker_and_old_frontend_unchanged": true,
+  "api_source_hashes": {
+    "backend/app/catalog.py": "db2d935edfbf9eae05d5f913c905a0c5c079d29403a5779c9b5e5ae1110cea51",
+    "backend/app/main.py": "bce73d3f28b959ff07b18e697a1580729af310e3c01eccba4f82ab1edf6f204e",
+    "backend/app/runtime.py": "5b3f641f80f97521c96f4b66f0a8ffd3275e5ec52225c029bbd403d687911164"
+  },
+  "rollback_image": "qinggui-assessment-api:v202-parent-20261117"
+}

@@ -20,6 +20,7 @@ import type { Auth, Session } from '@/types/domain'
 const Library = lazy(() => import('@/features/library'))
 const FeedbackPanel = lazy(() => import('@/features/feedback'))
 const JobsPanel = lazy(() => import('@/features/jobs'))
+const Bookshelf = lazy(() => import('@/features/bookshelf'))
 
 import { ErrorNotice } from '@/components/ui'
 import type { Page } from '../navigation'
@@ -37,7 +38,7 @@ export default function WorkspaceScreen({
 }: WorkspaceScreenProps) {
   const params = new URLSearchParams(useUrlSearch())
   const requestedPage = params.get('page')
-  const page: Page = ['library', 'feedback', 'jobs'].includes(
+  const page: Page = ['library', 'feedback', 'jobs', 'bookshelf'].includes(
     requestedPage || '',
   )
     ? (requestedPage as Page)
@@ -194,7 +195,7 @@ export default function WorkspaceScreen({
                   : '当前离线'}
             </span>
             {isMockMode && <span className="mode-badge">模型替身模式</span>}
-            <span className="preview-badge">v2.0.1 · 本地内测</span>
+            <span className="preview-badge">v2.0.2 · 本地内测</span>
           </div>
         </header>
         {error && (
@@ -264,6 +265,7 @@ export default function WorkspaceScreen({
                   snapshotId={snapshotId}
                 />
               )}
+              {page === 'bookshelf' && <Bookshelf />}
             </Suspense>
           </ScreenBoundary>
         </div>

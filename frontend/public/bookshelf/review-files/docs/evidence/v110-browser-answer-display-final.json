@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "body": {
+    "text": "标准包曹操为魏势力男性角色，体力4，体力上限4，拥有奸雄和护驾两个技能。\n\n奸雄：当你受到伤害后，你可以获得对你造成伤害的牌。\n护驾：主公技，当你需要使用或打出【闪】时，你可以令其他魏势力角色选择是否打出一张【闪】，视为由你使用或打出。\n\n以上内容依据资料快照 freekill-local-b9dc701220bc 中的《曹操》实体定义与《奸雄》《护驾》中文说明。其中护驾只能在曹操作为主公时使用。",
+    "buttons": 3,
+    "inputEnabled": true,
+    "documentWidth": 1069,
+    "viewportWidth": 1084
+  },
+  "expanded": "runtime/packages/standard/pkg/init.lua:12快照 freekill-local-b9dc701220bcGeneral:new(extension, \"caocao\", \"wei\", 4):addSkills { \"jianxiong\", \"hujia\" }",
+  "scope": "Actual Docker UI; new real-model answer loaded from persistence; no browser submission"
+}

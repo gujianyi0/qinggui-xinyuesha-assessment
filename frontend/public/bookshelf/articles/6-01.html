@@ -1,0 +1,952 @@
+<h1 id="section-1">消息队列与后台任务可靠性（一）：Kafka Topic、Partition、Offset、Producer、Consumer 与 Consumer Group</h1>
+<blockquote>
+<p><strong>对应知识目标</strong>：Kafka 的 Topic、Partition、Offset、Producer、Consumer 和 Consumer Group；分区内顺序与跨分区顺序的区别。<br /><strong>知识范围</strong>：Apache Kafka 的基本日志模型、消费组与顺序语义，必要时连接后台任务故障场景。消费位点的精细提交策略、重试/DLQ、Worker 幂等和 Kafka 事务会在后续独立知识点深入。<br /><strong>依据</strong>：Apache Kafka 4.4 官方介绍、设计文档、客户端配置和命令行文档。示例依赖时区无关，不依赖生产环境。</p>
+</blockquote>
+<hr />
+<h2 id="section-2">1. Kafka 在后台任务系统中的位置</h2>
+<p>Apache Kafka 是分布式事件流平台（distributed event streaming platform）。它把产生数据的组件与处理数据的组件解耦，通过可持久化、分区化的追加日志传递事件。它不仅能处理实时数据流，也可以传递文档导入、批量模型计算等后台工作的任务通知。</p>
+<p>例如，用户提交了一次资料导入：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">浏览器 / APP
+    │ POST /imports
+    ▼
+FastAPI 服务 ── 创建持久化任务记录 ──► PostgreSQL
+    │
+    │ 发送 {task_id, document_id, version}
+    ▼
+Kafka Topic: document-imports
+    ├── Partition 0 ─┐
+    ├── Partition 1 ─┼──► Consumer Group: document-workers
+    └── Partition 2 ─┘         ├── Worker A
+                               └── Worker B
+                                     │
+                                     ▼
+                            解析 → 分块 → Embedding
+                                     │
+                                     ▼
+                         PostgreSQL 保存业务结果与任务状态</code></pre></div><p>这里有两个完全不同的问题：<strong>Kafka 是否保存并向消费者提供了某条消息</strong>，与<strong>业务是否正确完成并写入数据库</strong>。本节主要解释前者及其消费组织形式；后者仍需要数据库事务、幂等性与任务状态设计。</p>
+<p>Kafka 不是“请求到来就马上调用某个特定 Worker”的 RPC 系统。它先把事件写入指定 Topic 的某个分区，消费者再从该分区读取。生产者与消费者不必同时在线，消息可按保留策略在日志中保留。</p>
+<hr />
+<h2 id="section-3">2. 用一幅图理解 Kafka 的实体关系</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">                      Apache Kafka Cluster
+Producer P1 ──┐
+              ├──► Broker ──► Topic: import-jobs
+Producer P2 ──┘                 │
+                               ├── Partition 0: [offset 0][1][2][3]...
+                               ├── Partition 1: [offset 0][1][2]...
+                               └── Partition 2: [offset 0][1][2][3][4]...
+                                            │
+                           ┌────────────────┴────────────────┐
+                           ▼                                 ▼
+                 Consumer Group A                   Consumer Group B
+                  「执行任务」                         「审计/统计」
+                 Worker A、B、C                      Audit Worker
+
+            分区在组 A 内分配一次；组 B 独立读取同样的 Topic。</code></pre></div><ul>
+<li><strong>Cluster（集群）</strong>：由 Kafka Broker 等组件构成的服务整体。</li>
+<li><strong>Broker</strong>：接收生产和消费请求，存储分区日志的服务节点；一个 Broker 可承载不同 Topic 的多个分区副本。</li>
+<li><strong>Topic</strong>：逻辑消息类别，类似数据流的名称，而非一张数据库表。</li>
+<li><strong>Partition</strong>：Topic 内实际存储有序记录的日志单位。</li>
+<li><strong>Record / Event / Message</strong>：一条事件记录。本文视场景将三者作为近义词；协议和业务层具体含义可能不同。</li>
+<li><strong>Offset</strong>：日志记录在<strong>某个分区内</strong>的位置标识。</li>
+<li><strong>Producer</strong>：发布记录的客户端。</li>
+<li><strong>Consumer</strong>：拉取和处理记录的客户端。</li>
+<li><strong>Consumer Group</strong>：让多个普通 Consumer 协调消费任务的逻辑组，以 <code>group.id</code> 区分。</li>
+</ul>
+<p>常见误解是“一个 Topic 是一条总队列”。更准确的模型是：一个 Topic 可能由多个<strong>独立编号的分区日志</strong>组成，因此没有天然的 Topic 级单一 Offset。</p>
+<hr />
+<h2 id="section-4">3. Topic：逻辑分类，不等于物理文件或独立队列</h2>
+<p>Topic 是发布与订阅的逻辑名称，例如：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">knowledge-imports  # 知识文档导入
+model-batch-jobs    # 批量模型任务
+feedback-events     # 玩家反馈事件
+agent-audit-events  # Agent 审计事件</code></pre></div><p>一个 Topic 定义了某种事件的数据边界，但事件并不是写入单个连续的“总数组”；Topic 按 Partition 分布储存。多个 Producer 可以写同一 Topic，多个独立 Consumer Group 也可以读取同一 Topic。</p>
+<h3 id="section-5">3.1 Topic 与数据库表的区别</h3>
+<table>
+<thead>
+<tr>
+<th>比较对象</th>
+<th>Kafka Topic</th>
+<th>PostgreSQL 表</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>核心模型</td>
+<td>可追加事件日志</td>
+<td>关系型数据记录</td>
+</tr>
+<tr>
+<td>读取重点</td>
+<td>按位置读取事件流</td>
+<td>使用 SQL 按条件查询</td>
+</tr>
+<tr>
+<td>修改语义</td>
+<td>通常不原地更新记录；可采用日志压缩策略</td>
+<td>支持 UPDATE/DELETE 与事务</td>
+</tr>
+<tr>
+<td>消费进度</td>
+<td>各 Group 维护消费位置</td>
+<td>查询本身通常没有“消费位置”</td>
+</tr>
+<tr>
+<td>保留策略</td>
+<td>按时间、大小或压缩规则保留</td>
+<td>由业务删除策略和存储管理决定</td>
+</tr>
+<tr>
+<td>顺序</td>
+<td>每个分区内有日志顺序</td>
+<td>查询结果不加 ORDER BY 时没有承诺顺序</td>
+</tr>
+</tbody></table>
+<p>Kafka 可以作为消息与事件的持久化传输层，但不应该自动被视为所有业务状态的唯一真相来源。任务的持久状态、用户权限、唯一性和最终结果，通常仍由 PostgreSQL 等业务数据库承担。</p>
+<h3 id="section-6">3.2 Topic 的配置维度</h3>
+<ul>
+<li>分区数 <code>partitions</code>：影响分区级并行度及消息键的路由分布。</li>
+<li>副本数 <code>replication.factor</code>：影响容灾冗余，不等于分区数量。</li>
+<li>保留配置：决定记录保留的时长/大小或者压缩行为。</li>
+<li>访问控制：决定哪些生产者或消费者可操作 Topic。</li>
+</ul>
+<p>分区数为 3、副本数为 2 的 Topic，不是“总共只有 3 个副本”，而是 <strong>3 个逻辑分区，每个分区有 2 份副本</strong>。副本由不同 Broker 承载，故至少需要足够多的 Broker 才能配置相应副本数。</p>
+<hr />
+<h2 id="section-7">4. Partition：顺序保证和并行处理的基本单位</h2>
+<p>分区可以理解为<strong>只允许从末尾追加的有序日志</strong>。每个分区拥有独立的 Offset 空间。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Topic: document-imports
+
+Partition 0   0:A0 ──► 1:A1 ──► 2:A2 ──► 3:A3
+Partition 1   0:B0 ──► 1:B1 ──► 2:B2
+Partition 2   0:C0 ──► 1:C1 ──► 2:C2 ──► 3:C3</code></pre></div><p><code>Partition 0</code> 的 Offset 1 和 <code>Partition 2</code> 的 Offset 1 <strong>完全不是同一条消息</strong>。Offset 必须结合 Topic 和 Partition 才能唯一定位特定日志位置：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">(topic = "document-imports", partition = 2, offset = 1)</code></pre></div><h3 id="section-8">4.1 分区有三个核心作用</h3>
+<ol>
+<li><strong>有序日志</strong>：同一分区内记录按写入日志的顺序排序。</li>
+<li><strong>负载与容量分摊</strong>：不同分区可以分布在不同 Broker 上。</li>
+<li><strong>消费并行度边界</strong>：在传统 Consumer Group 中，一个分区同一时刻由组内的一个 Consumer 实例负责消费。</li>
+</ol>
+<p>要特别区分<strong>日志排序</strong>与<strong>程序处理结果排序</strong>：Kafka 保证分区里记录的读取顺序，但如果 Consumer 读取后把消息交给多个并发异步任务，后面的消息完全可能先完成。</p>
+<h3 id="section-9">4.2 分区数量不等于 Broker 数量</h3>
+<p>例如 3 个 Broker 承载 12 个分区，每台机器可放多个分区及其副本。分区扩展、复制和消费者分配属于不同机制。Broker 是存储节点，Consumer 是应用客户端，不应混为一谈。</p>
+<h3 id="section-10">4.3 增加分区数可能改变 Key 的落点</h3>
+<p>不少分区策略根据 Key 哈希值以及分区数量决定目标分区。例如简化的教学函数：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">partition = hash(key) % partition_count</code></pre></div><p>当 <code>partition_count</code> 从 3 增加到 5 时，同一个 Key 可能从旧分区映射到新分区；旧事件仍在旧分区，随后新事件进入新分区，就可能破坏<strong>同一业务键在全部历史事件中的连续处理顺序</strong>。</p>
+<p>这只是说明分区策略变化的风险；真实客户端可能使用不同的分区算法，不能把上面的 <code>%</code> 公式视为所有 Kafka SDK 的统一实现。</p>
+<hr />
+<h2 id="section-11">5. Offset：消息位置与消费进度不是一回事</h2>
+<p>Offset 是单个分区中的日志位置标识。有关 Offset 的三个概念必须明确区分：</p>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>含义</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Record Offset</td>
+<td>单条消息位于分区的哪里</td>
+<td><code>offset=7</code></td>
+</tr>
+<tr>
+<td>Consumer Position</td>
+<td>消费者下一次计划读取哪里</td>
+<td><code>position=8</code></td>
+</tr>
+<tr>
+<td>Committed Offset</td>
+<td>消费组已经持久记录的下一个消费位置</td>
+<td><code>committed=6</code></td>
+</tr>
+</tbody></table>
+<p>假设一条消息 Offset 为 7，程序成功处理并确认其进度时，一般应将<strong>下一条待读位置 8</strong>提交，而不是将 7 作为下一条位置。</p>
+<h3 id="section-12">5.1 读取 ≠ 处理 ≠ 提交</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Kafka 分区日志：  [0][1][2][3][4][5]
+                    │
+消费者已经读到：      4
+业务执行成功到：      2
+消费组提交位置：      3   (下一个待处理 Offset)</code></pre></div><p>消费者<strong>可以预取或读取到 Offset 4</strong>，但如果 Offset 3、4 还没有真正完成业务处理，提前提交到 5 可能在进程崩溃后跳过尚未完成的工作。</p>
+<p>反过来，如果 Offset 4 的数据库更新已经成功，进程却在提交消费进度前崩溃，那么重启后可能再次消费 Offset 4，因此需要幂等处理。后续的“自动与手动 Offset 提交”章节会深入讨论。</p>
+<h3 id="section-13">5.2 消费进度按组独立</h3>
+<p>同一 Topic 的 <code>Partition 0</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Partition 0: [0][1][2][3][4][5][6][7][8][9]
+
+Group A (资料索引) committed = 7
+Group B (审计统计) committed = 3</code></pre></div><p>Group A 的进度不会使 Group B 的事件消失。Kafka 不会因为某个 Group 读取了记录就立即将其从 Topic 删除；消息保留和组内读取进度是两套机制。</p>
+<h3 id="section-14">5.3 Offset 不一定连续可见</h3>
+<p>正常追加日志的 Offset 递增，但消费者可见的 Offset <strong>不应一概假定为严格连续</strong>。例如日志压缩会清除旧键记录，但保留后续记录的 Offset；事务标记、事务隔离等也会影响可见范围。Offset 不是“当前还存在多少条消息”的计数器。</p>
+<h3 id="section-15">5.4 <code>auto.offset.reset</code></h3>
+<p>当一个 Group 没有有效的已提交 Offset，或旧 Offset 已不可用时，配置决定从哪里开始：</p>
+<ul>
+<li><code>earliest</code>：从当前仍保留的最早可读位置开始。</li>
+<li><code>latest</code>：从当前末尾开始，旧数据通常不会自动补读。</li>
+<li><code>none</code>：没有有效初始位置时抛出异常。</li>
+</ul>
+<p><strong>不是只要设置了 <code>earliest</code>，每次重启都会从零开始。</strong> 已存在有效提交进度时，通常优先从提交位置恢复。</p>
+<hr />
+<h2 id="section-16">6. Producer：事件的发布方</h2>
+<p>Producer 负责将业务事件序列化为 Key、Value 等字段，确定 Topic 与 Partition，然后通过 Broker 写入日志。</p>
+<p>一条典型的事件数据可以包含：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"event_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"evt-2026-001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"task_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"task-783"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"document_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"doc-27"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"v3"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"event_type"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"document.import.requested"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>Kafka Record 本身拥有 Topic、Partition、Offset、Timestamp、Key、Value、Headers 等属性。上面的 JSON 是 <strong>Value 的一种业务编码示例</strong>，不是 Kafka 规定的 Record JSON 格式。客户端通常在生产时设置 Key、Value、Headers；由 Broker 附加或确定具体分区与 Offset 等元数据。</p>
+<h3 id="section-17">6.1 Partition 的选择方式</h3>
+<ol>
+<li><strong>显式指定 Partition</strong>：发送时明确指定目标分区。</li>
+<li><strong>根据 Key 分区</strong>：希望同一个业务 Key 在相同配置下尽量进入同一分区。</li>
+<li><strong>未提供 Key</strong>：生产者按照自身默认分区与批处理策略分配，不保证某个实体始终进入同一分区。</li>
+</ol>
+<p>例如多个版本的同一资料必须按顺序处理，可以将 <code>document_id</code> 作为 Key：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">doc-A v1  ─┐
+doc-A v2  ─┼──► Partition 1
+doc-A v3  ─┘
+
+doc-B v1  ─┐
+doc-B v2  ─┴──► Partition 0</code></pre></div><p>但<strong>相同 Key 能进入相同分区</strong>依赖分区数量、序列化、分区器及配置稳定，并不保证不同生产者应用层事件生成顺序一致。比如 P1 与 P2 同时为 doc-A 发送事件，谁先写进 Kafka 取决于实际请求与 Broker 的追加顺序。</p>
+<h3 id="section-18">6.2 Producer 的批处理、确认和重试</h3>
+<ul>
+<li><code>acks</code> 决定写入确认强度，与持久性有关。</li>
+<li><code>retries</code> 允许临时失败后重新发送。</li>
+<li><code>enable.idempotence</code> 的目标是避免生产者重试把同一批消息重复写入日志。</li>
+<li><code>max.in.flight.requests.per.connection</code> 控制单连接未完成请求的数量；它与重试行为一起影响排序。</li>
+</ul>
+<p>在某些不兼容配置下，如果开启重试、关闭幂等且允许多个在途批次，后发送的批次可能先成功入日志，导致发送顺序和记录顺序不一致。启用并正确配置幂等生产者可以减少这类风险。</p>
+<p><strong>注意：生产者幂等不等于消费者业务幂等，也不代表外部数据库的副作用自动获得 exactly-once 保证。</strong></p>
+<hr />
+<h2 id="section-19">7. Consumer：读取分区日志的客户端</h2>
+<p>Consumer 按订阅或指定的分区读取记录，常用行为包括：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">订阅 Topic → 获取分区分配 → 拉取消息 → 反序列化
+         → 调用业务逻辑 → 更新消费位置 → 继续读取</code></pre></div><p>传统 Kafka Consumer 是客户端，而不是 Broker 上的“执行进程”。应用可以把它放在独立 Worker 进程中；Kafka 负责提供消息和分区协调，不负责执行你的 Python 业务函数。</p>
+<h3 id="section-20">7.1 Pull 模型</h3>
+<p>Consumer 主动轮询或拉取消息，而不是 Kafka 对每条消息直接发起一个 HTTP 回调。使用 Java 客户端时通常是 <code>poll()</code>；Python 的 aiokafka 则常见 <code>getone()</code>、<code>getmany()</code> 或 <code>async for</code> 形式。</p>
+<h3 id="section-21">7.2 一个 Consumer 可以消费多个分区</h3>
+<p>例如 Topic 有 3 个分区、Group 只有 1 个 Consumer，那么该 Consumer 可以获得全部 3 个分区，并交错拉取它们的消息。</p>
+<p>这不是全局顺序合并。只在<strong>每个分区自己的结果序列中</strong>可观察到单分区日志顺序。</p>
+<h3 id="section-22">7.3 Consumer 不一定都属于同一 Group</h3>
+<p>不同消费者可以拥有不同 <code>group.id</code>，也可以使用显式分区分配模式。普通 Consumer Group 的协作语义只适用于共同作为组成员参与分区分配的消费者。</p>
+<h3 id="section-23">7.4 <code>client.id</code> 与 <code>group.id</code> 的区别</h3>
+<ul>
+<li><code>client.id</code>：便于诊断和监控的客户端标识，不决定 Consumer Group 的消费进度隔离。</li>
+<li><code>group.id</code>：决定 Consumer 参与哪个消费组，以及与哪组的提交进度关联。</li>
+</ul>
+<p>把一批工作进程配置成不同的 <code>group.id</code>，通常会导致每个组都独立消费 Topic，而不是共同分摊任务。</p>
+<hr />
+<h2 id="section-24">8. Consumer Group：分摊处理与独立订阅</h2>
+<p>Consumer Group 是普通 Kafka Consumer 的协作单位。<strong>同一个 Group 内，一个 Topic 的一个 Partition 在一个稳定分配时点通常只分给一个 Consumer 成员。</strong></p>
+<p>假设 Topic 有 3 个 Partition：</p>
+<table>
+<thead>
+<tr>
+<th>分组成员数</th>
+<th>可能的分配</th>
+<th>实际效果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>W1 → P0、P1、P2</td>
+<td>一人消费全部分区</td>
+</tr>
+<tr>
+<td>2</td>
+<td>W1 → P0、P2；W2 → P1</td>
+<td>两个消费者分摊</td>
+</tr>
+<tr>
+<td>3</td>
+<td>W1 → P0；W2 → P1；W3 → P2</td>
+<td>三个消费者各一分区</td>
+</tr>
+<tr>
+<td>4</td>
+<td>前三个成员各一分区；W4 无分区</td>
+<td>多出的成员可能闲置</td>
+</tr>
+</tbody></table>
+<p>实际采用什么分区分配算法，取决于客户端、消费组协议和分配策略；上表只是合法的示意分配，不是 Kafka 对成员名称的保证。</p>
+<h3 id="section-25">8.1 同组与异组的本质区别</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Topic: import-jobs  (P0, P1, P2)
+            │
+            ├─ Group: import-workers
+            │     ├─ Worker A：P0、P2
+            │     └─ Worker B：P1
+            │
+            └─ Group: audit-workers
+                  └─ Worker C：P0、P1、P2</code></pre></div><ul>
+<li><strong>同组</strong>：为了扩容与故障接管而分区分工。</li>
+<li><strong>异组</strong>：从同一日志独立读取，适合不同业务功能分别处理。</li>
+</ul>
+<p>如果将审计服务错误地加入 <code>import-workers</code> 组，审计服务和导入 Worker 可能分到不同分区，双方都不能看到全部事件。这是一个典型的架构错误。</p>
+<h3 id="section-26">8.2 消费组扩容不是无限提升并发</h3>
+<p>如果 Topic 只有 3 个 Partition，传统 Consumer Group 增加到 10 个消费者，并不会产生 10 个独立分区消费通道。未分配分区的消费者不会自动获得更多工作。</p>
+<p>但“3 个分区最多同时执行 3 个业务 Task”也不是普遍成立：应用还可能在一个 Consumer 内部并发处理已经读取的多条消息。区别在于：<strong>并发处理可以增加，但需要自行保证业务顺序和位点提交正确。</strong></p>
+<h3 id="section-27">8.3 Rebalance：成员变化时的分区重新分配</h3>
+<p>当 Consumer 加入/退出、失联、Topic 分区数变化或订阅关系变化时，消费组可能发生 Rebalance（再平衡）。例如：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">初始：W1 = P0、P1、P2
+加入 W2
+重分配：W1 = P0、P2；W2 = P1</code></pre></div><p>在再平衡过程中，分区所有权可能转移。新 Consumer 应从组的有效已提交位置恢复。如果旧 Worker 仍持有未完成的业务操作，则需要针对重复处理和过期执行者另行防护。现代 Consumer Group 有不同协调协议与再平衡策略，不应假定所有版本都使用一次性停止全部分区的方式。</p>
+<h3 id="section-28">8.4 新版 Kafka 中的 Share Group 不是普通 Consumer Group</h3>
+<p>Kafka 新版本还提供 <strong>Share Group / Share Consumer</strong>。它与传统 Consumer Group 有不同语义：多个 Share Consumer 可以协作处理同一分区内的记录，并使用逐记录确认等机制；成员数量可以多于分区数量。</p>
+<p>因此“一个分区同一时刻只能属于组内一个 Consumer”这个基本规律，需要限定为<strong>传统 Consumer Group</strong>，不能无条件套用于 Share Group。</p>
+<hr />
+<h2 id="section-29">9. 分区内顺序：究竟保证了什么？</h2>
+<p>Kafka 的日志是按照分区追加的。对于同一分区：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">P0: [0:创建任务] → [1:开始导入] → [2:导入成功]</code></pre></div><p>正常情况下，Consumer 顺序读取该分区会得到 <code>0 → 1 → 2</code> 的日志顺序。特别注意：</p>
+<ol>
+<li>它是<strong>日志追加顺序</strong>，不一定等于业务事件真实发生时间顺序。</li>
+<li>多个 Producer 并发写同一分区时，不存在跨生产者、跨机器的天然业务先后保证。</li>
+<li>生产者重试和在途请求配置不正确时，可能改变写入日志的顺序。</li>
+<li>Consumer 若在读取后异步并行执行工作，最终完成顺序可能不同。</li>
+<li>Commit/Seek/Replay 会改变读取位置；“始终连续读取不重复”不是 Kafka 无条件保证。</li>
+</ol>
+<h3 id="section-30">9.1 同一分区：读取有序 ≠ 完成有序</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">P0: Offset 0 → Offset 1
+          │           │
+          ▼           ▼
+       Task A       Task B
+       等待 10s      等待 1s
+          │           │
+          └─────┬─────┘
+                ▼
+完成顺序：Task B → Task A</code></pre></div><p>假如任务 B 必须等 A 成功后才能执行，那么不能直接这样并行完成。这类顺序要求应该由消费端的<strong>按 Key/分区串行调度</strong>、分区级状态机或数据库版本条件实现。</p>
+<h3 id="section-31">9.2 不同分区：Kafka 不承诺全局顺序</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">P0: [Offset 0:A] ── [Offset 1:C]
+P1: [Offset 0:B] ── [Offset 1:D]
+
+可能的读取交错： A, B, C, D
+也可能是：        B, D, A, C</code></pre></div><p>只要各分区内部顺序保持：<code>A &lt; C</code>、<code>B &lt; D</code>，不同分区之间出现何种交错都不违反 Kafka 的基本分区顺序语义。某条记录的 Kafka Timestamp 也不能自动用来建立严格可靠的跨分区全局顺序，因为生产者时钟和网络时延可能不同。</p>
+<h3 id="section-32">9.3 当业务确实需要全局顺序</h3>
+<p>常见选择有：</p>
+<ul>
+<li>使用单分区 Topic，牺牲同组的分区级消费并行度。</li>
+<li>使用同一业务 Key 进行分区，追求<strong>实体级顺序</strong>而不是全系统总顺序。</li>
+<li>在数据库中维护业务序号与版本，执行时检查先决条件。</li>
+<li>设计独立的排序器或协调机制，代价是复杂度与吞吐量开销。</li>
+</ul>
+<p>“所有业务事件有严格全局顺序”与“无限水平扩容”通常存在实际权衡。</p>
+<hr />
+<h2 id="section-33">10. Partition Key 如何对应业务顺序</h2>
+<p>如果一批导入任务只要求 <strong>同一资料的版本严格按顺序处理</strong>，则使用 <code>document_id</code> 作为 Key 是一个自然的起点：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Topic: document-imports
+Key = doc-10:  v1 → v2 → v3  (同一个 Partition)
+Key = doc-20:  v1 → v2       (可能在另一个 Partition)</code></pre></div><p>如果使用 <code>task_id</code> 作为 Key，则同一份文档每次导入都生成不同任务 ID，可能进入不同分区，无法凭此保证同一文档版本的先后关系。</p>
+<p>选择 Key 时，应先回答：<strong>什么对象内部必须有序？</strong></p>
+<table>
+<thead>
+<tr>
+<th>业务顺序要求</th>
+<th>候选 Key</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>单份文档版本按顺序导入</td>
+<td><code>document_id</code></td>
+<td>同文档事件尽量同分区</td>
+</tr>
+<tr>
+<td>单个用户会话消息按顺序处理</td>
+<td><code>session_id</code></td>
+<td>同会话事件尽量同分区</td>
+</tr>
+<tr>
+<td>单笔订单状态按顺序演进</td>
+<td><code>order_id</code></td>
+<td>同订单事件尽量同分区</td>
+</tr>
+<tr>
+<td>各任务完全独立</td>
+<td>无 Key 或均衡路由</td>
+<td>可提高分区负载均衡，但无实体级顺序保证</td>
+</tr>
+</tbody></table>
+<p>注意两个常见边界：</p>
+<p><strong>第一，同 Key 并不代表自动禁止并行执行。</strong> Consumer 的业务代码仍可能打乱完成顺序。</p>
+<p><strong>第二，热点 Key 不能自动分摊到多个分区。</strong> 一个超热门 Key 可能导致单一分区成为瓶颈，增加分区数也未必解决该 Key 的吞吐压力。</p>
+<hr />
+<h2 id="section-34">11. Broker 副本与 Consumer Group 是两个独立维度</h2>
+<p>容易混淆的两个“复制”：</p>
+<ul>
+<li><strong>Replication Factor（副本因子）</strong>：Kafka 在 Broker 之间存储同一分区的副本，主要服务于容灾与可用性。</li>
+<li><strong>Consumer Group（消费组）</strong>：多个应用进程如何共同读取 Topic，服务于任务处理分工。</li>
+</ul>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Topic P0
+  Broker 1：Leader 副本
+  Broker 2：Follower 副本
+  Broker 3：Follower 副本
+
+Group A：Consumer A1 读取 P0
+Group B：Consumer B1 也读取 P0</code></pre></div><p>两个 Group 消费同一消息，并不是因为 Kafka 存了两份业务消息。消费组读取的是同一逻辑分区日志，其提交进度彼此独立。</p>
+<p>Kafka 的 KRaft 控制平面、Broker 日志副本、Leader/ISR 与 Consumer Group Coordinator 的职责也不同。控制器管理集群元数据，Broker 存储记录；消费组协调器管理组成员和进度。不要将上述角色统称为“Kafka Worker”。</p>
+<hr />
+<h2 id="section-35">12. Lag：衡量消费进度落后程度</h2>
+<p>常见 Consumer Group 监控列：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">TOPIC        PARTITION   CURRENT-OFFSET   LOG-END-OFFSET   LAG
+import-jobs  0           100              135              35
+import-jobs  1           80               80               0</code></pre></div><p>在这一示例中，<code>Partition 0</code> 的提交位置为 100，日志末尾为 135，Offset 差为 35。通常可以用 <code>end_offset - committed_offset</code> 来描述 Consumer Lag（具体监控工具对事务、不可见记录和控制记录的口径可能不同）。</p>
+<p>但要记住：</p>
+<ul>
+<li><code>LAG = 0</code> <strong>并不能证明数据库业务任务已经成功</strong>；如果消费位置提前提交，也可能出现虚假的零积压。</li>
+<li>LAG 为正可能表示消息正在处理、消费者停机、消费速度较慢，或存在失败重试。</li>
+<li>不同分区 Offset 值不能直接代表任务耗时；任务可能大小不同。</li>
+<li>多个 Group 各自拥有独立 Lag。</li>
+</ul>
+<p>Kafka 官方的 <code>kafka-consumer-groups.sh --describe</code> 可以查看每个分区的 CURRENT-OFFSET、LOG-END-OFFSET、LAG 和消费者成员信息。</p>
+<hr />
+<h2 id="section-36">13. 消费进度与故障的基本关系</h2>
+<p>本节先建立基本概念，后续再专门研究提交时机和 Worker 恢复。</p>
+<table>
+<thead>
+<tr>
+<th>故障场景</th>
+<th>Kafka 层可能出现的现象</th>
+<th>业务必须补充的能力</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Worker 在处理前退出</td>
+<td>分区由其他消费者接管</td>
+<td>恢复任务状态</td>
+</tr>
+<tr>
+<td>Worker 已处理但未提交 Offset</td>
+<td>同一记录可能再次被读取</td>
+<td>幂等键与唯一约束</td>
+</tr>
+<tr>
+<td>Consumer 先提交后处理</td>
+<td>崩溃后可能跳过未完成工作</td>
+<td>避免过早提交</td>
+</tr>
+<tr>
+<td>组内增加消费者</td>
+<td>分区重新分配</td>
+<td>正确处理在途任务与 Rebalance</td>
+</tr>
+<tr>
+<td>Topic 新增 Partition</td>
+<td>旧 Key 后续可能改变分区</td>
+<td>业务版本检查与分区策略审查</td>
+</tr>
+<tr>
+<td>不同业务共用一个 Group</td>
+<td>每个业务可能只收到部分分区</td>
+<td>使用独立 <code>group.id</code></td>
+</tr>
+<tr>
+<td>读取后并发执行同分区事件</td>
+<td>后一个事件可能先完成</td>
+<td>分区/Key 内顺序控制</td>
+</tr>
+</tbody></table>
+<p>因此，Kafka 帮助实现跨请求、跨进程的消息传递与消费分工，但<strong>消息可重读、业务可恢复、任务不可重复生成最终结果</strong>等性质必须通过应用层设计共同实现。</p>
+<hr />
+<h2 id="section-37">14. Windows + Docker：真实 Kafka 的最小命令实验</h2>
+<p>这一组命令适用于本机已安装 Docker Desktop、Docker 引擎可启动、9092 端口空闲的环境。下面使用官方提供的 <code>apache/kafka:4.4.0</code> JVM 镜像作为<strong>本地教学单节点</strong>，不是生产高可用部署。Kafka 版本号和容器路径依据本节参考的官方文档，未来版本升级需核对镜像用法。</p>
+<h3 id="section-38">14.1 启动服务</h3>
+<p>在 PowerShell 中执行：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 单节点本地实验，无持久化卷；删除容器可能导致数据丢失</span>
+docker run <span class="hljs-literal">-d</span> <span class="hljs-literal">--name</span> kafka<span class="hljs-literal">-study</span> <span class="hljs-literal">-p</span> <span class="hljs-number">9092</span>:<span class="hljs-number">9092</span> apache/kafka:<span class="hljs-number">4.4</span>.<span class="hljs-number">0</span>
+
+<span class="hljs-comment"># 查看 Kafka 是否启动成功</span>
+docker logs kafka<span class="hljs-literal">-study</span></code></pre></div><h3 id="section-39">14.2 创建三个分区的 Topic</h3>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">docker exec kafka<span class="hljs-literal">-study</span> /opt/kafka/bin/kafka<span class="hljs-literal">-topics</span>.sh `
+  <span class="hljs-literal">--bootstrap-server</span> localhost:<span class="hljs-number">9092</span> `
+  <span class="hljs-literal">--create</span> <span class="hljs-literal">--topic</span> <span class="hljs-built_in">import-jobs</span> <span class="hljs-literal">--partitions</span> <span class="hljs-number">3</span> <span class="hljs-literal">--replication-factor</span> <span class="hljs-number">1</span>
+
+<span class="hljs-comment"># 查看 Topic、Partition、Leader 和副本信息</span>
+docker exec kafka<span class="hljs-literal">-study</span> /opt/kafka/bin/kafka<span class="hljs-literal">-topics</span>.sh `
+  <span class="hljs-literal">--bootstrap-server</span> localhost:<span class="hljs-number">9092</span> `
+  <span class="hljs-literal">--describe</span> <span class="hljs-literal">--topic</span> <span class="hljs-built_in">import-jobs</span></code></pre></div><p>单节点演示用 <code>replication-factor=1</code>，并不提供 Broker 故障容灾。三分区意味着分区级别可以由同组最多三个普通 Consumer 独立持有，并不表示 Kafka 内只有三个可处理任务。</p>
+<h3 id="section-40">14.3 写入带 Key 的事件</h3>
+<p>打开第一个终端：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">docker exec <span class="hljs-literal">-it</span> kafka<span class="hljs-literal">-study</span> /opt/kafka/bin/kafka<span class="hljs-literal">-console-producer</span>.sh `
+  <span class="hljs-literal">--bootstrap-server</span> localhost:<span class="hljs-number">9092</span> `
+  <span class="hljs-literal">--topic</span> <span class="hljs-built_in">import-jobs</span> `
+  <span class="hljs-literal">--property</span> parse.key=true `
+  <span class="hljs-literal">--property</span> key.separator=:</code></pre></div><p>在命令行中逐行输入：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">doc-A:version-1
+doc-B:version-1
+doc-A:version-2
+doc-B:version-2</code></pre></div><p>前缀 <code>doc-A</code> / <code>doc-B</code> 是 Key，后面的 <code>version-*</code> 是 Value。可以使用 Ctrl+C 结束生产者进程。</p>
+<h3 id="section-41">14.4 使用消费组读取</h3>
+<p>新开第二个终端：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">docker exec <span class="hljs-literal">-it</span> kafka<span class="hljs-literal">-study</span> /opt/kafka/bin/kafka<span class="hljs-literal">-console-consumer</span>.sh `
+  <span class="hljs-literal">--bootstrap-server</span> localhost:<span class="hljs-number">9092</span> `
+  <span class="hljs-literal">--topic</span> <span class="hljs-built_in">import-jobs</span> `
+  <span class="hljs-literal">--group</span> importer<span class="hljs-literal">-demo</span> `
+  <span class="hljs-literal">--from-beginning</span> `
+  <span class="hljs-literal">--property</span> print.key=true `
+  <span class="hljs-literal">--property</span> print.partition=true `
+  <span class="hljs-literal">--property</span> print.offset=true</code></pre></div><p>再开第三个终端，执行<strong>相同</strong>命令与相同 <code>--group importer-demo</code>。两个消费者会共同参与组的分区分配；具体哪一台消费哪个 Partition 可能由分配器决定，不能假定平分或按照命令启动顺序固定。</p>
+<p>打开第四个终端，更换 <code>--group audit-demo</code>，则该新 Group 会拥有独立的消费进度：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">docker exec <span class="hljs-literal">-it</span> kafka<span class="hljs-literal">-study</span> /opt/kafka/bin/kafka<span class="hljs-literal">-console-consumer</span>.sh `
+  <span class="hljs-literal">--bootstrap-server</span> localhost:<span class="hljs-number">9092</span> `
+  <span class="hljs-literal">--topic</span> <span class="hljs-built_in">import-jobs</span> `
+  <span class="hljs-literal">--group</span> audit<span class="hljs-literal">-demo</span> `
+  <span class="hljs-literal">--from-beginning</span> `
+  <span class="hljs-literal">--property</span> print.key=true `
+  <span class="hljs-literal">--property</span> print.partition=true `
+  <span class="hljs-literal">--property</span> print.offset=true</code></pre></div><p>提示：<code>--from-beginning</code> 在新 Group 尚无有效提交位置时有意义；如果 Group 已保存了进度，重新加此参数不等于重置所有已提交 Offset。</p>
+<h3 id="section-42">14.5 查看实际分配与 Lag</h3>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">docker exec kafka<span class="hljs-literal">-study</span> /opt/kafka/bin/kafka<span class="hljs-literal">-consumer-groups</span>.sh `
+  <span class="hljs-literal">--bootstrap-server</span> localhost:<span class="hljs-number">9092</span> `
+  <span class="hljs-literal">--describe</span> <span class="hljs-literal">--group</span> importer<span class="hljs-literal">-demo</span></code></pre></div><p>关注这些列：</p>
+<ul>
+<li><code>TOPIC</code>：当前订阅的 Topic。</li>
+<li><code>PARTITION</code>：当前分区编号。</li>
+<li><code>CURRENT-OFFSET</code>：该 Group 对该分区的已提交消费位置。</li>
+<li><code>LOG-END-OFFSET</code>：日志末尾位置。</li>
+<li><code>LAG</code>：消费位置距离末尾的差距。</li>
+<li><code>CONSUMER-ID</code> / <code>CLIENT-ID</code>：当前分区归属的消费者信息。</li>
+</ul>
+<p>若客户端尚未提交进度、消费组未稳定或未分配分区，则某些列可能为空或缺失；不能把此时的输出视作任务完成情况。</p>
+<h3 id="section-43">14.6 停止实验环境</h3>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">docker <span class="hljs-built_in">rm</span> <span class="hljs-operator">-f</span> kafka<span class="hljs-literal">-study</span></code></pre></div><p>这只适用于可删除的本地实验容器，<strong>不得用于实际项目的生产 Kafka 实例</strong>。</p>
+<hr />
+<h2 id="section-44">15. Python 真实客户端：aiokafka 的最小示意</h2>
+<p>Kafka Broker 是独立服务，Python 应用可以通过 <code>aiokafka</code> 接入。使用前先安装：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pip install aiokafka</code></pre></div><h3 id="section-45">15.1 Producer 示例</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">from</span> aiokafka <span class="hljs-keyword">import</span> AIOKafkaProducer
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():
+    producer = AIOKafkaProducer(
+        bootstrap_servers=<span class="hljs-string">"localhost:9092"</span>
+    )
+    <span class="hljs-keyword">await</span> producer.start()
+    <span class="hljs-keyword">try</span>:
+        metadata = <span class="hljs-keyword">await</span> producer.send_and_wait(
+            <span class="hljs-string">"import-jobs"</span>,
+            key=<span class="hljs-string">b"doc-A"</span>,
+            value=<span class="hljs-string">b'{"task_id":"task-001","version":"v1"}'</span>,
+        )
+        <span class="hljs-built_in">print</span>(metadata.topic, metadata.partition, metadata.offset)
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> producer.stop()
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(main())</code></pre></div><p><code>send_and_wait()</code> 返回的元数据可以帮助确认消息被写入哪个分区、获得什么 Offset。此时只能说明 Kafka 发布阶段完成了相应确认，<strong>不能说明后台 Worker 已完成文档导入</strong>。</p>
+<h3 id="section-46">15.2 Consumer 示例</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">from</span> aiokafka <span class="hljs-keyword">import</span> AIOKafkaConsumer, TopicPartition
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">process_import</span>(<span class="hljs-params">value: <span class="hljs-built_in">bytes</span></span>) -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-comment"># 教学占位逻辑。真实实现应执行数据库幂等检查、导入和事务提交。</span>
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"received:"</span>, value.decode(<span class="hljs-string">"utf-8"</span>))
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:
+    consumer = AIOKafkaConsumer(
+        <span class="hljs-string">"import-jobs"</span>,
+        bootstrap_servers=<span class="hljs-string">"localhost:9092"</span>,
+        group_id=<span class="hljs-string">"importer-demo"</span>,
+        auto_offset_reset=<span class="hljs-string">"earliest"</span>,
+        enable_auto_commit=<span class="hljs-literal">False</span>,
+    )
+    <span class="hljs-keyword">await</span> consumer.start()
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">for</span> message <span class="hljs-keyword">in</span> consumer:
+            <span class="hljs-keyword">await</span> process_import(message.value)
+            tp = TopicPartition(message.topic, message.partition)
+            <span class="hljs-keyword">await</span> consumer.commit({tp: message.offset + <span class="hljs-number">1</span>})
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> consumer.stop()
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(main())</code></pre></div><p>这段示例用于展示 <code>topic</code>、<code>partition</code>、<code>offset</code>、<code>group_id</code> 与 <code>commit</code> 的关系，不是生产级 Worker：</p>
+<ol>
+<li>如果 <code>process_import()</code> 只是打印，所谓“处理完成”没有实际持久化业务效果。</li>
+<li>如果业务成功但位点提交失败，重启后可能再次读到记录。</li>
+<li>如果处理持续时间超过消费组配置的限制或发生 Rebalance，提交可能失败。</li>
+<li>真正可靠的 Worker 需要唯一约束、幂等标识、错误分类、重试、日志和关闭处理。</li>
+<li>多分区批量并发处理时，不能随意提交跨越尚未完成记录的 Offset。</li>
+</ol>
+<p>上述代码沿用 aiokafka 公开文档的客户端生命周期和手动提交接口；<strong>本知识文档没有启动真实 Kafka Broker 执行这两段代码</strong>，因此属于接口示例，而非已完成的 Kafka 集成测试。</p>
+<hr />
+<h2 id="section-47">16. 纯 Python 可运行模型：分区、Offset、Consumer Group</h2>
+<p>为了从基本语义入手验证概念，而不依赖 Kafka 服务器，以下使用标准库创建一个 <strong>MiniPartitionLog</strong> 教学模拟器。</p>
+<p>它只模拟：</p>
+<ul>
+<li>Topic 的分区日志。</li>
+<li>每个分区独立 Offset。</li>
+<li>Producer 的演示分区路由。</li>
+<li>Consumer Group 的演示分区独占分配。</li>
+<li>各 Group 独立提交消费位置。</li>
+<li>不提交位点时的重复消费。</li>
+<li>消费后并发工作完成顺序可能不同。</li>
+</ul>
+<p>它<strong>不模拟</strong> Kafka 的真实网络协议、Broker 复制、Leader 选举、组协调、事务、压缩、真实分区器、Offset 保留策略或持久化磁盘日志。</p>
+<p>完整示例与 20 项 <code>unittest</code> 如下。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""教学模拟器：仅验证分区、偏移量、消费组逻辑；并非 Kafka 客户端或 Broker。"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> hashlib
+<span class="hljs-keyword">import</span> unittest
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> Mapping
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Record</span>:
+    topic: <span class="hljs-built_in">str</span>
+    partition: <span class="hljs-built_in">int</span>
+    offset: <span class="hljs-built_in">int</span>
+    key: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>
+    value: <span class="hljs-built_in">str</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">MiniPartitionLog</span>:
+    <span class="hljs-string">"""一个 Topic、多个分区、多个独立消费组的内存模型。"""</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, topic: <span class="hljs-built_in">str</span>, partition_count: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> partition_count &lt;= <span class="hljs-number">0</span>:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"partition_count must be positive"</span>)
+        <span class="hljs-variable language_">self</span>.topic = topic
+        <span class="hljs-variable language_">self</span>.logs: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">int</span>, <span class="hljs-built_in">list</span>[Record]] = {
+            partition: [] <span class="hljs-keyword">for</span> partition <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(partition_count)
+        }
+        <span class="hljs-variable language_">self</span>.members: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, ...]] = {}
+        <span class="hljs-variable language_">self</span>.committed: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">int</span>], <span class="hljs-built_in">int</span>] = {}
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">partition_for</span>(<span class="hljs-params">self, key: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">int</span>:
+        <span class="hljs-comment"># 教学用稳定映射，不等于 Java/其他 Kafka 客户端的默认分区算法。</span>
+        digest = hashlib.sha256(key.encode(<span class="hljs-string">"utf-8"</span>)).digest()
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">int</span>.from_bytes(digest[:<span class="hljs-number">8</span>], <span class="hljs-string">"big"</span>) % <span class="hljs-built_in">len</span>(<span class="hljs-variable language_">self</span>.logs)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">produce</span>(<span class="hljs-params">self, value: <span class="hljs-built_in">str</span>, *, key: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>,
+                partition: <span class="hljs-built_in">int</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span></span>) -&gt; Record:
+        <span class="hljs-keyword">if</span> partition <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            partition = <span class="hljs-variable language_">self</span>.partition_for(key) <span class="hljs-keyword">if</span> key <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> <span class="hljs-number">0</span>
+        <span class="hljs-keyword">if</span> partition <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.logs:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"unknown partition"</span>)
+        record = Record(<span class="hljs-variable language_">self</span>.topic, partition, <span class="hljs-built_in">len</span>(<span class="hljs-variable language_">self</span>.logs[partition]), key, value)
+        <span class="hljs-variable language_">self</span>.logs[partition].append(record)
+        <span class="hljs-keyword">return</span> record
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">join</span>(<span class="hljs-params">self, group: <span class="hljs-built_in">str</span>, *consumers: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> consumers <span class="hljs-keyword">or</span> <span class="hljs-built_in">len</span>(<span class="hljs-built_in">set</span>(consumers)) != <span class="hljs-built_in">len</span>(consumers):
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"group must have unique consumer names"</span>)
+        <span class="hljs-variable language_">self</span>.members[group] = <span class="hljs-built_in">tuple</span>(consumers)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">assignments</span>(<span class="hljs-params">self, group: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">int</span>, ...]]:
+        consumers = <span class="hljs-variable language_">self</span>.members[group]
+        result: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">list</span>[<span class="hljs-built_in">int</span>]] = {name: [] <span class="hljs-keyword">for</span> name <span class="hljs-keyword">in</span> consumers}
+        <span class="hljs-keyword">for</span> partition <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.logs:
+            result[consumers[partition % <span class="hljs-built_in">len</span>(consumers)]].append(partition)
+        <span class="hljs-keyword">return</span> {name: <span class="hljs-built_in">tuple</span>(parts) <span class="hljs-keyword">for</span> name, parts <span class="hljs-keyword">in</span> result.items()}
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">poll</span>(<span class="hljs-params">self, group: <span class="hljs-built_in">str</span>, consumer: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">list</span>[Record]:
+        <span class="hljs-keyword">if</span> group <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.members:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"unknown group"</span>)
+        assigned = <span class="hljs-variable language_">self</span>.assignments(group).get(consumer)
+        <span class="hljs-keyword">if</span> assigned <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"consumer not in group"</span>)
+        result: <span class="hljs-built_in">list</span>[Record] = []
+        <span class="hljs-keyword">for</span> partition <span class="hljs-keyword">in</span> assigned:
+            start = <span class="hljs-variable language_">self</span>.committed.get((group, partition), <span class="hljs-number">0</span>)
+            result.extend(<span class="hljs-variable language_">self</span>.logs[partition][start:])
+        <span class="hljs-comment"># 每个分区内部仍然按照 Offset 递增；不同分区没有全局顺序。</span>
+        <span class="hljs-keyword">return</span> result
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">commit</span>(<span class="hljs-params">self, group: <span class="hljs-built_in">str</span>, partition: <span class="hljs-built_in">int</span>, next_offset: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> group <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.members <span class="hljs-keyword">or</span> partition <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.logs:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"unknown group or partition"</span>)
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-number">0</span> &lt;= next_offset &lt;= <span class="hljs-built_in">len</span>(<span class="hljs-variable language_">self</span>.logs[partition]):
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"next_offset outside log"</span>)
+        <span class="hljs-variable language_">self</span>.committed[(group, partition)] = next_offset
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">MiniKafkaTests</span>(unittest.TestCase):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">setUp</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.log = MiniPartitionLog(<span class="hljs-string">"import-jobs"</span>, <span class="hljs-number">3</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_topic_and_partition</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.log.topic, <span class="hljs-string">"import-jobs"</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-built_in">set</span>(<span class="hljs-variable language_">self</span>.log.logs), {<span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">2</span>})
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_partition_count_must_be_positive</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            MiniPartitionLog(<span class="hljs-string">"x"</span>, <span class="hljs-number">0</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_offset_starts_at_zero_per_partition</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        a = <span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-string">"A"</span>, partition=<span class="hljs-number">0</span>)
+        b = <span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-string">"B"</span>, partition=<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual((a.offset, b.offset), (<span class="hljs-number">0</span>, <span class="hljs-number">0</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_offsets_increase_within_partition</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        records = [<span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-built_in">str</span>(i), partition=<span class="hljs-number">2</span>) <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">5</span>)]
+        <span class="hljs-variable language_">self</span>.assertEqual([r.offset <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> records], <span class="hljs-built_in">list</span>(<span class="hljs-built_in">range</span>(<span class="hljs-number">5</span>)))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_invalid_partition</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            <span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-string">"bad"</span>, partition=<span class="hljs-number">99</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_same_key_stays_on_one_partition_in_static_configuration</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        records = [<span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-built_in">str</span>(i), key=<span class="hljs-string">"doc-A"</span>) <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">5</span>)]
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-built_in">len</span>({r.partition <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> records}), <span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual([r.offset <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> records], <span class="hljs-built_in">list</span>(<span class="hljs-built_in">range</span>(<span class="hljs-number">5</span>)))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_explicit_partition_overrides_key_choice</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-string">"x"</span>, key=<span class="hljs-string">"doc-A"</span>, partition=<span class="hljs-number">1</span>).partition, <span class="hljs-number">1</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_same_group_partition_exclusive</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"workers"</span>, <span class="hljs-string">"W1"</span>, <span class="hljs-string">"W2"</span>)
+        mapping = <span class="hljs-variable language_">self</span>.log.assignments(<span class="hljs-string">"workers"</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-built_in">set</span>(mapping[<span class="hljs-string">"W1"</span>]).intersection(mapping[<span class="hljs-string">"W2"</span>]), <span class="hljs-built_in">set</span>())
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-built_in">set</span>(mapping[<span class="hljs-string">"W1"</span>]).union(mapping[<span class="hljs-string">"W2"</span>]), {<span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">2</span>})
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_one_consumer_can_own_many_partitions</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"workers"</span>, <span class="hljs-string">"W1"</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.log.assignments(<span class="hljs-string">"workers"</span>)[<span class="hljs-string">"W1"</span>], (<span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">2</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_more_consumers_than_partitions_produces_idle_members</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"workers"</span>, <span class="hljs-string">"W1"</span>, <span class="hljs-string">"W2"</span>, <span class="hljs-string">"W3"</span>, <span class="hljs-string">"W4"</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.log.assignments(<span class="hljs-string">"workers"</span>)[<span class="hljs-string">"W4"</span>], ())
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_independent_groups_each_receive_records</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-string">"A"</span>, partition=<span class="hljs-number">0</span>)
+        <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"indexer"</span>, <span class="hljs-string">"I1"</span>)
+        <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"auditor"</span>, <span class="hljs-string">"A1"</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.log.poll(<span class="hljs-string">"indexer"</span>, <span class="hljs-string">"I1"</span>),
+                         <span class="hljs-variable language_">self</span>.log.poll(<span class="hljs-string">"auditor"</span>, <span class="hljs-string">"A1"</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_groups_track_offsets_independently</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-string">"A"</span>, partition=<span class="hljs-number">0</span>)
+        <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"indexer"</span>, <span class="hljs-string">"I1"</span>)
+        <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"auditor"</span>, <span class="hljs-string">"A1"</span>)
+        <span class="hljs-variable language_">self</span>.log.commit(<span class="hljs-string">"indexer"</span>, <span class="hljs-number">0</span>, <span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.log.poll(<span class="hljs-string">"indexer"</span>, <span class="hljs-string">"I1"</span>), [])
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-built_in">len</span>(<span class="hljs-variable language_">self</span>.log.poll(<span class="hljs-string">"auditor"</span>, <span class="hljs-string">"A1"</span>)), <span class="hljs-number">1</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_poll_without_commit_can_redeliver</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-string">"A"</span>, partition=<span class="hljs-number">0</span>)
+        <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"workers"</span>, <span class="hljs-string">"W1"</span>)
+        first = <span class="hljs-variable language_">self</span>.log.poll(<span class="hljs-string">"workers"</span>, <span class="hljs-string">"W1"</span>)
+        repeated = <span class="hljs-variable language_">self</span>.log.poll(<span class="hljs-string">"workers"</span>, <span class="hljs-string">"W1"</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(first, repeated)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_commit_next_offset_advances_position</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-string">"A"</span>, partition=<span class="hljs-number">0</span>)
+        <span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-string">"B"</span>, partition=<span class="hljs-number">0</span>)
+        <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"workers"</span>, <span class="hljs-string">"W1"</span>)
+        <span class="hljs-variable language_">self</span>.log.commit(<span class="hljs-string">"workers"</span>, <span class="hljs-number">0</span>, <span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual([r.value <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.log.poll(<span class="hljs-string">"workers"</span>, <span class="hljs-string">"W1"</span>)], [<span class="hljs-string">"B"</span>])
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_invalid_offset_is_rejected</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"workers"</span>, <span class="hljs-string">"W1"</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            <span class="hljs-variable language_">self</span>.log.commit(<span class="hljs-string">"workers"</span>, <span class="hljs-number">0</span>, <span class="hljs-number">9</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_rebalance_keeps_group_offset</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-string">"A"</span>, partition=<span class="hljs-number">2</span>)
+        <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"workers"</span>, <span class="hljs-string">"W1"</span>)
+        <span class="hljs-variable language_">self</span>.log.commit(<span class="hljs-string">"workers"</span>, <span class="hljs-number">2</span>, <span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"workers"</span>, <span class="hljs-string">"W1"</span>, <span class="hljs-string">"W2"</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.log.poll(<span class="hljs-string">"workers"</span>, <span class="hljs-string">"W1"</span>), [])
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_topic_wide_offset</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-string">"A"</span>, partition=<span class="hljs-number">0</span>)
+        <span class="hljs-variable language_">self</span>.log.produce(<span class="hljs-string">"B"</span>, partition=<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.log.logs[<span class="hljs-number">0</span>][<span class="hljs-number">0</span>].offset, <span class="hljs-variable language_">self</span>.log.logs[<span class="hljs-number">1</span>][<span class="hljs-number">0</span>].offset)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_group_member_names_must_be_unique</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"g"</span>, <span class="hljs-string">"W1"</span>, <span class="hljs-string">"W1"</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_unknown_consumer_fails</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.log.join(<span class="hljs-string">"g"</span>, <span class="hljs-string">"W1"</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            <span class="hljs-variable language_">self</span>.log.poll(<span class="hljs-string">"g"</span>, <span class="hljs-string">"unknown"</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_async_completion_can_differ_from_offset_order</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">run</span>() -&gt; <span class="hljs-built_in">list</span>[<span class="hljs-built_in">int</span>]:
+            gate = asyncio.Event()
+            finished: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">int</span>] = []
+            <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">slow</span>():
+                <span class="hljs-keyword">await</span> gate.wait()
+                finished.append(<span class="hljs-number">0</span>)
+            <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">fast</span>():
+                finished.append(<span class="hljs-number">1</span>)
+                gate.<span class="hljs-built_in">set</span>()
+            <span class="hljs-keyword">await</span> asyncio.gather(slow(), fast())
+            <span class="hljs-keyword">return</span> finished
+        <span class="hljs-variable language_">self</span>.assertEqual(asyncio.run(run()), [<span class="hljs-number">1</span>, <span class="hljs-number">0</span>])
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    unittest.main(verbosity=<span class="hljs-number">2</span>)
+</code></pre></div><h3 id="section-48">16.1 运行方法</h3>
+<p>复制上面的代码到 <code>kafka_simulation.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python kafka_simulation.py</code></pre></div><p>正常情况下得到：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Ran 20 tests ...
+OK</code></pre></div><h3 id="section-49">16.2 测试能证明什么</h3>
+<table>
+<thead>
+<tr>
+<th>测试范围</th>
+<th>可验证的知识</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>分区内 Offset 递增</td>
+<td>Offset 对各分区分别编号</td>
+</tr>
+<tr>
+<td>不同分区 Offset 同为零</td>
+<td>Offset 不是 Topic 全局 ID</td>
+</tr>
+<tr>
+<td>相同 Key 固定映射</td>
+<td>固定演示配置中的同 Key 分区选择</td>
+</tr>
+<tr>
+<td>同组成员不重复占有分区</td>
+<td>模拟传统 Consumer Group 的分区分工</td>
+</tr>
+<tr>
+<td>成员多于分区时闲置</td>
+<td>组级并行度受分区数约束</td>
+</tr>
+<tr>
+<td>不同 Group 独立 <code>commit</code></td>
+<td>不同订阅业务共享日志但不共享进度</td>
+</tr>
+<tr>
+<td>不提交可重复读取</td>
+<td>读取与提交属于不同动作</td>
+</tr>
+<tr>
+<td>组成员变化后进度仍保留</td>
+<td>消费进度与成员身份相对分离</td>
+</tr>
+<tr>
+<td><code>asyncio</code> 任务完成逆序</td>
+<td>日志有序并不等于业务完成顺序有序</td>
+</tr>
+</tbody></table>
+<p>模拟器中的分区分配使用人为固定的循环映射，<strong>不是</strong> Kafka 实际分配算法；其中的 <code>poll</code> 从已提交位置重新读取全部可用记录，也与真实客户端预取、position、网络轮询的行为不同。该设计仅用于隔离和展示核心概念。</p>
+<hr />
+<h2 id="section-50">17. 分区设计与后台任务的具体联系</h2>
+<p>以资料导入/模型批处理为例，至少存在三种可能的任务约束：</p>
+<h3 id="section-51">17.1 完全独立的批处理任务</h3>
+<p>例如十万张没有互相依赖的图片，需要分别生成向量。可将任务均衡分发多个 Partition，以提高消费者组的分区级处理并行度。对这类任务，通常没必要强求全局顺序。</p>
+<h3 id="section-52">17.2 同一文档的不同版本必须串行</h3>
+<p>文档 v2 的索引必须在 v1 完成后生效。可以采用 <code>document_id</code> 作为 Partition Key，但还应在数据库中维护：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">document_id
+expected_version
+active_version
+import_status
+last_successful_task_id</code></pre></div><p>即使同一文档事件进入同一分区，也要处理重复消费、客户端重新分区、旧 Worker 迟到写入以及错误版本激活的问题。Kafka 的日志顺序只是解决问题的一部分。</p>
+<h3 id="section-53">17.3 不同任务可并行，但同一用户有限流</h3>
+<p>Kafka 的分区与 Consumer Group 不能自动代替用户级配额。仍需由业务服务管理 <code>user_id</code> / <code>tenant_id</code> 的并发限制、排队策略和任务额度。</p>
+<p>因此可以把 Kafka 理解为：<strong>可靠任务系统的消息运输与分工基础设施，而不是独立完成全部业务约束的万能引擎。</strong></p>
+<hr />
+<h2 id="section-54">18. 常见错误说法与纠正</h2>
+<table>
+<thead>
+<tr>
+<th>错误说法</th>
+<th>准确解释</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>“一个 Topic 的所有消息有一个全局顺序”</td>
+<td>基础 Kafka 消息顺序以分区为单位</td>
+</tr>
+<tr>
+<td>“Offset 是整个 Topic 的全局编号”</td>
+<td>Offset 必须结合 Topic + Partition 才能定位</td>
+</tr>
+<tr>
+<td>“同一 Group 的消费者都会收到每一条消息”</td>
+<td>传统 Consumer Group 分摊分区；不是每个成员都完整读取全部数据</td>
+</tr>
+<tr>
+<td>“不同 Group 会抢走对方的任务”</td>
+<td>各组独立消费和提交进度</td>
+</tr>
+<tr>
+<td>“分区数=Broker 数量”</td>
+<td>分区与 Broker 是不同层次</td>
+</tr>
+<tr>
+<td>“增加 Consumer 一定能提高吞吐量”</td>
+<td>传统组的分区级并行度受分区数约束，还受负载、I/O 与业务耗时影响</td>
+</tr>
+<tr>
+<td>“同一个 Key 天然保证所有历史业务事件顺序”</td>
+<td>依赖一致的路由配置、生产时序和消费处理方式</td>
+</tr>
+<tr>
+<td>“Consumer 读到了消息就意味着处理成功”</td>
+<td>拉取、业务提交和 Offset 提交是不同动作</td>
+</tr>
+<tr>
+<td>“Commit 后 Kafka 立即删除消息”</td>
+<td>消息保留与各组消费进度独立</td>
+</tr>
+<tr>
+<td>“<code>earliest</code> 会强制每次从头消费”</td>
+<td>已有有效提交位点时通常从已提交位置继续</td>
+</tr>
+<tr>
+<td>“日志顺序正确就不会有乱序业务结果”</td>
+<td>异步任务并发可能造成完成顺序变化</td>
+</tr>
+<tr>
+<td>“Share Consumer 也必须一分区一成员”</td>
+<td>Share Group 是另一种消费模型，允许共享分区</td>
+</tr>
+<tr>
+<td>“开启 Producer 幂等就等于业务 exactly-once”</td>
+<td>不能自动防止数据库业务重复副作用</td>
+</tr>
+</tbody></table>
+<hr />
+<h2 id="section-55">19. 术语关联速查</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Kafka Cluster
+  ├── Broker
+  │     ├── Partition Replica (Leader / Follower)
+  │     └── Topic 的记录日志
+  ├── Topic
+  │     ├── Partition 0 (offset 0, 1, 2, ...)
+  │     ├── Partition 1 (offset 0, 1, 2, ...)
+  │     └── Partition N
+  ├── Producer
+  │     ├── key / value / headers
+  │     ├── partition selection
+  │     └── send / acknowledgements
+  └── Consumer Group
+        ├── Consumer A → 某些 Partition
+        ├── Consumer B → 其余 Partition
+        ├── group offset (按 Topic + Partition)
+        └── rebalance / reassignment</code></pre></div><p><strong>在正确识别 Topic、Partition、Offset、Producer、Consumer 和 Consumer Group 之后，才能继续严谨讨论后台任务的提交语义、重复消费、顺序约束及故障恢复。</strong></p>
+<hr />
+<h2 id="section-56">20. 本文验证记录与限制</h2>
+<ul>
+<li>使用 Python 标准库实现并运行了 <code>MiniPartitionLog</code> 教学模拟器。</li>
+<li>实际执行 <strong>20 项 unittest，20 项通过</strong>。</li>
+<li>已测试：分区独立 Offset、静态 Key 映射、组内分区独占、组间进度独立、提交后继续消费、未提交重复消费、成员调整、异步完成次序变化。</li>
+<li>已依据 Apache Kafka 4.4 官方文档核对 Topic / Partition / Consumer Group 与 Share Group 的行为、CLI 命令格式及 Docker 启动方式。</li>
+<li><strong>未启动真实 Kafka Broker</strong>，没有执行生产者/消费者客户端的真实端到端集成测试。</li>
+<li>本地模拟器不用于推断 Kafka 的真实性能、网络容错、Broker 复制与 Rebalance 行为。</li>
+</ul>
+<hr />
+<h2 id="section-57">21. 官方参考资料</h2>
+<ol>
+<li>Apache Kafka 4.4 — Introduction（Topic、Partition、Consumer Group）：<a href="https://kafka.apache.org/44/getting-started/introduction/">https://kafka.apache.org/44/getting-started/introduction/</a></li>
+<li>Apache Kafka 4.4 — Design（消费、复制、Share Consumer）：<a href="https://kafka.apache.org/44/design/design/">https://kafka.apache.org/44/design/design/</a></li>
+<li>Apache Kafka 4.4 — Quick Start：<a href="https://kafka.apache.org/44/getting-started/quickstart/">https://kafka.apache.org/44/getting-started/quickstart/</a></li>
+<li>Apache Kafka 4.4 — Docker：<a href="https://kafka.apache.org/44/getting-started/docker/">https://kafka.apache.org/44/getting-started/docker/</a></li>
+<li>Apache Kafka 4.4 — Basic Kafka Operations（Topic 和 Group 管理）：<a href="https://kafka.apache.org/44/operations/basic-kafka-operations/">https://kafka.apache.org/44/operations/basic-kafka-operations/</a></li>
+<li>Apache Kafka 4.4 — Producer Configuration：<a href="https://kafka.apache.org/44/configuration/producer-configs/">https://kafka.apache.org/44/configuration/producer-configs/</a></li>
+<li>Apache Kafka 4.4 — Consumer Configuration：<a href="https://kafka.apache.org/44/configuration/consumer-configs/">https://kafka.apache.org/44/configuration/consumer-configs/</a></li>
+<li>Apache Kafka Protocol（分区路由的客户端责任）：<a href="https://kafka.apache.org/protocol.html">https://kafka.apache.org/protocol.html</a></li>
+<li>aiokafka — Consumer Client（Position 与 Committed Offset）：<a href="https://aiokafka.readthedocs.io/en/latest/consumer.html">https://aiokafka.readthedocs.io/en/latest/consumer.html</a></li>
+<li>aiokafka — Manual Commit：<a href="https://aiokafka.readthedocs.io/en/stable/examples/manual_commit.html">https://aiokafka.readthedocs.io/en/stable/examples/manual_commit.html</a></li>
+<li>Docker Docs — Developing Event-Driven Applications with Kafka：<a href="https://docs.docker.com/guides/kafka/">https://docs.docker.com/guides/kafka/</a></li>
+</ol>
+<p><strong>版本说明</strong>：本文命令以 Apache Kafka 4.4.0 官方镜像为示例。不同版本 Kafka 客户端、消费者协调协议和生产者默认配置可能存在差异，实际部署须以所安装版本的文档为准。</p>

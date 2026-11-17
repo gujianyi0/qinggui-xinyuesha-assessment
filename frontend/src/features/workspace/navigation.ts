@@ -1,5 +1,11 @@
-import { BookOpen, Database, FolderClock, MessageCircle } from 'lucide-react'
-export type Page = 'chat' | 'library' | 'feedback' | 'jobs'
+import {
+  BookOpen,
+  Database,
+  FolderClock,
+  LibraryBig,
+  MessageCircle,
+} from 'lucide-react'
+export type Page = 'chat' | 'library' | 'feedback' | 'jobs' | 'bookshelf'
 export const NAVIGATION = [
   {
     id: 'chat' as const,
@@ -24,5 +30,11 @@ export const NAVIGATION = [
     label: '后台任务',
     icon: Database,
     sub: '资料导入与索引',
+  },
+  {
+    id: 'bookshelf' as const,
+    label: '知识书架',
+    icon: LibraryBig,
+    sub: '08 文档导航QA · 考核检阅',
   },
 ]

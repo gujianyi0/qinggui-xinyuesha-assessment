@@ -1,0 +1,157 @@
+<blockquote>
+<p>当前本地版本2.0.2：性能优化、六项测试记录、用户本人试用记录及书架08已补齐；<a href="/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261117-v202.md.html">当前进度</a>。下文2.0.1/1.9结果按原版本解释。</p>
+</blockquote>
+<h1 id="section-1">02 验证样例、测试、真实运行、问题修正和试用反馈在哪里？</h1>
+<p>本页列出已保存的证据及其验证范围。2026-11-17的2.0.1是最近一次代码回归；本轮文档整理只核对材料位置并验证演示密码，没有再次运行模型评测或基础设施故障测试。</p>
+<h2 id="section-2">固定验证样例</h2>
+<table>
+<thead>
+<tr>
+<th>内容</th>
+<th>位置</th>
+<th>如何阅读</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>原32条固定规格</td>
+<td><a href="/bookshelf/review-files/evaluations/cases.json">cases.json</a>、<a href="/bookshelf/review-files/evaluations/README.md.html">评测说明</a></td>
+<td>8规则、6结构化、8裁定、3多轮、2冲突、2无答案、1工具失败、2反馈不足；查看输入、前提、预期工具及来源</td>
+</tr>
+<tr>
+<td>样例生成和执行器</td>
+<td><a href="/bookshelf/review-files/evaluations/build_cases.py">build_cases.py</a>、<a href="/bookshelf/review-files/evaluations/run.py">run.py</a></td>
+<td>生成规格不调用模型；执行器校验模式、用例哈希并保存实际结果</td>
+</tr>
+<tr>
+<td>定向补充样例</td>
+<td><a href="/bookshelf/review-files/evaluations/feedback-followup-v17.json">feedback-followup-v17.json</a>、<a href="/bookshelf/review-files/evaluations/v19-supplemental.json">v19-supplemental.json</a></td>
+<td>反馈多轮、裁定越界、弃牌前提等补充，不能冒充原32条完整覆盖</td>
+</tr>
+<tr>
+<td>1.9逐条人工核对</td>
+<td><a href="/bookshelf/review-files/docs/%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md.html">完整32条真实回归</a>、<a href="/bookshelf/review-files/evaluations/results/v19-final-review.json">机器可读核对</a></td>
+<td>输入、结论、实际来源与采用轮次逐条对应；最终采用32条/35回合及V01同版本重试</td>
+</tr>
+</tbody></table>
+<p>原文、工具结果、引用及结算前提需要一起核对。仅有关键词、完成状态、引用数量或哈希正确，不能独立证明答案语义正确。</p>
+<h2 id="section-3">自动化测试</h2>
+<table>
+<thead>
+<tr>
+<th>范围</th>
+<th>测试位置</th>
+<th>已保存的运行证据</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>API、身份、反馈与修订</td>
+<td><a href="/bookshelf/review-files/tests/test_api.py">test_api.py</a>、<a href="/bookshelf/review-files/tests/test_database_unavailable.py">test_database_unavailable.py</a></td>
+<td>包含在<a href="/bookshelf/review-files/docs/evidence/v201-pytest-20261117.log.txt">2.0.1后端230项日志</a>和<a href="/bookshelf/review-files/docs/evidence/v201-pytest-20261117.xml">JUnit</a>中</td>
+</tr>
+<tr>
+<td>模型协议、裁定与多轮边界</td>
+<td><a href="/bookshelf/review-files/tests/test_agno_protocol.py">test_agno_protocol.py</a>、<a href="/bookshelf/review-files/tests/test_v19_ruling_guard.py">test_v19_ruling_guard.py</a>、<a href="/bookshelf/review-files/tests/test_ruling_topic_scope.py">话题策略</a>、<a href="/bookshelf/review-files/tests/test_ruling_topic_protocol.py">话题协议</a></td>
+<td>真Agno/OpenAI SDK连接内存HTTP替身；不是付费模型准确率测试</td>
+</tr>
+<tr>
+<td>Worker与任务可靠性</td>
+<td><a href="/bookshelf/review-files/tests/test_jobs.py">test_jobs.py</a>、<a href="/bookshelf/review-files/tests/test_worker.py">test_worker.py</a>、<a href="/bookshelf/review-files/tests/test_worker_resilience.py">test_worker_resilience.py</a>、<a href="/bookshelf/review-files/tests/test_request_recovery.py">test_request_recovery.py</a></td>
+<td>单元/接口故障回归；真实Broker/进程故障证据另见下表</td>
+</tr>
+<tr>
+<td>前端行为</td>
+<td><a href="/bookshelf/review-files/frontend/src/features/chat/components/__tests__/index.html">chat测试</a>、<a href="/bookshelf/review-files/frontend/src/features/feedback/components/__tests__/index.html">反馈测试</a>、<a href="/bookshelf/review-files/frontend/src/components/shared/__tests__/index.html">共享阅读组件测试</a>、<a href="/bookshelf/review-files/frontend/src/components/ui/__tests__/index.html">UI组件测试</a>、<a href="/bookshelf/review-files/frontend/src/hooks/__tests__/index.html">Hook测试</a></td>
+<td><a href="/bookshelf/review-files/docs/evidence/v201-frontend-check-20261117.log.txt">2.0.1前端完整检查</a>：49项通过，另含Lint/类型/Knip/架构/构建</td>
+</tr>
+<tr>
+<td>迁移与运行边界</td>
+<td><a href="/bookshelf/review-files/tests/test_migrations.py">test_migrations.py</a>、<a href="/bookshelf/review-files/tests/test_backup_boundaries.py">test_backup_boundaries.py</a>、<a href="/bookshelf/review-files/tests/test_database_transfer.py">test_database_transfer.py</a></td>
+<td>迁移升级/降级/升级与数据边界；不在业务主库执行测试性降级</td>
+</tr>
+<tr>
+<td>CI定义</td>
+<td><a href="/bookshelf/review-files/.github/workflows/checks.yml">checks.yml</a></td>
+<td>定义后端、前端和公网入口检查；远端是否通过以<a href="https://github.com/gujianyi0/qinggui-xinyuesha-assessment/actions">Actions</a>对应提交结果为准，本地记录不替代远端结果</td>
+</tr>
+</tbody></table>
+<p>重跑常规检查的命令在<a href="/bookshelf/review-files/README.md.html">README第3节</a>。本次文档和密码配置更新没有改业务算法，不把旧230/49项结果写成本轮重新运行。</p>
+<h2 id="section-4">真实模型与基础设施运行记录</h2>
+<table>
+<thead>
+<tr>
+<th>记录</th>
+<th>入口</th>
+<th>已验证与限制</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>真实模型原始前后轮次</td>
+<td><a href="/bookshelf/review-files/evaluations/results/index.html">evaluations/results</a>、<a href="/bookshelf/review-files/docs/%E7%9C%9F%E5%AE%9E%E6%A8%A1%E5%9E%8B%E5%AF%B9%E7%85%A7%E8%AE%B0%E5%BD%95.md.html">真实模型对照记录</a></td>
+<td>每轮metadata、results.jsonl、summary；失败与中间结果保留，按各自日期/版本阅读</td>
+</tr>
+<tr>
+<td>1.9同组32条前后对照</td>
+<td><a href="/bookshelf/review-files/evaluations/results/live-v19-full-01/index.html">full-01</a>、<a href="/bookshelf/review-files/evaluations/results/live-v19-full-02/index.html">full-02</a>、<a href="/bookshelf/review-files/evaluations/results/live-v19-full-03/index.html">full-03</a>、<a href="/bookshelf/review-files/evaluations/results/live-v19-full-04/index.html">full-04</a>、<a href="/bookshelf/review-files/evaluations/results/live-v19-retry-v01/index.html">V01重试</a></td>
+<td>同一组用例；第四组V01超时仍保留，不能说一次无失败全部通过</td>
+</tr>
+<tr>
+<td>1.9最终核对与审计</td>
+<td><a href="/bookshelf/review-files/docs/%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md.html">逐条核对</a>、<a href="/bookshelf/review-files/evaluations/results/live-v19-full-04/citation-audit.json">第四组引用审计</a>、<a href="/bookshelf/review-files/docs/1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md.html">1.9报告</a></td>
+<td>最终采用109处引用完整性核对；相关性和语义另审</td>
+</tr>
+<tr>
+<td>2.0.1实际问答与浏览器</td>
+<td><a href="/bookshelf/review-files/docs/2.0.1-%E8%A3%81%E5%AE%9A%E8%AF%9D%E9%A2%98%E4%B8%8E%E8%BE%93%E5%85%A5%E8%8D%89%E7%A8%BF%E4%BF%AE%E5%A4%8D-20261117.md.html">修复报告</a>、<a href="/bookshelf/review-files/docs/evidence/v201-live-regression-20261117.json">原始前后结果</a></td>
+<td>修复前3次复现、修复后5次顺序请求、1次浏览器真实问答；不是完整32条重跑</td>
+</tr>
+<tr>
+<td>真实Linux容器与故障矩阵</td>
+<td><a href="/bookshelf/review-files/docs/1.4-Compose%E9%9B%86%E6%88%90%E4%B8%8E%E6%95%85%E9%9A%9C%E6%81%A2%E5%A4%8D%E9%AA%8C%E8%AF%81-20261111.md.html">1.4报告</a>、<a href="/bookshelf/review-files/docs/%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%88%98%E6%B5%8B%E8%AF%95%E5%8F%8D%E9%A6%88-20261112.md.html">1.6逐项反馈</a>、<a href="/bookshelf/review-files/docs/evidence/assessment-audit-compose-20261112-01/summary.json">1.6容器原始汇总</a></td>
+<td>PostgreSQL/pgvector、Kafka、Redis、Worker与CPU BGE；聊天使用替身，不能当真实模型测试</td>
+</tr>
+<tr>
+<td>Worker整小时观察</td>
+<td><a href="/bookshelf/review-files/docs/Worker%E4%B8%80%E5%B0%8F%E6%97%B6%E7%A8%B3%E5%AE%9A%E6%80%A7%E9%AA%8C%E8%AF%81%E4%B8%8E1.0%E4%BA%A4%E4%BB%98-20261111.md.html">一小时报告</a>、<a href="/bookshelf/review-files/docs/evidence/worker-soak-20261111-01/summary.json">summary</a>、<a href="/bookshelf/review-files/docs/evidence/worker-soak-20261111-01/audit.json">独立审计</a></td>
+<td>2026-11-11的3600.784秒窗口，含退出/恢复/导入/取消；不代表v2新跑一小时或永久无故障</td>
+</tr>
+<tr>
+<td>Lua离线裁定</td>
+<td><a href="/bookshelf/review-files/rulings/evidence/index.html">rulings/evidence</a>、<a href="/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/index.html">独立裁定核对</a></td>
+<td>SC01–SC08及对照的实际执行、断言和轨迹；不是完整游戏客户端或线上房间</td>
+</tr>
+<tr>
+<td>主库恢复演练</td>
+<td><a href="/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E5%A4%87%E4%BB%BD%E4%B8%8E%E6%81%A2%E5%A4%8D.md.html">备份恢复手册</a>、<a href="/bookshelf/review-files/docs/1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md.html">1.9报告</a></td>
+<td>新库19表指纹与历史读取；私有归档不进仓库，未做正式灾难主库切换</td>
+</tr>
+</tbody></table>
+<p>真实评测须核对模式、隔离环境、预算与唯一label；F01故障只在隔离环境开启。当前演示账号密码为<code>123</code>，使用评测CLI连接本机时须显式传<code>--password 123</code>或设置其读取的环境变量，不能继续依赖旧默认密码。</p>
+<h2 id="section-5">3个可完整讲解的问题修正记录</h2>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>从哪里看全过程</th>
+<th>对应修改与复测</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1. AI生成的反馈编辑请求多传session_id，第二次保存返回422（FIX01）</td>
+<td><a href="/bookshelf/review-files/docs/%E9%97%AE%E9%A2%98%E4%BF%AE%E6%AD%A3%E8%AE%B0%E5%BD%95.md.html">问题修正记录</a>，查找标题“FIX01：反馈页面无法保存第二次编辑”</td>
+<td>当前<a href="/bookshelf/review-files/frontend/src/services/feedback.ts.txt">反馈服务</a>按POST/PATCH拆分字段；<a href="/bookshelf/review-files/frontend/src/features/feedback/components/__tests__/feedback-screen.test.tsx.txt">反馈组件测试</a>核对revision及不修改归属；历史<a href="/bookshelf/review-files/docs/evidence/browser/summary.json">浏览器汇总</a>保存实际创建、编辑、确认链路</td>
+</tr>
+<tr>
+<td>2. I01反馈追问遗漏具体武将/技能等必要信息（FIX31）</td>
+<td><a href="/bookshelf/review-files/docs/1.7-I01%E8%BF%BD%E9%97%AE%E4%B8%8E%E8%BE%93%E5%85%A5%E7%84%A6%E7%82%B9%E4%BF%AE%E5%A4%8D-20261112.md.html">1.7修复报告</a>；全集中查“FIX31”</td>
+<td><a href="/bookshelf/review-files/docs/evidence/v17-i01-protocol-before.xml">修复前协议结果</a>、<a href="/bookshelf/review-files/docs/evidence/v17-feedback-protocol-after.xml">修复后反馈协议</a>、<a href="/bookshelf/review-files/evaluations/results/live-feedback-v17-20261112-01/index.html">真实多轮结果</a>、<a href="/bookshelf/review-files/evaluations/results/live-feedback-followup-v17-20261112-01/index.html">新增补充回合</a></td>
+</tr>
+<tr>
+<td>3. 查看SC03后，普通技能查询被旧裁定兜底覆盖</td>
+<td><a href="/bookshelf/review-files/docs/2.0.1-%E8%A3%81%E5%AE%9A%E8%AF%9D%E9%A2%98%E4%B8%8E%E8%BE%93%E5%85%A5%E8%8D%89%E7%A8%BF%E4%BF%AE%E5%A4%8D-20261117.md.html">2.0.1修复报告</a>，查“普通问题被裁定兜底覆盖”</td>
+<td><a href="/bookshelf/review-files/backend/app/ruling_policy.py">话题策略</a>、<a href="/bookshelf/review-files/tests/test_ruling_topic_scope.py">话题策略测试</a>、<a href="/bookshelf/review-files/tests/test_ruling_topic_protocol.py">真实SDK协议测试</a>、<a href="/bookshelf/review-files/docs/evidence/v201-live-regression-20261117.json">真实前后记录</a>；普通查询恢复且真实裁定追问仍受约束</td>
+</tr>
+</tbody></table>
+<p>同一2.0.1报告另记录“生成期间输入框禁用、异步创建清空新草稿”的修正与真实浏览器验证。全部历史修正入口是<a href="/bookshelf/review-files/docs/%E9%97%AE%E9%A2%98%E4%BF%AE%E6%AD%A3%E8%AE%B0%E5%BD%95.md.html">问题修正记录</a>，包含FIX01–FIX48及浏览器未确证问题；2.0.1新增问题以独立报告补充，不杜撰新的历史FIX编号。</p>
+<h2 id="section-6">试用反馈</h2>
+<p><strong>用户本人多轮真人试用与改进已完成。</strong> 当前对话中的实际使用、截图反馈、代码修改与复测构成闭环；参与者明确为用户本人，没有虚构额外同事或朋友。取消额外招募不等于没有真人反馈。详见<a href="/bookshelf/review-files/docs/%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md.html">试用与改进记录</a>。</p>
+<p>六段要求的完整回答见<a href="/bookshelf/index.html#read/8-05">测试与修复记录</a>，一段一份文档。</p>

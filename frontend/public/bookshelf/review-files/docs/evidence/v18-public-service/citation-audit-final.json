@@ -1,0 +1,11 @@
+{
+  "runs": 5,
+  "completed_status": 4,
+  "failed_status": 1,
+  "citations": 10,
+  "integrity_issues": [],
+  "source_gap_preserved": "baa8bbc9-d5f6-5a90-84de-9ba196a3e026",
+  "final_https_run": "e21849c5-e158-56b6-8efa-a1fe853d7998",
+  "final_history_reuse_receipt": "reuse_conversation_sources",
+  "boundary": "Completed status does not imply acceptance: baa8bbc9 had a correct answer but zero citation cards. Three other completed answers passed source review. Retrieved extra nearby skills/rules remain a relevance improvement."
+}

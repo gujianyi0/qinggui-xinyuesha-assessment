@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "atEnd": {
+    "paneTop": 148.6666717529297,
+    "paneBottom": 301.6666717529297,
+    "textBottom": 141.20833587646484,
+    "scroll": 1036
+  },
+  "readable": {
+    "paneTop": 148.6666717529297,
+    "paneBottom": 301.6666717529297,
+    "textBottom": 201.20834350585938,
+    "scroll": 976,
+    "lastText": "亮出身份（将主公牌正面朝上放在面前），其它身份的玩家保存好自己的身份牌，不让别的玩家知道自己的身份。"
+  },
+  "explanation": "The large wheel overshot the paragraph into the trailing source-toggle/copy area in the short viewport. Scrolling back 60px makes its final line visible; no trapped content.",
+  "scope": "Actual 1084x500 owner UI and real wheel, no model requests"
+}

@@ -1,0 +1,26 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>P06-反馈草稿与缺项追问.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>P06 反馈草稿与缺项追问</h1>
+<p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
+<p>状态：<strong>已实现，I01和相关多轮已有真实复测</strong>。</p>
+<h2>对应要求（原段要点，转述）</h2>
+<p>将反馈分成实际、预期、复现条件及缺失信息，必要时追问或标明待补。</p>
+<p>来源：<a href="https://biteagle.yuque.com/mw0520/rzyee0/ay7550zlq5vyq27t#u20d1a5c9">故剑遗学习目标 · 功能要求 · 本段</a>。
+对应编号：P06。原段SHA256：<code>b2691e8ffd9547582b87d01aedb0b5b4e8e9594679dfdc05ff63e3ba2949f144</code>。</p>
+<p>这是原文一个段落的对应回答。要点使用转述；原段定位和哈希用于复核边界，不把此处概括当作公司新要求。</p>
+<h2>回答</h2>
+<p>反馈先整理成尚未保存/提交的文字草稿。用户只说“技能没生效”时，不能写成“已发动技能”，也不能替用户确认预期。本项目会核对武将、技能或卡牌、时机、目标、局面、操作、平台和版本；纯客户端问题不强索无关武将。</p>
+<h2>本项目如何实现</h2>
+<p><a href="/bookshelf/review-files/backend/app/feedback_context.py">feedback_context.py</a>区分反馈意图和司马懿的同名技能，并识别版本、恢复情况及实体补充。<a href="/bookshelf/review-files/backend/app/runtime.py">runtime.py</a>附加程序控制的结算缺项清单，但仅在模型正文非空后附加，不能用清单把空正文变成成功。</p>
+<p>用户在“我的反馈”页核对、手动填写或复制文字后保存Draft。DraftInput包含actual、expected、steps、context、platform、client_version等字段；后端返回missing_fields。文字聊天不会自动填表或直接写正式反馈。</p>
+<h2>已有验证与证据</h2>
+<ul>
+<li><a href="/bookshelf/review-files/evaluations/results/live-v19-full-04/results.jsonl">I01/I02/M03最终记录</a>：未给预期标为待用户确认。</li>
+<li><a href="/bookshelf/review-files/docs/1.7-I01%E8%BF%BD%E9%97%AE%E4%B8%8E%E8%BE%93%E5%85%A5%E7%84%A6%E7%82%B9%E4%BF%AE%E5%A4%8D-20261112.md.html">1.7问题与复测</a>：原I01漏问、程序清单、多轮补充及空正文保护。</li>
+<li><a href="/bookshelf/review-files/tests/test_agno_protocol.py">协议测试</a>、<a href="/bookshelf/review-files/tests/test_full_regression_fixes.py">反馈边界测试</a>、<a href="/bookshelf/review-files/backend/app/schemas.py">Schema</a>。</li>
+</ul>
+<p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
+<h2>怎样核对或演示</h2>
+<p>先看I01是否列出具体技能/武将，而非只说“请补充信息”；再看M03第二轮是否保留0.5.25、本地修改版和重开能继续，不重复索要已提供信息。草稿缺项可以显示待补，不能把待补当已知事实。</p>
+<h2>结论与边界</h2>
+<p>目前不是“聊天一句话自动生成网页Draft并自动保存”的流程。缺项提示和用户确认是不同环节；现有正式确认仅强制实际现象非空，其他缺项可以被标明后由用户核对，不应声称所有字段齐全才允许保存。</p>
+<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+</article></body></html>

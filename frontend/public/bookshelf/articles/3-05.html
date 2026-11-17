@@ -1,0 +1,906 @@
+<h1 id="section-1">Agent、工具调用与执行边界（五）：会话历史、执行状态、工具记录与多用户数据隔离</h1>
+<blockquote>
+<p>对应学习目标：<strong>会话历史、执行状态与工具记录的区别；多个用户或会话之间不能串数据。</strong><br />内容范围：术语定义、数据模型、状态生命周期、查询与写入隔离、权限校验、会话上下文构造、并发、缓存、任务恢复、审计、测试与 Python 实现。<br />版本说明：以 Python 3.11+、SQLite 教学实现、PostgreSQL/SQLAlchemy/FastAPI/Agno 的工程概念为背景；特定框架 API 请以实际锁定版本为准。</p>
+</blockquote>
+<h2 id="section-2">1. 核心结论与边界</h2>
+<p>Agent 应用至少存在三类不能混淆的数据：</p>
+<ol>
+<li><strong>会话历史（conversation history）</strong>：曾经发生的用户消息与助手消息，回答“此前说了什么”。</li>
+<li><strong>执行状态（execution/run state）</strong>：一次任务现在执行到哪里、能否继续或取消，回答“这次运行进展如何”。</li>
+<li><strong>工具记录（tool execution records）</strong>：模型申请调用了什么工具、程序实际做了什么、得到什么结果，回答“外部操作究竟发生了什么”。</li>
+</ol>
+<p>还可能存在第四类数据：<strong>长期记忆（long-term memory）</strong>，即从历史中筛选、抽取并独立管理的跨会话信息。它不等于会话历史，也不等于 Agent 工作流状态。</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>会话历史</th>
+<th>执行状态</th>
+<th>工具记录</th>
+<th>长期记忆</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>主要标识</td>
+<td><code>session_id</code> + 消息序号</td>
+<td><code>run_id</code>、<code>status</code></td>
+<td><code>run_id</code> + <code>call_id</code></td>
+<td><code>user_id</code>、记忆条目 ID</td>
+</tr>
+<tr>
+<td>时间跨度</td>
+<td>一段对话持续期间</td>
+<td>某次执行从创建到终止</td>
+<td>按工具调用逐条留存</td>
+<td>可以跨对话、跨时间</td>
+</tr>
+<tr>
+<td>典型信息</td>
+<td>发言者、文本、时间、引用</td>
+<td>当前步骤、进度、重试、取消</td>
+<td>工具名、参数、响应、错误</td>
+<td>偏好、经核准的事实、来源</td>
+</tr>
+<tr>
+<td>用途</td>
+<td>构造多轮对话上下文</td>
+<td>恢复任务和判断可否执行</td>
+<td>审计和排错</td>
+<td>选择性个性化与知识复用</td>
+</tr>
+<tr>
+<td>能否直接交给模型</td>
+<td>仅按任务选取相关历史</td>
+<td>通常仅提供必要摘要</td>
+<td>通常提供经过过滤的工具结果</td>
+<td>根据授权和任务选择</td>
+</tr>
+<tr>
+<td>保密风险</td>
+<td>聊天内容外泄</td>
+<td>任务标识与状态越权</td>
+<td>工具结果可能含密钥或 PII</td>
+<td>跨会话、跨目的过度共享</td>
+</tr>
+</tbody></table>
+<p><strong>数据已经写入数据库不代表模型已看到它；模型曾经看到某条信息也不代表应用已持久化；工具日志存在不代表操作成功。</strong> 这三种事实分别验证。</p>
+<h2 id="section-3">2. 身份层次：租户、用户、会话、运行、调用</h2>
+<p>考虑一个多租户系统，其中 A 公司和 B 公司都在使用同一个 AI 助手。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Tenant / 企业租户
+  ├─ User / 用户
+  │   ├─ Session / 对话线程
+  │   │   ├─ Run / 一次模型执行（可能多轮工具调用）
+  │   │   │    ├─ Message / 用户、助手消息
+  │   │   │    ├─ ToolCall / 某次工具请求
+  │   │   │    └─ ToolResult / 实际调用结果
+  │   │   └─ Run / 另一轮执行
+  │   └─ Session / 另一个聊天窗口
+  └─ User / 另一用户</code></pre></div><p>字段语义：</p>
+<ul>
+<li><code>tenant_id</code>：组织或空间的边界，用于多租户隔离。不是所有应用都有租户，但有租户时不能遗漏。</li>
+<li><code>user_id</code>：认证系统确认的主体，不应直接信任客户端提交的任意字符串。</li>
+<li><code>session_id</code>：特定对话线程的标识符，可跨多轮消息使用；不等于授权令牌。</li>
+<li><code>run_id</code>：某次 Agent 执行标识；同一会话通常产生多个 Run。</li>
+<li><code>call_id</code>：模型工具调用和工具结果之间的关联标识。</li>
+<li><code>trace_id</code>：分布式追踪关联标识，通常与上面几类业务 ID 不同。</li>
+<li><code>task_id</code>：跨进程或长时间运行的后台任务标识，必要时再与 <code>run_id</code> 关联。</li>
+</ul>
+<p>一个 <code>session_id</code> 通常不应被理解为“当前用户唯一的会话”。同一用户可以打开多个会话，不同用户绝不应靠会话 ID 的偶然不重复来保证安全。可使用全局 UUID，也可使用 <code>(tenant_id, session_id)</code> 复合键，关键是查询和权限范围始终一致。</p>
+<h3 id="section-4">2.1 会话与执行：一对多而非一对一</h3>
+<p>用户在某会话中先问“规则是什么”，第二轮问“那这个角色呢”：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Session S-100
+  Run R-101：用户提问 → 工具查询 → 模型回答
+  Run R-102：用户追问 → 模型回答
+  Run R-103：用户请求反馈草稿 → 写入草稿</code></pre></div><p>会话历史是跨这些运行构成的有序消息；而 R-102 失败并不必然使整个 S-100 失效。</p>
+<h3 id="section-5">2.2 Agent 框架概念与应用层所有权</h3>
+<p>Agno 将 Session 看作多个相关 Run 的组合；其持久化数据库可以记录消息、Run、会话状态等，是否把历史送回模型又由独立的上下文配置决定。Agno 文档明确要求在多用户应用中由应用传入正确的 <code>user_id</code>、<code>session_id</code>，而不是共享一个默认会话。<strong>应用仍需自行验证当前认证身份是否有权访问该会话。</strong></p>
+<h2 id="section-6">3. 会话历史：发生过什么</h2>
+<p>会话历史由一串有序事件构成。最简单的模式为：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">message_id
+session_id
+run_id
+seq
+role
+content
+created_at</code></pre></div><p>真实系统往往还需要 <code>content_type</code>（文本、图片等）、数据版本、引用来源、编辑状态、模型标识、消息可见性以及消息是否被撤回等字段。</p>
+<h3 id="section-7">3.1 存储的全部历史与送给模型的上下文不同</h3>
+<ul>
+<li><strong>完整历史（stored history）</strong>：可审计、可检索、可恢复的原始聊天记录。</li>
+<li><strong>模型上下文（model context）</strong>：为了当前任务从历史、系统规则、用户输入及外部资料中选出的有限集合。</li>
+</ul>
+<p><code>存储全部历史 ≠ 将全部历史注入每次 Prompt</code>。</p>
+<p>原因包括上下文窗口限制、费用、无关信息干扰、历史资料已过期，以及跨用户数据泄漏风险。合理的上下文选择可以采用最近 N 条消息、按语义检索、固定摘要、明确的当前任务状态；仍必须保证资料权限和版本过滤。</p>
+<h3 id="section-8">3.2 事件顺序与消息序号</h3>
+<p>不能依赖数据库的自然返回顺序。使用明确的 <code>sequence_no</code>、<code>created_at</code> 与必要的唯一约束。单独使用时间戳可能出现同毫秒冲突；分布式写入时应设计单会话顺序生成机制或具备稳定排序键。</p>
+<p>建议约束：<code>UNIQUE (tenant_id, session_id, sequence_no)</code>。</p>
+<h3 id="section-9">3.3 会话历史不是业务事实权威来源</h3>
+<p>用户说“我的订单已付款”，属于用户输入事件；不能因为它在会话历史中便认定数据库的订单状态已更改。模型说“工单已创建”，也不能替代真实的数据库写入结果或外部工单 ID。</p>
+<h2 id="section-10">4. 执行状态：现在到哪一步</h2>
+<p>一个 Run 可以包含多个阶段：任务规划、调用模型、工具等待、数据库写入、输出生成等。执行状态关注的是<strong>控制流程</strong>，而不是用户能看到的所有文本。</p>
+<p>典型状态机：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">QUEUED ──领取──&gt; RUNNING ──成功──&gt; SUCCEEDED
+                    │    │
+                    │    ├─致命错误──&gt; FAILED
+                    │    └─取消生效──&gt; CANCELLED
+                    └─临时失败──&gt; RETRY_WAIT ──重试──&gt; RUNNING</code></pre></div><p>上述是应用自定义状态机，而非所有框架都采用的统一状态名称。可以另设 <code>CANCEL_REQUESTED</code>、<code>PAUSED</code>、<code>TIMED_OUT</code> 等状态。</p>
+<h3 id="section-11">4.1 状态不变量（invariants）</h3>
+<ol>
+<li>每次 Run 有唯一标识；其归属 Session 不可事后无痕更改。</li>
+<li>终态 <code>SUCCEEDED</code>、<code>FAILED</code>、<code>CANCELLED</code> 的最终结果不可被迟到的 Worker 覆盖。</li>
+<li>状态转换须满足预先定义的有向关系；不能从 <code>SUCCEEDED</code> 随意改回 <code>RUNNING</code>。</li>
+<li>对同一个 Run 的状态写入应具有原子性与竞争控制。</li>
+<li>“进程存活”不等于“任务有进展”；故障恢复可能依赖 lease、心跳、检查点与重新派发。</li>
+</ol>
+<h3 id="section-12">4.2 原子状态转换</h3>
+<p>不安全：先 SELECT 状态，再在另一个步骤里无条件 UPDATE；两个 Worker 可能都认为任务仍在运行。</p>
+<p>更稳妥的 CAS（比较并交换）式 SQL：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">UPDATE</span> runs
+<span class="hljs-keyword">SET</span> status <span class="hljs-operator">=</span> <span class="hljs-string">'succeeded'</span>, updated_at <span class="hljs-operator">=</span> NOW()
+<span class="hljs-keyword">WHERE</span> tenant_id <span class="hljs-operator">=</span> :tenant_id
+  <span class="hljs-keyword">AND</span> session_id <span class="hljs-operator">=</span> :session_id
+  <span class="hljs-keyword">AND</span> run_id <span class="hljs-operator">=</span> :run_id
+  <span class="hljs-keyword">AND</span> status <span class="hljs-operator">=</span> <span class="hljs-string">'running'</span>;</code></pre></div><p>若影响行数为 0，应重新判断当前状态：可能是任务不存在、无权访问、已完成或被其他 Worker 抢先更新。并发冲突不能简单视作“成功”。</p>
+<h3 id="section-13">4.3 Run 状态与业务状态不同</h3>
+<p>Agent Run <code>SUCCEEDED</code> 只表示本次执行控制流程正常完成，不代表退款已到账、外部邮件已被收件人接收或业务事实已被审核。应该分别建模 <code>run_status</code> 和业务实体自身的状态。</p>
+<h2 id="section-14">5. 工具记录：实际上执行了什么</h2>
+<p>建议明确区分三个事件：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">ToolRequested   模型提出工具调用意图
+ToolExecuted    应用实际调用工具，记录结果
+ToolReturned    结果经过处理后回传模型</code></pre></div><p>它们不保证永远是 1:1:1：参数错误可能导致工具未执行；外部超时可能导致是否成功未知；结果过大可能被过滤、截断或转化为摘要后回传模型。</p>
+<table>
+<thead>
+<tr>
+<th>重要字段</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>call_id</code>、<code>run_id</code></td>
+<td>将意图、执行和返回值关联</td>
+</tr>
+<tr>
+<td><code>tool_name</code>、<code>tool_version</code></td>
+<td>识别接口及契约版本</td>
+</tr>
+<tr>
+<td><code>requested_arguments</code></td>
+<td>模型原始意图</td>
+</tr>
+<tr>
+<td><code>validated_arguments</code></td>
+<td>程序实际认可的参数</td>
+</tr>
+<tr>
+<td><code>principal</code> / <code>permission_decision</code></td>
+<td>记录授权检查结果</td>
+</tr>
+<tr>
+<td><code>execution_status</code></td>
+<td>成功、失败、取消、未知</td>
+</tr>
+<tr>
+<td><code>external_request_id</code></td>
+<td>外部系统回执或请求关联</td>
+</tr>
+<tr>
+<td><code>result_hash</code> / <code>result_reference</code></td>
+<td>审计完整结果或其安全存储位置</td>
+</tr>
+<tr>
+<td><code>returned_to_model</code></td>
+<td>模型真正收到的经处理结果</td>
+</tr>
+<tr>
+<td><code>started_at</code>、<code>ended_at</code></td>
+<td>诊断延迟与超时</td>
+</tr>
+</tbody></table>
+<p><strong>工具记录应反映真实执行结果，而不是只保存模型对工具结果的总结。</strong> 例如模型说“数据库查询到 4”，但日志显示工具返回 5，定位问题就应从模型使用证据环节入手。</p>
+<h3 id="section-15">5.1 日志与敏感数据</h3>
+<p>审计不是无条件记录所有原文。工具参数、检索文档及返回结果可能包含密钥、身份证明、私聊内容、支付信息。应设计字段白名单、脱敏、加密、独立权限、保留期与删除策略。</p>
+<p>建议：结构化记录状态、哈希与证据指针；仅在授权和确有必要时保存完整敏感内容；日志系统不可成为绕过业务权限的侧门。</p>
+<h3 id="section-16">5.2 审计记录与消息历史的不同可见性</h3>
+<p>前端聊天窗口通常只显示用户与助手消息；调试与审计界面可以显示工具使用信息，但需要更严格的权限控制。不能将内部工具错误堆栈、连接串或未经筛选的第三方返回值直接加入用户可见消息。</p>
+<h2 id="section-17">6. 多用户与多会话数据串扰的根因</h2>
+<p>以下错误在 AI 应用中特别常见。</p>
+<h3 id="section-18">6.1 全局可变会话变量</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 错误示例：所有请求共享同一个列表</span>
+history = []
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">handle</span>(<span class="hljs-params">message: <span class="hljs-built_in">str</span></span>):
+    history.append(message)
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> ask_model(history)</code></pre></div><p>即使只部署一个服务进程，不同用户也可能在同一列表里混合输入。全局共享资源仅适合无用户特异状态的客户端或连接池，并且仍需线程/协程安全管理。</p>
+<h3 id="section-19">6.2 以客户端传入的 user_id 作为授权依据</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 错误示例：客户端可以随意改 URL 中的 user_id</span>
+SELECT * FROM sessions WHERE owner_user_id = :client_supplied_user_id;</code></pre></div><p>身份必须由可信认证流程解析（例如经过签名校验、有效期校验的令牌），后端再做对象级授权。客户端传来的 <code>session_id</code> 只是待查询资源标识。</p>
+<h3 id="section-20">6.3 只按 session_id 查询而忽略租户或所有者</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment">-- 危险：未限制租户和所有者</span>
+<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> messages <span class="hljs-keyword">WHERE</span> session_id <span class="hljs-operator">=</span> :session_id;</code></pre></div><p>改为经过认证主体授权的查询，例如通过已核验用户身份关联 Sessions：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">SELECT</span> m.<span class="hljs-operator">*</span>
+<span class="hljs-keyword">FROM</span> messages <span class="hljs-keyword">AS</span> m
+<span class="hljs-keyword">JOIN</span> sessions <span class="hljs-keyword">AS</span> s
+  <span class="hljs-keyword">ON</span> s.tenant_id <span class="hljs-operator">=</span> m.tenant_id
+ <span class="hljs-keyword">AND</span> s.session_id <span class="hljs-operator">=</span> m.session_id
+<span class="hljs-keyword">WHERE</span> s.tenant_id <span class="hljs-operator">=</span> :trusted_tenant_id
+  <span class="hljs-keyword">AND</span> s.owner_user_id <span class="hljs-operator">=</span> :trusted_user_id
+  <span class="hljs-keyword">AND</span> s.session_id <span class="hljs-operator">=</span> :session_id
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> m.sequence_no;</code></pre></div><p>权限并不总是简单的“owner 相等”：共享协作、管理员访问、团队空间需要专门的 ACL/RBAC/ABAC 政策。但任何豁免都必须是明确的业务授权规则，而不是默认放行。</p>
+<h3 id="section-21">6.4 缓存键遗漏主体维度</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">危险键：history:{session_id}
+更严谨的作用域：history:{tenant_id}:{user_id}:{session_id}:{history_version}</code></pre></div><p>即使数据库查询正确，若缓存键缺少租户或用户维度，也可能在缓存命中时返回别人的数据。记得同步考虑 CDN、搜索索引、向量检索、日志看板与本地内存缓存。</p>
+<h3 id="section-22">6.5 重用状态化 Agent 实例</h3>
+<p>框架对象是否安全复用取决于实际版本和内部状态管理。有的实例可以作为共享配置或无状态客户端，有的可能保留默认 <code>session_id</code> 或 <code>session_state</code>；不能假设全局单例 Agent 对不同用户天然隔离。应显式传入调用身份与会话标识，并用实际并发测试验证。</p>
+<h3 id="section-23">6.6 不安全的上下文继承</h3>
+<p>用户 B 进入新会话，却意外收到用户 A 的摘要、工具结果、检索内容或长期记忆：其泄漏点可能在<strong>上下文组装层</strong>，不一定在数据库。对每次发送到模型的上下文，应记录作用域与来源，构建前逐条过滤授权。</p>
+<h2 id="section-24">7. 隔离不止一个层次</h2>
+<p>实际应用需要多重防护：</p>
+<table>
+<thead>
+<tr>
+<th>防护层</th>
+<th>应实施的约束</th>
+<th>漏洞举例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>身份认证</td>
+<td>由服务端核验主体、租户</td>
+<td>信任请求 JSON 的 user_id</td>
+</tr>
+<tr>
+<td>API 授权</td>
+<td>每次访问目标会话、Run、工具结果都检查对象权限</td>
+<td>猜到 session_id 就能读取</td>
+</tr>
+<tr>
+<td>数据库</td>
+<td>查询条件包含作用域；唯一约束、外键、必要时 RLS</td>
+<td>只按 id 查消息</td>
+</tr>
+<tr>
+<td>缓存</td>
+<td>带主体范围的 Key，权限变动时失效</td>
+<td>历史缓存跨用户复用</td>
+</tr>
+<tr>
+<td>Agent 上下文</td>
+<td>仅注入当前授权范围内历史、记忆与文档</td>
+<td>引入其他用户的工具摘要</td>
+</tr>
+<tr>
+<td>后台队列</td>
+<td>消息包含归属信息，但 Worker 仍须校验授权策略</td>
+<td>消费消息时丢失租户约束</td>
+</tr>
+<tr>
+<td>观测与日志</td>
+<td>Trace 可关联，但原始数据有访问控制</td>
+<td>调试面板泄漏敏感内容</td>
+</tr>
+</tbody></table>
+<p>OWASP 将“对象级授权缺失”列为 API1:2023 Broken Object Level Authorization；这类漏洞既可能使用连续数字 ID，也可能使用 UUID 等不可预测 ID。因此，不可预测 ID 只是辅助措施，不能替代授权。</p>
+<h2 id="section-25">8. PostgreSQL 建模：主键、外键与隔离</h2>
+<p>下面是简化但具备基本引用完整性的 SQL 结构。实际项目可按业务选用 UUID、BIGINT 或复合键，重要的是逻辑一致性。</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE TABLE</span> agent_sessions (
+    tenant_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    session_id UUID <span class="hljs-keyword">NOT NULL</span>,
+    owner_user_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    created_at TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> NOW(),
+    <span class="hljs-keyword">PRIMARY KEY</span> (tenant_id, session_id)
+);
+
+<span class="hljs-keyword">CREATE TABLE</span> agent_runs (
+    tenant_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    session_id UUID <span class="hljs-keyword">NOT NULL</span>,
+    run_id UUID <span class="hljs-keyword">NOT NULL</span>,
+    status TEXT <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">CHECK</span> (
+        status <span class="hljs-keyword">IN</span> (<span class="hljs-string">'queued'</span>,<span class="hljs-string">'running'</span>,<span class="hljs-string">'retry_wait'</span>,<span class="hljs-string">'succeeded'</span>,<span class="hljs-string">'failed'</span>,<span class="hljs-string">'cancelled'</span>)
+    ),
+    version <span class="hljs-type">BIGINT</span> <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> <span class="hljs-number">0</span>,
+    created_at TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> NOW(),
+    updated_at TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> NOW(),
+    <span class="hljs-keyword">PRIMARY KEY</span> (tenant_id, session_id, run_id),
+    <span class="hljs-keyword">FOREIGN KEY</span> (tenant_id, session_id)
+        <span class="hljs-keyword">REFERENCES</span> agent_sessions (tenant_id, session_id)
+);
+
+<span class="hljs-keyword">CREATE TABLE</span> agent_messages (
+    tenant_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    session_id UUID <span class="hljs-keyword">NOT NULL</span>,
+    run_id UUID <span class="hljs-keyword">NOT NULL</span>,
+    message_id UUID <span class="hljs-keyword">NOT NULL</span>,
+    seq <span class="hljs-type">BIGINT</span> <span class="hljs-keyword">NOT NULL</span>,
+    role TEXT <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">CHECK</span> (role <span class="hljs-keyword">IN</span> (<span class="hljs-string">'user'</span>, <span class="hljs-string">'assistant'</span>)),
+    body TEXT <span class="hljs-keyword">NOT NULL</span>,
+    created_at TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> NOW(),
+    <span class="hljs-keyword">PRIMARY KEY</span> (tenant_id, session_id, message_id),
+    <span class="hljs-keyword">UNIQUE</span> (tenant_id, session_id, seq),
+    <span class="hljs-keyword">FOREIGN KEY</span> (tenant_id, session_id, run_id)
+        <span class="hljs-keyword">REFERENCES</span> agent_runs (tenant_id, session_id, run_id)
+);
+
+<span class="hljs-keyword">CREATE TABLE</span> agent_tool_events (
+    tenant_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    session_id UUID <span class="hljs-keyword">NOT NULL</span>,
+    run_id UUID <span class="hljs-keyword">NOT NULL</span>,
+    call_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    tool_name TEXT <span class="hljs-keyword">NOT NULL</span>,
+    requested_args JSONB <span class="hljs-keyword">NOT NULL</span>,
+    validated_args JSONB,
+    status TEXT <span class="hljs-keyword">NOT NULL</span>,
+    result_ref TEXT,
+    result_sha256 TEXT,
+    error_code TEXT,
+    created_at TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> NOW(),
+    <span class="hljs-keyword">PRIMARY KEY</span> (tenant_id, session_id, run_id, call_id),
+    <span class="hljs-keyword">FOREIGN KEY</span> (tenant_id, session_id, run_id)
+        <span class="hljs-keyword">REFERENCES</span> agent_runs (tenant_id, session_id, run_id)
+);
+
+<span class="hljs-keyword">CREATE</span> INDEX agent_sessions_by_owner
+    <span class="hljs-keyword">ON</span> agent_sessions (tenant_id, owner_user_id, created_at <span class="hljs-keyword">DESC</span>);
+<span class="hljs-keyword">CREATE</span> INDEX agent_runs_by_session
+    <span class="hljs-keyword">ON</span> agent_runs (tenant_id, session_id, created_at <span class="hljs-keyword">DESC</span>);</code></pre></div><h3 id="section-26">8.1 数据库约束与权限约束不是同一回事</h3>
+<p>外键证明某条消息确实属于某个已有的 Run，并不能证明调用者有权限看到它。权限应在服务端进行，必要时再由 PostgreSQL Row-Level Security（RLS）实施纵深防御。</p>
+<h3 id="section-27">8.2 RLS 的适用条件与陷阱</h3>
+<p>PostgreSQL 的 RLS 可以根据执行数据库会话的安全上下文过滤行，但需要小心：</p>
+<ul>
+<li>表的所有者、超级用户、具有 <code>BYPASSRLS</code> 权限的角色可能绕过常规策略；必要时使用 <code>FORCE ROW LEVEL SECURITY</code> 等机制并评估角色权限。</li>
+<li>连接池复用时，必须避免上一请求的租户上下文残留；通常将上下文设置限定在事务内，并与事务生命周期绑定。</li>
+<li>RLS 不能替代业务级权限策略、应用认证和审计，也不会自动约束所有表和所有外部系统。</li>
+<li>使用管理员/迁移账号执行数据维护时，需要独立风险控制。</li>
+</ul>
+<p>下面只是策略思路示意，不是可直接部署的完整租户认证配置：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">ALTER TABLE</span> agent_sessions ENABLE <span class="hljs-type">ROW</span> LEVEL SECURITY;
+
+<span class="hljs-keyword">CREATE</span> POLICY session_owner_select
+<span class="hljs-keyword">ON</span> agent_sessions
+<span class="hljs-keyword">FOR</span> <span class="hljs-keyword">SELECT</span>
+<span class="hljs-keyword">USING</span> (
+    tenant_id <span class="hljs-operator">=</span> current_setting(<span class="hljs-string">'app.tenant_id'</span>, <span class="hljs-literal">true</span>)
+    <span class="hljs-keyword">AND</span> owner_user_id <span class="hljs-operator">=</span> current_setting(<span class="hljs-string">'app.user_id'</span>, <span class="hljs-literal">true</span>)
+);</code></pre></div><p>以上 <code>app.tenant_id</code> 与 <code>app.user_id</code> 必须由可信应用在数据库事务内安全设定，不能让最终用户直接控制，也要为所有相关子表设计相应策略。</p>
+<h2 id="section-28">9. FastAPI 身份、会话和数据库操作</h2>
+<p>一个请求的授权链应当是：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Authorization Header
+  ↓ 服务端验签和认证
+Principal(tenant_id, user_id, permissions)
+  ↓ 对象级授权
+Session / Run / ToolEvent
+  ↓ 数据库按范围查询或变更
+可返回的最小数据</code></pre></div><p>示意代码（<code>get_principal</code> 与 Repository 为需由项目实现的接口）：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> Annotated
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> APIRouter, Depends, HTTPException
+
+router = APIRouter()
+
+<span class="hljs-meta">@router.get(<span class="hljs-params"><span class="hljs-string">'/sessions/{session_id}/history'</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_history</span>(<span class="hljs-params">
+    session_id: <span class="hljs-built_in">str</span>,
+    principal: Annotated[<span class="hljs-string">'Principal'</span>, Depends(<span class="hljs-params">get_principal</span>)],
+    repo: Annotated[<span class="hljs-string">'HistoryRepository'</span>, Depends(<span class="hljs-params">get_repository</span>)],
+</span>):
+    <span class="hljs-comment"># repo 以可信 principal 过滤租户、所有者与会话，不靠 session_id 授权</span>
+    messages = <span class="hljs-keyword">await</span> repo.read_for_principal(principal, session_id)
+    <span class="hljs-keyword">if</span> messages <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">raise</span> HTTPException(status_code=<span class="hljs-number">404</span>, detail=<span class="hljs-string">'会话不存在或无权访问'</span>)
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">'messages'</span>: messages}</code></pre></div><p>上述函数中的依赖名称是示意接口，需要实际认证和 Repository 实现才能运行。返回 404 或 403 是产品与安全策略选择；不应通过错误信息泄露未授权资源是否存在。</p>
+<h3 id="section-29">9.1 Session 和 SQLAlchemy AsyncSession 不能混淆</h3>
+<ul>
+<li>Agent 的 <code>session_id</code>：对话线程标识。</li>
+<li>SQLAlchemy <code>AsyncSession</code>：一次数据库工作单元/事务上下文。</li>
+</ul>
+<p>两个名称都叫 Session，但含义完全不同。SQLAlchemy 明确警告：一个 <code>AsyncSession</code> 不能在多个并发 Task 间随意共享。通常为每个独立数据库工作单元创建单独的 AsyncSession，而连接池/Engine 在应用生命周期内复用。</p>
+<h2 id="section-30">10. 同一会话内的并发：不串用户仍可能乱序</h2>
+<p>即便用户和会话隔离正确，<strong>同一会话同时发起两轮请求</strong>仍可能导致历史乱序、摘要覆盖或不一致的工具执行状态。</p>
+<p>例如：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">用户发起 A → 读到历史 H0，调用慢模型
+用户发起 B → 也读到历史 H0，快速返回
+A 才返回 → 两个回答都基于旧历史</code></pre></div><p>可根据业务采用：</p>
+<ol>
+<li><strong>单会话串行队列</strong>：同一 <code>session_id</code> 一次只允许一个需要顺序的 Agent Run；简单但增加等待。</li>
+<li><strong>乐观版本控制</strong>：记录会话 <code>version</code>，写入时按旧版本进行 CAS，冲突则重算或拒绝提交。</li>
+<li><strong>显式分支</strong>：支持并行分支对话，为每个分支维护不同 Parent Message ID；适合复杂协作系统。</li>
+<li><strong>只读并行、写入串行</strong>：对无副作用的检索可并行，对历史追加和业务修改保证有序。</li>
+</ol>
+<p>对工具调用也要明确：同一 Run 内并行工具的结果顺序不应依赖“谁先完成”，必须按 <code>call_id</code> 或确定性顺序正确关联。</p>
+<h2 id="section-31">11. 数据隔离与记忆系统的边界</h2>
+<p>如果系统支持跨会话记忆，其授权与检索范围应与会话分离建模：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Session history：某用户某会话的消息
+User memory：该用户跨会话可复用的已授权长期信息
+Team knowledge：某团队/组织授权范围内的资料
+Public knowledge：公开资料</code></pre></div><p>四类数据不能默认互通。团队知识也不是团队聊天的全部私人消息；用户记忆更不能误写为跨租户共享资料。</p>
+<p>一个安全的上下文构造器应该：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">build_context</span>(<span class="hljs-params">principal, session_id, question</span>):
+    history = <span class="hljs-keyword">await</span> load_authorized_history(principal, session_id)
+    memory = <span class="hljs-keyword">await</span> load_authorized_memory(principal)
+    documents = <span class="hljs-keyword">await</span> search_authorized_documents(principal, question)
+    <span class="hljs-keyword">return</span> select_relevant_context(history, memory, documents)</code></pre></div><p>函数是架构示例。<code>authorized</code> 必须对应真实认证与权限校验，而非仅把 ID 填进数据库过滤条件。</p>
+<h2 id="section-32">12. 后台 Worker 与多进程恢复</h2>
+<p>HTTP 请求的用户身份可能来自认证令牌；Kafka Worker 没有浏览器请求上下文，因此更容易发生身份范围丢失。</p>
+<p>建议消息包含：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"task_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"task-123"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"tenant_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"tenant-a"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"session_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"session-456"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"run_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"run-789"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"initiator_user_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"user-1"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"operation"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"index_documents"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"requested_resource_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"doc-8"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>但 Worker <strong>不能因为消息里自称 user-1 就自动相信它</strong>：应确保消息来自可信生产者，消费时查找持久化的任务记录、授权快照或重新验证当前权限策略，并根据业务需求处理“提交后用户被移除权限”的情况。</p>
+<p>需要区分：</p>
+<ul>
+<li><strong>谁发起了任务（initiator）</strong>；</li>
+<li><strong>谁在执行任务（service identity）</strong>；</li>
+<li><strong>任务被允许处理哪些资源（scope）</strong>；</li>
+<li><strong>任务完成后哪些用户可以读取结果（result ACL）</strong>。</li>
+</ul>
+<p>跨服务传递 <code>trace_id</code> 用于追踪，不应把它当作访问授权凭据。调用失败后的恢复仍需幂等标识与状态机约束。</p>
+<h2 id="section-33">13. 工具执行记录的正确观测链</h2>
+<p>追溯“为什么模型这样回答”至少要核对：</p>
+<ol>
+<li>实际收到的用户请求和上下文版本。</li>
+<li>模型本次可见的工具清单、参数 Schema 与权限范围。</li>
+<li>模型提出的 <code>tool_call</code> 名称与参数。</li>
+<li>程序验证后的参数，以及权限判定。</li>
+<li>工具实际运行的结果、失败状态与证据版本。</li>
+<li>回传给模型的工具结果（可能与原始结果不同）。</li>
+<li>模型最终回答及所声称的依据。</li>
+</ol>
+<p>例子：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Model asked: get_character("角色甲", version="1.0")
+Tool executed: OK; hp=4; source=characters-v1
+Returned to model: {"hp":4,"source":"characters-v1"}
+Model final answer: "该角色生命值为5。"</code></pre></div><p>定位：工具结果是 4，最后回答是 5，问题发生在模型使用工具结果生成回复的阶段，而不是凭空归因于“数据库不准”。</p>
+<p><strong>日志只能还原可观察到的输入、决策请求、执行结果与输出；它无法证明模型内部不可见的推理过程。</strong></p>
+<h2 id="section-34">14. 隐私、保留期与删除</h2>
+<p>多用户安全不仅是“防止读错数据”，还包括按目的收集和最小化保存。</p>
+<ul>
+<li>会话历史可能包含个人信息；为其设计访问控制、保留期、导出和删除策略。</li>
+<li>工具参数可能携带 API Key、手机号、交易金额；默认不应在日志中明文记录敏感字段。</li>
+<li>若法律或产品要求删除某个用户数据，应检查会话数据库、记忆库、向量索引、缓存、搜索索引、对象存储和日志副本的处理要求。</li>
+<li>追踪系统使用的用户标识可考虑 pseudonymous ID；如需关联真实身份，应独立受控。</li>
+<li>调试用日志权限通常应比普通聊天阅读权限更严格。</li>
+</ul>
+<p>不要把“记录更多”误认为“可观测性更好”；关键是记录必要、准确、可授权访问的事件。</p>
+<h2 id="section-35">15. 常见错误及修正方法</h2>
+<table>
+<thead>
+<tr>
+<th>常见错误</th>
+<th>可能结果</th>
+<th>修正思路</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>把所有聊天写入进程全局列表</td>
+<td>用户 A 看见 B 消息</td>
+<td>按用户与会话隔离存储</td>
+</tr>
+<tr>
+<td>使用客户端提供的 <code>user_id</code> 作为身份</td>
+<td>假冒其他用户</td>
+<td>从认证中间件获取可信主体</td>
+</tr>
+<tr>
+<td>仅按 <code>session_id</code> 查询</td>
+<td>越权读取会话</td>
+<td>对象级授权 + 租户/用户范围过滤</td>
+</tr>
+<tr>
+<td>只保存模型最终回答</td>
+<td>无法知道工具是否执行</td>
+<td>保存调用请求、执行状态与结果引用</td>
+</tr>
+<tr>
+<td>把 Tool Result 全部展示给用户</td>
+<td>泄漏内部错误或敏感字段</td>
+<td>区分审计可见、模型可见、用户可见</td>
+</tr>
+<tr>
+<td>运行状态直接覆盖终态</td>
+<td>已取消任务被标成功</td>
+<td>CAS 更新与明确终态</td>
+</tr>
+<tr>
+<td>并发复用一个 SQLAlchemy AsyncSession</td>
+<td>数据事务混乱或异常</td>
+<td>每个 Task 独立 AsyncSession</td>
+</tr>
+<tr>
+<td>把全部历史重复发给模型</td>
+<td>成本上升、干扰、溢出</td>
+<td>上下文筛选与历史压缩</td>
+</tr>
+<tr>
+<td>缓存键不带租户、用户</td>
+<td>跨用户缓存污染</td>
+<td>作用域明确的缓存键和失效策略</td>
+</tr>
+<tr>
+<td>用 trace_id 作为权限凭据</td>
+<td>越权风险</td>
+<td>Trace 只用于观测；权限另行验证</td>
+</tr>
+</tbody></table>
+<h2 id="section-36">16. 完整 Python 教学实现与测试</h2>
+<p>下面附有同目录 <code>session_demo.py</code> 的完整实现以及相应测试文件，采用 Python 标准库 <code>sqlite3</code>，便于无付费模型、无外部数据库环境独立运行。</p>
+<h3 id="section-37">16.1 教学实现与生产实现的边界</h3>
+<ul>
+<li>SQLite <code>:memory:</code> 存储只在此 <code>Store</code> 对象进程内有效，进程关闭数据消失；不用于真实持久化生产。</li>
+<li>认证主体 <code>Principal</code> 在测试中人工构造，真实服务应由认证中间件产生。</li>
+<li>该实现演示<strong>单进程、顺序调用</strong>下的隔离和状态转移；它不是处理多进程抢占、跨服务事务的生产方案。</li>
+<li>工具结果仅以 JSON 演示，实际需要审查脱敏、加密和保存策略。</li>
+<li>SQLite 的权限模型不能替代 PostgreSQL RLS、真正的认证服务或租户隔离策略。</li>
+</ul>
+<p>运行方式：将下面的源代码保存为 <code>session_demo.py</code>、测试保存为 <code>test_session_demo.py</code>，在同一文件夹执行：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python session_demo.py
+python -m unittest -v test_session_demo.py</code></pre></div><h3 id="section-38">16.2 <code>session_demo.py</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""教学用单进程 SQLite 实现；不代表并发生产服务。Python &gt;= 3.11。"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> sqlite3
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+<span class="hljs-keyword">from</span> uuid <span class="hljs-keyword">import</span> uuid4
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Principal</span>:
+    <span class="hljs-comment"># 必须来自可信认证中间件，而不是用户提交的 JSON。</span>
+    tenant_id: <span class="hljs-built_in">str</span>
+    user_id: <span class="hljs-built_in">str</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Forbidden</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">InvalidTransition</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Store</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.db = sqlite3.connect(<span class="hljs-string">":memory:"</span>)
+        <span class="hljs-variable language_">self</span>.db.execute(<span class="hljs-string">"PRAGMA foreign_keys=ON"</span>)
+        <span class="hljs-variable language_">self</span>.db.executescript(<span class="hljs-string">"""
+        CREATE TABLE sessions (
+            tenant_id TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            owner_user_id TEXT NOT NULL,
+            PRIMARY KEY (tenant_id, session_id)
+        );
+        CREATE TABLE runs (
+            tenant_id TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            run_id TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('queued','running','succeeded','failed','cancelled')),
+            PRIMARY KEY (tenant_id, session_id, run_id),
+            FOREIGN KEY (tenant_id, session_id) REFERENCES sessions(tenant_id, session_id)
+        );
+        CREATE TABLE messages (
+            tenant_id TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            run_id TEXT NOT NULL,
+            position INTEGER NOT NULL,
+            role TEXT NOT NULL CHECK (role IN ('user','assistant')),
+            body TEXT NOT NULL,
+            PRIMARY KEY (tenant_id, session_id, run_id, position),
+            FOREIGN KEY (tenant_id, session_id, run_id)
+                REFERENCES runs(tenant_id, session_id, run_id)
+        );
+        CREATE TABLE tool_events (
+            tenant_id TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            run_id TEXT NOT NULL,
+            call_id TEXT NOT NULL,
+            tool_name TEXT NOT NULL,
+            args_json TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('ok','error')),
+            result_json TEXT NOT NULL,
+            PRIMARY KEY (tenant_id, session_id, run_id, call_id),
+            FOREIGN KEY (tenant_id, session_id, run_id)
+                REFERENCES runs(tenant_id, session_id, run_id)
+        );
+        """</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">close</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.db.close()
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">create_session</span>(<span class="hljs-params">self, principal: Principal, session_id: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+        session_id = session_id <span class="hljs-keyword">or</span> <span class="hljs-built_in">str</span>(uuid4())
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.db:
+            <span class="hljs-variable language_">self</span>.db.execute(
+                <span class="hljs-string">"INSERT INTO sessions VALUES (?, ?, ?)"</span>,
+                (principal.tenant_id, session_id, principal.user_id),
+            )
+        <span class="hljs-keyword">return</span> session_id
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_check_owner</span>(<span class="hljs-params">self, principal: Principal, session_id: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-literal">None</span>:
+        found = <span class="hljs-variable language_">self</span>.db.execute(
+            <span class="hljs-string">"SELECT 1 FROM sessions WHERE tenant_id=? AND session_id=? AND owner_user_id=?"</span>,
+            (principal.tenant_id, session_id, principal.user_id),
+        ).fetchone()
+        <span class="hljs-keyword">if</span> found <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-comment"># 对外可以统一用 404，避免泄漏目标是否存在。</span>
+            <span class="hljs-keyword">raise</span> Forbidden(<span class="hljs-string">"会话不存在或无权访问"</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">start_run</span>(<span class="hljs-params">self, principal: Principal, session_id: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.db:
+            <span class="hljs-variable language_">self</span>._check_owner(principal, session_id)
+            run_id = <span class="hljs-built_in">str</span>(uuid4())
+            <span class="hljs-variable language_">self</span>.db.execute(
+                <span class="hljs-string">"INSERT INTO runs VALUES (?, ?, ?, 'running')"</span>,
+                (principal.tenant_id, session_id, run_id),
+            )
+        <span class="hljs-keyword">return</span> run_id
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_check_run</span>(<span class="hljs-params">self, principal: Principal, session_id: <span class="hljs-built_in">str</span>, run_id: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>._check_owner(principal, session_id)
+        found = <span class="hljs-variable language_">self</span>.db.execute(
+            <span class="hljs-string">"SELECT 1 FROM runs WHERE tenant_id=? AND session_id=? AND run_id=?"</span>,
+            (principal.tenant_id, session_id, run_id),
+        ).fetchone()
+        <span class="hljs-keyword">if</span> found <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">raise</span> Forbidden(<span class="hljs-string">"执行不存在或无权访问"</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">add_message</span>(<span class="hljs-params">
+        self, principal: Principal, session_id: <span class="hljs-built_in">str</span>, run_id: <span class="hljs-built_in">str</span>,
+        position: <span class="hljs-built_in">int</span>, role: <span class="hljs-built_in">str</span>, body: <span class="hljs-built_in">str</span>,
+    </span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> role <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> (<span class="hljs-string">"user"</span>, <span class="hljs-string">"assistant"</span>):
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"对话历史只记录用户与助手的可见消息"</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.db:
+            <span class="hljs-variable language_">self</span>._check_run(principal, session_id, run_id)
+            status = <span class="hljs-variable language_">self</span>.db.execute(
+                <span class="hljs-string">"SELECT status FROM runs WHERE tenant_id=? AND session_id=? AND run_id=?"</span>,
+                (principal.tenant_id, session_id, run_id),
+            ).fetchone()[<span class="hljs-number">0</span>]
+            <span class="hljs-keyword">if</span> status != <span class="hljs-string">"running"</span>:
+                <span class="hljs-keyword">raise</span> InvalidTransition(<span class="hljs-string">"不能修改已结束的执行"</span>)
+            <span class="hljs-variable language_">self</span>.db.execute(
+                <span class="hljs-string">"INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?)"</span>,
+                (principal.tenant_id, session_id, run_id, position, role, body),
+            )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">record_tool</span>(<span class="hljs-params">
+        self, principal: Principal, session_id: <span class="hljs-built_in">str</span>, run_id: <span class="hljs-built_in">str</span>,
+        call_id: <span class="hljs-built_in">str</span>, tool_name: <span class="hljs-built_in">str</span>, args: <span class="hljs-built_in">dict</span>,
+        status: <span class="hljs-built_in">str</span>, result: <span class="hljs-built_in">dict</span>,
+    </span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> status <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> (<span class="hljs-string">"ok"</span>, <span class="hljs-string">"error"</span>):
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"非法工具状态"</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.db:
+            <span class="hljs-variable language_">self</span>._check_run(principal, session_id, run_id)
+            current = <span class="hljs-variable language_">self</span>.db.execute(
+                <span class="hljs-string">"SELECT status FROM runs WHERE tenant_id=? AND session_id=? AND run_id=?"</span>,
+                (principal.tenant_id, session_id, run_id),
+            ).fetchone()[<span class="hljs-number">0</span>]
+            <span class="hljs-keyword">if</span> current != <span class="hljs-string">"running"</span>:
+                <span class="hljs-keyword">raise</span> InvalidTransition(<span class="hljs-string">"终态执行不可增加工具记录"</span>)
+            <span class="hljs-variable language_">self</span>.db.execute(
+                <span class="hljs-string">"INSERT INTO tool_events VALUES (?, ?, ?, ?, ?, ?, ?, ?)"</span>,
+                (principal.tenant_id, session_id, run_id, call_id, tool_name,
+                 json.dumps(args, ensure_ascii=<span class="hljs-literal">False</span>), status,
+                 json.dumps(result, ensure_ascii=<span class="hljs-literal">False</span>)),
+            )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">finish_run</span>(<span class="hljs-params">self, principal: Principal, session_id: <span class="hljs-built_in">str</span>, run_id: <span class="hljs-built_in">str</span>, status: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> status <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> (<span class="hljs-string">"succeeded"</span>, <span class="hljs-string">"failed"</span>, <span class="hljs-string">"cancelled"</span>):
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"只能转换为有效终态"</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.db:
+            <span class="hljs-variable language_">self</span>._check_run(principal, session_id, run_id)
+            changed = <span class="hljs-variable language_">self</span>.db.execute(
+                <span class="hljs-string">"UPDATE runs SET status=? WHERE tenant_id=? AND session_id=? AND run_id=? AND status='running'"</span>,
+                (status, principal.tenant_id, session_id, run_id),
+            ).rowcount
+            <span class="hljs-keyword">if</span> changed != <span class="hljs-number">1</span>:
+                <span class="hljs-keyword">raise</span> InvalidTransition(<span class="hljs-string">"执行已结束，不允许覆盖终态"</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_history</span>(<span class="hljs-params">self, principal: Principal, session_id: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">list</span>[<span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">str</span>]]:
+        <span class="hljs-variable language_">self</span>._check_owner(principal, session_id)
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.db.execute(
+            <span class="hljs-string">"""SELECT m.role, m.body FROM messages AS m
+               JOIN runs AS r ON r.tenant_id=m.tenant_id AND r.session_id=m.session_id AND r.run_id=m.run_id
+               WHERE m.tenant_id=? AND m.session_id=?
+               ORDER BY r.rowid, m.position"""</span>,
+            (principal.tenant_id, session_id),
+        ).fetchall()
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_run_status</span>(<span class="hljs-params">self, principal: Principal, session_id: <span class="hljs-built_in">str</span>, run_id: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+        <span class="hljs-variable language_">self</span>._check_run(principal, session_id, run_id)
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.db.execute(
+            <span class="hljs-string">"SELECT status FROM runs WHERE tenant_id=? AND session_id=? AND run_id=?"</span>,
+            (principal.tenant_id, session_id, run_id),
+        ).fetchone()[<span class="hljs-number">0</span>]
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_tool_events</span>(<span class="hljs-params">self, principal: Principal, session_id: <span class="hljs-built_in">str</span>, run_id: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>]:
+        <span class="hljs-variable language_">self</span>._check_run(principal, session_id, run_id)
+        rows = <span class="hljs-variable language_">self</span>.db.execute(
+            <span class="hljs-string">"""SELECT call_id, tool_name, args_json, status, result_json
+               FROM tool_events WHERE tenant_id=? AND session_id=? AND run_id=? ORDER BY rowid"""</span>,
+            (principal.tenant_id, session_id, run_id),
+        ).fetchall()
+        <span class="hljs-keyword">return</span> [
+            {<span class="hljs-string">"call_id"</span>: call_id, <span class="hljs-string">"tool_name"</span>: name, <span class="hljs-string">"args"</span>: json.loads(args),
+             <span class="hljs-string">"status"</span>: status, <span class="hljs-string">"result"</span>: json.loads(result)}
+            <span class="hljs-keyword">for</span> call_id, name, args, status, result <span class="hljs-keyword">in</span> rows
+        ]
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    store = Store()
+    <span class="hljs-keyword">try</span>:
+        alice = Principal(<span class="hljs-string">"tenant-a"</span>, <span class="hljs-string">"alice"</span>)
+        bob = Principal(<span class="hljs-string">"tenant-a"</span>, <span class="hljs-string">"bob"</span>)
+        sid = store.create_session(alice)
+        rid = store.start_run(alice, sid)
+        store.add_message(alice, sid, rid, <span class="hljs-number">1</span>, <span class="hljs-string">"user"</span>, <span class="hljs-string">"查询角色技能"</span>)
+        store.record_tool(alice, sid, rid, <span class="hljs-string">"call-1"</span>, <span class="hljs-string">"lookup_skill"</span>, {<span class="hljs-string">"name"</span>: <span class="hljs-string">"甲"</span>}, <span class="hljs-string">"ok"</span>, {<span class="hljs-string">"skill"</span>: <span class="hljs-string">"闪避"</span>})
+        store.add_message(alice, sid, rid, <span class="hljs-number">2</span>, <span class="hljs-string">"assistant"</span>, <span class="hljs-string">"技能为闪避"</span>)
+        store.finish_run(alice, sid, rid, <span class="hljs-string">"succeeded"</span>)
+        <span class="hljs-built_in">print</span>(store.get_history(alice, sid))
+        <span class="hljs-built_in">print</span>(store.get_run_status(alice, sid, rid))
+        <span class="hljs-built_in">print</span>(store.get_tool_events(alice, sid, rid))
+        <span class="hljs-keyword">try</span>:
+            store.get_history(bob, sid)
+        <span class="hljs-keyword">except</span> Forbidden:
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">"Bob 无法读取 Alice 的会话：正确"</span>)
+    <span class="hljs-keyword">finally</span>:
+        store.close()
+</code></pre></div><h3 id="section-39">16.3 <code>test_session_demo.py</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> unittest
+<span class="hljs-keyword">import</span> sqlite3
+<span class="hljs-keyword">from</span> session_demo <span class="hljs-keyword">import</span> Store, Principal, Forbidden, InvalidTransition
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Tests</span>(unittest.TestCase):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">setUp</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.s = Store()
+        <span class="hljs-variable language_">self</span>.a = Principal(<span class="hljs-string">'t1'</span>,<span class="hljs-string">'a'</span>)
+        <span class="hljs-variable language_">self</span>.b = Principal(<span class="hljs-string">'t1'</span>,<span class="hljs-string">'b'</span>)
+        <span class="hljs-variable language_">self</span>.c = Principal(<span class="hljs-string">'t2'</span>,<span class="hljs-string">'a'</span>)
+        <span class="hljs-variable language_">self</span>.sid = <span class="hljs-variable language_">self</span>.s.create_session(<span class="hljs-variable language_">self</span>.a)
+        <span class="hljs-variable language_">self</span>.rid = <span class="hljs-variable language_">self</span>.s.start_run(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">tearDown</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.s.close()
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_history_empty</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.get_history(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid), [])
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_add_and_read</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.s.add_message(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-number">1</span>,<span class="hljs-string">'user'</span>,<span class="hljs-string">'A'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.get_history(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid), [(<span class="hljs-string">'user'</span>,<span class="hljs-string">'A'</span>)])
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_tool_and_read</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.s.record_tool(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-string">'call1'</span>,<span class="hljs-string">'lookup'</span>,{<span class="hljs-string">'id'</span>:<span class="hljs-number">1</span>},<span class="hljs-string">'ok'</span>,{<span class="hljs-string">'v'</span>:<span class="hljs-number">1</span>})
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.get_tool_events(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid)[<span class="hljs-number">0</span>][<span class="hljs-string">'result'</span>],{<span class="hljs-string">'v'</span>:<span class="hljs-number">1</span>})
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_tool_not_in_history</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.s.record_tool(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-string">'call1'</span>,<span class="hljs-string">'lookup'</span>,{},<span class="hljs-string">'ok'</span>,{})
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.get_history(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid), [])
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_owner_unauthorized</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Forbidden): <span class="hljs-variable language_">self</span>.s.get_history(<span class="hljs-variable language_">self</span>.b,<span class="hljs-variable language_">self</span>.sid)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cross_tenant_unauthorized</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Forbidden): <span class="hljs-variable language_">self</span>.s.get_history(<span class="hljs-variable language_">self</span>.c,<span class="hljs-variable language_">self</span>.sid)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_unknown_sid_unauthorized</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Forbidden): <span class="hljs-variable language_">self</span>.s.get_history(<span class="hljs-variable language_">self</span>.a,<span class="hljs-string">'missing'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_unknown_run_unauthorized</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Forbidden): <span class="hljs-variable language_">self</span>.s.get_run_status(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-string">'missing'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_other_user_start_forbidden</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Forbidden): <span class="hljs-variable language_">self</span>.s.start_run(<span class="hljs-variable language_">self</span>.b,<span class="hljs-variable language_">self</span>.sid)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_other_user_write_forbidden</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Forbidden): <span class="hljs-variable language_">self</span>.s.add_message(<span class="hljs-variable language_">self</span>.b,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-number">1</span>,<span class="hljs-string">'user'</span>,<span class="hljs-string">'X'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_other_user_tool_forbidden</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Forbidden): <span class="hljs-variable language_">self</span>.s.record_tool(<span class="hljs-variable language_">self</span>.b,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-string">'x'</span>,<span class="hljs-string">'tool'</span>,{},<span class="hljs-string">'ok'</span>,{})
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_finish_state</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.s.finish_run(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-string">'succeeded'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.get_run_status(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid),<span class="hljs-string">'succeeded'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_override_terminal</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.s.finish_run(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-string">'cancelled'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(InvalidTransition): <span class="hljs-variable language_">self</span>.s.finish_run(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-string">'succeeded'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_message_after_finished</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.s.finish_run(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-string">'failed'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(InvalidTransition): <span class="hljs-variable language_">self</span>.s.add_message(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-number">1</span>,<span class="hljs-string">'user'</span>,<span class="hljs-string">'x'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_tool_after_finished</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.s.finish_run(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-string">'failed'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(InvalidTransition): <span class="hljs-variable language_">self</span>.s.record_tool(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-string">'x'</span>,<span class="hljs-string">'tool'</span>,{},<span class="hljs-string">'ok'</span>,{})
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_invalid_role</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): <span class="hljs-variable language_">self</span>.s.add_message(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-number">1</span>,<span class="hljs-string">'tool'</span>,<span class="hljs-string">'x'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_invalid_tool_status</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): <span class="hljs-variable language_">self</span>.s.record_tool(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-string">'x'</span>,<span class="hljs-string">'tool'</span>,{},<span class="hljs-string">'maybe'</span>,{})
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_bad_finish_status</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): <span class="hljs-variable language_">self</span>.s.finish_run(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-string">'running'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_duplicate_call_id</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.s.record_tool(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-string">'x'</span>,<span class="hljs-string">'tool'</span>,{},<span class="hljs-string">'ok'</span>,{})
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(sqlite3.IntegrityError): <span class="hljs-variable language_">self</span>.s.record_tool(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid,<span class="hljs-variable language_">self</span>.rid,<span class="hljs-string">'x'</span>,<span class="hljs-string">'tool'</span>,{},<span class="hljs-string">'ok'</span>,{})
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_two_sessions_same_owner</span>(<span class="hljs-params">self</span>):
+        sid2 = <span class="hljs-variable language_">self</span>.s.create_session(<span class="hljs-variable language_">self</span>.a)
+        r2 = <span class="hljs-variable language_">self</span>.s.start_run(<span class="hljs-variable language_">self</span>.a,sid2)
+        <span class="hljs-variable language_">self</span>.s.add_message(<span class="hljs-variable language_">self</span>.a,sid2,r2,<span class="hljs-number">1</span>,<span class="hljs-string">'user'</span>,<span class="hljs-string">'only second'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.get_history(<span class="hljs-variable language_">self</span>.a,<span class="hljs-variable language_">self</span>.sid), [])
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.get_history(<span class="hljs-variable language_">self</span>.a,sid2), [(<span class="hljs-string">'user'</span>,<span class="hljs-string">'only second'</span>)])
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_two_users_same_tenant</span>(<span class="hljs-params">self</span>):
+        sidb = <span class="hljs-variable language_">self</span>.s.create_session(<span class="hljs-variable language_">self</span>.b)
+        rb = <span class="hljs-variable language_">self</span>.s.start_run(<span class="hljs-variable language_">self</span>.b,sidb)
+        <span class="hljs-variable language_">self</span>.s.add_message(<span class="hljs-variable language_">self</span>.b,sidb,rb,<span class="hljs-number">1</span>,<span class="hljs-string">'user'</span>,<span class="hljs-string">'B-msg'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.get_history(<span class="hljs-variable language_">self</span>.b,sidb), [(<span class="hljs-string">'user'</span>,<span class="hljs-string">'B-msg'</span>)])
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(Forbidden): <span class="hljs-variable language_">self</span>.s.get_history(<span class="hljs-variable language_">self</span>.a,sidb)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_same_id_different_tenant</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-comment"># tenant_id is part of session identity: same supplied id can exist in separate tenants</span>
+        <span class="hljs-variable language_">self</span>.s.create_session(<span class="hljs-variable language_">self</span>.c, session_id=<span class="hljs-variable language_">self</span>.sid)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.get_history(<span class="hljs-variable language_">self</span>.c,<span class="hljs-variable language_">self</span>.sid), [])
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_foreign_key_prevents_orphan</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(sqlite3.IntegrityError):
+            <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.s.db:
+                <span class="hljs-variable language_">self</span>.s.db.execute(<span class="hljs-string">'INSERT INTO runs VALUES (?,?,?,?)'</span>,(<span class="hljs-string">'t1'</span>,<span class="hljs-string">'missing'</span>,<span class="hljs-string">'x'</span>,<span class="hljs-string">'running'</span>))
+
+<span class="hljs-keyword">if</span> __name__==<span class="hljs-string">'__main__'</span>: unittest.main(verbosity=<span class="hljs-number">2</span>)
+</code></pre></div><h2 id="section-40">17. 测试覆盖应如何理解</h2>
+<p><strong>本次本地验证结果：</strong> Python <code>unittest</code> 共运行 23 项测试，全部通过（<code>Ran 23 tests ... OK</code>）。这些验证使用 SQLite 内存数据库，不能替代真实 PostgreSQL 或多进程生产环境测试。</p>
+<p>上面的测试从多种角度验证教学实现：</p>
+<ul>
+<li>同一会话的消息与工具结果分开保存；</li>
+<li>同一用户的不同会话内容不会互相出现；</li>
+<li>同租户不同用户及跨租户相同用户名都不能直接访问彼此会话；</li>
+<li>非拥有者不能启动 Run、追加消息、记录工具或读取数据；</li>
+<li>终态不能被后续状态覆盖，已完成运行不能继续写入；</li>
+<li>相同 <code>call_id</code> 在相同 Run 内重复写入触发唯一性约束；</li>
+<li>不存在的父级 Session 无法建立孤立 Run。</li>
+</ul>
+<p>这些测试仅证明教学代码在相应环境和用例下满足预期，不是整个系统“已经安全”的证明。真实产品还要测试：</p>
+<ol>
+<li>FastAPI 认证与鉴权的集成；</li>
+<li>PostgreSQL 事务隔离和 RLS 行为；</li>
+<li>多并发请求、多个 Uvicorn Worker；</li>
+<li>Redis 缓存键的租户分离；</li>
+<li>Kafka Worker 的消息重复、重启及权限变化；</li>
+<li>Agno 或其他框架在同一实例多会话调用下的状态隔离；</li>
+<li>日志、向量索引和长期记忆的权限穿透测试。</li>
+</ol>
+<h2 id="section-41">18. Agno 在会话与状态上的接口认识</h2>
+<p>Agno 当前官方文档提供 <code>session_id</code>、<code>user_id</code>、<code>run_id</code> 等标识，以及可配置的数据库持久化、历史回灌和会话状态。理解它们时应强调两个独立开关：</p>
+<ul>
+<li><strong>持久化</strong>：是否将会话、Run 和状态存储到数据库，便于后续恢复和查询。</li>
+<li><strong>上下文注入</strong>：是否在新的模型运行中加入历史消息，以及加入多少。</li>
+</ul>
+<p>例如官方示例通过 <code>db=...</code> 保存 Session/Run，再通过 <code>add_history_to_context=True</code> 让后续 Run 看见相同会话的历史。没有打开历史回灌时，“历史已保存在数据库”也不表示每次请求都会自动使用全部历史。</p>
+<p>Agno v3 的存储层对 Run 采用独立的规范化表结构；因此阅读不同版本的教程时，不能假设底层表结构一成不变。需要固定 Agno 依赖版本并以该版本迁移工具为准。</p>
+<p><strong>框架支持 <code>user_id</code> / <code>session_id</code> 并不意味着自动满足应用的授权要求。</strong> 应在 FastAPI 等应用边界核验身份，再将可信作用域与 Session 关联；针对直接访问数据表、后台任务和管理端接口的路径也须维护一致权限策略。</p>
+<h2 id="section-42">19. 可直接用于判定设计是否正确的五个问题</h2>
+<p>这里不是练习计划，而是五个数据架构设计判断标准：</p>
+<p><strong>问题一：能否从最终回答定位工具的实际结果？</strong> 需要通过 <code>run_id</code> + <code>call_id</code> 还原证据，而不是只阅读助手生成的自然语言说明。</p>
+<p><strong>问题二：某条消息被存储后，下一轮是否一定看到？</strong> 不一定；取决于上下文选择机制、权限和 Token 预算。</p>
+<p><strong>问题三：用户知道另一会话的 UUID 就有权限读取吗？</strong> 没有；UUID 是资源标识，不能代替对象级授权。</p>
+<p><strong>问题四：某个 Run 已被取消，迟到结果还能覆盖吗？</strong> 正常状态机不允许；需要 CAS 和正确的事务边界。</p>
+<p><strong>问题五：后台任务没有请求上下文时如何确定用户与租户？</strong> 从可信持久化任务记录恢复主体与授权范围，必要时重新核验；不能直接相信不受控队列消息中的身份字段。</p>
+<h2 id="section-43">20. 术语总结</h2>
+<ul>
+<li><strong>Chat History</strong>：按顺序保留的对话消息。</li>
+<li><strong>Session</strong>：一段可延续的对话线程或运行上下文。</li>
+<li><strong>Run / Execution</strong>：一次 Agent 执行实例。</li>
+<li><strong>Session State</strong>：与会话关联的业务状态，例如当前表单草稿、已选规则版本。</li>
+<li><strong>Tool Call</strong>：模型要求调用某工具的请求。</li>
+<li><strong>Tool Result</strong>：工具实际运行后返回的数据或错误。</li>
+<li><strong>Long-term Memory</strong>：独立于单次会话的可持久化记忆数据。</li>
+<li><strong>Tenant</strong>：资源与身份的组织范围。</li>
+<li><strong>Authentication</strong>：确认请求主体是谁。</li>
+<li><strong>Authorization</strong>：确认主体对目标对象能做什么。</li>
+<li><strong>BOLA / IDOR</strong>：对象级授权缺失造成的越权访问问题。</li>
+<li><strong>RLS</strong>：PostgreSQL 的行级安全策略。</li>
+<li><strong>CAS</strong>：比较并交换式状态更新，常通过条件 UPDATE 实现。</li>
+<li><strong>Trace ID</strong>：分布式链路跟踪标识，不是身份认证凭据。</li>
+<li><strong>Idempotency</strong>：重复操作在业务上产生与一次操作等价的最终效果。</li>
+</ul>
+<h2 id="section-44">21. 官方文档与资料</h2>
+<ol>
+<li><a href="https://docs.agno.com/sessions/overview">Agno — Sessions</a>：会话、运行、用户标识与历史回灌的关系。</li>
+<li><a href="https://docs.agno.com/sessions/persisting-sessions/overview">Agno — Persisting Sessions</a>：数据库持久化与会话内容。</li>
+<li><a href="https://docs.agno.com/database/session-storage">Agno — Session Storage</a>：Session/Run 的数据库存储。</li>
+<li><a href="https://docs.agno.com/tutorials/product-agents/sessions-and-memory">Agno — Sessions and Memory</a>：会话历史与用户记忆的区别。</li>
+<li><a href="https://docs.agno.com/other/v3-changelog">Agno — v3 Changelog</a>：规范化运行表及存储行为变化。</li>
+<li><a href="https://api-security.owasp.org/editions/2023/en/0xa1-broken-object-level-authorization/">OWASP — API1:2023 Broken Object Level Authorization</a>：每个通过对象标识访问资源的接口都需对象级授权。</li>
+<li><a href="https://www.postgresql.org/docs/current/ddl-rowsecurity.html">PostgreSQL — Row Security Policies</a>：RLS、安全策略、表所有者例外与默认拒绝行为。</li>
+<li><a href="https://docs.sqlalchemy.org/en/20/orm/session_basics.html">SQLAlchemy — Session Basics</a>：Session/AsyncSession 的事务语义及并发限制。</li>
+<li><a href="https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html">SQLAlchemy — asyncio</a>：异步会话的生命周期与并发注意事项。</li>
+<li><a href="https://fastapi.tiangolo.com/reference/dependencies/">FastAPI — Dependencies / Security</a>：身份和权限依赖的接口组织。</li>
+<li><a href="https://opentelemetry.io/docs/languages/python/propagation/">OpenTelemetry — Propagation</a>：跨服务 Trace Context 传播。</li>
+</ol>
+<hr />
+<p><strong>知识点结论：</strong> 会话历史回答“说过什么”，执行状态回答“运行到哪里”，工具记录回答“系统实际执行过什么”。这三类数据具有不同的唯一标识、写入时机、保留策略与权限范围。避免跨用户或跨会话串数据，需要从身份认证、资源授权、数据库查询、缓存键、Agent 上下文构造、后台 Worker 和日志检索形成一致的隔离边界；不能只依靠一个 <code>session_id</code> 或 Agent 框架的默认行为。</p>

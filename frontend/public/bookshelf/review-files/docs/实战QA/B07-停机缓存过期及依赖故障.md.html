@@ -1,0 +1,27 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>B07-停机缓存过期及依赖故障.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>B07 停机缓存过期及依赖故障</h1>
+<p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
+<p>状态：<strong>已有分项容器故障和恢复验证</strong>。</p>
+<h2>对应要求（原段要点，转述）</h2>
+<p>服务停止、缓存过期和依赖短暂不可用时，给出可解释行为并保留验证记录。</p>
+<p>来源：<a href="https://biteagle.yuque.com/mw0520/rzyee0/ay7550zlq5vyq27t#uafab9fbb">故剑遗学习目标 · 后台任务与可靠性 · 本段</a>。
+对应编号：B07。原段SHA256：<code>28e0b76c5d3a5743c0478c7f8ba37a0047f902bcd2a91385f1e28f3d184d09cd</code>。</p>
+<p>这是原文一个段落的对应回答。要点使用转述；原段定位和哈希用于复核边界，不把此处概括当作公司新要求。</p>
+<h2>回答</h2>
+<p>系统不把“任何依赖故障都照常成功”作为目标，而是区分缓存可回源、队列可延迟和业务库不可用必须失败。持久业务仍以PostgreSQL为准；服务恢复后依据原状态与账本继续，不能启动旧空库来制造恢复成功。</p>
+<h2>本项目如何实现</h2>
+<p>Redis过期/停机回源检索；Kafka停机时Job/Outbox保留；PostgreSQL异常翻译为明确503，未确认消费回退等待。Worker异常由部署重启策略恢复，再扫描过期租约；手动停止或重启策略耗尽仍需操作者启动。</p>
+<p>模型Run在API中断后记失败并保守结算，完成记录可查。容器停止保留命名卷，已有原生副本受主库标记保护。灾难恢复另用新库比对，不自动拿旧归档覆盖当前主库。</p>
+<h2>已有验证与证据</h2>
+<ul>
+<li><a href="/bookshelf/review-files/docs/evidence/compose-linux-20261111-04/summary.json">真实17组证据</a>：300秒自然过期、Redis/Kafka/PG故障、API异常及down/up。</li>
+<li><a href="/bookshelf/review-files/backend/app/db.py">连接异常实现</a>、<a href="/bookshelf/review-files/tests/test_database_unavailable.py">数据库错误测试</a>、<a href="/bookshelf/review-files/tests/test_worker_resilience.py">Worker内存边界</a>。</li>
+<li><a href="/bookshelf/review-files/docs/evidence/v19-final-primary-restore.json">1.9最终19表恢复</a>、<a href="/bookshelf/review-files/docs/evidence/v19-final-primary-api-restore.json">恢复API探测</a>。</li>
+<li><a href="/bookshelf/review-files/docs/Worker%E4%B8%80%E5%B0%8F%E6%97%B6%E7%A8%B3%E5%AE%9A%E6%80%A7%E9%AA%8C%E8%AF%81%E4%B8%8E1.0%E4%BA%A4%E4%BB%98-20261111.md.html">历史一小时报告</a>。</li>
+</ul>
+<p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
+<h2>怎样核对或演示</h2>
+<p>逐项查原始记录的200→503→200、未投递Outbox和恢复后的任务状态。恢复演练使用新assessment_restore_库，比较表内容/账本后以mock读取，不能在实际主库做清空或停依赖实验。</p>
+<h2>结论与边界</h2>
+<p>本轮编写QA没有重新执行这些故障或一小时稳定性。已有证据覆盖所列实验，不是多节点高可用、永久网络分区、所有重平衡或异地容灾的全覆盖证明。恢复备份尚需人工执行与异地副本。</p>
+<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+</article></body></html>

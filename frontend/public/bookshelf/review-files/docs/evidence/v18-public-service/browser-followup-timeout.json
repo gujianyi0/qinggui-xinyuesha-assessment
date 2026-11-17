@@ -1,0 +1,193 @@
+{
+  "requests": [
+    {
+      "path": "auth/guest",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "health",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "catalog/snapshots",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "sessions",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "sessions",
+      "method": "POST",
+      "status": 201
+    },
+    {
+      "path": "sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/runs",
+      "method": "POST",
+      "status": 202
+    },
+    {
+      "path": "runs/16c603e7-2b31-5b28-946b-b7b417f3d25a",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/16c603e7-2b31-5b28-946b-b7b417f3d25a",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/16c603e7-2b31-5b28-946b-b7b417f3d25a",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/16c603e7-2b31-5b28-946b-b7b417f3d25a",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "sessions/0e3739b1-b98e-4f11-a259-4bfe77b74d7e/runs",
+      "method": "POST",
+      "status": 202
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "runs/20127d5b-104e-5f89-8ebd-567e568b0a00",
+      "method": "GET",
+      "status": 200
+    }
+  ],
+  "answer": "本次没有生成完整回答，可查看请求状态或重试",
+  "errors": [
+    "模型或工具超时，可重试，可以重试重试关闭"
+  ],
+  "page_errors": [],
+  "run_ids": [
+    "16c603e7-2b31-5b28-946b-b7b417f3d25a",
+    "20127d5b-104e-5f89-8ebd-567e568b0a00"
+  ]
+}

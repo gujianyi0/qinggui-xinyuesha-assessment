@@ -1,0 +1,337 @@
+{
+  "started_at": "2026-11-11T03:37:53.302172+00:00",
+  "planned_seconds": 3600,
+  "scope": "Real native PostgreSQL/Kafka/Worker/local BGE; web/API probes; no paid model calls",
+  "initial_state": {
+    "owner": "qinggui-assessment-native-demo",
+    "project": "F:\\Work\\Biteagle\\入职考核",
+    "supervisor_pid": 3376,
+    "started_at": "2026-11-11T03:37:27.952528+00:00",
+    "ports": {
+      "web": 15174,
+      "api": 18081,
+      "postgres": 15433,
+      "kafka": 19094,
+      "controller": 19095
+    },
+    "url": "http://127.0.0.1:15174",
+    "stage": "running",
+    "model_mode": "live",
+    "embedding_mode": "local",
+    "database": "postgresql",
+    "redis": "unavailable_fallback",
+    "evaluation_faults": false,
+    "updated_at": "2026-11-11T03:37:52.703109+00:00",
+    "temporary_dos_drive": "R:",
+    "postgres_pid": 10920,
+    "kafka_pid": 43984,
+    "api_pid": 38212,
+    "worker_pid": 15240,
+    "web_pid": 38216,
+    "worker": {
+      "state": "running",
+      "pid": 15240,
+      "restart_count": 0,
+      "last_exit": null
+    },
+    "kafka": {
+      "state": "running",
+      "pid": 43984,
+      "restart_count": 0,
+      "last_exit": null
+    }
+  },
+  "checks": [
+    {
+      "name": "worker_replaced_website_preserved",
+      "old_pid": 15240,
+      "new_pid": 34268,
+      "elapsed_seconds": 82.23,
+      "passed": true
+    },
+    {
+      "name": "active_job_lease_recovery",
+      "attempts": 2,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62160896,
+      "elapsed_seconds": 194.91,
+      "passed": true
+    },
+    {
+      "name": "status_file_real_lock_survived_and_resumed",
+      "lock_seconds": 12,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62853120,
+      "elapsed_seconds": 300.79,
+      "passed": true
+    },
+    {
+      "name": "broker_crash_outbox_delivery_website_preserved",
+      "old_pid": 43984,
+      "new_pid": 33516,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 62828544,
+      "elapsed_seconds": 654.6,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 63881216,
+      "elapsed_seconds": 1848.19,
+      "passed": true
+    },
+    {
+      "name": "cancel_releases_model_and_preserves_publication",
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 63881216,
+      "elapsed_seconds": 2420.6,
+      "passed": true
+    },
+    {
+      "name": "worker_replaced_website_preserved",
+      "old_pid": 34268,
+      "new_pid": 35392,
+      "elapsed_seconds": 3002.92,
+      "passed": true
+    },
+    {
+      "name": "job_memory_released",
+      "private_bytes": 58740736,
+      "elapsed_seconds": 3005.95,
+      "passed": true
+    }
+  ],
+  "probe_failures": [],
+  "jobs": [
+    {
+      "id": "ec34a748-4042-42b2-a51b-b14425e6be39",
+      "user_id": "89387b7f-19d0-4758-bb32-86f7dd701470",
+      "idempotency_key": "worker-soak-20261111-01:crash-running",
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "status": "succeeded",
+      "attempts": 2,
+      "generation": 3,
+      "progress": 100,
+      "error": null,
+      "result": {
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "documents": 198,
+        "chunks": 659,
+        "chunk_size": 320,
+        "chunk_overlap": 64,
+        "embedding_mode": "local",
+        "embedding_model": "BAAI/bge-small-zh-v1.5",
+        "embedding_revision": "7999e1d3359715c523056ef9478215996d62a620"
+      },
+      "lease_until": null,
+      "retry_at": null,
+      "created_at": "2026-11-11T03:37:54.485153",
+      "attempt_records": [
+        {
+          "id": "b880422b-ff08-43d4-a199-6d5d5003613e",
+          "job_id": "ec34a748-4042-42b2-a51b-b14425e6be39",
+          "generation": 1,
+          "status": "interrupted",
+          "error": "执行租约过期",
+          "created_at": "2026-11-11T03:37:54.693706"
+        },
+        {
+          "id": "6baa76cd-e068-4e4b-81c4-9fcb8e0e7633",
+          "job_id": "ec34a748-4042-42b2-a51b-b14425e6be39",
+          "generation": 3,
+          "status": "succeeded",
+          "error": null,
+          "created_at": "2026-11-11T03:40:12.899838"
+        }
+      ]
+    },
+    {
+      "id": "f70f77f9-ca3a-4923-b8cf-830665c6d6f6",
+      "user_id": "89387b7f-19d0-4758-bb32-86f7dd701470",
+      "idempotency_key": "worker-soak-20261111-01:broker-restart",
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "status": "succeeded",
+      "attempts": 1,
+      "generation": 1,
+      "progress": 100,
+      "error": null,
+      "result": {
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "documents": 198,
+        "chunks": 659,
+        "chunk_size": 320,
+        "chunk_overlap": 64,
+        "embedding_mode": "local",
+        "embedding_model": "BAAI/bge-small-zh-v1.5",
+        "embedding_revision": "7999e1d3359715c523056ef9478215996d62a620"
+      },
+      "lease_until": null,
+      "retry_at": null,
+      "created_at": "2026-11-11T03:41:26.307320",
+      "attempt_records": [
+        {
+          "id": "536b7b97-e1e9-400d-8c5d-e72b86a36716",
+          "job_id": "f70f77f9-ca3a-4923-b8cf-830665c6d6f6",
+          "generation": 1,
+          "status": "succeeded",
+          "error": null,
+          "created_at": "2026-11-11T03:41:46.853901"
+        }
+      ]
+    },
+    {
+      "id": "75cb1eaf-3e43-44db-bcac-965fc025529e",
+      "user_id": "89387b7f-19d0-4758-bb32-86f7dd701470",
+      "idempotency_key": "worker-soak-20261111-01:repeat-1",
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "status": "succeeded",
+      "attempts": 1,
+      "generation": 1,
+      "progress": 100,
+      "error": null,
+      "result": {
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "documents": 198,
+        "chunks": 659,
+        "chunk_size": 320,
+        "chunk_overlap": 64,
+        "embedding_mode": "local",
+        "embedding_model": "BAAI/bge-small-zh-v1.5",
+        "embedding_revision": "7999e1d3359715c523056ef9478215996d62a620"
+      },
+      "lease_until": null,
+      "retry_at": null,
+      "created_at": "2026-11-11T03:47:53.414805",
+      "attempt_records": [
+        {
+          "id": "bad86383-a204-41bd-9e20-2387bd3d55bb",
+          "job_id": "75cb1eaf-3e43-44db-bcac-965fc025529e",
+          "generation": 1,
+          "status": "succeeded",
+          "error": null,
+          "created_at": "2026-11-11T03:47:54.435984"
+        }
+      ]
+    },
+    {
+      "id": "fd3c553c-e11a-4302-b6d9-5e46525fceb7",
+      "user_id": "89387b7f-19d0-4758-bb32-86f7dd701470",
+      "idempotency_key": "worker-soak-20261111-01:repeat-2",
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "status": "succeeded",
+      "attempts": 1,
+      "generation": 1,
+      "progress": 100,
+      "error": null,
+      "result": {
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "documents": 198,
+        "chunks": 659,
+        "chunk_size": 320,
+        "chunk_overlap": 64,
+        "embedding_mode": "local",
+        "embedding_model": "BAAI/bge-small-zh-v1.5",
+        "embedding_revision": "7999e1d3359715c523056ef9478215996d62a620"
+      },
+      "lease_until": null,
+      "retry_at": null,
+      "created_at": "2026-11-11T04:07:53.878394",
+      "attempt_records": [
+        {
+          "id": "6cd42906-e2e8-4019-a60a-1077c6a72773",
+          "job_id": "fd3c553c-e11a-4302-b6d9-5e46525fceb7",
+          "generation": 1,
+          "status": "succeeded",
+          "error": null,
+          "created_at": "2026-11-11T04:07:54.179250"
+        }
+      ]
+    },
+    {
+      "id": "abaa6388-d313-4518-abad-e657f3bae6c7",
+      "user_id": "89387b7f-19d0-4758-bb32-86f7dd701470",
+      "idempotency_key": "worker-soak-20261111-01:cancel-running",
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "status": "cancelled",
+      "attempts": 1,
+      "generation": 1,
+      "progress": 2,
+      "error": "用户取消，暂存索引未发布",
+      "result": null,
+      "lease_until": null,
+      "retry_at": null,
+      "created_at": "2026-11-11T04:17:53.538143",
+      "attempt_records": [
+        {
+          "id": "a37e14f3-6386-48e5-bb07-dbceec8b3001",
+          "job_id": "abaa6388-d313-4518-abad-e657f3bae6c7",
+          "generation": 1,
+          "status": "cancelled",
+          "error": "用户取消，暂存索引未发布",
+          "created_at": "2026-11-11T04:17:53.966045"
+        }
+      ]
+    }
+  ],
+  "passed": true,
+  "finished_at": "2026-11-11T04:37:54.084959+00:00",
+  "actual_seconds": 3600.784,
+  "sample_count": 1757,
+  "final_state": {
+    "owner": "qinggui-assessment-native-demo",
+    "project": "F:\\Work\\Biteagle\\入职考核",
+    "supervisor_pid": 3376,
+    "started_at": "2026-11-11T03:37:27.952528+00:00",
+    "ports": {
+      "web": 15174,
+      "api": 18081,
+      "postgres": 15433,
+      "kafka": 19094,
+      "controller": 19095
+    },
+    "url": "http://127.0.0.1:15174",
+    "stage": "running",
+    "model_mode": "live",
+    "embedding_mode": "local",
+    "database": "postgresql",
+    "redis": "unavailable_fallback",
+    "evaluation_faults": false,
+    "updated_at": "2026-11-11T04:37:49.808220+00:00",
+    "temporary_dos_drive": "R:",
+    "postgres_pid": 10920,
+    "kafka_pid": 33516,
+    "api_pid": 38212,
+    "worker_pid": 35392,
+    "web_pid": 38216,
+    "worker": {
+      "state": "running",
+      "pid": 35392,
+      "restart_count": 2,
+      "last_exit": {
+        "pid": 34268,
+        "code": 1
+      }
+    },
+    "kafka": {
+      "state": "running",
+      "pid": 33516,
+      "restart_count": 1,
+      "last_exit": {
+        "pid": 43984,
+        "code": 1
+      }
+    }
+  }
+}

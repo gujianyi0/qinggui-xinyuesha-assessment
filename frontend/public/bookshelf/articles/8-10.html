@@ -1,0 +1,13 @@
+<h1 id="section-1">AI生成代码修复与调用方检查</h1>
+<p>更新：2026-11-17。</p>
+<h2 id="section-2">对应要求</h2>
+<blockquote>
+<p>找一处你修过的 AI 生成代码，记下最初哪里有问题、为什么这样修、怎样确认没有影响调用方。调试和修改也可以继续用 AI，把原因和结果核对清楚就好。</p>
+</blockquote>
+<h2 id="section-3">本项目回答与证据</h2>
+<p>选用FIX01。它来自本项目AI生成的反馈编辑调用代码，后端拒绝了错误请求。原始操作：保存反馈草稿后编辑预期结果，再次保存，返回422。</p>
+<p>问题在于创建与编辑误用同一完整载荷。POST允许指定session_id建立归属；PATCH禁止这个字段，必须只编辑业务内容并提供旧revision。直接放宽后端Schema会隐藏调用错误，还可能允许修改归属，因此保留严格后端，修正前端的请求构造。</p>
+<p>实际修改：<a href="/bookshelf/review-files/frontend/src/services/feedback.ts.txt">feedback.ts</a>分别构造POST和PATCH；PATCH不带session_id，带当前revision。当前组件已迁移到features/feedback，历史路径见<a href="/bookshelf/review-files/docs/%E9%97%AE%E9%A2%98%E4%BF%AE%E6%AD%A3%E8%AE%B0%E5%BD%95.md.html">问题修正全集FIX01</a>。</p>
+<p>调用方检查：核对新建草稿、编辑草稿、读取草稿、确认指定修订四条链；<a href="/bookshelf/review-files/frontend/src/features/feedback/components/__tests__/feedback-screen.test.tsx.txt">反馈组件测试</a>检查请求字段及修订，<a href="/bookshelf/review-files/tests/test_api.py">test_api.py</a>继续检查跨身份、旧修订、重复确认和确认后不可编辑。实际浏览器<a href="/bookshelf/review-files/docs/evidence/browser/summary.json">summary</a>完成创建v1→编辑v2→确认。结果是编辑成功，归属和确认边界保留。</p>
+<p>本记录说明被修代码由AI生成，不把AI的解释当验证证据。接口测试与浏览器结果分别证明协议约束和实际操作链路。</p>
+<p><a href="/bookshelf/index.html#read/8-05">返回六项记录导航</a> · <a href="/bookshelf/index.html#read/8-01">返回文档导航QA</a></p>

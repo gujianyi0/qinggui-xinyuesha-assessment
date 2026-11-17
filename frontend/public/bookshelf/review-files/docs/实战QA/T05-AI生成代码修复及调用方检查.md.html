@@ -1,0 +1,30 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>T05-AI生成代码修复及调用方检查.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>T05 AI生成代码修复及调用方检查</h1>
+<p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
+<p>状态：<strong>FIX43保留故障原因恢复与调用方验证</strong>。</p>
+<h2>对应要求（原段要点，转述）</h2>
+<p>选择一处修过的AI生成代码，解释原问题、修改原因和调用方影响检查，核实原因与结果。</p>
+<p>来源：<a href="https://biteagle.yuque.com/mw0520/rzyee0/ay7550zlq5vyq27t#ub7740696">故剑遗学习目标 · 测试与问题修复记录 · 本段</a>。
+对应编号：T05。原段SHA256：<code>561033b56861f4f778ef8d6beba587d2ed07fa6faa2259d16bfbdbdf7b0cb6dc</code>。</p>
+<p>这是原文一个段落的对应回答。要点使用转述；原段定位和哈希用于复核边界，不把此处概括当作公司新要求。</p>
+<h2>回答</h2>
+<p>选择FIX43：AI协助新增的补充评测用例使用了错误字段source_checks，评测器实际要求sources。原执行顺序在真实模型调用结束后才读取该字段，导致已经付费却以KeyError结束记录。这是评测链路缺陷，不能把它算成问答模型答错。</p>
+<h2>本项目如何实现</h2>
+<p><strong>最初问题与定位</strong>：初始补充评测3条记录报KeyError；检查<a href="/bookshelf/review-files/evaluations/run.py">evaluations/run.py</a>的run_case与新用例结构，发现不合法输入在付费之前没有完整校验。</p>
+<p><strong>实际改动与原因</strong>：修正补充套件字段；增加validate_suite，在网络请求前检查case_set、cases、唯一id、category、非空messages、expected.judgment和sources等必要结构。这样输入错误能在尚未调用模型时直接报错，不让schema问题进入付费阶段。</p>
+<p><strong>调用方影响检查</strong>：固定32条套件通过新校验，文件哈希不变；重复ID和错误字段立即拒绝。CLI、execute/run_case的正常请求及结果格式保留，合法补充套件仍能独立运行。</p>
+<p><strong>结果恢复</strong>：从隔离评测库已有Run读取当时已经生成的答案，单独保存recovered目录与recovery.json，paid_calls_repeated=0；原SSE事件未留存，因此events为空，不能伪造完整事件轨迹。之后修后代码的补充最终运行另存，不能用恢复文件冒充新代码执行。</p>
+<h2>已有验证与证据</h2>
+<ul>
+<li><a href="/bookshelf/review-files/docs/%E9%97%AE%E9%A2%98%E4%BF%AE%E6%AD%A3%E8%AE%B0%E5%BD%95.md.html">FIX43及原因说明</a>。</li>
+<li><a href="/bookshelf/review-files/tests/test_evaluation_preflight.py">评测前置校验测试</a>：错误字段拒绝、正常固定套件通过、重复ID拒绝。</li>
+<li><a href="/bookshelf/review-files/evaluations/results/live-v19-supplemental/results.jsonl">初始失败</a>。</li>
+<li><a href="/bookshelf/review-files/evaluations/results/live-v19-supplemental-recovered/results.jsonl">只读恢复结果</a>、<a href="/bookshelf/review-files/evaluations/results/live-v19-supplemental-recovered/recovery.json">恢复范围</a>。</li>
+<li><a href="/bookshelf/review-files/evaluations/results/live-v19-supplemental-final/results.jsonl">修后补充最终运行</a>、<a href="/bookshelf/review-files/docs/evidence/v19-release-final-209.xml">全套209项</a>。</li>
+</ul>
+<p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
+<h2>怎样核对或演示</h2>
+<p>先比较坏套件与有效套件的字段，再确认validate_suite早于HTTP与模型调用。打开recovery.json核对0次重复付费，再看恢复结果缺失事件的说明。对正常调用方核对固定cases.json哈希与新测试，而不是仅凭“现在不报错”。</p>
+<h2>结论与边界</h2>
+<p>这里记录的是本次AI协助产生并修正的评测代码问题，不把第三方SDK本身归为本项目原创缺陷。前置校验阻止这类结构错误，不能预先判断所有语义预期都正确；规则预期与来源仍需要人工核对。</p>
+<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+</article></body></html>

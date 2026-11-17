@@ -1,0 +1,14 @@
+{
+  "code_hashes": {
+    "backend\\app\\worker.py": "bd4a49ce93e886c0e450a233144bfc33399aa5a2979799c3780eab99e67fee93",
+    "backend\\app\\isolated_embedding.py": "a672515af75e4a5f39f15914402a451f0b0c2a25e7729d3a9d5a2af256fba2c2",
+    "backend\\app\\status_file.py": "fd07524e7df70a8724b273c68171533685851a8dfe89a6a92affd51e10e9ddff",
+    "backend\\app\\service_supervisor.py": "197fa1efff342c56eb4a5bdd59f843f852b36128bbf2adc16d2bebc3cd3da700",
+    "backend\\app\\resource_metrics.py": "19968a51a78f770613bd6d78feb4bc1c423982a49e37214a196ccb13bcf1ab54",
+    "scripts\\native_demo.py": "7dc8b3730b357708bd1133b515b2fa333cbd3cb3796b803787d650acb0bcaaec",
+    "scripts\\soak_native_worker.py": "6357f397116571cfeb9c9938f6e3e61c6499889ccf7c6b5d5a005cdb181ebe4a"
+  },
+  "kafka_heap": "512m",
+  "cleaner_dedupe_bytes": 33554432,
+  "model_revision": "7999e1d3359715c523056ef9478215996d62a620"
+}

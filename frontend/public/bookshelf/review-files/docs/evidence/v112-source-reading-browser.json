@@ -1,0 +1,80 @@
+{
+  "passed": true,
+  "scope": "Actual Docker owner UI; five real saved citations from R01, no model calls",
+  "sources": [
+    {
+      "headings": [
+        "决定身份"
+      ],
+      "paragraphs": 2,
+      "tables": 1,
+      "rows": 8,
+      "listItems": 0,
+      "fontSize": "14px",
+      "lineHeight": "26.6px",
+      "paragraphWhiteSpace": "pre-line",
+      "code": false,
+      "codeWhiteSpace": "pre-wrap",
+      "title": "身份模式"
+    },
+    {
+      "headings": [
+        "游戏目标"
+      ],
+      "paragraphs": 1,
+      "tables": 0,
+      "rows": 0,
+      "listItems": 4,
+      "fontSize": "14px",
+      "lineHeight": "26.6px",
+      "paragraphWhiteSpace": "pre-line",
+      "code": false,
+      "codeWhiteSpace": "pre-wrap",
+      "title": "身份模式"
+    },
+    {
+      "headings": [
+        "游戏结束"
+      ],
+      "paragraphs": 4,
+      "tables": 0,
+      "rows": 0,
+      "listItems": 0,
+      "fontSize": "14px",
+      "lineHeight": "26.6px",
+      "paragraphWhiteSpace": "pre-line",
+      "code": false,
+      "codeWhiteSpace": "pre-wrap",
+      "title": "身份模式"
+    },
+    {
+      "headings": [],
+      "paragraphs": 0,
+      "tables": 0,
+      "rows": 0,
+      "listItems": 0,
+      "fontSize": "14px",
+      "lineHeight": "26.6px",
+      "paragraphWhiteSpace": null,
+      "code": true,
+      "codeWhiteSpace": "pre",
+      "title": "renegade_loyalty实现"
+    },
+    {
+      "headings": [
+        "决定身份"
+      ],
+      "paragraphs": 1,
+      "tables": 1,
+      "rows": 7,
+      "listItems": 0,
+      "fontSize": "14px",
+      "lineHeight": "26.6px",
+      "paragraphWhiteSpace": "pre-line",
+      "code": false,
+      "codeWhiteSpace": "pre-wrap",
+      "title": "身份模式"
+    }
+  ],
+  "maxButtonShift": 0
+}

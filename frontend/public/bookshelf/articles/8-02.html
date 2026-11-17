@@ -1,0 +1,190 @@
+<h1 id="section-1">01 源码、依赖、迁移、配置与资料在哪里？</h1>
+<p>本轮补充：<a href="/bookshelf/review-files/tools/bookshelf/README.md.html">知识书架导出源码、原49篇文档快照和锁定依赖</a>。生成副本位于frontend/public/bookshelf，工作区入口位于features/bookshelf；08文档、证据链接及私有边界用scripts/verify_bookshelf.py核对。</p>
+<h2 id="section-2">源码</h2>
+<table>
+<thead>
+<tr>
+<th>内容</th>
+<th>位置</th>
+<th>看什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>API与身份边界</td>
+<td><a href="/bookshelf/review-files/backend/app/main.py">backend/app/main.py</a>、<a href="/bookshelf/review-files/backend/app/schemas.py">schemas.py</a></td>
+<td>登录、会话/运行、反馈、任务接口；输入字段、归属和确认校验</td>
+</tr>
+<tr>
+<td>模型、工具与裁定</td>
+<td><a href="/bookshelf/review-files/backend/app/runtime.py">runtime.py</a>、<a href="/bookshelf/review-files/backend/app/ruling_policy.py">ruling_policy.py</a>、<a href="/bookshelf/review-files/backend/app/catalog.py">catalog.py</a></td>
+<td>Agno编排、受控工具、裁定话题边界、检索与来源</td>
+</tr>
+<tr>
+<td>后台任务</td>
+<td><a href="/bookshelf/review-files/backend/app/jobs.py">jobs.py</a>、<a href="/bookshelf/review-files/backend/app/worker.py">worker.py</a></td>
+<td>Job/Outbox、Kafka投递消费、幂等、重试、租约、取消、索引发布</td>
+</tr>
+<tr>
+<td>网页</td>
+<td><a href="/bookshelf/review-files/frontend/src/index.html">frontend/src</a>、<a href="/bookshelf/review-files/frontend/src/features/index.html">features</a>、<a href="/bookshelf/review-files/frontend/src/services/index.html">services</a>、<a href="/bookshelf/review-files/frontend/src/lib/index.html">lib</a></td>
+<td>auth/chat/library/feedback/jobs/workspace、领域请求、缓存及第三方适配</td>
+</tr>
+<tr>
+<td>共享服务与下载客户端</td>
+<td><a href="/bookshelf/review-files/backend/public_gateway.py">backend/public_gateway.py</a>、<a href="/bookshelf/review-files/public-entry/index.html">public-entry</a>、<a href="/bookshelf/review-files/compose.client.yaml">compose.client.yaml</a></td>
+<td>提供者保管密钥和承担费用，客户端只接入服务</td>
+</tr>
+<tr>
+<td>启动、验证与恢复脚本</td>
+<td><a href="/bookshelf/review-files/scripts/index.html">scripts</a></td>
+<td>启动/停止、资料准备、评测支持、备份及恢复</td>
+</tr>
+<tr>
+<td>架构详细说明</td>
+<td><a href="/bookshelf/review-files/docs/%E6%9E%B6%E6%9E%84%E4%B8%8E%E6%8E%A5%E5%8F%A3%E8%AF%B4%E6%98%8E.md.html">架构与接口说明</a></td>
+<td>模块、接口和存储边界；其中历史段落按标注版本阅读</td>
+</tr>
+</tbody></table>
+<p>本机源码工作目录是<code>F:\Work\Biteagle\入职考核</code>，本地Git快照库是<code>F:\Work\Biteagle\入职考核\git</code>。后者当前功能分支为<code>feat/v2-local-preview</code>；<code>v2.0.1-local.1</code>标签对应2.0.1代码检查点，旧标签不改写。文件中的<code>git/</code>目录不随独立仓库再次嵌套分发。</p>
+<h2 id="section-3">依赖与版本记录</h2>
+<table>
+<thead>
+<tr>
+<th>材料</th>
+<th>位置</th>
+<th>解释</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>项目交付版本</td>
+<td><a href="/bookshelf/review-files/VERSION">VERSION</a></td>
+<td>当前为<code>2.0.1-local.1</code>，表示本地候选版</td>
+</tr>
+<tr>
+<td>Python依赖与锁</td>
+<td><a href="/bookshelf/review-files/pyproject.toml">pyproject.toml</a>、<a href="/bookshelf/review-files/uv.lock">uv.lock</a></td>
+<td>Python 3.13范围与后端依赖；包元数据仍为1.13.0，不将其误当成v2交付版本</td>
+</tr>
+<tr>
+<td>网页依赖与锁</td>
+<td><a href="/bookshelf/review-files/frontend/package.json">frontend/package.json</a>、<a href="/bookshelf/review-files/frontend/package-lock.json">package-lock.json</a></td>
+<td>v2.0.1前端依赖、Node要求和检查脚本</td>
+</tr>
+<tr>
+<td>公网入口依赖</td>
+<td><a href="/bookshelf/review-files/public-entry/package.json">public-entry/package.json</a>、<a href="/bookshelf/review-files/public-entry/package-lock.json">package-lock.json</a></td>
+<td>共享入口依赖；不能据此推断服务当前在线</td>
+</tr>
+<tr>
+<td>镜像与编排</td>
+<td><a href="/bookshelf/review-files/Dockerfile">Dockerfile</a>、<a href="/bookshelf/review-files/compose.yaml">compose.yaml</a>、<a href="/bookshelf/review-files/compose.live.yaml">compose.live.yaml</a>、<a href="/bookshelf/review-files/compose.v2-local.yaml">compose.v2-local.yaml</a></td>
+<td>全新环境、现有主库与v2本地网页的不同启动范围</td>
+</tr>
+<tr>
+<td>1.x历史版本目录</td>
+<td><a href="/bookshelf/review-files/docs/%E7%89%88%E6%9C%AC%E8%AE%B0%E5%BD%95.md.html">版本记录</a></td>
+<td>该文件旧开头停留在1.9；补充版本以对应报告为准</td>
+</tr>
+<tr>
+<td>1.10～1.13</td>
+<td><a href="/bookshelf/review-files/docs/1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md.html">1.10</a>、<a href="/bookshelf/review-files/docs/1.11-%E6%9D%A5%E6%BA%90%E6%8C%89%E9%92%AE%E8%B7%B3%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md.html">1.11</a>、<a href="/bookshelf/review-files/docs/1.12-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E9%98%85%E8%AF%BB%E6%8E%92%E7%89%88-20261114.md.html">1.12</a>、<a href="/bookshelf/review-files/docs/1.13-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E6%BB%9A%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md.html">1.13</a></td>
+<td>回答展示、来源按钮、排版与滚动修正</td>
+</tr>
+<tr>
+<td>2.0与2.0.1</td>
+<td><a href="/bookshelf/review-files/docs/2.0-%E6%9C%AC%E5%9C%B0%E5%86%85%E6%B5%8B%E4%B8%8E%E5%89%8D%E7%AB%AF%E8%A7%84%E8%8C%83%E5%AF%B9%E7%85%A7-20261114.md.html">2.0规范对照</a>、<a href="/bookshelf/review-files/docs/2.0.1-%E8%A3%81%E5%AE%9A%E8%AF%9D%E9%A2%98%E4%B8%8E%E8%BE%93%E5%85%A5%E8%8D%89%E7%A8%BF%E4%BF%AE%E5%A4%8D-20261117.md.html">2.0.1修复</a></td>
+<td>当前本地前端重构及裁定话题/输入草稿修复</td>
+</tr>
+<tr>
+<td>运行源码与产物</td>
+<td><a href="/bookshelf/review-files/docs/evidence/v201-api-deployment-20261117.json">API更新记录</a>、<a href="/bookshelf/review-files/docs/evidence/v201-local-artifacts-20261117.json">源码与静态产物哈希</a>、<a href="/bookshelf/review-files/docs/evidence/v201-live-regression-20261117.json">真实回归及部署哈希核对</a></td>
+<td>运行镜像沿用旧包元数据，实际代码以文件SHA256与镜像ID核对，不只看标签</td>
+</tr>
+</tbody></table>
+<h2 id="section-4">数据库迁移与数据设计</h2>
+<ul>
+<li><a href="/bookshelf/review-files/backend/app/models.py">models.py</a>：身份、会话、消息、Run、工具审计、草稿/反馈、Job/尝试/Outbox、索引发布和费用表。</li>
+<li><a href="/bookshelf/review-files/migrations/versions/index.html">migrations/versions</a>：<code>0001_initial.py</code>为初始结构，<code>0002_request_recovery.py</code>增加原请求恢复及预算预留等支持。</li>
+<li><a href="/bookshelf/review-files/alembic.ini">alembic.ini</a>、<a href="/bookshelf/review-files/migrations/env.py">migrations/env.py</a>：迁移配置及数据库连接。</li>
+<li><a href="/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E8%BF%81%E7%A7%BB%E4%B8%8E%E8%BF%90%E8%A1%8C%E6%89%8B%E5%86%8C.md.html">迁移与运行手册</a>：现有主库从原生运行迁移到Docker，保持会话和费用账本。</li>
+<li><a href="/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E5%A4%87%E4%BB%BD%E4%B8%8E%E6%81%A2%E5%A4%8D.md.html">Docker主库备份与恢复</a>：当前权威库的备份、新库恢复核对和边界，不用旧归档覆盖当前主库。</li>
+</ul>
+<p>迁移测试在<a href="/bookshelf/review-files/tests/test_migrations.py">tests/test_migrations.py</a>，数据迁移/边界测试在<a href="/bookshelf/review-files/tests/test_database_transfer.py">tests/test_database_transfer.py</a>、<a href="/bookshelf/review-files/tests/test_backup_boundaries.py">tests/test_backup_boundaries.py</a>。不要为了查阅文档就在当前业务库执行降级、清库或重新初始化。</p>
+<h2 id="section-5">示例配置与启动入口</h2>
+<table>
+<thead>
+<tr>
+<th>内容</th>
+<th>位置</th>
+<th>适用范围</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>可提交示例</td>
+<td><a href="/bookshelf/review-files/.env.example">.env.example</a></td>
+<td>默认模型替身；说明模型、单价、预算、BGE、Kafka、Redis及演示账号配置项</td>
+</tr>
+<tr>
+<td>配置字段和默认值</td>
+<td><a href="/bookshelf/review-files/backend/app/config.py">config.py</a></td>
+<td>字段、校验和环境变量映射；示例默认值不等于本机私有配置</td>
+</tr>
+<tr>
+<td>既有主库启动</td>
+<td><a href="/bookshelf/review-files/scripts/start_docker_live.ps1">start_docker_live.ps1</a></td>
+<td>需要本机私有<code>.env.docker-live</code>和部署标记</td>
+</tr>
+<tr>
+<td>v2本地网页</td>
+<td><a href="/bookshelf/review-files/scripts/start_v2_local.ps1">start_v2_local.ps1</a>、<a href="/bookshelf/review-files/scripts/stop_v2_local.ps1">stop_v2_local.ps1</a></td>
+<td>15180，仅本地，复用18081 API，不另建账本</td>
+</tr>
+<tr>
+<td>新环境或下载客户端</td>
+<td><a href="/bookshelf/review-files/README.md.html">README启动命令</a></td>
+<td>新环境默认模型替身；下载客户端依赖提供者服务在线</td>
+</tr>
+</tbody></table>
+<p>当前本机<code>alice</code>、<code>bob</code>演示密码已改为<code>123</code>；私有启动配置和数据库中的密码哈希均已更新。<code>.env.example</code>的通用示例默认值未因此改写，独立环境以自己的<code>DEMO_PASSWORD</code>为准。模型密钥、实际配置、数据库与备份仍不进入Git。</p>
+<h2 id="section-6">样例资料和来源说明</h2>
+<table>
+<thead>
+<tr>
+<th>材料</th>
+<th>位置</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>快照与实体样例</td>
+<td><a href="/bookshelf/review-files/data/snapshots.json">snapshots.json</a>、<a href="/bookshelf/review-files/data/catalog.json">catalog.json</a>、<a href="/bookshelf/review-files/data/documents.json">documents.json</a></td>
+<td>固定版本、武将/技能/卡牌及规则资料</td>
+</tr>
+<tr>
+<td>来源清单和原文件</td>
+<td><a href="/bookshelf/review-files/data/manifest.json">manifest.json</a>、<a href="/bookshelf/review-files/data/sources/index.html">data/sources</a>、<a href="/bookshelf/review-files/data/sources/freekill-local-b9dc701220bc/LICENSE">原LICENSE</a></td>
+<td>提取来源、路径/行号、快照和哈希；保留原许可</td>
+</tr>
+<tr>
+<td>BGE与分块</td>
+<td><a href="/bookshelf/review-files/data/embedding-model.json">embedding-model.json</a>、<a href="/bookshelf/review-files/backend/app/chunking.py">chunking.py</a></td>
+<td>锁定模型revision、分块规则；大模型权重留本地缓存</td>
+</tr>
+<tr>
+<td>版本边界说明</td>
+<td><a href="/bookshelf/review-files/data/knowledge-boundaries.md.html">knowledge-boundaries.md</a></td>
+<td>客户端号、源码快照和运行环境不能混同</td>
+</tr>
+<tr>
+<td>裁定规格、脚本与证据</td>
+<td><a href="/bookshelf/review-files/rulings/specifications.json">specifications.json</a>、<a href="/bookshelf/review-files/rulings/scenes/index.html">scenes</a>、<a href="/bookshelf/review-files/rulings/evidence/index.html">evidence</a>、<a href="/bookshelf/review-files/rulings/engine-manifest.json">engine-manifest.json</a></td>
+<td>SC01–SC08及选定对照，运行器和执行文件哈希</td>
+</tr>
+<tr>
+<td>来源与复用说明</td>
+<td><a href="/bookshelf/review-files/docs/%E6%9D%A5%E6%BA%90%E4%B8%8E%E5%A4%8D%E7%94%A8%E8%AF%B4%E6%98%8E.md.html">来源与复用说明</a></td>
+<td>游戏文本、原Lua逻辑、FreeKill、权重及第三方组件不算本项目原创</td>
+</tr>
+</tbody></table>
+<p>规则证据范围为固定快照Lua逻辑与fake_backend，不代表完整客户端或线上房间。来源说明中的“本轮未上传”等旧叙述属于当时状态；本次v2候选版仍仅本地内测。</p>
+<p>2026-11-17源码同步：当前版本及本次README/导航位于<a href="https://github.com/gujianyi0/qinggui-xinyuesha-assessment/tree/feat/v2-local-preview">GitHub内测分支</a>，代码检查点标签为<code>v2.0.1-local.1</code>；标签之后的文档提交包含最新导航。公网网页部署与源码上传分开，旧报告中“未上传”的描述保留为当时状态。</p>

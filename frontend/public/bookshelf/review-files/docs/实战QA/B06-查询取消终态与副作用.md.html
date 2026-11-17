@@ -1,0 +1,27 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>B06-查询取消终态与副作用.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>B06 查询取消终态与副作用</h1>
+<p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
+<p>状态：<strong>已实现，取消竞争与终态保护已有验证</strong>。</p>
+<h2>对应要求（原段要点，转述）</h2>
+<p>长任务可查可取消，重试不能覆盖终态，并解释取消范围及不可撤销操作。</p>
+<p>来源：<a href="https://biteagle.yuque.com/mw0520/rzyee0/ay7550zlq5vyq27t#ue009042b">故剑遗学习目标 · 后台任务与可靠性 · 本段</a>。
+对应编号：B06。原段SHA256：<code>d1d9df62a43e04a6bc76083ccfc7242dfc4cbd52373bb88fed3d780a90990d4f</code>。</p>
+<p>这是原文一个段落的对应回答。要点使用转述；原段定位和哈希用于复核边界，不把此处概括当作公司新要求。</p>
+<h2>回答</h2>
+<p>任务查询和取消均按本人身份受控。queued/retry_wait可以直接变成cancelled；running先变cancel_requested，执行在分块和发布检查点发现后结束。succeeded、failed、cancelled是终态，旧失败回调或重试不能将其改回执行状态。</p>
+<h2>本项目如何实现</h2>
+<p><a href="/bookshelf/review-files/backend/app/jobs.py">Jobs.cancel</a>按状态条件更新。每批写入及最后发布检查当前generation/status；取消和发布竞争时由数据库事务决定先后。若成功发布先提交，随后取消不会假装撤销成功；若取消先持久化，旧执行不能发布。</p>
+<p>取消期间已经写入的暂存块可以保留，但没有完整发布指针就不作为可检索的新索引。API提供GET任务详情与POST取消，页面显示取消请求与最终结果，不把“已点取消”立即当完成。</p>
+<h2>已有验证与证据</h2>
+<ul>
+<li><a href="/bookshelf/review-files/backend/app/main.py">任务查询/取消接口</a>、<a href="/bookshelf/review-files/backend/app/jobs.py">Jobs状态机</a>。</li>
+<li><a href="/bookshelf/review-files/tests/test_jobs.py">取消前发布保护测试</a>：test_cancel_before_publish_and_no_partial_visibility、test_cancelled_worker_lease_recovery。</li>
+<li><a href="/bookshelf/review-files/docs/evidence/compose-linux-20261111-04/summary.json">真实排队/运行取消</a>：queued_and_running_cancel_keep_published_index。</li>
+<li><a href="/bookshelf/review-files/docs/%E6%BC%94%E7%A4%BA%E4%B8%8E%E6%95%85%E9%9A%9C%E6%81%A2%E5%A4%8D%E6%89%8B%E5%86%8C.md.html">演示与恢复手册</a>。</li>
+</ul>
+<p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
+<h2>怎样核对或演示</h2>
+<p>在隔离实例分别取消排队任务和运行任务，查看cancel_requested到cancelled的转换；核对旧发布指针未被半成品替换。对已成功任务再调用取消，应仍为成功；用旧代次失败回调也不能改终态。</p>
+<h2>结论与边界</h2>
+<p>取消不是即时打断所有CPU指令或回滚已经发生的外部操作。批次已开始的计算可能到检查点才结束，模型费用等既有副作用不能撤销。聊天Run的取消与后台Job取消是不同接口和状态机，不应混用。</p>
+<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+</article></body></html>

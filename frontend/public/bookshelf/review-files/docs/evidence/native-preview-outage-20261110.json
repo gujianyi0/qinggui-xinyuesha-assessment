@@ -1,0 +1,13 @@
+{
+  "observed_at": "2026-11-10",
+  "symptom": "15174拒绝连接",
+  "supervisor_stopped_at": "2026-11-10T11:22:24.212307+00:00",
+  "supervisor_error": "worker exited; inspect .local/native-demo/worker.log",
+  "prior_worker_observation": [
+    "2026-11-10 18:08:36,536 assessment.worker WARNING outbox/recovery deferred: MemoryError",
+    "2026-11-10 18:10:00,653 sqlalchemy.pool.impl.AsyncAdaptedQueuePool ERROR The garbage collector is trying to clean up non-checked-in connection"
+  ],
+  "interpretation": "已观察到Worker退出触发supervisor停止全组服务；MemoryError在退出前出现，缺少完整退出栈，不能确定全部根因。",
+  "action": "仅重启本项目所属进程；网页和API恢复200。未关闭其他程序或改系统内存配置。",
+  "remaining": "长期内存稳定性和隔离Worker失败的可用性需另行验证；本次短期恢复不作为长期稳定性通过。"
+}

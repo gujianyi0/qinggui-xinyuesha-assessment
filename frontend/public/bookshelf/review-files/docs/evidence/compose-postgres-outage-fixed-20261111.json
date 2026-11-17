@@ -1,0 +1,12 @@
+{
+  "before_status": 200,
+  "postgres_stopped_status": 503,
+  "offline_body": {
+    "detail": "数据库暂时不可用，请稍后重试",
+    "retryable": true
+  },
+  "restored_status": 200,
+  "source_sha256": "836b0a47447f36f9c641eae056072c14c3be017ca52a5280ed13fb6a4eecc699",
+  "passed": true,
+  "scope": "Actual Linux PostgreSQL stopped and restarted; rebuilt image, same database and existing pool"
+}

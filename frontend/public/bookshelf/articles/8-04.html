@@ -1,0 +1,203 @@
+<blockquote>
+<p>当前本地版本2.0.2：性能优化、六项测试记录、用户本人试用记录及书架08已补齐；<a href="/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261117-v202.md.html">当前进度</a>。下文2.0.1/1.9结果按原版本解释。</p>
+</blockquote>
+<h1 id="section-1">03 主要功能与后台任务分别做到哪里？</h1>
+<p>核对日期：2026-11-17。状态依据现有实现和明确版本的保存证据；本轮只做文档核对及演示密码登录验证，没有重新运行整套业务、模型或故障回归。“已跑通”指对应条件下已有工程证据，不等于公司最终验收通过。</p>
+<h2 id="section-2">主要功能进度</h2>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>已做到/已跑通</th>
+<th>证据入口</th>
+<th>尚未覆盖或下一步</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>玩家问答与实体资料</td>
+<td>React → FastAPI → Agno → 检索/数据工具 → 保存答案及来源；固定三包、真实BGE/pgvector链路已有运行记录</td>
+<td><a href="/bookshelf/review-files/docs/%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%88%98%E6%B5%8B%E8%AF%95%E5%8F%8D%E9%A6%88-20261112.md.html">1.6逐项反馈</a>、<a href="/bookshelf/review-files/docs/%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md.html">1.9完整回归</a></td>
+<td>额外召回不一定都是必要依据；不能保证任意问题或快照外资料正确</td>
+</tr>
+<tr>
+<td>复杂交互裁定</td>
+<td>SC01–SC08和选定对照有离线执行记录；本轮缺工具、缺条件或模型自填条件不能确认当前局面</td>
+<td><a href="/bookshelf/review-files/rulings/evidence/index.html">rulings/evidence</a>、<a href="/bookshelf/review-files/docs/1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md.html">1.9裁定保护</a></td>
+<td>不是任意局面、完整客户端或线上对局验证；不支持的局面需补条件或另行验证</td>
+</tr>
+<tr>
+<td>多轮、流式与恢复</td>
+<td>本机流式、共享入口轮询；原请求编号恢复、离页不误取消；2.0.1修复旧裁定污染普通问题和回答期间草稿不可编辑</td>
+<td><a href="/bookshelf/review-files/docs/2.0.1-%E8%A3%81%E5%AE%9A%E8%AF%9D%E9%A2%98%E4%B8%8E%E8%BE%93%E5%85%A5%E8%8D%89%E7%A8%BF%E4%BF%AE%E5%A4%8D-20261117.md.html">2.0.1报告</a>、<a href="/bookshelf/review-files/docs/evidence/v19-browser-recovery-05/summary.json">1.9浏览器恢复</a></td>
+<td>有限历史和规则路由不等于无限上下文或完美意图识别；v2没有重跑原32条全部真实样例</td>
+</tr>
+<tr>
+<td>反馈整理与保存</td>
+<td>追问具体复现条件，已提供信息合并；草稿修订、归属、明确确认与重复确认去重</td>
+<td><a href="/bookshelf/review-files/docs/1.7-I01%E8%BF%BD%E9%97%AE%E4%B8%8E%E8%BE%93%E5%85%A5%E7%84%A6%E7%82%B9%E4%BF%AE%E5%A4%8D-20261112.md.html">1.7反馈修复</a>、<a href="/bookshelf/review-files/docs/evidence/v201-frontend-check-20261117.log.txt">当前前端测试</a></td>
+<td>原网页实际写入链路有历史证据；v2尚缺隔离环境完整浏览器写入验证，不能只凭组件替身声明该项通过</td>
+</tr>
+<tr>
+<td>持久化、身份隔离与费用</td>
+<td>PostgreSQL保存会话、运行和审计；两身份隔离；统一预算预留/结算；原生至Docker迁移和恢复读取已有验证</td>
+<td><a href="/bookshelf/review-files/docs/1.5-Docker%E7%9C%9F%E5%AE%9E%E9%97%AE%E7%AD%94%E4%B8%8E%E4%B8%BB%E5%BA%93%E8%BF%81%E7%A7%BB-20261112.md.html">1.5迁移</a>、<a href="/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E5%A4%87%E4%BB%BD%E4%B8%8E%E6%81%A2%E5%A4%8D.md.html">备份恢复</a></td>
+<td>无多API运行租约与高可用；同机备份不等于异地灾备</td>
+</tr>
+<tr>
+<td>v2界面与工程规范</td>
+<td>功能分层、Query缓存、URL恢复、历史分批展示、移动导航、来源阅读与焦点管理；最近49项前端检查通过</td>
+<td><a href="/bookshelf/review-files/docs/2.0-%E6%9C%AC%E5%9C%B0%E5%86%85%E6%B5%8B%E4%B8%8E%E5%89%8D%E7%AB%AF%E8%A7%84%E8%8C%83%E5%AF%B9%E7%85%A7-20261114.md.html">2.0规范对照</a>、<a href="/bookshelf/review-files/docs/evidence/v201-frontend-check-20261117.log.txt">2.0.1前端日志</a></td>
+<td>Storybook/Lighthouse未运行；整浏览器无响应根因仍未完全确证</td>
+</tr>
+<tr>
+<td>本地/共享入口</td>
+<td>v2本地15180；旧前端15174、共享客户端15176；提供者保管模型密钥，共用后端与账本</td>
+<td><a href="/bookshelf/review-files/README.md.html">README</a>、<a href="/bookshelf/review-files/docs/evidence/v201-api-deployment-20261117.json">API更新证据</a></td>
+<td>v2源码提供于内测分支，公网前端未发布；共享服务依赖提供者电脑；未在另一台物理电脑全新部署</td>
+</tr>
+</tbody></table>
+<p>当前本机演示账号<code>alice</code>、<code>bob</code>已改为密码<code>123</code>，实际新密码200、旧密码401，账号ID与账本未变；<a href="/bookshelf/review-files/docs/evidence/doc-navigation-password-20261117.json">本轮登录验证</a>没有调用付费模型。</p>
+<h2 id="section-3">后台任务与可靠性进度</h2>
+<p>后台耗时任务是“导入、解析并索引固定资料快照”，不是聊天排队。权威状态在PostgreSQL；Kafka负责消息，Redis负责公共检索缓存。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>已做到/已跑通</th>
+<th>主要证据</th>
+<th>限制与下一步</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>HTTP受理和任务查询</td>
+<td>同事务创建Job/Outbox；可查状态、进度、最终结果、失败和尝试次数</td>
+<td><a href="/bookshelf/review-files/backend/app/jobs.py">jobs.py</a>、<a href="/bookshelf/review-files/docs/evidence/assessment-audit-compose-20261112-01/summary.json">1.6容器汇总</a></td>
+<td>当前本机完整入口开放任务，公网访客不开放；本轮未新增导入任务</td>
+</tr>
+<tr>
+<td>Kafka＋独立Worker</td>
+<td>真实Linux容器曾完成659块索引导入和原子发布；Worker与API独立运行</td>
+<td><a href="/bookshelf/review-files/docs/1.4-Compose%E9%9B%86%E6%88%90%E4%B8%8E%E6%95%85%E9%9A%9C%E6%81%A2%E5%A4%8D%E9%AA%8C%E8%AF%81-20261111.md.html">1.4报告</a>、<a href="/bookshelf/review-files/docs/evidence/assessment-audit-compose-20261112-01/summary.json">1.6容器汇总</a></td>
+<td>单节点、单Partition和单Worker；不是多节点容灾验证</td>
+</tr>
+<tr>
+<td>重复提交和消息幂等</td>
+<td>用户＋idempotency_key唯一；状态与generation校验领取/回写；重复及旧消息不重复发布最终结果</td>
+<td><a href="/bookshelf/review-files/backend/app/jobs.py">后台实现</a>、<a href="/bookshelf/review-files/tests/test_worker.py">Worker测试</a>、<a href="/bookshelf/review-files/docs/%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%88%98%E6%B5%8B%E8%AF%95%E5%8F%8D%E9%A6%88-20261112.md.html">1.6逐项反馈</a></td>
+<td>至少一次消息＋应用幂等；计算可以重做，不宣称端到端exactly-once</td>
+</tr>
+<tr>
+<td>提交位点和崩溃恢复</td>
+<td>业务结果/重试安排持久化后提交位点；Outbox发出未标记、写库后未确认均有历史故障证据</td>
+<td><a href="/bookshelf/review-files/backend/app/worker.py">worker.py</a>、<a href="/bookshelf/review-files/docs/evidence/assessment-audit-compose-20261112-01/summary.json">容器原始结果</a></td>
+<td>不能将当前单元替身回归冒充本次真实Broker再次故障注入</td>
+</tr>
+<tr>
+<td>有限重试和坏输入</td>
+<td>默认3次业务尝试、10/30秒退避；坏输入终止，持久重试不阻塞后续正常任务</td>
+<td><a href="/bookshelf/review-files/backend/app/jobs.py">jobs.py</a>、<a href="/bookshelf/review-files/tests/test_worker_resilience.py">可靠性测试</a></td>
+<td>Kafka投递等待不计作业务执行次数；依赖长期故障仍需人工排查</td>
+</tr>
+<tr>
+<td>租约、退出和旧结果</td>
+<td>默认租约60秒、心跳10秒；过期租约新代次重排，旧代次回写受限</td>
+<td><a href="/bookshelf/review-files/docs/evidence/assessment-audit-compose-20261112-01/summary.json">1.6容器汇总</a>、<a href="/bookshelf/review-files/docs/Worker%E4%B8%80%E5%B0%8F%E6%97%B6%E7%A8%B3%E5%AE%9A%E6%80%A7%E9%AA%8C%E8%AF%81%E4%B8%8E1.0%E4%BA%A4%E4%BB%98-20261111.md.html">一小时报告</a></td>
+<td>重新处理整个导入，不是断点续分块；原MemoryError的具体分配位置没有完全查明</td>
+</tr>
+<tr>
+<td>取消与终态</td>
+<td>排队/运行取消、发布前检查和终态保护已有测试；未完成暂存索引不发布</td>
+<td><a href="/bookshelf/review-files/tests/test_jobs.py">任务测试</a>、<a href="/bookshelf/review-files/docs/evidence/assessment-audit-compose-20261112-01/summary.json">1.6容器汇总</a></td>
+<td>不撤销已经发生的费用，旧暂存数据可能仍留库</td>
+</tr>
+<tr>
+<td>Redis职责与失效</td>
+<td>公共检索缓存、默认300秒TTL、自然过期/中断回PG及重连已有真实验证</td>
+<td><a href="/bookshelf/review-files/docs/1.1-Redis%E7%BC%93%E5%AD%98%E9%AA%8C%E8%AF%81%E4%B8%8E%E8%BF%9B%E5%BA%A6-20261111.md.html">Redis验证报告</a>、<a href="/bookshelf/review-files/docs/evidence/assessment-audit-compose-20261112-01/summary.json">1.6容器汇总</a></td>
+<td>Redis不是任务、会话和费用的权威数据库</td>
+</tr>
+<tr>
+<td>依赖中断与稳定性</td>
+<td>Kafka/PG/Redis故障矩阵及单独一小时观察均有记录；2.0.1更新时未重建Worker与数据库</td>
+<td><a href="/bookshelf/review-files/docs/evidence/worker-soak-20261111-01/summary.json">一小时原始summary</a>、<a href="/bookshelf/review-files/docs/evidence/v201-api-deployment-20261117.json">本轮API更新</a></td>
+<td>一小时属于2026-11-11原生环境；v2未新跑一小时，不能写成当前Docker/新版本的一小时证明</td>
+</tr>
+<tr>
+<td>数据备份恢复</td>
+<td>当前Docker主库备份、新库指纹比较与历史读取已做</td>
+<td><a href="/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E5%A4%87%E4%BB%BD%E4%B8%8E%E6%81%A2%E5%A4%8D.md.html">备份恢复手册</a>、<a href="/bookshelf/review-files/docs/1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md.html">1.9报告</a></td>
+<td>手动、同机备份，无异地复制或正式灾难主库切换</td>
+</tr>
+</tbody></table>
+<h2 id="section-4">哪些还没做、哪些已移出？</h2>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>实际状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Storybook组件Story/浏览器门禁、Lighthouse三次预算</td>
+<td>尚未配置/执行，不算通过</td>
+</tr>
+<tr>
+<td>v2完整隔离浏览器写入流程</td>
+<td>未完成；组件网络替身、旧版真实写入和v2实际输入行为是不同验证</td>
+</tr>
+<tr>
+<td>v2全量32条真实模型与新一小时稳定性</td>
+<td>本版本没有重新运行；早期确实有对应完整验证，不写成“从未做过”</td>
+</tr>
+<tr>
+<td>多API高可用、自动上游更新、异地灾备、另一台物理机全新复现</td>
+<td>未实现或未实际验证</td>
+</tr>
+<tr>
+<td>完整游戏客户端/线上房间任意裁定</td>
+<td>未覆盖；当前是固定快照Lua/fake_backend与选定工具边界</td>
+</tr>
+<tr>
+<td>QQ与额外招募</td>
+<td>QQ运行范围及额外招募2～3人已取消；用户本人多轮试用、反馈及改进闭环已完成，见<a href="/bookshelf/review-files/docs/%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md.html">记录</a></td>
+</tr>
+<tr>
+<td>v2公网前端发布与正式评审</td>
+<td>源码已按用户要求上传内测分支；网页仍仅本地内测。远端CI以对应SHA的Actions记录为准，不能代替评审</td>
+</tr>
+<tr>
+<td>公司正式验收</td>
+<td>尚未形成正式结论，工程证据不替代Leader验收</td>
+</tr>
+</tbody></table>
+<h2 id="section-5">哪些问题需要一起看？</h2>
+<table>
+<thead>
+<tr>
+<th>事项</th>
+<th>已知依据</th>
+<th>需要共同核对的内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>答案与引用质量</td>
+<td>32条历史人工核对仍保留额外召回、措辞边界；2.0.1已修实际话题污染</td>
+<td>后续优先扩哪些真实问题/变体，哪些引用必须直接支持结论，不能仅以引用数量或关键词验收</td>
+</tr>
+<tr>
+<td>浏览器/内存异常</td>
+<td>已有资源释放、滚动与有限窗口稳定性证据；未完全定位所有根因</td>
+<td>若再现，记录当时浏览器、会话/运行号、资源和操作路径，核对是页面交互、进程资源还是模型请求等待</td>
+</tr>
+<tr>
+<td>v2正式发布范围</td>
+<td>已有本地规范改造和修复，共享API已应用缺陷修复</td>
+<td>本地内测何时结束，是否补齐上述前端门禁、完整写入和版本级回归后再公开；本轮不擅自发布</td>
+</tr>
+<tr>
+<td>公司验收与来源共享</td>
+<td>原要求和用户范围调整分开保存</td>
+<td>正式验收人、截止/演示安排、资料可共享范围，以及对用户本人试用记录和参与者范围的验收确认</td>
+</tr>
+</tbody></table>
+<p>要求与原段落的完整对应仍见<a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">实战QA目录</a>；<a href="/bookshelf/review-files/docs/%E9%AA%8C%E6%94%B6%E7%9F%A9%E9%98%B5.md.html">验收矩阵</a>保留1.9等历史基线，不将其旧“本轮”描述当成v2重新执行。</p>

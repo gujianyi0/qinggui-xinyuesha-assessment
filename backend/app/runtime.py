@@ -144,14 +144,19 @@ class Runtime:
                 history = list((await db.scalars(select(Message).where(Message.session_id == run.session_id).order_by(Message.created_at.desc()).limit(8))).all())
                 previous_inputs = list(await db.scalars(select(Message.content).where(Message.session_id == run.session_id, Message.role == 'user').order_by(Message.created_at.desc()).limit(32)))
             policy = ruling_policy(message, previous_inputs[1:], run.request_data)
+            feedback_mode = is_feedback_request(previous_inputs)
+            exact_card = (self.catalog.exact_card(message, run.snapshot_id)
+                          if self.settings.model_mode == "live" and not policy.required
+                          and not feedback_mode and not run.fault else None)
             await emit("started", {"run_id": run_id})
             if cancellation.is_set() or run.status != "running":
                 raise asyncio.CancelledError
-            try:
-                await asyncio.wait_for(self.semaphore.acquire(), timeout=1)
-                acquired = True
-            except TimeoutError:
-                raise ModelFailure("当前并发已满，请稍后重试") from None
+            if exact_card is None:
+                try:
+                    await asyncio.wait_for(self.semaphore.acquire(), timeout=1)
+                    acquired = True
+                except TimeoutError:
+                    raise ModelFailure("当前并发已满，请稍后重试") from None
 
             def add_citations(items):
                 for item in items:
@@ -162,12 +167,15 @@ class Runtime:
             async def search_knowledge(query: str, top_k: int = 5) -> str:
                 """检索当前固定快照的规则和技能说明，返回真实来源；未找到时不得编造。"""
                 query = query[:500]
+                warming = self.settings.embedding_mode == "local" and not self.search.embedder.ready
+                await emit("progress", {"message": "正在准备本地资料检索，首次加载稍慢" if warming else "正在检索当前快照的资料"})
                 async def lookup():
                     if run.fault == "tool_unavailable":
                         raise ConnectionError("explicit test fault")
                     return await self.search.search(query, run.snapshot_id, min(top_k, 5))
                 result = await self._audit(run_id, "search_knowledge", {"query": query, "snapshot_id": run.snapshot_id}, lookup)
                 add_citations(result.get("items", []))
+                await emit("progress", {"message": "已取得资料，正在组织回答"})
                 return json.dumps(result, ensure_ascii=False)
 
             async def query_game_data(query: str, kind: str = "") -> str:
@@ -207,7 +215,20 @@ class Runtime:
                 return json.dumps(result, ensure_ascii=False)
 
             await emit("progress", {"message": "正在查找当前快照的资料与依据"})
-            if self.settings.model_mode == "mock":
+            if exact_card is not None:
+                async def exact_lookup():
+                    return {"mode": "exact_card", "model_called": False, "items": [exact_card]}
+                await self._audit(run_id, "query_game_data", {"query": message, "kind": "card", "exact": True}, exact_lookup)
+                add_citations([{**exact_card, "attribute_sources": []}])
+                if cancellation.is_set():
+                    raise asyncio.CancelledError
+                async with self.database.sessions.begin() as db:
+                    await db.execute(update(Run).where(Run.id == run_id, Run.status == "running").values(prompt_version="catalog-card-fast-v1"))
+                    db.add(UsageRecord(run_id=run_id, reserved_cny=0, charged_cny=0, estimated=False, settled=True))
+                answer = f"{exact_card['name']}\n\n{exact_card['description']}\n\n资料快照：{run.snapshot_id}\n资料库直接查询，未调用模型。"
+                text_parts.append(answer)
+                await emit("delta", {"text": answer})
+            elif self.settings.model_mode == "mock":
                 if self.settings.enable_test_faults and message == "[test:timeout]":
                     await checked(asyncio.sleep(self.settings.model_timeout_seconds + 1))
                 if self.settings.enable_test_faults and message == "[test:format]":

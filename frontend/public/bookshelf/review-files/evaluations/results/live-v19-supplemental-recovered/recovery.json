@@ -1,0 +1,7 @@
+{
+  "recovered_cases": 3,
+  "paid_calls_repeated": 0,
+  "original_failure": "live-v19-supplemental: missing sources field caused post-run KeyError",
+  "source": "Existing isolated PostgreSQL runs read via authenticated API",
+  "events": "not retained; empty arrays are intentional"
+}

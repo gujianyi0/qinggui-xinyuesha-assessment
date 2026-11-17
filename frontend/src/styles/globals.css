@@ -2924,3 +2924,36 @@ dialog::backdrop {
 .chat-main {
   height: 100%;
 }
+.bookshelf-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  min-height: 500px;
+}
+.bookshelf-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bookshelf-heading h1 {
+  margin: 0;
+  font-size: 22px;
+}
+.bookshelf-description {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+.bookshelf-heading a {
+  color: var(--teal);
+}
+.bookshelf-frame {
+  width: 100%;
+  flex: 1;
+  min-height: 400px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+}

@@ -1,0 +1,897 @@
+<h1 id="section-1">HTTP 服务、SQL、数据库与缓存（四）</h1>
+<h1 id="section-2">业务唯一性、并发修改、重复请求：数据库约束、事务和幂等机制</h1>
+<blockquote>
+<p><strong>对应学习目标</strong>：业务唯一性、并发修改和重复请求；数据库约束与事务如何防止重复记录和不完整结果。</p>
+<p><strong>知识范围</strong>：关系数据库与 PostgreSQL 的并发一致性，SQLAlchemy 2.x 的事务/版本管理，HTTP API 幂等设计，以及数据库和外部消息系统之间的边界。</p>
+<p><strong>示例环境</strong>：Python 3.11+、SQLAlchemy 2.x、pytest、SQLite 文件数据库用于离线实验。PostgreSQL 的专属 SQL 与并发规则按官方文档说明；本文未声称运行了真实 PostgreSQL 集成测试。</p>
+</blockquote>
+<h2 id="section-3">1. 四个看起来相似、实际不同的问题</h2>
+<p>假设一个游戏反馈服务支持 <code>POST /feedback/confirm</code>。用户点击“确认”后，应把反馈保存到数据库，并生成后续通知事件。</p>
+<ul>
+<li><strong>业务唯一性（Business Uniqueness）</strong>：同一个用户、同一份草稿只能生成一条最终反馈。数据库中不能出现两个逻辑上相同的业务对象。</li>
+<li><strong>重复请求（Duplicate Request）</strong>：用户重复点击、浏览器重发或代理超时重试时，同一个请求可以到达多次；系统应按预定义语义返回相同的业务结果，而不是重复执行。</li>
+<li><strong>并发修改（Concurrent Modification）</strong>：两个工作人员同时编辑同一条反馈，不能让后提交的修改在毫无提示的情况下覆盖前一次修改。</li>
+<li><strong>部分提交（Partial Commit）</strong>：反馈创建成功，但关联的任务或 Outbox 记录失败，数据库不能保留“半完成”的业务事务。</li>
+</ul>
+<p>这四个问题需要不同且互相配合的机制：</p>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>典型机制</th>
+<th>单独使用的局限</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>同一业务对象被创建多次</td>
+<td><code>UNIQUE</code>、唯一索引、业务键</td>
+<td>不能证明相同 HTTP 请求应返回什么，也不防止其他副作用重复</td>
+</tr>
+<tr>
+<td>相同请求重放</td>
+<td>幂等键、请求指纹、已提交响应记录</td>
+<td>不能代替业务层独立唯一性，换一个幂等键仍可能重复创建</td>
+</tr>
+<tr>
+<td>并发覆盖旧数据</td>
+<td><code>version</code> 乐观锁、条件更新、行锁</td>
+<td>不能阻止在不同事务中重复创建业务对象</td>
+</tr>
+<tr>
+<td>多张表只写入一半</td>
+<td>同一数据库事务的原子提交</td>
+<td>不会自动回滚邮件、Kafka、支付等外部系统</td>
+</tr>
+</tbody></table>
+<p><strong>核心公式不是“加一个锁就解决全部问题”，而是：数据库约束维护不变量，事务维护原子性，并发控制维护状态一致性，幂等协议维护请求重复执行的语义。</strong></p>
+<h2 id="section-4">2. 从数据库角度定义“同一条业务记录”</h2>
+<h3 id="section-5">2.1 物理标识与业务标识</h3>
+<p><code>feedback.id = 1024</code> 是数据库主键，能够唯一标识一行，但它不等于“同一业务”的规则。</p>
+<p>假设业务规则是“同一租户内，同一个用户的一份草稿只能确认一次”，则可把唯一性写成：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">business_key = (tenant_id, user_id, draft_id)</code></pre></div><p>两次提交即使生成不同 UUID、不同创建时间，也不能因为数据库主键不同而绕过业务规则。</p>
+<h3 id="section-6">2.2 唯一性范围与规范化</h3>
+<p>业务唯一性必须回答：</p>
+<ol>
+<li>约束覆盖整个系统、一个租户、一个用户，还是特定时间窗口？</li>
+<li>逻辑上相同的键值是否存在大小写、前后空格、Unicode 标准化等差异？</li>
+<li>草稿删除后重新提交，算新业务还是原业务？</li>
+<li>历史版本是否保留多条记录？</li>
+<li>状态为 <code>CANCELLED</code> 的对象是否继续占用唯一键？</li>
+</ol>
+<p>例如电子邮件地址是否需要大小写不敏感，取决于具体业务契约；不能盲目把所有字符串统一 <code>lower()</code>。唯一键的规范化必须与业务规则一致，并在所有写入入口保持一致。</p>
+<h2 id="section-7">3. 数据库约束：最后一道并发防线</h2>
+<h3 id="section-8">3.1 <code>PRIMARY KEY</code>、<code>UNIQUE</code>、<code>NOT NULL</code>、<code>FOREIGN KEY</code>、<code>CHECK</code></h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE TABLE</span> feedbacks (
+    id <span class="hljs-type">BIGINT</span> GENERATED ALWAYS <span class="hljs-keyword">AS</span> <span class="hljs-keyword">IDENTITY</span> <span class="hljs-keyword">PRIMARY KEY</span>,
+    tenant_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    user_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    draft_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    content TEXT <span class="hljs-keyword">NOT NULL</span>,
+    version_id <span class="hljs-type">BIGINT</span> <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> <span class="hljs-number">1</span>,
+    created_at TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> now(),
+    <span class="hljs-keyword">CONSTRAINT</span> uq_feedback_business <span class="hljs-keyword">UNIQUE</span> (tenant_id, user_id, draft_id),
+    <span class="hljs-keyword">CONSTRAINT</span> ck_feedback_not_blank <span class="hljs-keyword">CHECK</span> (length(<span class="hljs-built_in">trim</span>(content)) <span class="hljs-operator">&gt;</span> <span class="hljs-number">0</span>),
+    <span class="hljs-keyword">CONSTRAINT</span> ck_feedback_version <span class="hljs-keyword">CHECK</span> (version_id <span class="hljs-operator">&gt;=</span> <span class="hljs-number">1</span>)
+);</code></pre></div><ul>
+<li><code>PRIMARY KEY</code> 防止表中的物理行标识重复。</li>
+<li><code>UNIQUE</code> 把业务唯一性落实为数据库级约束。</li>
+<li><code>NOT NULL</code> 确保重要字段必须有值。</li>
+<li><code>FOREIGN KEY</code> 保证关联的数据库对象存在（但不自动实现租户权限检查）。</li>
+<li><code>CHECK</code> 保证单行数据满足可用 SQL 表达的局部约束。</li>
+</ul>
+<p>PostgreSQL 为普通 <code>UNIQUE</code> 约束自动创建相应的唯一 B-tree 索引。唯一性不仅是在 Python 中做“事前判断”，而是在并发写入时由数据库本身仲裁。</p>
+<h3 id="section-9">3.2 <code>NULL</code> 对唯一约束的影响</h3>
+<p>PostgreSQL 中，普通 <code>UNIQUE</code> 默认把 <code>NULL</code> 值视为互不相同，因此包含可空字段的复合唯一约束可能允许多条看似重复的数据。</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment">-- PostgreSQL 15+ 可用：需要把 NULL 当作相同值时</span>
+<span class="hljs-keyword">UNIQUE</span> NULLS <span class="hljs-keyword">NOT</span> <span class="hljs-keyword">DISTINCT</span> (tenant_id, user_id, external_id)</code></pre></div><p>与之相比，直接将必须参与业务唯一性的字段定义为 <code>NOT NULL</code> 通常更清晰。</p>
+<h3 id="section-10">3.3 软删除与部分唯一索引</h3>
+<p>如果系统允许删除后再次创建同一业务对象，但历史记录仍留在表中，可以考虑：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">UNIQUE</span> INDEX uq_active_feedback
+<span class="hljs-keyword">ON</span> feedbacks (tenant_id, user_id, draft_id)
+<span class="hljs-keyword">WHERE</span> deleted_at <span class="hljs-keyword">IS</span> <span class="hljs-keyword">NULL</span>;</code></pre></div><p>这要求表中存在 <code>deleted_at</code> 字段，并且业务规则明确规定“只有未删除记录必须唯一”。<strong>部分唯一索引与普通唯一约束并不完全等价</strong>；尤其要检查外键引用、索引谓词和 <code>ON CONFLICT</code> 的匹配方式。</p>
+<h3 id="section-11">3.4 为什么不能只靠 <code>SELECT</code> 检查</h3>
+<p>错误模式：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">请求 A: SELECT ... WHERE draft_id='D'  →  未找到
+请求 B: SELECT ... WHERE draft_id='D'  →  未找到
+请求 A: INSERT ...                     →  成功
+请求 B: INSERT ...                     →  如果没有 UNIQUE，也成功</code></pre></div><p>即便两个请求都严格遵守“先查询后插入”，并发时仍会在检查与写入之间发生竞争，即 TOCTOU（检查与使用之间的时间差）。因此：</p>
+<p><strong>先查询可以改善错误提示，但不能替代数据库唯一约束。</strong></p>
+<h2 id="section-12">4. PostgreSQL 的 <code>ON CONFLICT</code> 与 UPSERT</h2>
+<h3 id="section-13">4.1 遇到冲突时不插入</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">INSERT INTO</span> feedbacks (tenant_id, user_id, draft_id, content)
+<span class="hljs-keyword">VALUES</span> (<span class="hljs-string">'t1'</span>, <span class="hljs-string">'u1'</span>, <span class="hljs-string">'draft-7'</span>, <span class="hljs-string">'游戏在特定步骤崩溃'</span>)
+<span class="hljs-keyword">ON</span> CONFLICT (tenant_id, user_id, draft_id)
+DO NOTHING
+RETURNING id;</code></pre></div><p>未发生冲突时，返回新记录 ID；冲突而执行 <code>DO NOTHING</code> 时，通常不会返回新插入记录。</p>
+<p>不能因此认定冲突方“必定是当前请求原先创建的记录”。应结合请求身份、业务键和输入指纹查询并核对已有记录。</p>
+<h3 id="section-14">4.2 冲突时更新</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">INSERT INTO</span> player_settings (tenant_id, user_id, theme)
+<span class="hljs-keyword">VALUES</span> (<span class="hljs-string">'t1'</span>, <span class="hljs-string">'u1'</span>, <span class="hljs-string">'dark'</span>)
+<span class="hljs-keyword">ON</span> CONFLICT (tenant_id, user_id)
+DO <span class="hljs-keyword">UPDATE</span> <span class="hljs-keyword">SET</span> theme <span class="hljs-operator">=</span> EXCLUDED.theme
+RETURNING user_id, theme;</code></pre></div><p><code>DO UPDATE</code> 适合“业务语义就是创建或覆盖”的场景，例如某些用户设置；不适合默认用来实现不可重复的付款、发送、反馈确认。否则重复请求反而会改动原先结果。</p>
+<h3 id="section-15">4.3 原子性与返回结果</h3>
+<p>PostgreSQL 的 <code>ON CONFLICT DO UPDATE</code> 能在唯一键冲突时提供原子插入/更新行为，但<strong>原子 UPSERT 并不自动解决幂等键内容不一致、外部 API 副作用或跨表事务问题</strong>。</p>
+<p>SQLAlchemy PostgreSQL 方言也提供 <code>insert(...).on_conflict_do_nothing()</code> / <code>on_conflict_do_update()</code>；这属于 PostgreSQL 专属 DML 特性，不应假定所有数据库方言完全相同。</p>
+<h2 id="section-16">5. 事务：避免多个数据库修改只完成一半</h2>
+<h3 id="section-17">5.1 事务边界决定回滚范围</h3>
+<p>假设一次反馈确认包含：</p>
+<ol>
+<li>创建反馈记录；</li>
+<li>创建幂等结果记录；</li>
+<li>创建等待发布的 Outbox 事件。</li>
+</ol>
+<p>理想情况下，三步属于<strong>同一个数据库事务</strong>：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">BEGIN
+  INSERT feedbacks
+  INSERT idempotency_records
+  INSERT outbox_events
+COMMIT</code></pre></div><p>其中任何一步因约束或程序错误失败，就：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">ROLLBACK</code></pre></div><p>结果是三张表中的本次未提交修改整体撤销，而不是保留“已创建反馈但未保存请求记录”的中间状态。</p>
+<h3 id="section-18">5.2 <code>flush</code>、<code>commit</code>、<code>rollback</code> 的区别</h3>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>含义</th>
+<th>对其他事务的可见性</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>session.add()</code></td>
+<td>将对象登记为待处理</td>
+<td>尚未写入数据库</td>
+</tr>
+<tr>
+<td><code>session.flush()</code></td>
+<td>发送 SQL 到当前事务</td>
+<td>通常还未提交，其他事务不可读到该修改</td>
+</tr>
+<tr>
+<td><code>session.commit()</code></td>
+<td>提交事务并使修改持久化</td>
+<td>提交后按隔离规则可见</td>
+</tr>
+<tr>
+<td><code>session.rollback()</code></td>
+<td>撤销当前未提交事务</td>
+<td>不影响此前已提交事务</td>
+</tr>
+</tbody></table>
+<p><code>flush</code> 在拿到自增 ID、触发约束时非常有用，但它<strong>不是提交</strong>。注意 PostgreSQL 的序列号分配不随事务回滚归还，因此 ID 出现间隔是正常现象。</p>
+<h3 id="section-19">5.3 事务不能跨越外部系统自动撤销</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">BEGIN
+INSERT feedbacks
+POST /email/send  ← 第三方已接受邮件
+ROLLBACK          ← 邮件不会因此被撤销</code></pre></div><p>数据库事务只能对它管理的数据库状态提供原子性。对于 Kafka、支付接口、邮件和其他外部服务，需要 Outbox、外部幂等键、状态查询与补偿机制，而不是期待普通 SQL 回滚生效。</p>
+<h3 id="section-20">5.4 SQLAlchemy 事务上下文</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">with</span> SessionFactory.begin() <span class="hljs-keyword">as</span> session:
+    session.add(feedback)
+    session.add(idempotency_record)
+    session.add(outbox_event)
+<span class="hljs-comment"># 没有异常时提交；有异常时回滚。</span></code></pre></div><p>异步版：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> AsyncSessionFactory.begin() <span class="hljs-keyword">as</span> session:
+    session.add(feedback)
+    <span class="hljs-keyword">await</span> session.flush()
+    session.add(outbox_event)</code></pre></div><p><code>Session</code>/<code>AsyncSession</code> 是事务性、有状态的对象。并发任务不应复用同一 Session 实例，而应共享 Engine / 工厂、按操作创建独立 Session。</p>
+<h2 id="section-21">6. 并发修改：从丢失更新（Lost Update）理解竞争</h2>
+<p>假设某条反馈的 <code>status='OPEN'</code>，两位工作人员同时读取到旧版本：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">用户 A 读取：version=3, status=OPEN
+用户 B 读取：version=3, status=OPEN
+用户 A 保存：status=IN_REVIEW
+用户 B 保存：status=CLOSED</code></pre></div><p>如果业务没有并发控制，B 的修改可能覆盖 A 的决定，而 B 根本没有看到 A 的修改。不同隔离级别与更新语句的具体行为需要区分，但应用级“读对象—修改—保存”通常应该明确其并发策略。</p>
+<h3 id="section-22">6.1 乐观并发控制（Optimistic Concurrency Control）</h3>
+<p>通过 <code>version_id</code> 表示记录版本：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">UPDATE</span> feedbacks
+<span class="hljs-keyword">SET</span> content <span class="hljs-operator">=</span> <span class="hljs-string">'新的反馈内容'</span>, version_id <span class="hljs-operator">=</span> version_id <span class="hljs-operator">+</span> <span class="hljs-number">1</span>
+<span class="hljs-keyword">WHERE</span> id <span class="hljs-operator">=</span> <span class="hljs-number">1024</span> <span class="hljs-keyword">AND</span> tenant_id <span class="hljs-operator">=</span> <span class="hljs-string">'t1'</span> <span class="hljs-keyword">AND</span> version_id <span class="hljs-operator">=</span> <span class="hljs-number">3</span>
+RETURNING id, version_id;</code></pre></div><ul>
+<li>返回 1 行：原版本仍匹配，更新成功。</li>
+<li>返回 0 行：可能记录不存在、权限范围不匹配或版本已变化，需进一步判断并报告冲突。</li>
+</ul>
+<p>此时让用户重新读取并决定如何合并，而不是偷偷覆盖别人的修改。</p>
+<h3 id="section-23">6.2 SQLAlchemy 的 <code>version_id_col</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">class</span> <span class="hljs-title class_">Feedback</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    <span class="hljs-comment"># ... 其他字段略</span>
+    version_id: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(Integer, nullable=<span class="hljs-literal">False</span>, default=<span class="hljs-number">1</span>)
+    __mapper_args__ = {<span class="hljs-string">"version_id_col"</span>: version_id}</code></pre></div><p>ORM 在 Flush 更新时会把旧版本加入 <code>WHERE</code> 条件；更新不到预期行时抛出 <code>StaleDataError</code>。<strong>这通常只适用于 ORM 单对象 Flush 路径，不自动覆盖所有 Core 批量 UPDATE/DELETE。</strong></p>
+<h3 id="section-24">6.3 悲观并发控制（Pessimistic Locking）</h3>
+<p>在确实要串行操作某个现存对象时：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">BEGIN</span>;
+<span class="hljs-keyword">SELECT</span> id, status <span class="hljs-keyword">FROM</span> feedbacks <span class="hljs-keyword">WHERE</span> id <span class="hljs-operator">=</span> <span class="hljs-number">1024</span> <span class="hljs-keyword">FOR</span> <span class="hljs-keyword">UPDATE</span>;
+<span class="hljs-comment">-- 检查状态后更新</span>
+<span class="hljs-keyword">UPDATE</span> feedbacks <span class="hljs-keyword">SET</span> status <span class="hljs-operator">=</span> <span class="hljs-string">'APPROVED'</span> <span class="hljs-keyword">WHERE</span> id <span class="hljs-operator">=</span> <span class="hljs-number">1024</span>;
+<span class="hljs-keyword">COMMIT</span>;</code></pre></div><p><code>FOR UPDATE</code> 对选中的行加锁，其他竞争写入可能等待事务结束。但要注意：</p>
+<ul>
+<li>锁住的是<strong>已经存在的行</strong>，不是凭空替代“尚不存在行的唯一约束”。</li>
+<li>锁持有越久，等待和死锁风险越大。</li>
+<li>不要在持有数据库行锁时长时间等待模型 API 或第三方网络请求。</li>
+<li>多行加锁尽量采用固定顺序，降低死锁风险。</li>
+</ul>
+<h3 id="section-25">6.4 单语句条件更新通常比“先读后写”更简单</h3>
+<p>例如库存扣减：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">UPDATE</span> inventory
+<span class="hljs-keyword">SET</span> remaining <span class="hljs-operator">=</span> remaining <span class="hljs-operator">-</span> <span class="hljs-number">1</span>
+<span class="hljs-keyword">WHERE</span> sku <span class="hljs-operator">=</span> <span class="hljs-string">'sku-1'</span> <span class="hljs-keyword">AND</span> remaining <span class="hljs-operator">&gt;</span> <span class="hljs-number">0</span>
+RETURNING remaining;</code></pre></div><p>让数据库在一个原子语句内检查条件并修改数据，可以减少竞态窗口。若任务还要求记录订单、库存流水和幂等请求，则仍应把这些变更放在同一事务内。</p>
+<h2 id="section-26">7. 事务隔离级别与 MVCC</h2>
+<p>PostgreSQL 使用多版本并发控制（MVCC）支持并发读写。隔离级别决定事务可以观察到哪些并发变化。</p>
+<table>
+<thead>
+<tr>
+<th>隔离级别</th>
+<th>PostgreSQL 中的关键表现</th>
+<th>典型注意点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Read Committed（默认）</td>
+<td>语句级快照；连续两次 SELECT 可能看到不同提交结果</td>
+<td>读后写仍需唯一约束、锁或条件更新</td>
+</tr>
+<tr>
+<td>Repeatable Read</td>
+<td>事务快照更稳定；并发更新冲突可能导致事务失败</td>
+<td>应准备完整事务重试</td>
+</tr>
+<tr>
+<td>Serializable</td>
+<td>尝试提供串行执行等效语义</td>
+<td>可能返回序列化失败，需要重新执行事务</td>
+</tr>
+</tbody></table>
+<p>“读到一致快照”与“业务绝不可能冲突”并不是同一回事。即使选择 Serializable，也必须合理定义唯一约束、业务身份以及外部副作用。</p>
+<h3 id="section-27">7.1 写偏差（Write Skew）</h3>
+<p>例如两个值班医生分别读取“至少还有一位医生在线”，两人各自把自己设为离线。两人修改的是不同行，单行版本号不一定能直接保证“至少一位在线”的跨行规则。</p>
+<p>这类跨对象不变量需要更强的事务隔离、适当锁定共同的协调行、约束设计或其他确定性协调机制。不能把“所有更新都有 version 字段”误认为全局业务规则已经安全。</p>
+<h2 id="section-28">8. HTTP 幂等：重复请求如何获得一致业务结果</h2>
+<h3 id="section-29">8.1 产生重复请求的来源</h3>
+<ul>
+<li>用户双击按钮；</li>
+<li>网络断开，浏览器不知道结果是否提交；</li>
+<li>API 网关或客户端重试；</li>
+<li>消息队列重复投递；</li>
+<li>Worker 崩溃后再次消费；</li>
+<li>用户刷新页面重新提交。</li>
+</ul>
+<p>任何一个系统层都不应该仅依赖前端禁用按钮来防重。</p>
+<h3 id="section-30">8.2 幂等键与业务键不能混淆</h3>
+<p>示例请求：</p>
+<div class="code-wrap"><div class="code-label"><span>http</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">POST /feedback/confirm
+<span class="hljs-attribute">Idempotency-Key</span><span class="hljs-punctuation">: </span>confirm-request-2026-001
+<span class="hljs-attribute">Content-Type</span><span class="hljs-punctuation">: </span>application/json
+
+{"draft_id":"draft-7","content":"游戏在特定步骤崩溃"}</code></pre></div><ul>
+<li><strong>业务键</strong>：<code>(tenant_id, user_id, draft_id)</code>，回答“哪一个最终反馈对象”。</li>
+<li><strong>幂等键</strong>：<code>(tenant_id, user_id, endpoint, Idempotency-Key)</code>，回答“是否同一个请求意图的重放”。</li>
+<li><strong>请求指纹</strong>：对规范化且安全的业务参数进行稳定哈希，回答“相同键是否代表相同内容”。</li>
+</ul>
+<p>如果同一个幂等键携带不同的请求内容，应返回明确冲突，而不是悄悄复用旧结果，也不能按新内容覆盖旧结果。</p>
+<h3 id="section-31">8.3 同一次提交的典型处理</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">客户端提交 key=K, payload=P
+  ↓
+先检查（租户、用户、接口、K）的既有记录
+  ├─ 已完成 + 指纹相同：返回此前保存的业务结果
+  ├─ 已完成 + 指纹不同：409 Conflict
+  ├─ 正在处理中：返回状态或可重试提示，禁止重复执行
+  └─ 尚无记录：尝试以数据库唯一约束抢占该键
+        ↓
+在事务中创建业务记录 + 结果 + Outbox
+        ↓
+提交成功，返回结果</code></pre></div><p>上面的“正在处理中”状态适合跨事务的长任务；对于短小且能放在同一数据库事务内完成的操作，可以采用<strong>原子写入结果记录</strong>的简化设计。</p>
+<h3 id="section-32">8.4 幂等记录应保存什么</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE TABLE</span> idempotency_records (
+    tenant_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    user_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    operation TEXT <span class="hljs-keyword">NOT NULL</span>,
+    request_key TEXT <span class="hljs-keyword">NOT NULL</span>,
+    request_hash <span class="hljs-type">CHAR</span>(<span class="hljs-number">64</span>) <span class="hljs-keyword">NOT NULL</span>,
+    status TEXT <span class="hljs-keyword">NOT NULL</span>,
+    response_json JSONB,
+    created_at TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> now(),
+    <span class="hljs-keyword">PRIMARY KEY</span> (tenant_id, user_id, operation, request_key)
+);</code></pre></div><p>实际生产还需确定：记录保留期限、内容脱敏、重试窗口、响应是否包含易失字段、结果查询授权、任务超过期限时如何恢复，以及相同业务对象跨不同幂等键创建的冲突处理。</p>
+<h3 id="section-33">8.5 原请求的响应丢失怎么办</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">请求 A → 数据库已 COMMIT → 网络在返回 201 前断开
+请求 B（相同 key）→ 查询已提交幂等记录 → 返回同一个 feedback_id</code></pre></div><p>这就是幂等记录的实际价值：<strong>不知道上次网络返回了什么，不意味着上次业务没有成功。</strong></p>
+<h2 id="section-34">9. 四种防护机制的分层组合</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">HTTP API
+ ├─ 认证/对象授权
+ ├─ 请求参数与请求指纹
+ └─ 幂等键范围核验
+          ↓
+业务服务
+ ├─ 业务规则与状态迁移
+ ├─ 预期版本（Optimistic Lock）
+ └─ 确定事务边界
+          ↓
+PostgreSQL 事务
+ ├─ UNIQUE / FK / CHECK / NOT NULL
+ ├─ INSERT ON CONFLICT 或条件 UPDATE
+ ├─ 反馈 + 幂等记录 + Outbox 同事务提交
+ └─ 失败时整体 ROLLBACK
+          ↓
+Outbox 发布器 / Worker
+ ├─ 至少一次投递情况下的重复处理保护
+ ├─ 外部 API 幂等能力与结果查询
+ └─ 成功、失败、未知状态的明确区分</code></pre></div><h3 id="section-35">9.1 不要把 Redis 锁当作数据库唯一约束</h3>
+<p>Redis <code>SET ... NX PX</code> 可以用于分布式临时协调，但锁可能过期、持有方可能暂停、网络可能分区。无论是否使用锁，数据库仍需要保持业务唯一约束和正确事务；必要时还要考虑 fencing token。</p>
+<h3 id="section-36">9.2 不要把“完全一次执行”当成默认能力</h3>
+<p>消息队列可能至少一次投递；外部调用超时后可能处于“已经执行但响应丢失”的不确定状态。生产系统一般追求的是<strong>可重放且业务效果幂等</strong>，而不是只靠一个标志就保证每段代码的物理执行次数恰好为一次。</p>
+<h2 id="section-37">10. Outbox：跨数据库与消息系统时避免丢事件</h2>
+<p>典型不可靠方式：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">数据库提交成功
+    ↓
+进程崩溃
+    ↓
+Kafka 发送尚未发生 → 事件丢失</code></pre></div><p>一种常见解决方案是 Transactional Outbox：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">BEGIN
+  写入反馈
+  写入 Outbox 待发布事件
+COMMIT
+    ↓
+独立发布器扫描 Outbox，发送到 Kafka
+    ↓
+保存发布结果 / 重试</code></pre></div><p>注意三个边界：</p>
+<ol>
+<li>Outbox 使“业务数据与待发布记录”在同一数据库事务中原子保存，但<strong>并不意味着发布器只会发送一次</strong>。</li>
+<li>发布器可能发送成功后崩溃，导致事件重发；消费者仍需根据事件 ID 进行幂等处理。</li>
+<li>对支付、邮件等第三方操作，是否可安全重试取决于对方是否支持幂等键和状态查询；不支持时应保留 <code>UNKNOWN</code> 状态，避免盲目重复外部副作用。</li>
+</ol>
+<h2 id="section-38">11. 并发时常见的数据库错误与处理原则</h2>
+<p>PostgreSQL 错误码（SQLSTATE）：</p>
+<table>
+<thead>
+<tr>
+<th>SQLSTATE</th>
+<th>名称</th>
+<th>典型处理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>23505</code></td>
+<td><code>unique_violation</code></td>
+<td>根据约束名称区分幂等重放与业务冲突</td>
+</tr>
+<tr>
+<td><code>23503</code></td>
+<td><code>foreign_key_violation</code></td>
+<td>核对被引用对象及业务状态</td>
+</tr>
+<tr>
+<td><code>23502</code></td>
+<td><code>not_null_violation</code></td>
+<td>修复请求/程序数据契约</td>
+</tr>
+<tr>
+<td><code>23514</code></td>
+<td><code>check_violation</code></td>
+<td>报告违反的业务不变量</td>
+</tr>
+<tr>
+<td><code>40001</code></td>
+<td><code>serialization_failure</code></td>
+<td>有界重试<strong>整个事务</strong></td>
+</tr>
+<tr>
+<td><code>40P01</code></td>
+<td><code>deadlock_detected</code></td>
+<td>有界重试事务，审查加锁顺序</td>
+</tr>
+</tbody></table>
+<p><strong>不要对所有 <code>IntegrityError</code> 无条件执行重试。</strong> 唯一冲突一般需要判定“相同请求重放”“业务对象已经存在”还是“数据模型设计错误”。序列化失败和死锁则通常属于适合有限重试的事务级故障。</p>
+<p>重试应遵循：创建<strong>新的 Session/事务</strong>，重新读取状态、重新判断条件；不要在已经失败的事务中直接复用旧对象继续提交。</p>
+<h3 id="section-39">11.1 退避重试</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 伪代码，重点在策略：</span>
+<span class="hljs-keyword">for</span> attempt <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(MAX_ATTEMPTS):
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">return</span> execute_one_complete_db_transaction()
+    <span class="hljs-keyword">except</span> RetryableTransactionError:
+        <span class="hljs-keyword">if</span> attempt == MAX_ATTEMPTS - <span class="hljs-number">1</span>:
+            <span class="hljs-keyword">raise</span>
+        sleep(<span class="hljs-built_in">min</span>(cap, base * (<span class="hljs-number">2</span> ** attempt)) + jitter())</code></pre></div><p>如果事务函数包含外部发送请求，盲目“整体重试”可能重复发送；应把不可回滚副作用移至 Outbox / 可幂等的外部工作流中。</p>
+<h2 id="section-40">12. HTTP API 应怎样表达结果</h2>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>建议响应</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>首次成功创建</td>
+<td><code>201 Created</code></td>
+<td>返回新建对象 ID</td>
+</tr>
+<tr>
+<td>相同请求幂等重放</td>
+<td><code>200 OK</code> 或重放原响应</td>
+<td>事先固定协议，保持返回结果一致</td>
+</tr>
+<tr>
+<td>同键但不同内容</td>
+<td><code>409 Conflict</code></td>
+<td>拒绝把两个不同动作解释为同一请求</td>
+</tr>
+<tr>
+<td>业务对象已被不同请求确认</td>
+<td><code>409 Conflict</code></td>
+<td>返回冲突信息与允许公开的现有资源状态</td>
+</tr>
+<tr>
+<td>客户端旧版本更新</td>
+<td><code>409 Conflict</code> 或 <code>412 Precondition Failed</code></td>
+<td>如果使用 HTTP ETag/If-Match，412 更贴近条件请求语义</td>
+</tr>
+<tr>
+<td>校验失败</td>
+<td><code>422 Unprocessable Content</code>（FastAPI 常见）</td>
+<td>请求没有满足输入契约</td>
+</tr>
+<tr>
+<td>系统并发故障重试耗尽</td>
+<td><code>503 Service Unavailable</code> 等</td>
+<td>不可将失败伪装为业务成功</td>
+</tr>
+<tr>
+<td>幂等长任务仍在处理</td>
+<td><code>202 Accepted</code></td>
+<td>返回 <code>task_id</code> 和查询方式</td>
+</tr>
+</tbody></table>
+<p>这里的 HTTP 状态是推荐契约，不是唯一合法映射。关键在于前后端对错误码、是否可以重试、已完成结果能否复用保持一致。</p>
+<h2 id="section-41">13. PostgreSQL + SQLAlchemy 的典型并发控制代码</h2>
+<h3 id="section-42">13.1 ORM 唯一约束</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> UniqueConstraint
+<span class="hljs-keyword">from</span> sqlalchemy.orm <span class="hljs-keyword">import</span> DeclarativeBase, Mapped, mapped_column
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Base</span>(<span class="hljs-title class_ inherited__">DeclarativeBase</span>):
+    <span class="hljs-keyword">pass</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Feedback</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"feedbacks"</span>
+    __table_args__ = (
+        UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"user_id"</span>, <span class="hljs-string">"draft_id"</span>, name=<span class="hljs-string">"uq_feedback_business"</span>),
+    )
+    <span class="hljs-built_in">id</span>: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(primary_key=<span class="hljs-literal">True</span>)
+    tenant_id: Mapped[<span class="hljs-built_in">str</span>]
+    user_id: Mapped[<span class="hljs-built_in">str</span>]
+    draft_id: Mapped[<span class="hljs-built_in">str</span>]
+    version_id: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(default=<span class="hljs-number">1</span>, nullable=<span class="hljs-literal">False</span>)
+
+    __mapper_args__ = {<span class="hljs-string">"version_id_col"</span>: version_id}</code></pre></div><p>示例省略了具体列长度等配置；完整可执行模型见附录。</p>
+<h3 id="section-43">13.2 PostgreSQL 专属 UPSERT</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> sqlalchemy.dialects.postgresql <span class="hljs-keyword">import</span> insert
+
+stmt = (
+    insert(Feedback)
+    .values(tenant_id=<span class="hljs-string">"t1"</span>, user_id=<span class="hljs-string">"u1"</span>, draft_id=<span class="hljs-string">"d1"</span>, content=<span class="hljs-string">"文本"</span>)
+    .on_conflict_do_nothing(
+        constraint=<span class="hljs-string">"uq_feedback_business"</span>
+    )
+    .returning(Feedback.<span class="hljs-built_in">id</span>)
+)</code></pre></div><p>此示例假设真实 <code>Feedback</code> 模型定义了 <code>content</code> 字段；完整代码附录可执行版本也包含此字段。若 <code>RETURNING</code> 没有行，需要继续按已认证的用户范围查询，确定到底是重复请求还是业务冲突。</p>
+<h3 id="section-44">13.3 原子条件更新与结果检查</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> update
+
+stmt = (
+    update(Feedback)
+    .where(
+        Feedback.<span class="hljs-built_in">id</span> == feedback_id,
+        Feedback.tenant_id == tenant_id,
+        Feedback.version_id == expected_version,
+    )
+    .values(
+        content=new_content,
+        version_id=Feedback.version_id + <span class="hljs-number">1</span>,
+    )
+    .returning(Feedback.version_id)
+)
+
+new_version = session.scalar(stmt)
+<span class="hljs-keyword">if</span> new_version <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">raise</span> ConflictError(<span class="hljs-string">"记录不存在、无权限或版本已改变"</span>)</code></pre></div><p>Core SQL 更新中明确写入版本条件比依赖 ORM 自动版本化更清晰；<code>version_id_col</code> 主要作用于 ORM Flush。</p>
+<h2 id="section-45">14. 无法完全靠事务约束解决的情况</h2>
+<h3 id="section-46">14.1 数据库约束不是身份授权</h3>
+<p><code>UNIQUE (tenant_id, user_id, draft_id)</code> 保证键唯一，不保证请求方有权操作该用户和草稿。后端必须以认证身份决定可访问的租户与资源范围；不能直接信任客户端提交的 <code>tenant_id</code>。</p>
+<h3 id="section-47">14.2 事务不是跨系统分布式原子提交</h3>
+<p>本地 PostgreSQL 提交成功，不代表缓存更新、Kafka 投递、邮件发送也完成。需要消息记录、Outbox、重试与对账。</p>
+<h3 id="section-48">14.3 事务隔离不等于无限可靠</h3>
+<p>Serializable 可能主动中止事务；冲突和重试逻辑是其可用性契约的一部分。外部调用不应该放在无法安全重试的事务中。</p>
+<h3 id="section-49">14.4 幂等不是永久缓存一切</h3>
+<p>幂等键保留期限应根据业务和客户端重试窗口设计。清理旧键后，同一个键再次使用会如何处理，必须有明确协议；重要业务仍要靠业务唯一约束长期阻止重复记录。</p>
+<h2 id="section-50">15. 如何定位真实系统中的重复记录和数据不一致</h2>
+<p>建议沿着可观测链路排查：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">request_id → 已认证 user / tenant
+   ↓
+Idempotency-Key + 规范化 payload_hash
+   ↓
+调用方是否重新请求 / 网关是否重试
+   ↓
+服务进入事务的次数与状态
+   ↓
+发生冲突的约束名 / SQLSTATE
+   ↓
+实际 COMMIT / ROLLBACK 情况
+   ↓
+Outbox event_id / Worker 消费记录
+   ↓
+最终业务对象唯一键与版本号</code></pre></div><p>推荐记录 <code>request_id</code>、<code>trace_id</code>、业务键的脱敏形式、幂等键的哈希、事务结果、冲突类型、版本号和重试次数；不要把支付密钥、隐私信息、完整访问令牌或原始敏感请求直接写入日志。</p>
+<p>常见排查结论：</p>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>首要排查方向</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>同一草稿两条最终反馈</td>
+<td>缺少正确业务唯一约束；软删除谓词或业务键范围错误</td>
+</tr>
+<tr>
+<td>相同请求创建多个资源</td>
+<td>幂等键未验证、记录过早删除、未加数据库唯一约束</td>
+</tr>
+<tr>
+<td>修改被覆盖</td>
+<td>缺少版本条件；使用了绕过 ORM version 的批量更新</td>
+</tr>
+<tr>
+<td>数据库出现半完成流程</td>
+<td>多次分散 <code>commit()</code>；跨系统副作用不受事务保护</td>
+</tr>
+<tr>
+<td>大量 <code>23505</code></td>
+<td>高并发竞争，或业务唯一键设计/客户端重试异常</td>
+</tr>
+<tr>
+<td>大量 <code>40001</code>/<code>40P01</code></td>
+<td>热点记录、隔离级别、锁顺序、事务时间过长</td>
+</tr>
+<tr>
+<td>消息重复通知</td>
+<td>Outbox/消息消费者缺乏去重；外部操作缺少幂等支持</td>
+</tr>
+</tbody></table>
+<h2 id="section-51">16. 一组具体的端到端语义</h2>
+<p>业务规则：<strong>同租户同用户同草稿只生成一条最终反馈；收到相同幂等请求时返回相同反馈 ID；不同内容复用键时拒绝；反馈与待发布事件同事务提交。</strong></p>
+<p>假设第一次请求：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"tenant_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"tenant-a"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"user_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"user-1"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"draft_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"draft-9"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"request_key"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"confirm-k-001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"content"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"进入战斗后立刻闪退"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>期待结果：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span><span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"SUCCEEDED"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"feedback_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">}</span></code></pre></div><p>随后存在三种差异：</p>
+<ol>
+<li>同一请求原样重放：仍返回 <code>feedback_id=1</code>，不会多生成反馈和 Outbox。</li>
+<li>同一幂等键但内容改为“进入商店闪退”：拒绝，不能偷偷改写原反馈。</li>
+<li>使用新幂等键但仍试图确认同一草稿：业务唯一约束拒绝，不能生成第二条最终反馈。</li>
+</ol>
+<p>为了验证这些语义，下一附录提供一个不依赖真实外部服务的 SQLAlchemy 完整教学实现。</p>
+<h2 id="section-52">17. 离线实验环境与范围</h2>
+<p>执行以下命令准备环境：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pip install <span class="hljs-string">"SQLAlchemy&gt;=2.0,&lt;3"</span> pytest
+python -m pytest -q</code></pre></div><p>推荐 Python 3.11 或更新版本。附录使用 SQLite 文件数据库，主要用于验证<strong>表约束、事务回滚、ORM 版本化和重复请求协议</strong>。</p>
+<ul>
+<li>SQLite 不应被当成 PostgreSQL 在 MVCC、行锁、隔离级别和真正多进程并发方面的等价替身。</li>
+<li>PostgreSQL 的专属 DDL、<code>ON CONFLICT</code>、<code>SELECT FOR UPDATE</code> 等示例需要真实 PostgreSQL 实例进行集成测试。</li>
+<li>教学版幂等记录以“短事务一次性完成”为前提；跨进程长任务应额外实现处理中状态、租约/恢复和跨请求的可靠同步。</li>
+<li>示例没有执行外部发送操作；Outbox 只是数据库表中的待发布事件，不代表第三方已经收到。</li>
+</ul>
+<h2 id="section-53">18. 核心机制归纳</h2>
+<table>
+<thead>
+<tr>
+<th>必须维护的不变量</th>
+<th>最直接的数据库/程序机制</th>
+<th>还需要配合</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>同业务对象最多一条</td>
+<td><code>UNIQUE</code> / 部分唯一索引</td>
+<td>明确业务键与软删除规则</td>
+</tr>
+<tr>
+<td>同请求重复不重复生效</td>
+<td>幂等键 + 请求指纹 + 保存结果</td>
+<td>数据库唯一约束、事务</td>
+</tr>
+<tr>
+<td>同记录编辑不无声覆盖</td>
+<td>乐观锁 <code>version_id</code> 或条件更新</td>
+<td>冲突提示、重读与人工合并</td>
+</tr>
+<tr>
+<td>跨表变化要么全成要么全败</td>
+<td>数据库事务</td>
+<td>合理的约束与事务边界</td>
+</tr>
+<tr>
+<td>并发库存不扣成负数</td>
+<td>原子条件更新/锁/约束</td>
+<td>同事务业务流水</td>
+</tr>
+<tr>
+<td>数据库成功但服务崩溃不丢通知</td>
+<td>Transactional Outbox</td>
+<td>发布器、消费者去重、外部幂等</td>
+</tr>
+<tr>
+<td>事务序列化失败后正确恢复</td>
+<td>对 <code>40001</code> 等有界重试整事务</td>
+<td>避免不可回滚外部副作用</td>
+</tr>
+</tbody></table>
+<p><strong>一句话理解：数据库是业务不变量的最终执行者；事务保证一个数据库动作集合的原子性；幂等设计使重复到达的请求产生受控的业务效果；版本与锁负责协调并发修改。四者互补，不可相互代替。</strong></p>
+<hr />
+<h2 id="section-54">附录 A：完整、可运行的 Python 代码（<code>example.py</code>）</h2>
+<p>以下代码作为 SQLite 离线教学实验，展示 SQLAlchemy 的复合唯一约束、幂等请求记录、同事务 Outbox、版本字段与重复请求处理。请在单独目录保存为 <code>example.py</code>。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""SQLite teaching demo. PostgreSQL semantics are discussed separately in the guide."""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">import</span> hashlib
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> ForeignKey, Integer, String, Text, UniqueConstraint, create_engine, select
+<span class="hljs-keyword">from</span> sqlalchemy.exc <span class="hljs-keyword">import</span> IntegrityError
+<span class="hljs-keyword">from</span> sqlalchemy.orm <span class="hljs-keyword">import</span> DeclarativeBase, Mapped, mapped_column, sessionmaker
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Base</span>(<span class="hljs-title class_ inherited__">DeclarativeBase</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Feedback</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"feedbacks"</span>
+    __table_args__ = (
+        UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"user_id"</span>, <span class="hljs-string">"draft_id"</span>, name=<span class="hljs-string">"uq_feedback_business"</span>),
+    )
+
+    <span class="hljs-built_in">id</span>: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(primary_key=<span class="hljs-literal">True</span>, autoincrement=<span class="hljs-literal">True</span>)
+    tenant_id: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">60</span>), nullable=<span class="hljs-literal">False</span>)
+    user_id: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">60</span>), nullable=<span class="hljs-literal">False</span>)
+    draft_id: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">60</span>), nullable=<span class="hljs-literal">False</span>)
+    content: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(Text, nullable=<span class="hljs-literal">False</span>)
+    version_id: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(Integer, nullable=<span class="hljs-literal">False</span>, default=<span class="hljs-number">1</span>)
+
+    __mapper_args__ = {<span class="hljs-string">"version_id_col"</span>: version_id}
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">IdempotencyRecord</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"idempotency_records"</span>
+    __table_args__ = (
+        UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"user_id"</span>, <span class="hljs-string">"request_key"</span>, name=<span class="hljs-string">"uq_request_identity"</span>),
+    )
+
+    <span class="hljs-built_in">id</span>: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(primary_key=<span class="hljs-literal">True</span>, autoincrement=<span class="hljs-literal">True</span>)
+    tenant_id: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">60</span>), nullable=<span class="hljs-literal">False</span>)
+    user_id: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">60</span>), nullable=<span class="hljs-literal">False</span>)
+    request_key: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">100</span>), nullable=<span class="hljs-literal">False</span>)
+    payload_hash: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">64</span>), nullable=<span class="hljs-literal">False</span>)
+    response_json: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(Text, nullable=<span class="hljs-literal">False</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">OutboxEvent</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"outbox_events"</span>
+    __table_args__ = (UniqueConstraint(<span class="hljs-string">"event_key"</span>, name=<span class="hljs-string">"uq_outbox_event_key"</span>),)
+
+    <span class="hljs-built_in">id</span>: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(primary_key=<span class="hljs-literal">True</span>, autoincrement=<span class="hljs-literal">True</span>)
+    event_key: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">160</span>), nullable=<span class="hljs-literal">False</span>)
+    feedback_id: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(ForeignKey(<span class="hljs-string">"feedbacks.id"</span>), nullable=<span class="hljs-literal">False</span>)
+    event_type: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">50</span>), nullable=<span class="hljs-literal">False</span>)
+    payload: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(Text, nullable=<span class="hljs-literal">False</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">IdempotencyConflict</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">DuplicateBusinessObject</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">make_factory</span>(<span class="hljs-params">db_path: Path</span>):
+    engine = create_engine(<span class="hljs-string">f"sqlite+pysqlite:///<span class="hljs-subst">{db_path}</span>"</span>, future=<span class="hljs-literal">True</span>)
+    Base.metadata.create_all(engine)
+    <span class="hljs-keyword">return</span> engine, sessionmaker(engine, expire_on_commit=<span class="hljs-literal">False</span>)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">digest_payload</span>(<span class="hljs-params">draft_id: <span class="hljs-built_in">str</span>, content: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    stable = json.dumps({<span class="hljs-string">"draft_id"</span>: draft_id, <span class="hljs-string">"content"</span>: content}, ensure_ascii=<span class="hljs-literal">False</span>,
+                        sort_keys=<span class="hljs-literal">True</span>, separators=(<span class="hljs-string">","</span>, <span class="hljs-string">":"</span>))
+    <span class="hljs-keyword">return</span> hashlib.sha256(stable.encode(<span class="hljs-string">"utf-8"</span>)).hexdigest()
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">submit_feedback</span>(<span class="hljs-params">factory, *, tenant_id: <span class="hljs-built_in">str</span>, user_id: <span class="hljs-built_in">str</span>,
+                    request_key: <span class="hljs-built_in">str</span>, draft_id: <span class="hljs-built_in">str</span>, content: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">dict</span>:
+    <span class="hljs-string">"""Atomic create + outbox + replay record, without real external side effects."""</span>
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">all</span>((tenant_id, user_id, request_key, draft_id, content.strip())):
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"Required arguments must be non-empty"</span>)
+    payload_hash = digest_payload(draft_id, content)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">lookup_existing</span>():
+        <span class="hljs-keyword">with</span> factory() <span class="hljs-keyword">as</span> session:
+            row = session.scalar(select(IdempotencyRecord).where(
+                IdempotencyRecord.tenant_id == tenant_id,
+                IdempotencyRecord.user_id == user_id,
+                IdempotencyRecord.request_key == request_key,
+            ))
+            <span class="hljs-keyword">if</span> row <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span>
+            <span class="hljs-keyword">if</span> row.payload_hash != payload_hash:
+                <span class="hljs-keyword">raise</span> IdempotencyConflict(<span class="hljs-string">"Same request_key used for different content"</span>)
+            <span class="hljs-keyword">return</span> json.loads(row.response_json)
+
+    old = lookup_existing()
+    <span class="hljs-keyword">if</span> old <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">return</span> old
+
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">with</span> factory.begin() <span class="hljs-keyword">as</span> session:
+            obj = Feedback(tenant_id=tenant_id, user_id=user_id,
+                           draft_id=draft_id, content=content)
+            session.add(obj)
+            session.flush()  <span class="hljs-comment"># Get PK; not yet committed.</span>
+            reply = {<span class="hljs-string">"status"</span>: <span class="hljs-string">"SUCCEEDED"</span>, <span class="hljs-string">"feedback_id"</span>: obj.<span class="hljs-built_in">id</span>}
+            session.add(OutboxEvent(
+                event_key=<span class="hljs-string">f"feedback_created:<span class="hljs-subst">{tenant_id}</span>:<span class="hljs-subst">{user_id}</span>:<span class="hljs-subst">{draft_id}</span>"</span>,
+                feedback_id=obj.<span class="hljs-built_in">id</span>,
+                event_type=<span class="hljs-string">"FEEDBACK_CREATED"</span>,
+                payload=json.dumps({<span class="hljs-string">"feedback_id"</span>: obj.<span class="hljs-built_in">id</span>}, sort_keys=<span class="hljs-literal">True</span>),
+            ))
+            session.add(IdempotencyRecord(
+                tenant_id=tenant_id, user_id=user_id,
+                request_key=request_key, payload_hash=payload_hash,
+                response_json=json.dumps(reply, sort_keys=<span class="hljs-literal">True</span>),
+            ))
+        <span class="hljs-keyword">return</span> reply
+    <span class="hljs-keyword">except</span> IntegrityError <span class="hljs-keyword">as</span> exc:
+        <span class="hljs-comment"># Winning concurrent transaction may have committed by now. Re-query.</span>
+        replay = lookup_existing()
+        <span class="hljs-keyword">if</span> replay <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">return</span> replay
+        <span class="hljs-keyword">raise</span> DuplicateBusinessObject(<span class="hljs-string">"Draft was already submitted or constraint failed"</span>) <span class="hljs-keyword">from</span> exc</code></pre></div><h2 id="section-55">附录 B：离线自动化测试（<code>test_example.py</code>）</h2>
+<p>将下列文件与 <code>example.py</code> 放在同一目录，执行 <code>python -m pytest -q</code>。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<span class="hljs-keyword">import</span> pytest
+<span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> func, select
+<span class="hljs-keyword">from</span> sqlalchemy.exc <span class="hljs-keyword">import</span> IntegrityError
+<span class="hljs-keyword">from</span> sqlalchemy.orm.exc <span class="hljs-keyword">import</span> StaleDataError
+<span class="hljs-keyword">from</span> example <span class="hljs-keyword">import</span> (
+    Feedback, IdempotencyRecord, OutboxEvent, make_factory,
+    submit_feedback, IdempotencyConflict, DuplicateBusinessObject,
+)
+
+<span class="hljs-meta">@pytest.fixture</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">sf</span>(<span class="hljs-params">tmp_path</span>):
+    engine, factory = make_factory(tmp_path / <span class="hljs-string">"demo.sqlite"</span>)
+    <span class="hljs-keyword">yield</span> factory
+    engine.dispose()
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">write</span>(<span class="hljs-params">sf, **kw</span>):
+    <span class="hljs-keyword">return</span> submit_feedback(sf, tenant_id=kw.get(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"t1"</span>),
+                           user_id=kw.get(<span class="hljs-string">"user_id"</span>, <span class="hljs-string">"u1"</span>),
+                           request_key=kw.get(<span class="hljs-string">"request_key"</span>, <span class="hljs-string">"key1"</span>),
+                           draft_id=kw.get(<span class="hljs-string">"draft_id"</span>, <span class="hljs-string">"draft1"</span>),
+                           content=kw.get(<span class="hljs-string">"content"</span>, <span class="hljs-string">"error reproduction"</span>))
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">count</span>(<span class="hljs-params">sf, model</span>):
+    <span class="hljs-keyword">with</span> sf() <span class="hljs-keyword">as</span> s:
+        <span class="hljs-keyword">return</span> s.scalar(select(func.count()).select_from(model))
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_insert_success_and_atomic_three_records</span>(<span class="hljs-params">sf</span>):
+    r = write(sf)
+    <span class="hljs-keyword">assert</span> r[<span class="hljs-string">"status"</span>] == <span class="hljs-string">"SUCCEEDED"</span>
+    <span class="hljs-keyword">assert</span> count(sf, Feedback) == count(sf, IdempotencyRecord) == count(sf, OutboxEvent) == <span class="hljs-number">1</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_duplicate_same_key_replays_same_answer</span>(<span class="hljs-params">sf</span>):
+    <span class="hljs-keyword">assert</span> write(sf) == write(sf)
+    <span class="hljs-keyword">assert</span> count(sf, Feedback) == <span class="hljs-number">1</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_same_key_other_payload_is_conflict</span>(<span class="hljs-params">sf</span>):
+    write(sf)
+    <span class="hljs-keyword">with</span> pytest.raises(IdempotencyConflict):
+        write(sf, content=<span class="hljs-string">"different"</span>)
+    <span class="hljs-keyword">assert</span> count(sf, Feedback) == <span class="hljs-number">1</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_different_key_same_business_draft_rejected</span>(<span class="hljs-params">sf</span>):
+    write(sf)
+    <span class="hljs-keyword">with</span> pytest.raises(DuplicateBusinessObject):
+        write(sf, request_key=<span class="hljs-string">"key2"</span>)
+    <span class="hljs-keyword">assert</span> count(sf, Feedback) == <span class="hljs-number">1</span>
+    <span class="hljs-keyword">assert</span> count(sf, IdempotencyRecord) == <span class="hljs-number">1</span>
+    <span class="hljs-keyword">assert</span> count(sf, OutboxEvent) == <span class="hljs-number">1</span>
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params"><span class="hljs-string">"kw"</span>, [{<span class="hljs-string">"user_id"</span>:<span class="hljs-string">"u2"</span>},{<span class="hljs-string">"tenant_id"</span>:<span class="hljs-string">"t2"</span>}]</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_scoped_uniqueness_allow_independent_identity</span>(<span class="hljs-params">sf,kw</span>):
+    write(sf)
+    write(sf,**kw)
+    <span class="hljs-keyword">assert</span> count(sf, Feedback) == <span class="hljs-number">2</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_database_constraint_is_actual_last_line</span>(<span class="hljs-params">sf</span>):
+    <span class="hljs-keyword">with</span> sf.begin() <span class="hljs-keyword">as</span> s:
+        s.add(Feedback(tenant_id=<span class="hljs-string">"t1"</span>,user_id=<span class="hljs-string">"u1"</span>,draft_id=<span class="hljs-string">"d"</span>,content=<span class="hljs-string">"x"</span>))
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> sf.begin() <span class="hljs-keyword">as</span> s:
+            s.add(Feedback(tenant_id=<span class="hljs-string">"t1"</span>,user_id=<span class="hljs-string">"u1"</span>,draft_id=<span class="hljs-string">"d"</span>,content=<span class="hljs-string">"y"</span>))
+    <span class="hljs-keyword">assert</span> count(sf,Feedback)==<span class="hljs-number">1</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_transaction_rolls_back_partial_work</span>(<span class="hljs-params">sf</span>):
+    write(sf)
+    before = count(sf, Feedback)
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> sf.begin() <span class="hljs-keyword">as</span> s:
+            obj = Feedback(tenant_id=<span class="hljs-string">"t1"</span>,user_id=<span class="hljs-string">"u1"</span>,draft_id=<span class="hljs-string">"another"</span>,content=<span class="hljs-string">"x"</span>)
+            s.add(obj);s.flush()
+            s.add(OutboxEvent(event_key=<span class="hljs-string">"feedback_created:t1:u1:draft1"</span>,
+                feedback_id=obj.<span class="hljs-built_in">id</span>,event_type=<span class="hljs-string">"FEEDBACK_CREATED"</span>,payload=<span class="hljs-string">"{}"</span>))
+    <span class="hljs-keyword">assert</span> count(sf,Feedback) == before
+    <span class="hljs-keyword">assert</span> count(sf,OutboxEvent) == <span class="hljs-number">1</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_commit_success_then_later_failure_does_not_undo_prior</span>(<span class="hljs-params">sf</span>):
+    write(sf)
+    <span class="hljs-keyword">with</span> pytest.raises(RuntimeError):
+        <span class="hljs-keyword">with</span> sf.begin() <span class="hljs-keyword">as</span> s:
+            obj = s.scalar(select(Feedback))
+            obj.content=<span class="hljs-string">"temporary update"</span>
+            <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"stop"</span>)
+    <span class="hljs-keyword">with</span> sf() <span class="hljs-keyword">as</span> s:
+        <span class="hljs-keyword">assert</span> s.scalar(select(Feedback)).content == <span class="hljs-string">"error reproduction"</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_orm_version_stale_data</span>(<span class="hljs-params">sf</span>):
+    write(sf)
+    <span class="hljs-keyword">with</span> sf() <span class="hljs-keyword">as</span> a, sf() <span class="hljs-keyword">as</span> b:
+        obj_a = a.scalar(select(Feedback))
+        obj_b = b.scalar(select(Feedback))
+        <span class="hljs-keyword">assert</span> obj_a.version_id==obj_b.version_id==<span class="hljs-number">1</span>
+        obj_a.content=<span class="hljs-string">"new a"</span>; a.commit()
+        obj_b.content=<span class="hljs-string">"new b"</span>
+        <span class="hljs-keyword">with</span> pytest.raises(StaleDataError):
+            b.commit()
+        b.rollback()
+    <span class="hljs-keyword">with</span> sf() <span class="hljs-keyword">as</span> s:
+        row=s.scalar(select(Feedback))
+        <span class="hljs-keyword">assert</span> row.content == <span class="hljs-string">"new a"</span> <span class="hljs-keyword">and</span> row.version_id == <span class="hljs-number">2</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_invalid_args</span>(<span class="hljs-params">sf</span>):
+    <span class="hljs-keyword">with</span> pytest.raises(ValueError):
+        write(sf,content=<span class="hljs-string">" "</span>)
+    <span class="hljs-keyword">assert</span> count(sf,Feedback)==<span class="hljs-number">0</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_duplicate_outbox_for_retry</span>(<span class="hljs-params">sf</span>):
+    <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">4</span>):
+        write(sf)
+    <span class="hljs-keyword">assert</span> count(sf,OutboxEvent)==<span class="hljs-number">1</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_response_cached_is_stable</span>(<span class="hljs-params">sf</span>):
+    r1=write(sf)
+    <span class="hljs-keyword">with</span> sf() <span class="hljs-keyword">as</span> s:
+        row=s.scalar(select(IdempotencyRecord))
+        <span class="hljs-keyword">assert</span> json.loads(row.response_json)==r1
+    <span class="hljs-keyword">assert</span> r1 == write(sf)</code></pre></div><h2 id="section-56">附录 C：测试结果与适用边界</h2>
+<ul>
+<li>本地验证命令：<code>python -m pytest -q</code>。</li>
+<li>已执行：<strong>13 项测试全部通过</strong>（SQLite 文件数据库、SQLAlchemy ORM、pytest）。</li>
+<li>已验证：同请求回放、同键不同内容冲突、不同幂等键不能绕过业务唯一键、跨用户/跨租户键范围、原子事务回滚、Outbox 不重复、ORM 乐观版本冲突等。</li>
+<li><strong>未执行</strong>：PostgreSQL 真正并发竞争、行锁等待、Serializable 重试、Kafka 发布器、外部 API 幂等协议、跨进程端到端验证。</li>
+</ul>
+<h2 id="section-57">附录 D：权威参考资料</h2>
+<ul>
+<li><a href="https://www.postgresql.org/docs/current/ddl-constraints.html">PostgreSQL Constraints / UNIQUE / NULLS NOT DISTINCT</a></li>
+<li><a href="https://www.postgresql.org/docs/current/sql-insert.html">PostgreSQL INSERT ... ON CONFLICT</a></li>
+<li><a href="https://www.postgresql.org/docs/current/transaction-iso.html">PostgreSQL Transaction Isolation</a></li>
+<li><a href="https://www.postgresql.org/docs/current/explicit-locking.html">PostgreSQL Explicit Locking</a></li>
+<li><a href="https://www.postgresql.org/docs/current/errcodes-appendix.html">PostgreSQL Error Codes</a></li>
+<li><a href="https://www.postgresql.org/docs/current/mvcc-serialization-failure-handling.html">PostgreSQL Serialization Failure Handling</a></li>
+<li><a href="https://docs.sqlalchemy.org/en/20/orm/session_transaction.html">SQLAlchemy Session Transactions</a></li>
+<li><a href="https://docs.sqlalchemy.org/en/20/orm/versioning.html">SQLAlchemy ORM Versioning</a></li>
+<li><a href="https://docs.sqlalchemy.org/en/20/dialects/postgresql.html">SQLAlchemy PostgreSQL ON CONFLICT</a></li>
+<li><a href="https://docs.sqlalchemy.org/en/20/orm/session_basics.html">SQLAlchemy Session Basics</a></li>
+</ul>

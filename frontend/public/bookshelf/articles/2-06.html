@@ -1,0 +1,974 @@
+<h1 id="section-1">大模型原理、API 与输出校验（六）</h1>
+<h1 id="section-2">普通响应与流式响应：文本增量、结束事件、超时和中途断开的处理</h1>
+<blockquote>
+<p>知识目标：理解模型 API 的普通响应（Non-streaming）与流式响应（Streaming）如何工作；正确处理文本增量、完成与失败事件、超时、用户取消及网络中断，防止把不完整输出误当成完整结果。</p>
+<p>技术基准：Python 3.13+ 的 <code>asyncio</code>；FastAPI；HTTPX；基于公开接口的 Chat Completions 和 Responses API。不同模型提供商、协议与 SDK 版本的行为可能不同，须以当前服务的接口文档为准。文中示例分为<strong>可离线运行的演示</strong>与<strong>需要 API 密钥的远程调用</strong>，不可混淆。</p>
+</blockquote>
+<hr />
+<h2 id="section-3">1. 从一次模型请求的生命周期理解普通响应与流式响应</h2>
+<p>对于同一条用户请求，模型通常需要经历排队、输入处理（prefill）、生成输出（decode）和结果传输等阶段。<strong>普通响应和流式响应不必然意味着两套不同的模型生成算法，核心区别在于服务端何时把已经产生的数据交给客户端。</strong></p>
+<h3 id="section-4">1.1 普通响应</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">客户端                           模型服务
+  | POST /chat                      |
+  |--------------------------------&gt;|
+  |                                 | 解析输入、推理、生成完整结果
+  |                                 | ...
+  |&lt;--------------------------------| HTTP 200 + 完整 JSON
+  | 展示完整答案                     |</code></pre></div><p>普通响应（<code>stream: false</code> 或使用非流式方法）一般在模型完成此次生成后，返回包含全部内容、结束原因和用量的一个 JSON 响应。客户端可以一次读取并校验整体结果。</p>
+<h3 id="section-5">1.2 流式响应</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">客户端                           模型服务
+  | POST /chat (stream=true)         |
+  |--------------------------------&gt;|
+  |&lt;--------------------------------| HTTP 200 + 事件流响应头
+  |&lt;--------------------------------| 文本增量 "你好"
+  |&lt;--------------------------------| 文本增量 "，我来"
+  |&lt;--------------------------------| 文本增量 "解释。"
+  |&lt;--------------------------------| 完成事件/结束标记
+  | 展示完整答案                     |</code></pre></div><p>流式响应通常允许客户端在模型仍在生成时持续得到增量，因此更快看到首段文字；它不保证模型<strong>最终完成更快</strong>。流式传输还会带来协议解析、中途断开、部分内容安全校验及资源管理等复杂性。</p>
+<h3 id="section-6">1.3 对比表</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>普通响应</th>
+<th>流式响应</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>返回方式</td>
+<td>一次性返回整体结果</td>
+<td>持续返回事件或数据片段</td>
+</tr>
+<tr>
+<td>首字可见时间</td>
+<td>接近完整生成结束</td>
+<td>通常接近首次生成可发送输出的时间</td>
+</tr>
+<tr>
+<td>数据组织</td>
+<td>单个完整 JSON 对象</td>
+<td>多个数据块 / SSE 事件，需聚合</td>
+</tr>
+<tr>
+<td>最终结果判定</td>
+<td>检查响应状态与结束原因</td>
+<td>必须同时检查流事件顺序与终止事件</td>
+</tr>
+<tr>
+<td>断线影响</td>
+<td>可能没有任何答案</td>
+<td>可能已经得到部分文本，但未完成</td>
+</tr>
+<tr>
+<td>结构化输出</td>
+<td>一次校验完整 JSON</td>
+<td>先累计，再判断是否可解析和验证</td>
+</tr>
+<tr>
+<td>用户体验</td>
+<td>适合短文本、结构化批量任务</td>
+<td>适合聊天、实时进度、较长生成</td>
+</tr>
+<tr>
+<td>实现复杂度</td>
+<td>相对低</td>
+<td>更高；涉及保活、取消、重连、缓冲</td>
+</tr>
+</tbody></table>
+<p><strong>注意：流式传输不是“每个 Token 对应一个网络包”</strong>；一个事件可包含多个字符、多个 Token 或非文本数据，网络分块又可能把一个事件拆开。</p>
+<hr />
+<h2 id="section-7">2. 关键时间指标：TTFT、总时长与吞吐量</h2>
+<p>理解响应速度时至少区分：</p>
+<ul>
+<li><strong>TTFT（Time To First Token / 首个可见增量延迟）</strong>：从请求发起到收到第一个有效输出增量的时间；在部分推理模型中，推理过程和工具调用会影响可见文本的开始时间。实践上也可单独统计 <code>first_text_delta_ms</code>。</li>
+<li><strong>TTLT / 完成耗时</strong>：从请求发起到收到协议规定的终止事件的时间。</li>
+<li><strong>输出吞吐量</strong>：已生成的输出 Token 数除以相应生成时间区间；不等于字/秒。</li>
+<li><strong>网络首字节时间（TTFB）</strong>：HTTP 响应头或首字节到达的时间，可能早于真正的文本生成。</li>
+<li><strong>事件空闲时间（idle gap）</strong>：相邻网络事件之间的时间；不等于模型是否在后台推进的时间。</li>
+</ul>
+<p>例如：接口 0.2 秒返回响应头、3 秒才发来首个文本、10 秒完成输出，则网络 TTFB、文本 TTFT 和总响应时间是三个不同值。若模型先进行工具调用，UI 的首个内容事件还可能是“工具已开始”，而不是文字。</p>
+<hr />
+<h2 id="section-8">3. 网络分块、SSE 事件和模型 Token 是不同层次</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">模型生成 Token
+      ↓ 组合成服务端增量对象
+ChatCompletionChunk / Responses Event
+      ↓ 编码为 SSE 或其他传输格式
+HTTP 响应字节流
+      ↓ TCP/TLS/HTTP 网络传输
+客户端读取 bytes / lines / protocol events
+      ↓ 解析并组装
+应用层文本、状态、工具调用、用量</code></pre></div><p>关键区别：</p>
+<ol>
+<li><strong>Token</strong> 是模型分词器的处理单位。</li>
+<li><strong>Delta</strong> 是 API 的语义增量，可能是文本、角色字段、工具参数增量等。</li>
+<li><strong>SSE Event</strong> 是通过 HTTP 传送的事件帧。</li>
+<li><strong>网络 Chunk</strong> 是底层数据到达的字节片段，边界不承诺对应一个 SSE 事件。</li>
+</ol>
+<p>错误示例：每次 <code>aiter_bytes()</code> 得到一段字节，就立刻 <code>json.loads(chunk)</code>。一个 JSON 事件可能跨多个网络片段，或者多个事件共处一个网络片段，这样很容易抛出解析错误。</p>
+<hr />
+<h2 id="section-9">4. SSE：Server-Sent Events 的协议基础</h2>
+<p>SSE 是基于 HTTP 的<strong>服务器到客户端单向事件流</strong>。服务端通常设置：</p>
+<div class="code-wrap"><div class="code-label"><span>http</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-attribute">Content-Type</span><span class="hljs-punctuation">: </span>text/event-stream; charset=utf-8
+<span class="hljs-attribute">Cache-Control</span><span class="hljs-punctuation">: </span>no-cache</code></pre></div><p>一条 SSE 事件可写为：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">event: delta
+id: 12
+data: {"text":"你好"}
+</code></pre></div><p>需要注意末尾的<strong>空行</strong>：它表示这个事件块结束。常用字段：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>语义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>event:</code></td>
+<td>事件名称；没有时浏览器 <code>EventSource</code> 默认视为 <code>message</code></td>
+</tr>
+<tr>
+<td><code>data:</code></td>
+<td>数据；可以有多行，解析时按规范拼接</td>
+</tr>
+<tr>
+<td><code>id:</code></td>
+<td>事件 ID，浏览器重连时可携带最近收到的事件标识</td>
+</tr>
+<tr>
+<td><code>retry:</code></td>
+<td>浏览器 EventSource 重连延迟，单位毫秒</td>
+</tr>
+<tr>
+<td><code>:</code></td>
+<td>注释行，可作为连接保活，不会作为普通业务事件展示</td>
+</tr>
+</tbody></table>
+<p>示例：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">: heartbeat
+
+event: delta
+data: {"text":"早上"}
+
+event: delta
+data: {"text":"好。"}
+
+event: done
+data: {"status":"completed"}
+</code></pre></div><p>这段 <code>done</code> 是<strong>本例业务协议定义的事件名</strong>，不是 SSE 标准自动保证的结束标记。SSE 本身没有统一的“模型已经完成”语义，模型 API 通过额外的事件类型或标记给出这一信息。</p>
+<h3 id="section-10">4.1 SSE 与 WebSocket 的区别</h3>
+<p>SSE 主要用于服务端向客户端持续推送；WebSocket 是全双工通道。常见 AI 文本流只需要单向下发时，SSE 通常足够。要从浏览器向服务器发送新消息，可以另外发普通 <code>POST</code> 请求，并不意味着一定需要 WebSocket。</p>
+<h3 id="section-11">4.2 EventSource 与 <code>fetch</code> 的区别</h3>
+<p>浏览器原生 <code>EventSource</code> 以 <code>GET</code> 方式建立流，适合订阅式接口，可自动重连，但不能任意设置自定义请求头或直接发送 JSON POST 请求体。对于需要携带 JSON、鉴权头的聊天流，常用 <code>fetch(..., { method: 'POST', body: ..., signal: ... })</code> 再手动解析响应体，或者通过兼容的服务端会话机制设计为 GET。</p>
+<hr />
+<h2 id="section-12">5. Chat Completions：普通响应与流式响应对象结构</h2>
+<h3 id="section-13">5.1 普通响应的典型形态</h3>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"chatcmpl-example"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"choices"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">"index"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-attr">"role"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"assistant"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"content"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"你好，我可以帮你。"</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"finish_reason"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"stop"</span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"usage"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"prompt_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">14</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"completion_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"total_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span>
+  <span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>这只是示意结构与虚构数值，不是一次真实 API 响应。</p>
+<h3 id="section-14">5.2 流式响应的典型事件</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">data: {"id":"x","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}
+
+data: {"id":"x","choices":[{"index":0,"delta":{"content":"你好"},"finish_reason":null}]}
+
+data: {"id":"x","choices":[{"index":0,"delta":{"content":"！"},"finish_reason":null}]}
+
+data: {"id":"x","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+</code></pre></div><p>在流中，<code>choices[i].delta</code> 表示<strong>增量</strong>，不是完整的 <code>message</code>；<code>finish_reason</code> 通常在终止阶段才出现。<code>[DONE]</code> 是 Chat Completions 风格流的协议结束标记；收到普通文本片段不是完成的证据。</p>
+<h3 id="section-15">5.3 结束原因 <code>finish_reason</code></h3>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>含义</th>
+<th>调用方处理建议</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>stop</code></td>
+<td>自然结束或匹配停止序列</td>
+<td>标记生成阶段正常完成；仍需校验内容</td>
+</tr>
+<tr>
+<td><code>length</code></td>
+<td>达到生成限制或相关容量边界</td>
+<td>标记可能截断；不能当完整 JSON 使用</td>
+</tr>
+<tr>
+<td><code>tool_calls</code></td>
+<td>模型给出工具调用</td>
+<td>需要校验并执行工具，然后继续任务流程</td>
+</tr>
+<tr>
+<td><code>content_filter</code></td>
+<td>被内容过滤机制处理</td>
+<td>不能按普通正常回答解释</td>
+</tr>
+<tr>
+<td><code>function_call</code></td>
+<td>旧式函数调用标记</td>
+<td>兼容旧接口时才处理</td>
+</tr>
+</tbody></table>
+<p>不同厂商可能增加其他结束原因。应以<strong>实际返回枚举</strong>作显式分支，未知值视为需排查的状态，而不是默认成功。</p>
+<h3 id="section-16">5.4 <code>usage</code> 的不同实现：不能假设所有服务一致</h3>
+<p>对于 <strong>OpenAI Chat Completions</strong>，请求 <code>stream_options={"include_usage": True}</code> 后，通常在 <code>[DONE]</code> 前额外返回 <code>choices=[]</code> 的用量统计块。如果流提前中断，可能收不到该统计块。</p>
+<p>对于 <strong>DeepSeek Chat Completions</strong>（以所引官方说明为准），末尾带 <code>finish_reason</code> 的 <code>choices</code> 块还携带累计 <code>usage</code>；不单独发 <code>choices=[]</code> 的 usage-only 块。<strong>这是服务商特定的协议差异，不应统一写死。</strong></p>
+<p>因此，消费循环不能假设每个 <code>chunk.choices[0]</code> 都存在，也不能只在 <code>choices=[]</code> 时才读取用量。</p>
+<hr />
+<h2 id="section-17">6. Python：直接进行普通模型调用</h2>
+<p>以下示例使用兼容 Chat Completions 的 DeepSeek 端点。需要安装：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python <span class="hljs-literal">-m</span> pip install openai
+<span class="hljs-variable">$env:DEEPSEEK_API_KEY</span>=<span class="hljs-string">"你的密钥"</span></code></pre></div><p>不要将密钥直接提交到代码仓库。示例模型名以当前对应服务商的官方 API 文档为准。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">from</span> openai <span class="hljs-keyword">import</span> AsyncOpenAI
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">non_streaming_call</span>() -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> AsyncOpenAI(
+        api_key=os.environ[<span class="hljs-string">"DEEPSEEK_API_KEY"</span>],
+        base_url=<span class="hljs-string">"https://api.deepseek.com"</span>,
+    ) <span class="hljs-keyword">as</span> client:
+        response = <span class="hljs-keyword">await</span> client.chat.completions.create(
+            model=<span class="hljs-string">"deepseek-flash"</span>,
+            messages=[{<span class="hljs-string">"role"</span>: <span class="hljs-string">"user"</span>, <span class="hljs-string">"content"</span>: <span class="hljs-string">"解释 Python 的 await"</span>}],
+            stream=<span class="hljs-literal">False</span>,
+        )
+        choice = response.choices[<span class="hljs-number">0</span>]
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"内容:"</span>, choice.message.content)
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"结束原因:"</span>, choice.finish_reason)
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"用量:"</span>, response.usage)
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    <span class="hljs-keyword">import</span> asyncio
+    asyncio.run(non_streaming_call())</code></pre></div><p>普通响应重点检查：HTTP 是否成功、<code>choices</code> 是否存在、<code>content</code> 是否符合预期、<code>finish_reason</code> 是否正常、<code>usage</code> 是否返回。仅凭 HTTP 200 或文本非空，都无法证明任务语义正确。</p>
+<hr />
+<h2 id="section-18">7. Python：用 SDK 处理 Chat Completions 流</h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">from</span> openai <span class="hljs-keyword">import</span> AsyncOpenAI
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">streaming_call</span>() -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> AsyncOpenAI(
+        api_key=os.environ[<span class="hljs-string">"DEEPSEEK_API_KEY"</span>],
+        base_url=<span class="hljs-string">"https://api.deepseek.com"</span>,
+    ) <span class="hljs-keyword">as</span> client:
+        stream = <span class="hljs-keyword">await</span> client.chat.completions.create(
+            model=<span class="hljs-string">"deepseek-flash"</span>,
+            messages=[{<span class="hljs-string">"role"</span>: <span class="hljs-string">"user"</span>, <span class="hljs-string">"content"</span>: <span class="hljs-string">"用三句话解释 SSE"</span>}],
+            stream=<span class="hljs-literal">True</span>,
+            stream_options={<span class="hljs-string">"include_usage"</span>: <span class="hljs-literal">True</span>},
+        )
+
+        text_parts: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []
+        finish_reason: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+        usage = <span class="hljs-literal">None</span>
+
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">for</span> chunk <span class="hljs-keyword">in</span> stream:
+            <span class="hljs-keyword">if</span> chunk.usage <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+                usage = chunk.usage
+
+            <span class="hljs-keyword">for</span> choice <span class="hljs-keyword">in</span> chunk.choices:
+                <span class="hljs-keyword">if</span> choice.index != <span class="hljs-number">0</span>:
+                    <span class="hljs-keyword">continue</span>
+                <span class="hljs-keyword">if</span> choice.delta.content:
+                    text_parts.append(choice.delta.content)
+                    <span class="hljs-built_in">print</span>(choice.delta.content, end=<span class="hljs-string">""</span>, flush=<span class="hljs-literal">True</span>)
+                <span class="hljs-keyword">if</span> choice.finish_reason <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+                    finish_reason = choice.finish_reason
+
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"\n---"</span>)
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"聚合文本:"</span>, <span class="hljs-string">""</span>.join(text_parts))
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"结束原因:"</span>, finish_reason)
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"用量:"</span>, usage)
+        <span class="hljs-keyword">if</span> finish_reason != <span class="hljs-string">"stop"</span>:
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">"注意：生成未处于常规文本正常结束状态"</span>)
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(streaming_call())</code></pre></div><p>这段代码采用两个重要的防御措施：</p>
+<ol>
+<li>先遍历 <code>chunk.choices</code>，不假定数组永远非空。</li>
+<li>把多个 <code>delta.content</code> 顺序拼接，而不是将每个 Delta 视为完整答复。</li>
+</ol>
+<p>补充：上面的示例针对<strong>单个文本候选 <code>index=0</code></strong>。如果启用多个候选、工具调用或多模态内容，必须分别按索引累积文本、工具调用参数和结束原因，不能简单合并成一段字符串。</p>
+<hr />
+<h2 id="section-19">8. Responses API：与 Chat Completions 不同的事件模型</h2>
+<p><code>Responses API</code> 通常提供更明确的语义化事件。常见事件包括：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">response.created
+response.in_progress
+response.output_item.added
+response.output_text.delta
+response.output_text.done
+response.output_item.done
+response.completed</code></pre></div><p>失败或不完整时可能以：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">response.failed
+response.incomplete</code></pre></div><p>结束。<strong>Responses API 不应仅依赖 Chat Completions 的 <code>[DONE]</code> 标记；在 OpenAI、DeepSeek 对应的 Responses 流中，终止事件由 <code>response.completed</code> / <code>response.incomplete</code> / <code>response.failed</code> 表达。</strong></p>
+<h3 id="section-20">8.1 Python 示例</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">from</span> openai <span class="hljs-keyword">import</span> AsyncOpenAI
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">responses_stream</span>() -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> AsyncOpenAI(
+        api_key=os.environ[<span class="hljs-string">"DEEPSEEK_API_KEY"</span>],
+        base_url=<span class="hljs-string">"https://api.deepseek.com"</span>,
+    ) <span class="hljs-keyword">as</span> client:
+        events = <span class="hljs-keyword">await</span> client.responses.create(
+            model=<span class="hljs-string">"deepseek-flash"</span>,
+            <span class="hljs-built_in">input</span>=<span class="hljs-string">"解释普通响应与流式响应的区别"</span>,
+            stream=<span class="hljs-literal">True</span>,
+        )
+
+        chunks: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []
+        terminal_status: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">for</span> event <span class="hljs-keyword">in</span> events:
+            <span class="hljs-keyword">if</span> event.<span class="hljs-built_in">type</span> == <span class="hljs-string">"response.output_text.delta"</span>:
+                chunks.append(event.delta)
+                <span class="hljs-built_in">print</span>(event.delta, end=<span class="hljs-string">""</span>, flush=<span class="hljs-literal">True</span>)
+            <span class="hljs-keyword">elif</span> event.<span class="hljs-built_in">type</span> <span class="hljs-keyword">in</span> {
+                <span class="hljs-string">"response.completed"</span>, <span class="hljs-string">"response.incomplete"</span>, <span class="hljs-string">"response.failed"</span>
+            }:
+                terminal_status = event.<span class="hljs-built_in">type</span>
+                <span class="hljs-comment"># 完整响应对象中可能包含用量、错误等最终字段。</span>
+
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"\n终止事件:"</span>, terminal_status)
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"完整文本:"</span>, <span class="hljs-string">""</span>.join(chunks))
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(responses_stream())</code></pre></div><p>如果只关心最终用户可见文本，可接收 <code>output_text.delta</code>；若产品包含工具执行、推理状态和多模态输出，还须处理相应事件类型及不同 <code>output_index</code> / <code>item_id</code>。工具参数在流式状态下往往只是 JSON 片段，<strong>应先完整拼接，再进行 JSON/Schema 校验，之后才允许执行工具。</strong></p>
+<hr />
+<h2 id="section-21">9. 为什么不能把“连接关闭”视为“模型完成”</h2>
+<p>存在三种完全不同的情况：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">A. 正常： delta → delta → finish_reason=stop → [DONE]
+B. 截断： delta → delta → finish_reason=length → [DONE]
+C. 断网： delta → delta → TCP 断开（没有终止标记）</code></pre></div><p>三者都可能使客户端停止接收字节，但业务含义不同：</p>
+<ul>
+<li>A：协议完成，后续仍要检验内容正确性。</li>
+<li>B：生成正常结束了传输过程，但输出可能不完整。</li>
+<li>C：没有可靠证据证明模型已经完成，也不知道服务端是否仍在运算。</li>
+</ul>
+<p>对于 Responses API，也应区分 <code>response.completed</code>、<code>response.incomplete</code>、<code>response.failed</code> 与<strong>未收到任何终止事件就失去连接</strong>。</p>
+<p>一旦没有收到可验证的终止状态，应把已收到内容标记为 <code>interrupted</code>、<code>partial</code> 或 <code>unknown</code>，不能直接提交为最终成功结果。流中途断开还意味着可能无法获得精确 Token 用量。</p>
+<hr />
+<h2 id="section-22">10. 传输级错误与业务级错误：HTTP 200 可能同时存在错误</h2>
+<p>普通响应的 HTTP 4xx/5xx 一般可以在响应体解析前被识别；但<strong>流式响应一旦开始发送 HTTP 200 和响应头，服务端通常无法再把状态码改成 500</strong>。</p>
+<p>因此流式服务常用<strong>应用级错误事件</strong>表达中途失败：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">event: error
+data: {"code":"UPSTREAM_TIMEOUT","message":"模型响应超时","retryable":true}
+</code></pre></div><p>客户端要检查两类错误：</p>
+<ol>
+<li><strong>HTTP 层错误</strong>：401、429、502、503 等，通常发生在建立成功的事件流之前。</li>
+<li><strong>流内业务错误</strong>：已进入 <code>text/event-stream</code> 后的 <code>event: error</code>、<code>response.failed</code> 等。</li>
+</ol>
+<p>如果既没有有效终止事件，也没有错误事件，而连接直接关闭，应该识别为<strong>不可证实完成的异常中断</strong>。</p>
+<hr />
+<h2 id="section-23">11. 超时不是单一数值：连接、读取空闲、首字和全程</h2>
+<p>在真实模型请求中，建议区分：</p>
+<table>
+<thead>
+<tr>
+<th>超时类型</th>
+<th>约束对象</th>
+<th>典型原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Connect timeout</td>
+<td>建立网络连接所需时间</td>
+<td>DNS、TLS、网络不可达</td>
+</tr>
+<tr>
+<td>Read timeout</td>
+<td>等待网络数据的最长空闲时间</td>
+<td>上游卡住、数据长时间不返回</td>
+</tr>
+<tr>
+<td>Write timeout</td>
+<td>发送请求数据的等待</td>
+<td>网络拥塞、上传大输入</td>
+</tr>
+<tr>
+<td>Pool timeout</td>
+<td>等待连接池可用连接的时间</td>
+<td>连接池满、资源排队</td>
+</tr>
+<tr>
+<td>First-text deadline</td>
+<td>从请求发起到首个可见文本的业务时限</td>
+<td>长时间无可见输出</td>
+</tr>
+<tr>
+<td>Overall deadline</td>
+<td>整次任务最大允许时间</td>
+<td>上游不断保活但始终不完成</td>
+</tr>
+</tbody></table>
+<p>HTTPX 的 <code>timeout=30</code> 不是“整个响应 30 秒内必须完成”的同义表达，其默认计时主要针对各阶段的网络空闲和资源等待。需要<strong>完整请求总时限</strong>时，可以在外层使用 <code>asyncio.timeout()</code>；还可以单独记录 TTFT 来识别体验问题。</p>
+<h3 id="section-24">11.1 HTTPX 的四种超时</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> httpx
+
+timeout = httpx.Timeout(
+    connect=<span class="hljs-number">5.0</span>,
+    read=<span class="hljs-number">30.0</span>,
+    write=<span class="hljs-number">10.0</span>,
+    pool=<span class="hljs-number">5.0</span>,
+)
+
+client = httpx.AsyncClient(timeout=timeout)
+<span class="hljs-comment"># 服务生命周期结束时调用 await client.aclose()。</span></code></pre></div><h3 id="section-25">11.2 总任务截止时间</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">run_with_deadline</span>(<span class="hljs-params">operation</span>):
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.timeout(<span class="hljs-number">60.0</span>):
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> operation()
+    <span class="hljs-keyword">except</span> TimeoutError:
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">"status"</span>: <span class="hljs-string">"timeout"</span>}</code></pre></div><p><code>operation()</code> 是演示用的可等待操作工厂。<code>asyncio.timeout()</code> 通过取消当前协程来实施超时，<strong>不是直接终止远端模型计算进程</strong>；必须配合客户端关闭、取消传播和服务商的可用取消机制。任务不响应取消时，清理甚至可能延长实际返回时间。</p>
+<h3 id="section-26">11.3 保活注释并不能证明模型仍有业务进展</h3>
+<p>若 SSE 每隔 10 秒发送 <code>: ping</code>，HTTPX 的读超时可能一直不会触发，因为网络不断收到数据。但模型可能在生成流程上完全没有可见进展。对于业务要求，还应单独设置<strong>首个有意义事件时限</strong>、<strong>最长无有效进度时限</strong>与<strong>总时限</strong>。</p>
+<hr />
+<h2 id="section-27">12. Python HTTPX：正确读取原始 SSE 流</h2>
+<p>当 SDK 已经能提供类型化事件时，<strong>优先使用 SDK</strong>；它会处理协议解析细节。只有在实现协议网关、调试兼容性或对接无 SDK 服务时，才需要手工解析。</p>
+<p>下面实现一个简化但遵守核心 SSE 分帧规则的异步解析器：它支持注释、<code>event</code>、<code>data</code> 多行、<code>id</code>，按<strong>空行</strong>提交事件，不依赖底层网络分块边界。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">from</span> collections.abc <span class="hljs-keyword">import</span> AsyncIterable, AsyncIterator
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">parse_sse_lines</span>(<span class="hljs-params">lines: AsyncIterable[<span class="hljs-built_in">str</span>]</span>) -&gt; AsyncIterator[<span class="hljs-built_in">dict</span>]:
+    name = <span class="hljs-string">"message"</span>
+    data_parts: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []
+    event_id: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">for</span> line <span class="hljs-keyword">in</span> lines:
+        <span class="hljs-keyword">if</span> line == <span class="hljs-string">""</span>:
+            <span class="hljs-keyword">if</span> data_parts:
+                <span class="hljs-keyword">yield</span> {
+                    <span class="hljs-string">"event"</span>: name,
+                    <span class="hljs-string">"data"</span>: <span class="hljs-string">"\n"</span>.join(data_parts),
+                    <span class="hljs-string">"id"</span>: event_id,
+                }
+            name = <span class="hljs-string">"message"</span>
+            data_parts.clear()
+            event_id = <span class="hljs-literal">None</span>
+            <span class="hljs-keyword">continue</span>
+
+        <span class="hljs-keyword">if</span> line.startswith(<span class="hljs-string">":"</span>):
+            <span class="hljs-keyword">continue</span>  <span class="hljs-comment"># SSE 注释/心跳</span>
+
+        key, has_colon, value = line.partition(<span class="hljs-string">":"</span>)
+        <span class="hljs-keyword">if</span> has_colon <span class="hljs-keyword">and</span> value.startswith(<span class="hljs-string">" "</span>):
+            value = value[<span class="hljs-number">1</span>:]
+
+        <span class="hljs-keyword">if</span> key == <span class="hljs-string">"event"</span>:
+            name = value
+        <span class="hljs-keyword">elif</span> key == <span class="hljs-string">"data"</span>:
+            data_parts.append(value)
+        <span class="hljs-keyword">elif</span> key == <span class="hljs-string">"id"</span> <span class="hljs-keyword">and</span> <span class="hljs-string">"\x00"</span> <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> value:
+            event_id = value
+        <span class="hljs-comment"># retry 字段由需要重连策略的上层消费者处理</span>
+
+    <span class="hljs-comment"># 根据 SSE 事件边界规则，末尾不完整的未分派事件不当成完成事件。</span></code></pre></div><p>使用 HTTPX 读取：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> httpx
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">consume</span>(<span class="hljs-params">url: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-literal">None</span>:
+    timeout = httpx.Timeout(connect=<span class="hljs-number">5</span>, read=<span class="hljs-number">30</span>, write=<span class="hljs-number">10</span>, pool=<span class="hljs-number">5</span>)
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> httpx.AsyncClient(timeout=timeout) <span class="hljs-keyword">as</span> client:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> client.stream(<span class="hljs-string">"GET"</span>, url, headers={<span class="hljs-string">"Accept"</span>: <span class="hljs-string">"text/event-stream"</span>}) <span class="hljs-keyword">as</span> r:
+            r.raise_for_status()
+            <span class="hljs-keyword">if</span> <span class="hljs-string">"text/event-stream"</span> <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> r.headers.get(<span class="hljs-string">"content-type"</span>, <span class="hljs-string">""</span>):
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"不是 SSE 响应"</span>)
+
+            received_done = <span class="hljs-literal">False</span>
+            <span class="hljs-keyword">async</span> <span class="hljs-keyword">for</span> event <span class="hljs-keyword">in</span> parse_sse_lines(r.aiter_lines()):
+                <span class="hljs-keyword">if</span> event[<span class="hljs-string">"event"</span>] == <span class="hljs-string">"delta"</span>:
+                    <span class="hljs-built_in">print</span>(event[<span class="hljs-string">"data"</span>])
+                <span class="hljs-keyword">elif</span> event[<span class="hljs-string">"event"</span>] == <span class="hljs-string">"done"</span>:
+                    received_done = <span class="hljs-literal">True</span>
+                <span class="hljs-keyword">elif</span> event[<span class="hljs-string">"event"</span>] == <span class="hljs-string">"error"</span>:
+                    <span class="hljs-keyword">raise</span> RuntimeError(event[<span class="hljs-string">"data"</span>])
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> received_done:
+                <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"流关闭前未收到完成事件"</span>)
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(consume(<span class="hljs-string">"http://127.0.0.1:8000/chat/stream"</span>))</code></pre></div><p>注意：<code>parse_sse_lines()</code> 演示的是一种<strong>应用自定义</strong> <code>delta</code> / <code>done</code> / <code>error</code> 协议。原始 Chat Completions 仅有 <code>data:</code> 的 JSON 事件及 <code>[DONE]</code> 标记，Responses API 则使用不同的 <code>event.type</code>。调用现成大模型服务时必须匹配该服务的真实协议。完整实现还需要处理重连 ID、输入大小上限、未知事件、UTF-8 错误和流量攻击等问题。</p>
+<hr />
+<h2 id="section-28">13. FastAPI：实现一个完整的本地模拟流式聊天接口</h2>
+<p>本例<strong>不调用付费模型</strong>。它提供两个本地接口，展示普通和流式响应，以及流中途出错时的应用级事件。将以下内容保存为 <code>demo_server.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">from</span> collections.abc <span class="hljs-keyword">import</span> AsyncIterator
+
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI, Request
+<span class="hljs-keyword">from</span> fastapi.responses <span class="hljs-keyword">import</span> StreamingResponse
+<span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, Field
+
+app = FastAPI()
+
+<span class="hljs-comment"># 演示数据；真实应用替换为具有合理生命周期的模型客户端。</span>
+PARTS = (<span class="hljs-string">"普通响应"</span>, <span class="hljs-string">"会等到完整结果；"</span>, <span class="hljs-string">"流式响应"</span>, <span class="hljs-string">"会逐步返回。"</span>)
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ChatInput</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    message: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>)
+    fail_after: <span class="hljs-built_in">int</span> | <span class="hljs-literal">None</span> = Field(default=<span class="hljs-literal">None</span>, ge=<span class="hljs-number">0</span>)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">sse</span>(<span class="hljs-params">event: <span class="hljs-built_in">str</span>, data: <span class="hljs-built_in">dict</span>, seq: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    payload = json.dumps(data, ensure_ascii=<span class="hljs-literal">False</span>)
+    <span class="hljs-keyword">return</span> <span class="hljs-string">f"event: <span class="hljs-subst">{event}</span>\nid: <span class="hljs-subst">{seq}</span>\ndata: <span class="hljs-subst">{payload}</span>\n\n"</span>
+
+
+<span class="hljs-meta">@app.post(<span class="hljs-params"><span class="hljs-string">"/chat"</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">chat</span>(<span class="hljs-params">request: ChatInput</span>):
+    <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.08</span> * <span class="hljs-built_in">len</span>(PARTS))
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"status"</span>: <span class="hljs-string">"completed"</span>, <span class="hljs-string">"answer"</span>: <span class="hljs-string">""</span>.join(PARTS)}
+
+
+<span class="hljs-meta">@app.post(<span class="hljs-params"><span class="hljs-string">"/chat/stream"</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">chat_stream</span>(<span class="hljs-params">request: Request, body: ChatInput</span>):
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">generate</span>() -&gt; AsyncIterator[<span class="hljs-built_in">str</span>]:
+        sequence = <span class="hljs-number">0</span>
+        parts: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">for</span> index, part <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(PARTS):
+                <span class="hljs-comment"># 检测连接断开只是一种辅助机制；还需依赖 ASGI 取消传播。</span>
+                <span class="hljs-keyword">if</span> <span class="hljs-keyword">await</span> request.is_disconnected():
+                    <span class="hljs-keyword">return</span>
+                <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.08</span>)  <span class="hljs-comment"># 模拟模型网络等待</span>
+                <span class="hljs-keyword">if</span> body.fail_after <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">and</span> index &gt;= body.fail_after:
+                    sequence += <span class="hljs-number">1</span>
+                    <span class="hljs-keyword">yield</span> sse(<span class="hljs-string">"error"</span>, {
+                        <span class="hljs-string">"code"</span>: <span class="hljs-string">"SIMULATED_UPSTREAM_ERROR"</span>,
+                        <span class="hljs-string">"message"</span>: <span class="hljs-string">"模拟模型服务在流中失败"</span>,
+                        <span class="hljs-string">"retryable"</span>: <span class="hljs-literal">False</span>,
+                    }, sequence)
+                    <span class="hljs-keyword">return</span>
+                parts.append(part)
+                sequence += <span class="hljs-number">1</span>
+                <span class="hljs-keyword">yield</span> sse(<span class="hljs-string">"delta"</span>, {<span class="hljs-string">"text"</span>: part}, sequence)
+
+            sequence += <span class="hljs-number">1</span>
+            <span class="hljs-keyword">yield</span> sse(<span class="hljs-string">"done"</span>, {<span class="hljs-string">"status"</span>: <span class="hljs-string">"completed"</span>, <span class="hljs-string">"text_length"</span>: <span class="hljs-built_in">len</span>(<span class="hljs-string">""</span>.join(parts))}, sequence)
+        <span class="hljs-keyword">except</span> asyncio.CancelledError:
+            <span class="hljs-comment"># 不要吞掉取消异常，否则可能导致断开后仍消耗资源。</span>
+            <span class="hljs-keyword">raise</span>
+        <span class="hljs-keyword">except</span> Exception:
+            sequence += <span class="hljs-number">1</span>
+            <span class="hljs-comment"># 面向用户的错误信息不应包含密钥、请求头或内部堆栈。</span>
+            <span class="hljs-keyword">yield</span> sse(<span class="hljs-string">"error"</span>, {<span class="hljs-string">"code"</span>: <span class="hljs-string">"INTERNAL_STREAM_ERROR"</span>, <span class="hljs-string">"retryable"</span>: <span class="hljs-literal">True</span>}, sequence)
+        <span class="hljs-keyword">finally</span>:
+            <span class="hljs-comment"># 真实代码在这里释放本请求独占的临时资源。</span>
+            <span class="hljs-keyword">pass</span>
+
+    <span class="hljs-keyword">return</span> StreamingResponse(
+        generate(),
+        media_type=<span class="hljs-string">"text/event-stream"</span>,
+        headers={<span class="hljs-string">"Cache-Control"</span>: <span class="hljs-string">"no-cache"</span>, <span class="hljs-string">"X-Accel-Buffering"</span>: <span class="hljs-string">"no"</span>},
+    )</code></pre></div><p>安装与启动：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python <span class="hljs-literal">-m</span> pip install fastapi uvicorn httpx
+python <span class="hljs-literal">-m</span> uvicorn demo_server:app <span class="hljs-literal">--host</span> <span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span> <span class="hljs-literal">--port</span> <span class="hljs-number">8000</span></code></pre></div><p>另一终端请求普通响应：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">curl.exe <span class="hljs-literal">-sS</span> <span class="hljs-literal">-X</span> POST http://<span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span>:<span class="hljs-number">8000</span>/chat <span class="hljs-literal">-H</span> <span class="hljs-string">"Content-Type: application/json"</span> <span class="hljs-literal">-d</span> <span class="hljs-string">'{"message":"你好"}'</span></code></pre></div><p>请求流式响应（<code>-N</code> 禁用 curl 的输出缓冲）：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">curl.exe <span class="hljs-literal">-N</span> <span class="hljs-literal">-X</span> POST http://<span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span>:<span class="hljs-number">8000</span>/chat/stream <span class="hljs-literal">-H</span> <span class="hljs-string">"Content-Type: application/json"</span> <span class="hljs-literal">-d</span> <span class="hljs-string">'{"message":"你好"}'</span></code></pre></div><p>模拟中途失败：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">curl.exe <span class="hljs-literal">-N</span> <span class="hljs-literal">-X</span> POST http://<span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span>:<span class="hljs-number">8000</span>/chat/stream <span class="hljs-literal">-H</span> <span class="hljs-string">"Content-Type: application/json"</span> <span class="hljs-literal">-d</span> <span class="hljs-string">'{"message":"你好","fail_after":2}'</span></code></pre></div><p>观察：正常流应该依次发送四个 <code>delta</code> 和一个 <code>done</code>；模拟失败时只输出前两个 <code>delta</code> 和一个 <code>error</code>。<strong>绝不能把错误情况下已收到的两个 <code>delta</code> 直接归类为完整答案。</strong></p>
+<h3 id="section-29">13.1 真实工程中的注意点</h3>
+<p>本例使用局部变量收集文本。生产环境还应加上：请求身份和限流、模型连接复用、并发上限、整体截止时间、可观测性、结果存储、用户取消、反向代理配置及内容审查。若需要处理可靠后台任务，不能把 HTTP 流连接当作唯一的任务状态载体。</p>
+<hr />
+<h2 id="section-30">14. 前端消费流：为什么必须用增量 UTF-8 解码</h2>
+<p>JavaScript <code>ReadableStream</code> 返回的 <code>Uint8Array</code> 分块可能在<strong>一个汉字的 UTF-8 字节序列中间</strong>截断。直接对每块使用不保持状态的解码，可能出现乱码。应使用：</p>
+<div class="code-wrap"><div class="code-label"><span>javascript</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">const</span> decoder = <span class="hljs-keyword">new</span> <span class="hljs-title class_">TextDecoder</span>(<span class="hljs-string">"utf-8"</span>);
+<span class="hljs-keyword">const</span> part = decoder.<span class="hljs-title function_">decode</span>(bytes, { <span class="hljs-attr">stream</span>: <span class="hljs-literal">true</span> });</code></pre></div><p><code>{ stream: true }</code> 允许解码器保留不完整的多字节字符，下一段到达时继续处理。</p>
+<p>但解码之后仍然不能按“每一块文本就是一条 SSE 事件”的逻辑处理。必须在字符串缓冲区中按 SSE 空行分隔符寻找事件边界，或使用经过测试的 SSE 客户端库。</p>
+<h3 id="section-31">14.1 浏览器取消请求</h3>
+<div class="code-wrap"><div class="code-label"><span>javascript</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">const</span> controller = <span class="hljs-keyword">new</span> <span class="hljs-title class_">AbortController</span>();
+
+<span class="hljs-keyword">const</span> response = <span class="hljs-keyword">await</span> <span class="hljs-title function_">fetch</span>(<span class="hljs-string">"/chat/stream"</span>, {
+  <span class="hljs-attr">method</span>: <span class="hljs-string">"POST"</span>,
+  <span class="hljs-attr">headers</span>: { <span class="hljs-string">"Content-Type"</span>: <span class="hljs-string">"application/json"</span> },
+  <span class="hljs-attr">body</span>: <span class="hljs-title class_">JSON</span>.<span class="hljs-title function_">stringify</span>({ <span class="hljs-attr">message</span>: <span class="hljs-string">"你好"</span> }),
+  <span class="hljs-attr">signal</span>: controller.<span class="hljs-property">signal</span>,
+});
+
+<span class="hljs-keyword">if</span> (!response.<span class="hljs-property">ok</span> || !response.<span class="hljs-property">body</span>) {
+  <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">Error</span>(<span class="hljs-string">`HTTP <span class="hljs-subst">${response.status}</span>`</span>);
+}
+
+<span class="hljs-comment">// 在读取响应体的循环中使用 response.body.getReader()。</span>
+<span class="hljs-comment">// 用户点击“停止生成”：</span>
+<span class="hljs-comment">// controller.abort();</span></code></pre></div><p>注意：<code>abort()</code> 取消客户端的等待与网络传输，<strong>不保证模型提供商已经取消其内部执行，也不保证不会发生费用</strong>。后端也必须检测取消或断开并及时释放上游资源。</p>
+<hr />
+<h2 id="section-32">15. 中途断开：取消、记录状态和重试如何设计</h2>
+<h3 id="section-33">15.1 断开的常见来源</h3>
+<ul>
+<li>用户关闭页面、点击停止生成、浏览器切换网络。</li>
+<li>客户端 <code>AbortController.abort()</code>、Python Task 取消。</li>
+<li>负载均衡器、反向代理或运营商网络超时。</li>
+<li>上游模型服务中断、重启、限流。</li>
+<li>服务端进程崩溃或被强制终止。</li>
+</ul>
+<h3 id="section-34">15.2 为什么“断开后自动重新调用模型”不等于续传</h3>
+<p>模型推理可能具有采样随机性、动态上下文及工具副作用。重新发送原来的 Prompt，可能重新生成不同文本、重复计费，甚至重复执行写入类工具。<strong>它是一轮新调用，不是原始生成的字节级续传。</strong></p>
+<p>若业务要求真正续传，必须额外设计：</p>
+<ol>
+<li>任务 ID 与用户身份绑定。</li>
+<li>持久化事件序号（<code>seq</code> / SSE <code>id</code>）。</li>
+<li>服务器保存已经输出的事件日志。</li>
+<li>客户端重连时提交已消费序号。</li>
+<li>服务端重放遗漏事件，并继续订阅同一个仍在运行的任务（若支持）。</li>
+<li>对写入类工具使用幂等键，避免重复副作用。</li>
+</ol>
+<p><code>Last-Event-ID</code> 只是 SSE 机制的一部分：<strong>有 ID 不代表服务端一定支持真正的模型续生成</strong>。如果没有持久化日志和会话复用能力，只能提示用户重新生成。</p>
+<h3 id="section-35">15.3 任务状态建议</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">CREATED → CONNECTED → STREAMING → COMPLETED
+                         |              
+                         ├─→ FAILED
+                         ├─→ TIMED_OUT
+                         ├─→ CANCELLED
+                         └─→ INTERRUPTED / UNKNOWN</code></pre></div><p><code>COMPLETED</code> 需要明确的完成事件。<code>INTERRUPTED</code> 表示流失去连接且未得到可靠终态；不能简单写成 <code>FAILED</code>（模型可能已经完成）或 <code>COMPLETED</code>（也可能尚未生成完）。</p>
+<h3 id="section-36">15.4 部分输出可以保存，但必须带状态</h3>
+<p>例如：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"request_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"req_example_001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"interrupted"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"partial_text"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"这是已经收到但尚未完成的回答"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"finished_at"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"finish_reason"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"usage"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>存储结构还应区分 <code>status</code>（本应用结果）、<code>finish_reason</code>（模型生成结束原因）、<code>transport_error</code>（连接错误）和 <code>usage</code>（可能缺失的累计用量），避免混为一谈。</p>
+<hr />
+<h2 id="section-37">16. 上游流与下游流之间的代理转发</h2>
+<p>在浏览器 → FastAPI → 模型服务的结构中，其实存在<strong>两条不同的流</strong>：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">浏览器 ←───── 下游 SSE ───── FastAPI ←──── 上游 SSE ──── 模型厂商
+          自定义业务事件              第三方模型事件</code></pre></div><p>FastAPI 要完成的事情包括：</p>
+<ol>
+<li>验证用户输入与权限，创建请求 ID。</li>
+<li>通过应用级共享 <code>httpx.AsyncClient</code> 或模型 SDK 建立上游流。</li>
+<li>将上游文本、工具调用和结束原因转换成自身业务协议。</li>
+<li>处理客户端断开时对上游流的取消与关闭。</li>
+<li>在正常/异常/取消时记录业务终态和用量信息。</li>
+<li>严格保证上游响应流结束时连接得到关闭，避免泄露连接池资源。</li>
+</ol>
+<h3 id="section-38">16.1 HTTPX 流必须关闭</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> httpx
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">proxy_example</span>(<span class="hljs-params">client: httpx.AsyncClient, url: <span class="hljs-built_in">str</span></span>):
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> client.stream(<span class="hljs-string">"GET"</span>, url) <span class="hljs-keyword">as</span> response:
+        response.raise_for_status()
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">for</span> text_line <span class="hljs-keyword">in</span> response.aiter_lines():
+            <span class="hljs-comment"># 这里的 text_line 只是行，不代表一个完整 SSE 事件。</span>
+            <span class="hljs-keyword">yield</span> text_line</code></pre></div><p>通过 <code>async with client.stream(...)</code>，异步生成器正常完成或被取消时，通常能调用上下文管理器清理上游响应资源。若使用 <code>client.send(..., stream=True)</code> 的手动模式，则必须在 <code>finally</code> 或其他可靠的清理路径调用 <code>response.aclose()</code>。</p>
+<h3 id="section-39">16.2 一个常见生命周期错误</h3>
+<p>下面的写法不正确：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">wrong</span>(<span class="hljs-params">client</span>):
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> client.stream(<span class="hljs-string">"GET"</span>, <span class="hljs-string">"https://example.com"</span>) <span class="hljs-keyword">as</span> r:
+        <span class="hljs-keyword">return</span> r.aiter_lines()  <span class="hljs-comment"># 返回时已经离开 async with，响应可能关闭</span></code></pre></div><p>不能在上游响应对象生命周期结束后，还向下游返回依赖其连接的迭代器。正确方式是把整个上游流生命周期放在异步生成器内部。</p>
+<hr />
+<h2 id="section-40">17. 长时间流式运行的资源、并发和背压问题</h2>
+<h3 id="section-41">17.1 流式连接会持续占用资源</h3>
+<p>与一次性短连接相比，长时间 SSE 可能长期占用：HTTP 连接、后端生成任务、连接池槽位、代理缓冲空间和应用状态。<strong>不能仅因为每次增量很小就忽略资源限制。</strong></p>
+<p>推荐同时实施：最大并发流数、单用户并发配额、单流总时长、上游连接池上限、队列上限、取消处理、可观测性和优雅停机。</p>
+<h3 id="section-42">17.2 背压（Backpressure）</h3>
+<p>若上游每秒产生 100 KB，而下游用户网络每秒只能接收 10 KB，直接无界地往内存列表或队列追加，会导致内存不断增长。</p>
+<p>常用办法：使用有界队列，让生产者等待消费者；对于可丢弃的进度事件可以合并或降采样，但<strong>模型正文及完成/错误等关键事件不能随意丢弃</strong>。</p>
+<h3 id="section-43">17.3 代理缓存可能造成“假流式”</h3>
+<p>模型上游分块正常，但 Nginx、CDN 或反向代理把小块缓冲到一定大小才转发，用户就可能数秒后突然看到整段文字。需要检查代理的 buffering、gzip、缓存、空闲超时及平台 SSE 支持能力。<code>X-Accel-Buffering: no</code> 在部分 Nginx 配置下有帮助，但不是所有代理都遵循它。</p>
+<h3 id="section-44">17.4 并发连接与 HTTP/1.1</h3>
+<p>浏览器对相同源的 HTTP/1.1 连接数可能存在较低限制，多标签页长期占用 SSE 连接可影响其他请求。HTTP/2 的多路复用可以缓解部分连接压力，但仍需要后端资源限额。</p>
+<hr />
+<h2 id="section-45">18. 流式 JSON、工具调用及安全边界</h2>
+<h3 id="section-46">18.1 增量文本不等于可验证的完整 JSON</h3>
+<p>例如模型先发：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">{"name":"角色A","hp":</code></pre></div><p>下一块才发：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">4}</code></pre></div><p>第一块不完整，所以在中间直接 <code>json.loads()</code> 不合适。应当在确定完整输出后进行 JSON 解析、Schema 验证和业务规则验证。除非使用专门的增量解析器，也不应将“现在解析失败”直接视为生成最终失败。</p>
+<h3 id="section-47">18.2 流式工具参数不能先执行后校验</h3>
+<p>可能依次到达：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">{"user_id":
+17,"action":
+"delete"}</code></pre></div><p>在工具参数完整、请求权限验证通过、需要的用户确认已完成以前，不能据部分字符串提前执行工具操作。</p>
+<h3 id="section-48">18.3 安全与 UI</h3>
+<p>流式输出意味着前端可能看到尚未完成的语句。这与非流式处理的内容审查方式不同；应用应设计必要的输出校验、风险拦截、敏感信息隐藏及失败撤回或提示策略。不要因为中间输出看似合理，就提前把部分内容当成最终的“有来源结论”。</p>
+<hr />
+<h2 id="section-49">19. 用量、成本和审计：结束事件并不总能收到</h2>
+<p>对于支持流式最终用量的 API，<strong>通常在完成阶段才能拿到可信的累计 Token 用量</strong>。若连接中断，可能只有部分文本而没有最终用量统计。</p>
+<p>因此建议记录如下指标：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>意义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>request_id</code></td>
+<td>一次请求的唯一标识</td>
+</tr>
+<tr>
+<td><code>session_id</code></td>
+<td>所属会话</td>
+</tr>
+<tr>
+<td><code>provider/model</code></td>
+<td>模型来源与版本</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td>普通/流式</td>
+</tr>
+<tr>
+<td><code>ttft_ms</code></td>
+<td>首次有效文本增量耗时</td>
+</tr>
+<tr>
+<td><code>duration_ms</code></td>
+<td>完成或异常终止耗时</td>
+</tr>
+<tr>
+<td><code>delta_events</code></td>
+<td>文本增量事件数量</td>
+</tr>
+<tr>
+<td><code>app_status</code></td>
+<td>应用任务完成、失败、取消或未知</td>
+</tr>
+<tr>
+<td><code>finish_reason</code></td>
+<td>模型结束原因（如有）</td>
+</tr>
+<tr>
+<td><code>usage_*</code></td>
+<td>模型实际返回的用量（如有）</td>
+</tr>
+<tr>
+<td><code>usage_observed</code></td>
+<td>是否拿到可信的最终用量</td>
+</tr>
+<tr>
+<td><code>error_type</code></td>
+<td>HTTP、超时、协议、上游业务或取消错误</td>
+</tr>
+</tbody></table>
+<p>不要用“已收到文本长度 × 固定系数”冒充服务商最终 Token 计费数据。若必须内部估算，应明确标记为估算，并与真实供应商用量账单分开存储。</p>
+<hr />
+<h2 id="section-50">20. 运行测试与故障注入的知识方法</h2>
+<p>可靠的流式程序应至少覆盖：</p>
+<table>
+<thead>
+<tr>
+<th>测试情景</th>
+<th>预期结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>普通模型响应成功</td>
+<td>能读取完整内容、结束原因和用量</td>
+</tr>
+<tr>
+<td>多个文本增量</td>
+<td>按顺序合并，不丢字、不重复</td>
+</tr>
+<tr>
+<td><code>choices=[]</code> 的用量块</td>
+<td>不发生越界访问，正确读取 usage</td>
+</tr>
+<tr>
+<td><code>finish_reason=length</code></td>
+<td>不标记内容完整成功</td>
+</tr>
+<tr>
+<td>上游发出流内错误</td>
+<td>返回业务错误，不把 HTTP 200 当成功</td>
+</tr>
+<tr>
+<td>流未发终止标记就关闭</td>
+<td>标记 <code>interrupted</code></td>
+</tr>
+<tr>
+<td>连接超时</td>
+<td>标记超时，清理上游连接</td>
+</tr>
+<tr>
+<td>用户主动取消</td>
+<td>终止读取并释放资源，不吞 <code>CancelledError</code></td>
+</tr>
+<tr>
+<td>中文 UTF-8 跨字节分片</td>
+<td>解码后没有乱码</td>
+</tr>
+<tr>
+<td>一个 SSE 事件跨多个网络块</td>
+<td>能按协议还原完整事件</td>
+</tr>
+<tr>
+<td>多行 <code>data:</code> 与心跳注释</td>
+<td>正确解析或忽略</td>
+</tr>
+<tr>
+<td>JSON/tool arguments 只到一半</td>
+<td>不执行工具、不当成合法完整 JSON</td>
+</tr>
+<tr>
+<td>服务端关闭/代理中断</td>
+<td>任务状态正确，最终用量可缺失</td>
+</tr>
+<tr>
+<td>代理缓冲</td>
+<td>能区分模型慢、传输慢和前端渲染慢</td>
+</tr>
+</tbody></table>
+<h3 id="section-51">20.1 离线可执行的 SSE 解析器断言</h3>
+<p>把第 12 节的 <code>parse_sse_lines</code> 函数放入 <code>sse_parser.py</code>，并创建：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">from</span> sse_parser <span class="hljs-keyword">import</span> parse_sse_lines
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">simulated_lines</span>():
+    <span class="hljs-keyword">for</span> line <span class="hljs-keyword">in</span> [
+        <span class="hljs-string">": heartbeat"</span>,
+        <span class="hljs-string">""</span>,
+        <span class="hljs-string">"event: delta"</span>,
+        <span class="hljs-string">"id: 10"</span>,
+        <span class="hljs-string">'data: {"text":"你好"}'</span>,
+        <span class="hljs-string">""</span>,
+        <span class="hljs-string">"event: done"</span>,
+        <span class="hljs-string">'data: {"status":"completed"}'</span>,
+        <span class="hljs-string">""</span>,
+    ]:
+        <span class="hljs-keyword">yield</span> line
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test</span>():
+    result = [event <span class="hljs-keyword">async</span> <span class="hljs-keyword">for</span> event <span class="hljs-keyword">in</span> parse_sse_lines(simulated_lines())]
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(result) == <span class="hljs-number">2</span>
+    <span class="hljs-keyword">assert</span> result[<span class="hljs-number">0</span>][<span class="hljs-string">"event"</span>] == <span class="hljs-string">"delta"</span>
+    <span class="hljs-keyword">assert</span> result[<span class="hljs-number">0</span>][<span class="hljs-string">"id"</span>] == <span class="hljs-string">"10"</span>
+    <span class="hljs-keyword">assert</span> result[<span class="hljs-number">1</span>][<span class="hljs-string">"event"</span>] == <span class="hljs-string">"done"</span>
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"SSE 解析断言通过"</span>)
+
+asyncio.run(test())</code></pre></div><p><code>httpx.ASGITransport</code> 适合许多应用层集成测试，但测试真实的逐块到达时间、浏览器断开及反向代理行为时，最好使用真实本地 HTTP 端口进行端到端测试；不能仅靠内存传输推断网络时间行为。</p>
+<hr />
+<h2 id="section-52">21. 常见误解与准确表述</h2>
+<table>
+<thead>
+<tr>
+<th>误解</th>
+<th>准确理解</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>stream=True</code> 会让模型推理更快</td>
+<td>它通常改善首段反馈体验，不保证降低最终生成总耗时</td>
+</tr>
+<tr>
+<td><code>yield</code> 一次就对应一个 Token</td>
+<td><code>yield</code> 输出的是应用层增量，不等于模型 Token</td>
+</tr>
+<tr>
+<td>TCP 分块就是 SSE 分块</td>
+<td>网络字节块与 SSE 事件边界没有一一对应关系</td>
+</tr>
+<tr>
+<td>收到 HTTP 200 就表示成功</td>
+<td>进入流后仍可发生业务错误和中途断开</td>
+</tr>
+<tr>
+<td>客户端收到 EOF 就说明完成</td>
+<td>未收到协议终止事件时只能认为状态未知或不完整</td>
+</tr>
+<tr>
+<td>所有 Chat Completions 都有 <code>choices=[]</code> 用量块</td>
+<td>OpenAI 和 DeepSeek 的最终用量事件方式存在差异</td>
+</tr>
+<tr>
+<td>所有模型流都以 <code>[DONE]</code> 结束</td>
+<td>Responses API 和 Anthropic 风格协议有自己的终止事件</td>
+</tr>
+<tr>
+<td>HTTPX read timeout 是整个调用超时</td>
+<td>主要针对网络读取的空闲等待；总时间需独立限制</td>
+</tr>
+<tr>
+<td>SSE 心跳说明模型正在产生有效内容</td>
+<td>心跳仅说明仍有传输活动，不证明业务进展</td>
+</tr>
+<tr>
+<td>AbortController 能保证立刻停止外部计费</td>
+<td>客户端取消不等于上游模型已立即停止</td>
+</tr>
+<tr>
+<td>断线重发同样的 Prompt 就是续传</td>
+<td>这通常是新请求，可能产生不同输出和重复副作用</td>
+</tr>
+<tr>
+<td>流式 JSON 看到一部分就能执行</td>
+<td>应等完整内容到达且完成验证，再执行高风险操作</td>
+</tr>
+</tbody></table>
+<hr />
+<h2 id="section-53">22. 术语索引</h2>
+<ul>
+<li><strong>Non-streaming</strong>：一次性返回完整的响应对象。</li>
+<li><strong>Streaming</strong>：按增量发送响应对象或事件。</li>
+<li><strong>SSE</strong>：Server-Sent Events，服务器向客户端推送事件的文本流协议。</li>
+<li><strong>Delta</strong>：增量片段，通常需要顺序拼接。</li>
+<li><strong>Chunk</strong>：API 或网络层分块，具体含义取决于所在层次。</li>
+<li><strong>Finish Reason</strong>：模型为什么结束一次生成。</li>
+<li><strong>Terminal Event</strong>：协议层表示完成、失败或不完整的最后状态事件。</li>
+<li><strong>TTFT</strong>：首个可见文本 Token/片段的延迟指标。</li>
+<li><strong>Read Timeout</strong>：连续等待网络读取数据的超时约束。</li>
+<li><strong>Overall Deadline</strong>：整个操作允许的最大时长。</li>
+<li><strong>Cancellation</strong>：向异步任务发出取消请求，通常是协作式的。</li>
+<li><strong>Backpressure</strong>：下游处理不过来时约束上游生产速度。</li>
+<li><strong>Resumption / Replay</strong>：断线后恢复接收同一个持久化任务的事件。</li>
+<li><strong>Idempotency</strong>：重复执行同一业务操作不会造成重复业务效果。</li>
+</ul>
+<hr />
+<h2 id="section-54">23. 官方文档与参考资料</h2>
+<p>以下资料为官方或规范性技术文档。不同提供商的事件命名、模型名称、用量统计及失败状态会变化，具体项目以当前所调用 API 的文档为准。</p>
+<ol>
+<li>OpenAI — Streaming API responses：<a href="https://developers.openai.com/api/docs/guides/streaming-responses">https://developers.openai.com/api/docs/guides/streaming-responses</a></li>
+<li>OpenAI — Chat Completions streaming events：<a href="https://developers.openai.com/api/reference/resources/chat/subresources/completions/streaming-events">https://developers.openai.com/api/reference/resources/chat/subresources/completions/streaming-events</a></li>
+<li>OpenAI — Responses streaming events：<a href="https://developers.openai.com/api/reference/resources/responses/streaming-events">https://developers.openai.com/api/reference/resources/responses/streaming-events</a></li>
+<li>DeepSeek — Chat Completions API：<a href="https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/">https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/</a></li>
+<li>DeepSeek — Responses API 流式事件：<a href="https://api-docs.deepseek.com/zh-cn/guides/responses_api/">https://api-docs.deepseek.com/zh-cn/guides/responses_api/</a></li>
+<li>DeepSeek — Anthropic 兼容流式协议：<a href="https://api-docs.deepseek.com/zh-cn/guides/anthropic_api/">https://api-docs.deepseek.com/zh-cn/guides/anthropic_api/</a></li>
+<li>MDN — 使用服务器发送事件：<a href="https://developer.mozilla.org/zh-CN/docs/Web/API/Server-sent_events/Using_server-sent_events">https://developer.mozilla.org/zh-CN/docs/Web/API/Server-sent_events/Using_server-sent_events</a></li>
+<li>HTTPX — Async Support：<a href="https://www.python-httpx.org/async/">https://www.python-httpx.org/async/</a></li>
+<li>HTTPX — Timeouts：<a href="https://www.python-httpx.org/advanced/timeouts/">https://www.python-httpx.org/advanced/timeouts/</a></li>
+<li>FastAPI — StreamingResponse：<a href="https://fastapi.tiangolo.com/advanced/custom-response/">https://fastapi.tiangolo.com/advanced/custom-response/</a></li>
+<li>Python — asyncio 协程与任务：<a href="https://docs.python.org/3/library/asyncio-task.html">https://docs.python.org/3/library/asyncio-task.html</a></li>
+</ol>
+<hr />
+<h2 id="section-55">24. 本节知识归纳</h2>
+<p>普通响应的关键是<strong>一次性获取完整结果后再验证</strong>；流式响应的关键是<strong>在获得部分结果的同时，持续维护请求状态，直到明确的终止事件出现</strong>。</p>
+<p>实现可靠的流式模型调用，必须同时分清：</p>
+<ul>
+<li>网络字节、SSE 事件与模型文本增量的边界；</li>
+<li>正常结束、截断、失败和意外断线的区别；</li>
+<li>网络读取空闲超时与业务总截止时间的区别；</li>
+<li>取消客户端读取与真正取消上游模型执行的区别；</li>
+<li>可显示的部分内容与可提交的最终业务结果的区别；</li>
+<li>自动重试与从持久化任务事件日志中真正续传的区别。</li>
+</ul>
+<p><strong>结论：流式传输不仅是前端逐字展示，更是一套关于协议、生命周期、错误传播、资源清理和结果一致性的工程机制。</strong></p>
+<hr />
+<h2 id="section-56">附录：本文示例实际验证记录</h2>
+<p>本文撰写时在隔离的本地环境中完成以下验证：</p>
+<ul>
+<li><strong>语法检查</strong>：文档包含的 11 段 Python 代码均通过 <code>ast.parse()</code> 语法解析（仅证明语法成立，不证明所有示例能脱离上下文独立运行）。</li>
+<li><strong>真实本地 HTTP 端到端测试</strong>：启动 Uvicorn + FastAPI，非流式 <code>/chat</code> 正常返回 JSON。</li>
+<li><strong>正常流式测试</strong>：使用 HTTPX 真实请求 <code>/chat/stream</code>，接收 4 个 <code>delta</code>、1 个 <code>done</code>，顺序正确。</li>
+<li><strong>流中途失败测试</strong>：设置 <code>fail_after=2</code> 后接收 2 个 <code>delta</code>、1 个 <code>error</code>，没有错误发送 <code>done</code>。</li>
+<li><strong>SSE 解析器测试</strong>：成功忽略注释、解析多行 <code>data:</code> 并按空行分发事件。</li>
+<li><strong>未执行</strong>：真实 DeepSeek/OpenAI 远程 API 调用、浏览器真实断网与代理缓冲、长时间连接、费用结算与特定提供商的取消回执。以上能力需在目标部署环境另行验证。</li>
+</ul>
+<p>测试结果仅针对本地示例，不代表所有第三方 API 协议行为均已通过实测。</p>

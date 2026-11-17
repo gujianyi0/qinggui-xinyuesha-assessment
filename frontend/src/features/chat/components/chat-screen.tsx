@@ -32,6 +32,7 @@ import { useOnlineStatus } from '@/hooks/use-online-status'
 import { displayError } from '@/services/api'
 import { cancelRun, listSessionMessages } from '@/services/sessions'
 import type { Citation, Message, Session, Snapshot } from '@/types/domain'
+import { useElapsedSeconds } from '../hooks/use-elapsed-seconds'
 
 interface ChatScreenProps {
   userId?: string
@@ -86,6 +87,7 @@ export default function ChatScreen({
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isBusy, setBusy] = useState(false)
+  const elapsedSeconds = useElapsedSeconds(isBusy)
   const [isLoading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState('')
@@ -534,6 +536,12 @@ export default function ChatScreen({
           )}
         </div>
         <div className="composer-region">
+          {isBusy && (
+            <p className="composer-status">
+              <span role="status">{progress || '正在准备回答'}</span>
+              <span aria-hidden="true"> · 已等待 {elapsedSeconds} 秒</span>
+            </p>
+          )}
           {!isOnline && (
             <p className="composer-status" role="status">
               当前离线，输入内容会保留，联网后可继续发送

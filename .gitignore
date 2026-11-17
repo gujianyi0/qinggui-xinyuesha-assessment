@@ -12,6 +12,7 @@ __pycache__/
 .coverage
 htmlcov/
 frontend/node_modules/
+tools/bookshelf/node_modules/
 frontend/dist/
 frontend/coverage/
 public-entry/node_modules/

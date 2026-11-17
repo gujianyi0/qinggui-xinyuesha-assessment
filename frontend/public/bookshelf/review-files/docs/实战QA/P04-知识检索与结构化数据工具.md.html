@@ -1,0 +1,26 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>P04-知识检索与结构化数据工具.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>P04 知识检索与结构化数据工具</h1>
+<p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
+<p>状态：<strong>两类基础工具已实现，另有固定裁定工具</strong>。</p>
+<h2>对应要求（原段要点，转述）</h2>
+<p>提供知识检索与结构化游戏数据查询，使模型依据查询结果回答。</p>
+<p>来源：<a href="https://biteagle.yuque.com/mw0520/rzyee0/ay7550zlq5vyq27t#u00133d7b">故剑遗学习目标 · 功能要求 · 本段</a>。
+对应编号：P04。原段SHA256：<code>0fe029adc3fc9923cc8d50e87591f15b739e595134af7e3be552bd25203f9344</code>。</p>
+<p>这是原文一个段落的对应回答。要点使用转述；原段定位和哈希用于复核边界，不把此处概括当作公司新要求。</p>
+<h2>回答</h2>
+<p>已提供search_knowledge和query_game_data两类基础工具。前者返回规则、技能正文等相关资料块；后者查询武将、卡牌、技能实体和定义字段，例如势力、体力、技能列表、装备类型或攻击范围。另有get_verified_ruling读取已验证固定场景，不替代前两类工具。</p>
+<h2>本项目如何实现</h2>
+<p>工具在<a href="/bookshelf/review-files/backend/app/runtime.py">runtime.py</a>中封装并通过Agno提供给模型，实际查询由<a href="/bookshelf/review-files/backend/app/catalog.py">catalog.py</a>完成。query_game_data限制实体类型和返回数量，get_verified_ruling限制场景编号并经过应用层前提校验。</p>
+<p>模型提出工具调用意图，应用执行真实查询并保存ToolCall；工具不能接受任意SQL或本地路径，也不能因为用户说“有权限”就查询账号战绩、QQ群聊或其他用户会话。</p>
+<h2>已有验证与证据</h2>
+<ul>
+<li><a href="/bookshelf/review-files/evaluations/cases.json">R01–R08和D01–D06</a>：规则与数据查询的不同预期。</li>
+<li><a href="/bookshelf/review-files/evaluations/results/live-v19-full-04/results.jsonl">最终实际回执</a>：D04查询武器类型和范围，D06查询酒/铁索。</li>
+<li><a href="/bookshelf/review-files/tests/test_agno_protocol.py">工具与协议测试</a>：真正Agno SDK配合可控HTTP响应，验证调用及错误回传。</li>
+</ul>
+<p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
+<h2>怎样核对或演示</h2>
+<p>对比R02的search_knowledge与D01的query_game_data：前者证据是规则文段，后者应有曹操字段及描述来源。看N02是否明确没有账号/群聊工具，而不是假装查到私人数据。</p>
+<h2>结论与边界</h2>
+<p>模型可能选错工具或遗漏调用，不能只因为注册了两个函数就认为每次调用都正确。固定样例逐条检查实际tool_calls；裁定、版本范围与普通弃牌计算另有应用层校验或预查来源，仍不承诺任意问法都能完美分类。</p>
+<p><a href="/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md.html">返回目录与维护说明</a></p>
+</article></body></html>

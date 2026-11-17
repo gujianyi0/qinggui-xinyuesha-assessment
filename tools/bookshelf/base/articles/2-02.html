@@ -1,0 +1,827 @@
+<h1 id="section-1">大模型原理、API 与输出校验（二）</h1>
+<h1 id="section-2">Transformer、Attention、预训练、指令微调与模型训练／推理／API 的区别</h1>
+<blockquote>
+<p><strong>对应学习目标</strong>：概念上了解 Transformer、Attention、预训练和指令微调，分清训练模型、运行模型与调用模型 API 的区别。</p>
+<p><strong>文档定位</strong>：独立的原理性知识手册。解释技术概念、核心公式、运算机制、工程边界及常见误区；不依赖特定商业模型版本。<br /><strong>最后核对</strong>：2026-11-11。文末列有论文与官方技术文档。</p>
+</blockquote>
+<hr />
+<h2 id="section-3">目录</h2>
+<ol>
+<li><a href="#1-%E5%BB%BA%E7%AB%8B%E5%85%A8%E5%B1%80%E8%AE%A4%E8%AF%86%E6%9E%B6%E6%9E%84%E8%AE%AD%E7%BB%83%E6%8E%A8%E7%90%86%E5%92%8C-api">建立全局认识：架构、训练、推理和 API</a></li>
+<li><a href="#2-%E4%BB%8E%E6%96%87%E6%9C%AC%E5%88%B0%E7%A5%9E%E7%BB%8F%E7%BD%91%E7%BB%9Ctoken%E5%90%91%E9%87%8F%E5%8F%82%E6%95%B0">从文本到神经网络：Token、向量、参数</a></li>
+<li><a href="#3-transformer-%E6%98%AF%E4%BB%80%E4%B9%88">Transformer 是什么</a></li>
+<li><a href="#4-attention-%E7%9A%84%E5%8E%9F%E7%90%86querykeyvalue">Attention 的原理：Query、Key、Value</a></li>
+<li><a href="#5-scaled-dot-product-attention-%E7%9A%84%E5%85%AC%E5%BC%8F%E4%B8%8E%E8%AE%A1%E7%AE%97">Scaled Dot-Product Attention 的公式与计算</a></li>
+<li><a href="#6-self-attentioncross-attention-%E4%B8%8E%E5%9B%A0%E6%9E%9C%E6%8E%A9%E7%A0%81">Self-Attention、Cross-Attention 与因果掩码</a></li>
+<li><a href="#7-%E5%A4%9A%E5%A4%B4%E6%B3%A8%E6%84%8F%E5%8A%9B%E4%BD%8D%E7%BD%AE%E7%BC%96%E7%A0%81%E5%92%8C-transformer-block">多头注意力、位置编码和 Transformer Block</a></li>
+<li><a href="#8-transformer-%E4%B8%89%E7%B1%BB%E5%B8%B8%E8%A7%81%E6%9E%B6%E6%9E%84">Transformer 三类常见架构</a></li>
+<li><a href="#9-%E9%A2%84%E8%AE%AD%E7%BB%83%E6%A8%A1%E5%9E%8B%E6%80%8E%E6%A0%B7%E4%BB%8E%E6%95%B0%E6%8D%AE%E4%B8%AD%E5%AD%A6%E4%B9%A0">预训练：模型怎样从数据中学习</a></li>
+<li><a href="#10-%E6%8C%87%E4%BB%A4%E5%BE%AE%E8%B0%83-sft-%E4%B8%8E%E5%81%8F%E5%A5%BD%E4%BC%98%E5%8C%96">指令微调 SFT 与偏好优化</a></li>
+<li><a href="#11-%E8%AE%AD%E7%BB%83%E5%BE%AE%E8%B0%83%E4%B8%8E%E6%8E%A8%E7%90%86%E7%9A%84%E8%AE%A1%E7%AE%97%E6%B5%81%E7%A8%8B%E5%AF%B9%E6%AF%94">训练、微调与推理的计算流程对比</a></li>
+<li><a href="#12-%E6%8E%A8%E7%90%86%E6%9C%8D%E5%8A%A1%E5%86%85%E9%83%A8%E6%80%8E%E6%A0%B7%E8%BF%90%E8%A1%8C%E6%A8%A1%E5%9E%8B">推理服务内部怎样运行模型</a></li>
+<li><a href="#13-%E6%A8%A1%E5%9E%8B-api-%E7%A9%B6%E7%AB%9F%E6%8F%90%E4%BE%9B%E4%BA%86%E4%BB%80%E4%B9%88">模型 API 究竟提供了什么</a></li>
+<li><a href="#14-%E4%B8%89%E7%A7%8D%E5%B7%A5%E7%A8%8B%E6%A8%A1%E5%BC%8F%E7%9A%84%E8%B5%84%E6%BA%90%E6%9D%83%E9%99%90%E4%B8%8E%E8%81%8C%E8%B4%A3%E8%BE%B9%E7%95%8C">三种工程模式的资源、权限与职责边界</a></li>
+<li><a href="#15-%E7%9F%A5%E8%AF%86%E9%AA%8C%E8%AF%81%E4%BB%A3%E7%A0%81%E6%B3%A8%E6%84%8F%E5%8A%9B%E8%AE%A1%E7%AE%97%E5%92%8C%E5%8F%82%E6%95%B0%E6%9B%B4%E6%96%B0">知识验证代码：注意力计算和参数更新</a></li>
+<li><a href="#16-%E5%B8%B8%E8%A7%81%E8%AF%AF%E8%A7%A3%E4%B8%8E%E5%85%B3%E9%94%AE%E8%BE%B9%E7%95%8C">常见误解与关键边界</a></li>
+<li><a href="#17-%E7%9F%A5%E8%AF%86%E5%85%B3%E8%81%94%E4%B8%BA%E4%BB%80%E4%B9%88%E8%BF%99%E4%BA%9B%E6%A6%82%E5%BF%B5%E9%87%8D%E8%A6%81">知识关联：为什么这些概念重要</a></li>
+<li><a href="#18-%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99">参考资料</a></li>
+</ol>
+<hr />
+<h2 id="section-4">1. 建立全局认识：架构、训练、推理和 API</h2>
+<p>可以把大语言模型看成一个含有可学习参数的计算函数：</p>
+<p>[
+\hat y=f_{\theta}(x)
+]</p>
+<p>其中：</p>
+<ul>
+<li>(x)：经过分词和编码的输入及上下文；</li>
+<li>(\theta)：模型权重与偏置等参数；</li>
+<li>(f)：模型的网络结构及其计算过程；</li>
+<li>(\hat y)：模型输出的预测结果，例如下一个 Token 的概率分布。</li>
+</ul>
+<p><strong>Transformer</strong> 描述的是 (f) 的一类实现方案；<strong>Attention</strong> 是其中的重要计算机制；<strong>预训练与微调</strong> 是形成或调整 (\theta) 的过程；<strong>推理</strong> 是使用已得到的 (\theta) 进行计算；<strong>API</strong> 是软件向推理服务提交请求和取得结果的接口。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">训练数据                         新的用户输入
+   │                                 │
+   ▼                                 ▼
+Tokenizer                        Tokenizer
+   │                                 │
+   ▼                                 ▼
+Transformer 进行前向计算          已有参数的 Transformer
+   │                                 │
+   ▼                                 ▼
+计算训练损失                      计算下一个 Token 的分布
+   │                                 │
+   ▼                                 ▼
+反向传播 + 优化器                 采样或选择 Token
+   │                                 │
+   ▼                                 ▼
+更新参数 θ                       拼接输出，继续生成
+   │                                 │
+   ▼                                 ▼
+保存模型权重                     返回最终输出
+                                     ▲
+                                     │
+                           HTTP API 可以封装这一过程</code></pre></div><p>这张图不表示训练与推理需要在同一台设备或同一个应用里运行。现实系统里，它们经常由不同团队、不同计算集群和不同软件负责。</p>
+<h3 id="section-5">概念关系速览</h3>
+<table>
+<thead>
+<tr>
+<th>层次</th>
+<th>主要问题</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>架构</td>
+<td>模型如何处理输入并计算输出？</td>
+<td>Transformer、Attention、前馈网络</td>
+</tr>
+<tr>
+<td>训练算法</td>
+<td>参数如何从数据中学习？</td>
+<td>反向传播、AdamW、损失函数</td>
+</tr>
+<tr>
+<td>训练阶段</td>
+<td>用什么目标和数据训练？</td>
+<td>预训练、SFT、偏好优化</td>
+</tr>
+<tr>
+<td>推理引擎</td>
+<td>如何高效运行已有模型？</td>
+<td>PyTorch、vLLM、KV Cache、批处理</td>
+</tr>
+<tr>
+<td>服务接口</td>
+<td>其他程序如何使用模型？</td>
+<td>HTTP、Chat Completions、流式响应</td>
+</tr>
+<tr>
+<td>应用</td>
+<td>如何将模型接入真实业务？</td>
+<td>FastAPI、RAG、Agent、业务数据库</td>
+</tr>
+</tbody></table>
+<p><strong>容易混淆的地方</strong>：“大模型服务”可能指部署的推理进程，也可能指上层 API 产品，而不是一个新的神经网络架构。</p>
+<hr />
+<h2 id="section-6">2. 从文本到神经网络：Token、向量、参数</h2>
+<p>Transformer 无法直接计算 Python 字符串。文本首先经过 Tokenizer 变成离散 Token ID：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">原始文本：   今天天气很好
+              │
+              ▼
+Tokenizer： [token_1, token_2, token_3, ...]
+              │
+              ▼
+Token ID：   [135, 912, 48, ...]     （数字仅为示意）
+              │
+              ▼
+Embedding：  每个 Token 对应一个连续向量</code></pre></div><h3 id="section-7">2.1 Embedding 与模型参数</h3>
+<p>如果词表大小为 (V)，隐藏维度为 (d_{model})，最基础的词嵌入表可以表示为：</p>
+<p>[
+E \in \mathbb{R}^{V\times d_{model}}
+]</p>
+<p>Token ID 作为索引取出向量。Embedding 的数值通常是训练得到的参数，而不是人为定义的“字典解释”。</p>
+<p>实际网络还有 Attention 投影矩阵、前馈网络参数、归一化参数等。因此，模型参数并不只是一张 Embedding 表。</p>
+<h3 id="section-8">2.2 参数、超参数与上下文的区别</h3>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>例子</th>
+<th>是否通常随一次 API 调用变化</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>模型参数</td>
+<td>权重矩阵、Embedding</td>
+<td>否</td>
+</tr>
+<tr>
+<td>架构超参数</td>
+<td>层数、隐藏维度、注意力头数</td>
+<td>否</td>
+</tr>
+<tr>
+<td>训练超参数</td>
+<td>学习率、Batch Size</td>
+<td>推理阶段一般不用</td>
+</tr>
+<tr>
+<td>推理超参数</td>
+<td>Temperature、max tokens</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>上下文</td>
+<td>系统消息、用户输入、检索资料</td>
+<td>可以</td>
+</tr>
+</tbody></table>
+<p>给模型发送一份文档，通常只是<strong>改变当前输入</strong>；不会自动修改模型权重。想要持久改变模型参数，需要明确的训练或微调过程。</p>
+<hr />
+<h2 id="section-9">3. Transformer 是什么</h2>
+<p>Transformer 是 2017 年 Vaswani 等人在《Attention Is All You Need》中提出的一类神经网络架构。其重要创新是在序列处理领域用基于注意力的结构替代了当时常见的递归序列处理主体，使训练中大量位置的计算可以并行进行。[R1]</p>
+<h3 id="section-10">3.1 原始架构：Encoder 与 Decoder</h3>
+<p>原论文主要面向机器翻译，采用编码器—解码器：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">输入语言 Token ──→ Encoder ─────────────┐
+                                      │ 编码结果
+目标语言前缀 ──→ Decoder ──────────────┤
+                                      ▼
+                              预测下一个目标 Token</code></pre></div><ul>
+<li><strong>Encoder</strong>：把输入序列变成上下文相关表示；</li>
+<li><strong>Decoder</strong>：利用已生成的目标序列与编码器输出，逐步产生目标 Token。</li>
+</ul>
+<p>今天的许多聊天型大语言模型是 <strong>Decoder-only Transformer</strong>，不一定含有原论文意义上的独立 Encoder。</p>
+<h3 id="section-11">3.2 Transformer Block</h3>
+<p>Transformer 通常堆叠许多重复的 Block，每个 Block 的核心包含：</p>
+<ol>
+<li>注意力子层（Attention）；</li>
+<li>前馈神经网络（Feed-Forward Network，FFN/MLP）；</li>
+<li>残差连接（Residual Connection）；</li>
+<li>归一化（LayerNorm 或 RMSNorm 等）；</li>
+<li>某种位置信息编码机制。</li>
+</ol>
+<p>不同模型的层顺序和具体实现可以变化。例如 Pre-Norm 与 Post-Norm 架构不同；因此不要把某一种图示误认为所有 Transformer 的固定代码。</p>
+<h3 id="section-12">3.3 为什么具有较强的序列建模能力</h3>
+<p>注意力层使某个 Token 的表示能根据其他相关 Token 的信息更新；多层叠加后，模型可以逐步形成更复杂的语法、语义和结构性表示。</p>
+<p>Transformer 的能力并不完全来源于注意力层：前馈网络、Embedding、训练数据、优化算法、规模、训练目标和推理方式同样重要。</p>
+<hr />
+<h2 id="section-13">4. Attention 的原理：Query、Key、Value</h2>
+<p>Attention 可理解为<strong>根据相关性分配权重，再聚合信息</strong>。</p>
+<p>它不等于“人类注意力”，也不保证注意力权重就是模型回答的因果解释。</p>
+<h3 id="section-14">4.1 Query、Key、Value 分别是什么</h3>
+<p>对当前序列表示 (X)，通过可学习的矩阵进行线性投影：</p>
+<p>[
+Q=XW_Q,\qquad K=XW_K,\qquad V=XW_V
+]</p>
+<ul>
+<li><strong>Query（查询）</strong>：当前计算位置用什么模式寻找信息；</li>
+<li><strong>Key（键）</strong>：候选信息用什么模式被匹配；</li>
+<li><strong>Value（值）</strong>：匹配后实际参与加权聚合的内容。</li>
+</ul>
+<p>这些都是向量，<strong>不是数据库里真正的字符串查询、字段名和字段值</strong>；这些名字只是帮助理解运算角色。</p>
+<h3 id="section-15">4.2 一个直觉例子</h3>
+<p>句子：</p>
+<blockquote>
+<p>“小猫追逐毛线，因为它在滚动。”</p>
+</blockquote>
+<p>模型在处理“它”时，可能需要综合前文的多个位置来建立对应关系。注意力可让某个位置对“毛线”等词分配不同权重，但单个注意力头的一次权重分布<strong>不能直接等价</strong>于模型最终认定的指代关系。</p>
+<h3 id="section-16">4.3 Attention 不只是查找语义最接近的词</h3>
+<p>实际注意力头可能学习不同的模式：位置依赖、标点关联、语法结构或其他模型内部特征。这些模式由训练数据和目标间接塑造，并非工程师为每个头显式指定。</p>
+<hr />
+<h2 id="section-17">5. Scaled Dot-Product Attention 的公式与计算</h2>
+<p>最经典的缩放点积注意力公式是：</p>
+<p>[
+\operatorname{Attention}(Q,K,V)
+=\operatorname{softmax}\left(\frac{QK^{\mathsf T}}{\sqrt{d_k}}+M\right)V
+]</p>
+<p>这里 (M) 是可选的注意力掩码：允许位置通常加 (0)，禁止关注的位置加足够大的负值，理想化写法为 (-\infty)。</p>
+<h3 id="section-18">5.1 分步理解</h3>
+<ol>
+<li><strong>计算相似度</strong>：(QK^{\mathsf T})。对 Query 和 Key 做点积，得到每个查询位置对候选位置的评分。</li>
+<li><strong>缩放</strong>：除以 (\sqrt{d_k})。减少维度增大带来的点积幅度问题，帮助 Softmax 保持合适的数值范围。</li>
+<li><strong>掩码</strong>：在不允许关注的位置添加屏蔽值，例如自回归模型不能访问未来 Token。</li>
+<li><strong>Softmax</strong>：把各候选位置的分数变成非负、和为 1 的权重。</li>
+<li><strong>聚合 Value</strong>：根据权重对 (V) 加权求和，得到新的表示。</li>
+</ol>
+<h3 id="section-19">5.2 维度示意</h3>
+<p>假设序列长度为 (n)：</p>
+<ul>
+<li>(Q\in\mathbb{R}^{n\times d_k})</li>
+<li>(K\in\mathbb{R}^{n\times d_k})</li>
+<li>(V\in\mathbb{R}^{n\times d_v})</li>
+<li>(QK^T\in\mathbb{R}^{n\times n})</li>
+<li>输出 (\in\mathbb{R}^{n\times d_v})</li>
+</ul>
+<p>实际实现通常还包含 Batch 和 Head 维度，例如 ([B,H,n,d_k])。</p>
+<h3 id="section-20">5.3 一个非常简单的数值例子</h3>
+<p>若某个 Query 对两个 Key 的缩放后分数是 ([1,0])，则 Softmax 权重约为：</p>
+<p>[
+\left[\frac{e}{e+1},\frac{1}{e+1}\right]\approx[0.731,0.269]
+]</p>
+<p>若两个 Value 分别是 (v_1,v_2)，输出就是约 (0.731v_1+0.269v_2)。</p>
+<p>这只是展示数学计算。真实模型的 Q/K/V 向量一般具有更高维度，且经过多层多头处理。</p>
+<hr />
+<h2 id="section-21">6. Self-Attention、Cross-Attention 与因果掩码</h2>
+<h3 id="section-22">6.1 Self-Attention</h3>
+<p>Q、K、V 由同一输入序列的表示计算而来，称为 Self-Attention（自注意力）。</p>
+<p>它让同一个序列内部的不同 Token 相互交换信息，但允许相互访问哪些位置，取决于注意力掩码。</p>
+<h3 id="section-23">6.2 Bidirectional Attention</h3>
+<p>双向 Attention 可同时利用当前 Token 左右两侧的信息，常见于 BERT 类 Encoder 模型。这适合句子表示、文本分类等任务。</p>
+<h3 id="section-24">6.3 Causal / Masked Self-Attention</h3>
+<p>在自回归文本生成中，预测位置 (t) 时不能看到未来位置 (t+1,t+2,\ldots)。</p>
+<p>对于一个长度为 4 的序列，因果掩码的可见关系可示意为：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">查询位置 \ 被访问的位置    1  2  3  4
+1                         ✓  ×  ×  ×
+2                         ✓  ✓  ×  ×
+3                         ✓  ✓  ✓  ×
+4                         ✓  ✓  ✓  ✓</code></pre></div><p>注意：训练时能够一次处理整段 Token 序列，并不意味着每个位置可以访问未来 Token；因果掩码正是用来防止“偷看答案”。</p>
+<h3 id="section-25">6.4 Cross-Attention</h3>
+<p>Cross-Attention 的 Q 与 K/V 可以来自不同序列或表示来源。例如在原始 Encoder–Decoder 架构中，Decoder 对 Encoder 输出执行交叉注意力。</p>
+<p>它不等于 RAG：RAG 是检索并组织外部资料的系统过程；Cross-Attention 是神经网络内部的特定运算。</p>
+<hr />
+<h2 id="section-26">7. 多头注意力、位置编码和 Transformer Block</h2>
+<h3 id="section-27">7.1 Multi-Head Attention（多头注意力）</h3>
+<p>将隐藏表示分别投影到多个子空间，各头独立计算注意力：</p>
+<p>[
+\text{head}_i=\operatorname{Attention}(QW_i^Q,KW_i^K,VW_i^V)
+]</p>
+<p>再拼接各头输出并线性变换：</p>
+<p>[
+\operatorname{MultiHead}(Q,K,V)=\operatorname{Concat}(\text{head}_1,\ldots,\text{head}_h)W^O
+]</p>
+<p>“多头”意味着可以并行学习不同的投影与聚合模式，不代表每个头都有固定、可命名的语义角色。</p>
+<p>现代推理模型还可能采用 MQA/GQA 等键值共享方案，以降低 KV Cache 等内存开销。它们仍然属于注意力机制的工程变体。</p>
+<h3 id="section-28">7.2 位置信息为什么必要</h3>
+<p>如果完全没有位置信息，纯 Self-Attention 计算本身无法可靠区分不同排列中 Token 的次序。</p>
+<p>常见方案包括：</p>
+<ul>
+<li>绝对位置编码（如原论文的正弦余弦编码）；</li>
+<li>可学习位置 Embedding；</li>
+<li>相对位置编码；</li>
+<li>Rotary Position Embedding（RoPE）等。</li>
+</ul>
+<p>位置信息通常通过输入表示或注意力运算进入模型，使模型能够利用顺序和相对位置信息。</p>
+<h3 id="section-29">7.3 FFN 的作用</h3>
+<p>注意力进行跨位置的信息混合；前馈网络进一步在每个位置的表示维度上执行非线性变换。</p>
+<p>一种典型形式是：</p>
+<p>[
+\operatorname{FFN}(x)=W_2\sigma(W_1x+b_1)+b_2
+]</p>
+<p>但现代模型可以使用 SwiGLU 等其他激活与门控变体。</p>
+<h3 id="section-30">7.4 残差与归一化</h3>
+<p>残差连接通常类似 (x+F(x))，使信息与梯度能沿相对直接的路径传播；归一化有助于训练数值稳定。具体顺序因架构而异。</p>
+<h3 id="section-31">7.5 计算复杂度与长上下文</h3>
+<p>标准全连接 Self-Attention 的注意力分数矩阵大小随序列长度 (n) 近似按 (O(n^2)) 增长。但不能据此直接断言所有现代实现都会显式存储完整的 (n\times n) 矩阵：FlashAttention、分块计算和稀疏注意力等会改变内存及具体计算实现。</p>
+<p>因此长上下文代价取决于架构、注意力实现、硬件、批处理方式和缓存机制。</p>
+<hr />
+<h2 id="section-32">8. Transformer 三类常见架构</h2>
+<table>
+<thead>
+<tr>
+<th>架构</th>
+<th>代表例子</th>
+<th>核心特点</th>
+<th>常见任务</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Encoder-only</td>
+<td>BERT 类</td>
+<td>通常双向理解输入</td>
+<td>分类、标注、特征抽取</td>
+</tr>
+<tr>
+<td>Decoder-only</td>
+<td>GPT、Llama 类</td>
+<td>因果自回归生成</td>
+<td>聊天、续写、代码生成</td>
+</tr>
+<tr>
+<td>Encoder–Decoder</td>
+<td>T5、BART 类</td>
+<td>编码输入，再解码输出</td>
+<td>翻译、摘要、序列到序列任务</td>
+</tr>
+</tbody></table>
+<p>这是教学层面的分类。实际模型可能混合专家网络、检索、多模态模块或特殊注意力结构，不能只凭名称断言内部全部细节。[R2]</p>
+<h3 id="section-33">8.1 常见误区：Decoder-only 不等于“只会输出、不会理解”</h3>
+<p>Decoder-only 模型在预测后续 Token 的过程中，也必须对输入建立有用的内部表示。因此它们同样可执行阅读理解、分类和信息抽取任务；只是训练目标和常见结构与 Encoder-only 模型不同。</p>
+<h3 id="section-34">8.2 多模态模型与 Transformer</h3>
+<p>图像、音频等输入可以通过视觉或音频编码器、投影器、离散 Token 或其他表示方式进入语言模型。不同多模态模型结构差异很大，不能假定它们都只是“把图片变成文字”。</p>
+<hr />
+<h2 id="section-35">9. 预训练：模型怎样从数据中学习</h2>
+<p>**Pretraining（预训练）**通常是利用大规模数据，通过自监督或其他训练目标学习通用参数的阶段。</p>
+<p>“自监督”不是没有学习目标，而是<strong>监督信号能够从数据自身构造</strong>，例如把下一个 Token 作为目标。</p>
+<h3 id="section-36">9.1 因果语言建模目标</h3>
+<p>对于 Token 序列 (x_1,\ldots,x_T)，自回归语言模型的典型目标是最大化：</p>
+<p>[
+P(x_1,\ldots,x_T)=\prod_{t=1}^{T}P_\theta(x_t\mid x_{&lt;t})
+]</p>
+<p>对应的训练损失常写成负对数似然：</p>
+<p>[
+\mathcal L(\theta)=-\sum_{t=1}^{T}\log P_\theta(x_t\mid x_{&lt;t})
+]</p>
+<p>例如训练序列：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">输入 Token：   [春, 天, 来, 了]
+预测目标：     [天, 来, 了, &lt;结束&gt;]</code></pre></div><p>真实训练通常会根据序列边界、Padding、损失掩码和模板决定哪些位置进入损失计算。</p>
+<h3 id="section-37">9.2 为什么叫“训练”</h3>
+<p>训练周期通常包括：</p>
+<ol>
+<li><strong>前向传播（Forward）</strong>：模型根据当前参数计算输出；</li>
+<li><strong>损失计算（Loss）</strong>：比较预测分布和训练目标；</li>
+<li><strong>反向传播（Backward）</strong>：计算损失对参数的梯度；</li>
+<li><strong>优化器更新（Optimizer Step）</strong>：依据梯度改变模型参数；</li>
+<li><strong>保存检查点（Checkpoint）</strong>：记录参数与必要的训练状态。</li>
+</ol>
+<p>[
+\theta_{t+1}=\theta_t-\eta\nabla_\theta\mathcal L(\theta_t)
+]</p>
+<p>这是简化的梯度下降公式；真实大模型通常使用 AdamW 等优化器，并可能使用混合精度、梯度累积、并行训练等技术。</p>
+<h3 id="section-38">9.3 预训练数据与模型能力</h3>
+<p>预训练能学习语言统计规律、代码模式、知识关联与一定的通用能力，但并不保证模型内部拥有一份可直接查询、始终正确的百科数据库。</p>
+<p>数据质量、来源与过滤、Tokenizer、训练目标、模型规模、优化稳定性等都会影响最终能力。</p>
+<h3 id="section-39">9.4 预训练、继续预训练与从头训练</h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>初始化参数</th>
+<th>目标</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>从头预训练</td>
+<td>通常从随机初始化开始</td>
+<td>获得基础能力</td>
+</tr>
+<tr>
+<td>继续预训练（Continued Pretraining）</td>
+<td>从已有基础模型权重开始</td>
+<td>吸收新领域或新分布的训练信号</td>
+</tr>
+<tr>
+<td>指令微调（SFT）</td>
+<td>从已有模型开始</td>
+<td>改善执行指令和指定响应格式的行为</td>
+</tr>
+</tbody></table>
+<p>继续预训练和指令微调都涉及梯度更新，但其训练数据组织方式与学习目标通常不同。</p>
+<hr />
+<h2 id="section-40">10. 指令微调 SFT 与偏好优化</h2>
+<p>基础语言模型擅长续写文本，不一定自然地以“完成用户任务”的方式响应。指令微调的目的，就是让模型更好地将输入解释为需要执行的任务。[R3]</p>
+<h3 id="section-41">10.1 SFT：Supervised Fine-Tuning</h3>
+<p>SFT 使用输入指令及其期望回答构成示例：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"messages"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-punctuation">{</span><span class="hljs-attr">"role"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"user"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"content"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"用一句话解释 HTTP 404"</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-punctuation">{</span><span class="hljs-attr">"role"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"assistant"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"content"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"HTTP 404 表示请求的目标资源未找到。"</span><span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>训练时一般仍可采用语言建模损失，但通常对期望 assistant 输出位置计算损失，具体取决于训练实现和掩码方案。</p>
+<p>SFT 可教会模型：</p>
+<ul>
+<li>怎样理解指令和聊天角色格式；</li>
+<li>怎样按照指定风格或结构回答；</li>
+<li>遇到信息不足时怎样表达不确定；</li>
+<li>怎样遵守工具调用格式或其他任务格式。</li>
+</ul>
+<p><strong>SFT 不是简单把一段 Prompt 保存在系统消息里。</strong> SFT 会在训练过程中更新参数；Prompt 只影响一次或一组推理请求的输入。</p>
+<h3 id="section-42">10.2 偏好优化：RLHF</h3>
+<p>经典 InstructGPT 路线包含：</p>
+<ol>
+<li>收集高质量示范，进行 SFT；</li>
+<li>对同一问题生成多个回答，收集人类偏好排序；</li>
+<li>根据偏好数据训练奖励模型；</li>
+<li>用强化学习方法（例如 PPO）进一步优化生成策略。[R3]</li>
+</ol>
+<p>它将“什么回答更受偏好”转化为训练信号；偏好可能涉及帮助性、准确性、安全性、风格等，但偏好数据不等于客观真理。</p>
+<h3 id="section-43">10.3 DPO 与其他方法</h3>
+<p>Direct Preference Optimization（DPO）是一种直接利用偏好对优化策略的训练方法，相比经典奖励模型 + PPO 流程，省去了单独训练奖励模型和强化学习采样循环中的部分复杂步骤。[R4]</p>
+<p>并不是所有模型都使用 RLHF，也并不是所有微调都叫 RLHF。SFT、DPO、RLAIF、蒸馏等可以是不同阶段或不同方案。</p>
+<h3 id="section-44">10.4 全参数微调与 LoRA</h3>
+<ul>
+<li><strong>全参数微调</strong>：更新模型中大量或全部可训练参数；</li>
+<li><strong>PEFT / LoRA</strong>：通常冻结基础权重，只训练少量额外参数或低秩更新参数，以降低显存和优化器状态开销。[R5]</li>
+</ul>
+<p>LoRA 训练也是微调，但不等于重做基础模型的预训练。</p>
+<h3 id="section-45">10.5 为什么微调不保证答案可信</h3>
+<p>微调可以改变输出分布、能力表现和行为偏好，但也可能引入错误模式、损害原能力或导致数据记忆与过拟合。结构化数据查询、实时事实核验和引用要求，仍需要系统层面的约束。</p>
+<hr />
+<h2 id="section-46">11. 训练、微调与推理的计算流程对比</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>从头训练／预训练</th>
+<th>微调</th>
+<th>推理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>参数来源</td>
+<td>随机初始化或训练起点</td>
+<td>已有模型</td>
+<td>已有模型</td>
+</tr>
+<tr>
+<td>输入来源</td>
+<td>训练数据</td>
+<td>专门设计的数据集</td>
+<td>当前请求与上下文</td>
+</tr>
+<tr>
+<td>Forward</td>
+<td>有</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>计算损失</td>
+<td>通常有</td>
+<td>通常有</td>
+<td>一般不需要</td>
+</tr>
+<tr>
+<td>Backward</td>
+<td>有</td>
+<td>有</td>
+<td>通常没有</td>
+</tr>
+<tr>
+<td>Optimizer Step</td>
+<td>有</td>
+<td>有</td>
+<td>没有</td>
+</tr>
+<tr>
+<td>参数更新</td>
+<td>有</td>
+<td>有</td>
+<td>通常没有</td>
+</tr>
+<tr>
+<td>输出</td>
+<td>检查点与评估指标</td>
+<td>更新的权重或 Adapter</td>
+<td>Token、向量或其他任务结果</td>
+</tr>
+</tbody></table>
+<h3 id="section-47">11.1 为什么训练资源消耗较大</h3>
+<p>训练除存放权重外，还可能需要存放激活、梯度、优化器状态及中间缓冲区。推理通常不需要反向传播保存的全部训练数据结构，但要考虑模型权重、KV Cache、Batch 和运行时缓存。</p>
+<h3 id="section-48">11.2 简化的模型权重显存估算</h3>
+<p>只考虑参数本身，若一个模型有 (N) 个参数，每参数使用 (b) 字节：</p>
+<p>[
+\text{参数存储字节数}\approx N\times b
+]</p>
+<p>例如 <strong>7B</strong> 参数模型，假设每个参数 2 字节，权重本身约为 <strong>14 GB（十进制）</strong>，约 <strong>13.0 GiB</strong>。</p>
+<p>这<strong>不是</strong>整机实际显存需求：额外还需要 KV Cache、激活、临时缓冲、算子工作区及其他开销；量化、CPU Offload、张量并行等又可能改变内存分布。</p>
+<h3 id="section-49">11.3 推理不等于“计算量很小”</h3>
+<p>推理无需训练阶段的反向传播，但生成长文本时，模型需要逐 Token 解码，对延迟、吞吐、显存和并发管理仍有显著要求。</p>
+<hr />
+<h2 id="section-50">12. 推理服务内部怎样运行模型</h2>
+<p>推理部署的核心是让已有权重在指定设备上可以稳定、快速、受控地处理请求。</p>
+<h3 id="section-51">12.1 推理的一次典型流程</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">用户文本
+  │
+  ▼
+接口解析与聊天模板格式化
+  │
+  ▼
+Tokenizer → Token IDs
+  │
+  ▼
+载入模型权重的推理引擎
+  │
+  ├─ Prefill：处理输入上下文
+  │
+  └─ Decode：逐个生成新 Token
+  │
+  ▼
+停止条件：EOS / 长度上限 / 指定停止序列
+  │
+  ▼
+Detokenize，返回文本／流式事件与用量</code></pre></div><h3 id="section-52">12.2 Prefill 与 Decode</h3>
+<ul>
+<li><strong>Prefill</strong>：处理输入 Prompt，计算后续生成需要的内部表示与缓存；</li>
+<li><strong>Decode</strong>：利用已有上下文和缓存逐步预测后续 Token。</li>
+</ul>
+<p>二者的性能特征不同。Prefill 通常能更好地利用输入位置的批量计算；Decode 在逐 Token 生成时需要重复执行较多算子，且受到缓存访问与批处理行为影响。</p>
+<h3 id="section-53">12.3 KV Cache</h3>
+<p>自回归模型在生成下一 Token 时需要参考已有 Token。KV Cache 保留过去位置的 Key 和 Value 等中间结果，避免对全部历史反复重新投影和计算。它改善生成性能，但会占用内存，并可能成为长上下文和高并发服务的主要资源之一。[R6]</p>
+<p>KV Cache 是<strong>推理时的临时计算缓存</strong>，不是用户长期记忆，也不是训练得到的模型权重。</p>
+<h3 id="section-54">12.4 Batch 与并发</h3>
+<p>推理引擎可以同时处理多个请求，并通过批处理提高硬件利用率。像 vLLM 这样的服务框架提供模型加载、推理请求调度以及 OpenAI 风格的 HTTP 接口。[R7]</p>
+<p>但推理引擎的并发能力，不代表上层 API 没有限额、没有排队、没有超时，或者可以无限并发。</p>
+<h3 id="section-55">12.5 模型权重文件与推理程序不是一回事</h3>
+<p>权重文件只是数据；还需要：</p>
+<ul>
+<li>兼容的模型网络实现与配置；</li>
+<li>对应 Tokenizer 和聊天模板；</li>
+<li>可运行的框架及相关依赖；</li>
+<li>合适的 CPU/GPU/加速器资源；</li>
+<li>权限、网络和推理服务配置。</li>
+</ul>
+<p>一个模型的权重能下载，不代表所有推理引擎都能直接加载，也不代表有权把它公开商用部署。应检查模型许可证、格式、架构和推理引擎支持情况。</p>
+<hr />
+<h2 id="section-56">13. 模型 API 究竟提供了什么</h2>
+<p><strong>API（Application Programming Interface）是软件接口，不是模型训练技术。</strong></p>
+<p>开发者可以调用云端 API，也可以在本地推理服务器上调用兼容的 HTTP API。接口形式近似，不表示底层模型、数据处理政策或能力相同。</p>
+<h3 id="section-57">13.1 逻辑链路</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">你的 Python / JavaScript 程序
+          │
+          │  HTTP 请求（模型、消息、参数）
+          ▼
+API 网关（身份认证、限额、记录、路由）
+          │
+          ▼
+推理服务（权重 + 模型运行时 + GPU/CPU）
+          │
+          ▼
+输出与元数据（文本、工具请求、Token 用量等）</code></pre></div><p>某些 API 会在网关后加入缓存、工具、内容策略、路由等服务；图中只表示常见的逻辑层次，不能推断任何特定厂商的内部实现。</p>
+<h3 id="section-58">13.2 API 请求携带什么</h3>
+<p>典型输入包括：</p>
+<ul>
+<li>model：请求的模型标识；</li>
+<li>messages 或 input：用户内容、指令与历史；</li>
+<li>generation settings：温度、输出长度等（支持范围因接口而异）；</li>
+<li>tools：允许模型提出的工具调用定义（如接口支持）；</li>
+<li>stream：是否分块返回数据。</li>
+</ul>
+<p>典型输出可能包括：</p>
+<ul>
+<li>文本或结构化内容；</li>
+<li>工具调用意图；</li>
+<li>结束原因；</li>
+<li>Token 用量；</li>
+<li>服务错误、限制或拒绝信息。</li>
+</ul>
+<h3 id="section-59">13.3 给 API 发送文本，模型会马上学会吗？</h3>
+<p><strong>通常不会。</strong> 一次普通推理 API 请求并不执行训练参数更新。此请求能通过上下文影响当前回答，但不因此永久进入模型权重。</p>
+<p>服务提供商可能另有日志保留或数据使用政策，这与“当前调用是否发生训练”是两个问题，需查阅具体服务条款和控制设置。不能概括为“所有 API 请求都会训练模型”，也不能概括为“任何提供商都绝不使用数据训练”。</p>
+<h3 id="section-60">13.4 SDK 与 HTTP API 的关系</h3>
+<p>SDK（例如 Python 客户端）通常是对 HTTP 请求格式、重试和响应解析等操作的封装，不代表开发者本地拥有或运行模型。</p>
+<p>例如一个 SDK 调用：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 演示接口形态：需要真实兼容的服务地址、密钥和模型 ID。</span>
+<span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">import</span> httpx
+
+base_url = os.environ[<span class="hljs-string">"MODEL_API_BASE_URL"</span>].rstrip(<span class="hljs-string">"/"</span>)
+api_key = os.environ[<span class="hljs-string">"MODEL_API_KEY"</span>]
+model = os.environ[<span class="hljs-string">"MODEL_ID"</span>]
+
+payload = {
+    <span class="hljs-string">"model"</span>: model,
+    <span class="hljs-string">"messages"</span>: [{<span class="hljs-string">"role"</span>: <span class="hljs-string">"user"</span>, <span class="hljs-string">"content"</span>: <span class="hljs-string">"解释 Transformer"</span>}],
+    <span class="hljs-string">"stream"</span>: <span class="hljs-literal">False</span>,
+}
+
+<span class="hljs-keyword">with</span> httpx.Client(timeout=<span class="hljs-number">30.0</span>) <span class="hljs-keyword">as</span> client:
+    response = client.post(
+        <span class="hljs-string">f"<span class="hljs-subst">{base_url}</span>/chat/completions"</span>,
+        headers={<span class="hljs-string">"Authorization"</span>: <span class="hljs-string">f"Bearer <span class="hljs-subst">{api_key}</span>"</span>},
+        json=payload,
+    )
+    response.raise_for_status()
+    <span class="hljs-built_in">print</span>(response.json())</code></pre></div><p>这段示例假设环境变量指向一个<strong>兼容 Chat Completions 接口</strong>的服务器，实际地址和字段需以提供商文档为准。它不是模型训练代码，也不是本地推理代码。</p>
+<hr />
+<h2 id="section-61">14. 三种工程模式的资源、权限与职责边界</h2>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>训练或微调模型</th>
+<th>自己部署推理模型</th>
+<th>调用第三方模型 API</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>是否需要模型权重</td>
+<td>通常需要</td>
+<td>需要（或由服务部署方提供）</td>
+<td>通常不需要</td>
+</tr>
+<tr>
+<td>是否需要训练数据</td>
+<td>需要</td>
+<td>不需要</td>
+<td>不需要</td>
+</tr>
+<tr>
+<td>是否执行 Backward</td>
+<td>是</td>
+<td>通常否</td>
+<td>调用方否</td>
+</tr>
+<tr>
+<td>是否需要计算资源</td>
+<td>需要训练计算</td>
+<td>需要推理计算</td>
+<td>调用方只需网络与业务计算</td>
+</tr>
+<tr>
+<td>参数能否被修改</td>
+<td>是</td>
+<td>常规推理不修改</td>
+<td>通常不能通过普通调用修改</td>
+</tr>
+<tr>
+<td>应用开发工作</td>
+<td>数据处理、训练、评估</td>
+<td>服务配置、性能、运维、安全</td>
+<td>API 集成、Prompt、业务、测试</td>
+</tr>
+<tr>
+<td>模型更新方式</td>
+<td>重新训练或微调</td>
+<td>替换／加载新权重</td>
+<td>选择供应商提供的模型版本</td>
+</tr>
+<tr>
+<td>常见成本</td>
+<td>数据、算力、人才和训练时间</td>
+<td>设备／云 GPU、维护与容量</td>
+<td>按用量或合同计费</td>
+</tr>
+</tbody></table>
+<h3 id="section-62">14.1 三种典型角色</h3>
+<p><strong>模型训练工程师</strong>：设计训练数据与目标，运行梯度更新，评估质量，保存可复现检查点。</p>
+<p><strong>推理平台／部署工程师</strong>：选择运行引擎、硬件与量化方案，配置批处理、KV Cache、监控、认证和伸缩。</p>
+<p><strong>AI 应用开发工程师</strong>：对接模型服务，设计 Prompt、数据、工具、RAG、鉴权、业务约束、日志和故障处理。</p>
+<p>这三种角色的工作可能由同一人完成，但它们在概念和技术职责上始终不同。</p>
+<h3 id="section-63">14.2 一个完整案例：游戏规则 AI 助手</h3>
+<p>假设要开发能回答游戏技能问题的助手：</p>
+<ul>
+<li><strong>只调用 API</strong>：发送问题和检索到的规则资料，让云端模型回答。</li>
+<li><strong>自部署推理</strong>：下载许可允许的模型权重，运行 vLLM 等服务，应用通过内网 API 调用。</li>
+<li><strong>微调</strong>：用合法获取、质量可控的指令—回答训练样例调整模型参数，使其更符合特定任务；通常仍需要检索新版本规则。</li>
+<li><strong>预训练新模型</strong>：从大规模数据中建立基础模型能力，工程与计算成本通常远高于前几种选择。</li>
+</ul>
+<p>对同一产品，这些方式并不互斥。可先调用 API，后来换成本地推理；是否微调则应由成本、质量和评测结果决定。</p>
+<hr />
+<h2 id="section-64">15. 知识验证代码：注意力计算和参数更新</h2>
+<p>以下示例用于验证概念，不要求联网，也不需要下载大模型权重。使用 PyTorch 演示数学机制；这<strong>不是完整 Transformer 训练或商业大模型</strong>。</p>
+<h3 id="section-65">15.1 验证缩放点积注意力及因果掩码</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> math
+<span class="hljs-keyword">import</span> torch
+
+<span class="hljs-comment"># Q、K、V：形状均为 [seq_len=3, d=2]</span>
+q = torch.tensor([[<span class="hljs-number">1.0</span>, <span class="hljs-number">0.0</span>], [<span class="hljs-number">0.0</span>, <span class="hljs-number">1.0</span>], [<span class="hljs-number">1.0</span>, <span class="hljs-number">1.0</span>]])
+k = torch.tensor([[<span class="hljs-number">1.0</span>, <span class="hljs-number">0.0</span>], [<span class="hljs-number">0.0</span>, <span class="hljs-number">1.0</span>], [<span class="hljs-number">1.0</span>, <span class="hljs-number">1.0</span>]])
+v = torch.tensor([[<span class="hljs-number">10.0</span>, <span class="hljs-number">0.0</span>], [<span class="hljs-number">0.0</span>, <span class="hljs-number">20.0</span>], [<span class="hljs-number">30.0</span>, <span class="hljs-number">30.0</span>]])
+
+scores = q @ k.T / math.sqrt(q.shape[-<span class="hljs-number">1</span>])
+<span class="hljs-comment"># True 表示禁止访问未来位置</span>
+mask = torch.triu(torch.ones(<span class="hljs-number">3</span>, <span class="hljs-number">3</span>, dtype=torch.<span class="hljs-built_in">bool</span>), diagonal=<span class="hljs-number">1</span>)
+scores = scores.masked_fill(mask, <span class="hljs-built_in">float</span>(<span class="hljs-string">"-inf"</span>))
+
+weights = torch.softmax(scores, dim=-<span class="hljs-number">1</span>)
+result = weights @ v
+
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"weights shape:"</span>, <span class="hljs-built_in">tuple</span>(weights.shape))
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"result shape:"</span>, <span class="hljs-built_in">tuple</span>(result.shape))
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"weights:\n"</span>, weights)
+<span class="hljs-keyword">assert</span> weights.shape == (<span class="hljs-number">3</span>, <span class="hljs-number">3</span>)
+<span class="hljs-keyword">assert</span> result.shape == (<span class="hljs-number">3</span>, <span class="hljs-number">2</span>)
+<span class="hljs-keyword">assert</span> torch.allclose(weights.<span class="hljs-built_in">sum</span>(dim=-<span class="hljs-number">1</span>), torch.ones(<span class="hljs-number">3</span>))
+<span class="hljs-keyword">assert</span> weights[<span class="hljs-number">0</span>, <span class="hljs-number">1</span>].item() == <span class="hljs-number">0.0</span>
+<span class="hljs-keyword">assert</span> weights[<span class="hljs-number">0</span>, <span class="hljs-number">2</span>].item() == <span class="hljs-number">0.0</span></code></pre></div><p>知识点：</p>
+<ul>
+<li>(QK^T) 计算各位置的匹配得分；</li>
+<li>掩码禁止访问未来位置；</li>
+<li>Softmax 使每行权重之和为 1；</li>
+<li>输出是 Value 的加权聚合。</li>
+</ul>
+<h3 id="section-66">15.2 验证训练确实改变参数，而推理不会自动改变参数</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> torch
+<span class="hljs-keyword">from</span> torch <span class="hljs-keyword">import</span> nn
+
+<span class="hljs-comment"># 一个极小的线性网络，用于展示训练和推理的区别；不是 Transformer。</span>
+torch.manual_seed(<span class="hljs-number">7</span>)
+model = nn.Linear(<span class="hljs-number">2</span>, <span class="hljs-number">1</span>)
+optimizer = torch.optim.SGD(model.parameters(), lr=<span class="hljs-number">0.1</span>)
+x = torch.tensor([[<span class="hljs-number">1.0</span>, <span class="hljs-number">2.0</span>]])
+y = torch.tensor([[<span class="hljs-number">1.0</span>]])
+
+before = model.weight.detach().clone()
+model.train()
+optimizer.zero_grad()
+loss = (model(x) - y).<span class="hljs-built_in">pow</span>(<span class="hljs-number">2</span>).mean()
+loss.backward()
+optimizer.step()
+after_training = model.weight.detach().clone()
+
+<span class="hljs-keyword">assert</span> <span class="hljs-keyword">not</span> torch.allclose(before, after_training)
+
+model.<span class="hljs-built_in">eval</span>()
+<span class="hljs-keyword">with</span> torch.inference_mode():
+    output = model(x)
+
+after_inference = model.weight.detach().clone()
+<span class="hljs-keyword">assert</span> torch.equal(after_training, after_inference)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"训练前后权重发生变化："</span>, <span class="hljs-keyword">not</span> torch.equal(before, after_training))
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"推理前后权重保持一致："</span>, torch.equal(after_training, after_inference))
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"推理输出："</span>, output.item())</code></pre></div><p>该示例说明：执行 <code>loss.backward()</code> 和 <code>optimizer.step()</code> 的训练路径能够改变参数；<code>torch.inference_mode()</code> 下只做前向计算，不记录反向传播所需的计算图。[R8]</p>
+<p>注意：<code>model.eval()</code> 主要改变 Dropout、BatchNorm 等模块的训练／评估行为；<strong>它本身不等价于禁用梯度计算</strong>。真正禁用梯度记录的是 <code>torch.no_grad()</code> 或 <code>torch.inference_mode()</code> 等机制。</p>
+<hr />
+<h2 id="section-67">16. 常见误解与关键边界</h2>
+<h3 id="section-68">误解 1：“Transformer 就是 Attention”</h3>
+<p>不准确。Attention 是 Transformer 的核心机制之一，完整 Transformer 还包含多层投影、前馈网络、残差、归一化与位置处理等。</p>
+<h3 id="section-69">误解 2：“Attention 权重最高的词就是模型认为的答案”</h3>
+<p>不准确。一次注意力矩阵是某层某头某位置上的中间计算，不能直接当作模型决策的唯一解释或事实证据。</p>
+<h3 id="section-70">误解 3：“模型参数越多就一定越准确”</h3>
+<p>不准确。模型表现还受到架构、训练数据、优化方式、推理预算与评测任务等因素影响。</p>
+<h3 id="section-71">误解 4：“自回归训练只能串行训练”</h3>
+<p>不准确。训练时可一次输入整个序列，通过因果掩码并行计算多个位置的损失。推理生成通常仍依赖已生成的前缀逐步解码。</p>
+<h3 id="section-72">误解 5：“预训练就是给每条数据人工标正确答案”</h3>
+<p>不准确。自监督语言建模可从原始文本自动构造目标；SFT 才更常见人工整理指令与示范答案。</p>
+<h3 id="section-73">误解 6：“指令微调会让模型知道所有新事实”</h3>
+<p>不准确。微调侧重改变模型分布和任务行为，不保证覆盖所有事实、确保实时性或提供准确来源。</p>
+<h3 id="section-74">误解 7：“调用 API 等于运行了模型”</h3>
+<p>需要区分主体：通过 API 调用会<strong>触发服务端推理</strong>，但调用者自己的程序通常没有加载模型权重，也没有在本机执行神经网络前向计算。</p>
+<h3 id="section-75">误解 8：“部署模型就是训练模型”</h3>
+<p>不准确。部署模型通常加载现有权重并执行推理，不进行梯度更新。</p>
+<h3 id="section-76">误解 9：“模型运行时的 KV Cache 就是长期记忆”</h3>
+<p>不准确。KV Cache 是当前推理过程中的临时中间状态，与持久化的用户记忆数据库不是同一种机制。</p>
+<h3 id="section-77">误解 10：“每次向模型发送新 Prompt，模型都会永久记住”</h3>
+<p>不准确。Prompt 改变的是当前上下文。除非明确存在独立的记忆、存储或训练流程，否则不能等同于模型参数的持久更新。</p>
+<h3 id="section-78">误解 11：“有 API Key 就说明可以访问所有模型和所有参数”</h3>
+<p>不准确。模型访问、端点、速率、可用工具和返回字段由具体服务及账号权限决定；API 密钥只是认证机制的一部分。</p>
+<h3 id="section-79">误解 12：“开源推理引擎意味着任何权重都能随意商用”</h3>
+<p>不准确。推理引擎软件许可、模型权重许可、训练数据许可、输出使用条款是不同问题，应分别确认。</p>
+<hr />
+<h2 id="section-80">17. 知识关联：为什么这些概念重要</h2>
+<p>把这几个概念连在一起，可以解释真实 AI 应用中的许多现象。</p>
+<h3 id="section-81">17.1 为什么一个模型能自然回答，却偶尔编造事实</h3>
+<p>预训练和指令微调塑造了输出分布，模型根据上下文生成高概率序列。但语言生成目标与事实验证不是同一个目标，因此流畅的文本并不自动构成可信证据。</p>
+<h3 id="section-82">17.2 为什么同一个模型换 Prompt，效果会变化</h3>
+<p>推理时输入 (x) 改变了，即使模型参数 (\theta) 没变，条件概率 (P_\theta(y\mid x)) 也会变化。</p>
+<h3 id="section-83">17.3 为什么微调与 RAG 不是替代关系</h3>
+<p>微调改变参数的行为分布；RAG 将外部资料在当前推理时组织为上下文。需要经常更新的版本规则更容易通过知识库维护，稳定的输出格式和特定任务风格则可能适合微调。</p>
+<h3 id="section-84">17.4 为什么模型推理 API 会出现排队、吞吐和显存问题</h3>
+<p>推理服务需要承载权重与缓存，并对同时请求执行 Prefill 和 Decode。大输入与长输出对算力、内存和处理时间的压力不同；API 层通常需要队列、限流、超时与配额。</p>
+<h3 id="section-85">17.5 为什么调用同一个 API 地址不保证模型永远相同</h3>
+<p>服务可能提供不同模型 ID 或版本，路由与部署策略也可能变化。因此结果评测应记录明确的模型标识、Prompt 版本、参数和调用时的可观察信息，不能仅凭 API 域名判断模型相同。</p>
+<h3 id="section-86">17.6 从用户指令到输出的一条完整链路</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">用户指令
+   │
+   ▼
+应用组装上下文和工具定义
+   │
+   ▼
+HTTP API 请求
+   │
+   ▼
+推理服务进行 Tokenizer / Chat Template 处理
+   │
+   ▼
+加载已有参数的 Transformer 前向计算
+   │
+   ▼
+Attention、FFN 等层计算下一 Token 分布
+   │
+   ▼
+采样或选择 Token，重复生成
+   │
+   ▼
+服务返回响应
+   │
+   ▼
+应用验证、保存、展示结果</code></pre></div><p>这条链路中，<strong>普通的模型 API 调用没有发生训练参数更新</strong>。若确实要改变模型权重，需要另行组织训练或微调数据、优化器、损失计算和检查点发布。</p>
+<hr />
+<h2 id="section-87">18. 参考资料</h2>
+<p>以下资料主要包含原始论文及公开的技术文档。它们提供概念和实现背景，具体 SDK 参数与版本应以实际环境为准。</p>
+<ul>
+<li><strong>[R1]</strong> Vaswani et al., <em>Attention Is All You Need</em>（2017）：<a href="https://arxiv.org/abs/1706.03762">https://arxiv.org/abs/1706.03762</a></li>
+<li><strong>[R2]</strong> Hugging Face, <em>How do Transformers work?</em>：<a href="https://huggingface.co/docs/course/chapter1/4">https://huggingface.co/docs/course/chapter1/4</a></li>
+<li><strong>[R3]</strong> Ouyang et al., <em>Training language models to follow instructions with human feedback</em>（2022）：<a href="https://proceedings.neurips.cc/paper/2022/hash/b1efde53be364a73914f58805a001731-Abstract-Conference.html">https://proceedings.neurips.cc/paper/2022/hash/b1efde53be364a73914f58805a001731-Abstract-Conference.html</a></li>
+<li><strong>[R4]</strong> Rafailov et al., <em>Direct Preference Optimization: Your Language Model is Secretly a Reward Model</em>（2023）：<a href="https://proceedings.neurips.cc/paper_files/paper/2023/hash/a85b405ed65c6477a4fe8302b5e06ce7-Abstract-Conference.html">https://proceedings.neurips.cc/paper_files/paper/2023/hash/a85b405ed65c6477a4fe8302b5e06ce7-Abstract-Conference.html</a></li>
+<li><strong>[R5]</strong> Hugging Face Transformers, <em>Parameter-efficient fine-tuning</em>：<a href="https://huggingface.co/docs/transformers/peft">https://huggingface.co/docs/transformers/peft</a></li>
+<li><strong>[R6]</strong> Hugging Face Transformers, <em>Cache strategies</em>：<a href="https://huggingface.co/docs/transformers/en/kv_cache">https://huggingface.co/docs/transformers/en/kv_cache</a></li>
+<li><strong>[R7]</strong> vLLM, <em>OpenAI-Compatible Server</em>：<a href="https://docs.vllm.ai/en/latest/serving/openai_compatible_server/">https://docs.vllm.ai/en/latest/serving/openai_compatible_server/</a></li>
+<li><strong>[R8]</strong> PyTorch, <em>Autograd mechanics / Inference Mode</em>：<a href="https://docs.pytorch.org/docs/stable/notes/autograd">https://docs.pytorch.org/docs/stable/notes/autograd</a></li>
+<li><strong>[R9]</strong> Hugging Face, <em>Causal language modeling</em>：<a href="https://huggingface.co/docs/transformers/tasks/language_modeling">https://huggingface.co/docs/transformers/tasks/language_modeling</a></li>
+</ul>
+<hr />
+<blockquote>
+<p><strong>章节边界</strong>：本节只对应“概念上了解 Transformer、Attention、预训练和指令微调，分清训练模型、运行模型与调用模型 API 的区别”。模型调用的完整 HTTP 请求／响应、流式事件、Pydantic 校验及实际业务服务的实现细节，属于后续独立章节。</p>
+</blockquote>

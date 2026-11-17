@@ -1,0 +1,45 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>进度同步-20261117-v202.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/bookshelf/index.html#group/7">← 08 文档导航QA</a><article class="article"><h1>进度同步 · 2.0.2 本地内测</h1>
+<p>2026-11-17。当前源码与15180内测进入2.0.2；本轮未推送GitHub或发布公网v2前端。</p>
+<table>
+<thead>
+<tr>
+<th>工作</th>
+<th>状态与证据</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>简单卡牌响应优化</td>
+<td>已实现、已真实API复测。闪/杀/桃直接查固定资料，保留来源、工具审计和零费用账本；完整问句仍用Agno</td>
+</tr>
+<tr>
+<td>BGE预热和等待反馈</td>
+<td>已实现。主库API健康信息可查预热状态；刚启动未ready时完整问句仍会等，冷启动结果保留</td>
+</tr>
+<tr>
+<td>性能固定样例</td>
+<td>同组4条执行前/重启后/预热后三轮，共12条；引用文件哈希和行号检查0错误，完整问句的引用冗余仍待改进</td>
+</tr>
+<tr>
+<td>自动化</td>
+<td>后端243项、前端50项及前端门禁/生产构建通过；未新增当前版本32条完整真实回归或一小时Worker窗口</td>
+</tr>
+<tr>
+<td>六段测试与修复要求</td>
+<td>已分别写入<a href="/bookshelf/index.html#read/8-05">六份记录及索引</a></td>
+</tr>
+<tr>
+<td>真人试用</td>
+<td>用户本人多轮使用、反馈、修改与复测已完成；当前导航、README和试用记录纠正旧口径，历史原文保留日期说明</td>
+</tr>
+<tr>
+<td>书架缺失知识文档</td>
+<td>已补《从使用者角度验证交互》，49目标/49正文/0缺项；原云端服务未发布更新</td>
+</tr>
+<tr>
+<td>08文档导航QA</td>
+<td>本地书架副本新增11份导航/测试记录，放在工作区后台任务下面；只读、不连接D1、不含管理密钥</td>
+</tr>
+</tbody></table>
+<p>详细结果见<a href="/bookshelf/review-files/docs/2.0.2-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E4%B8%8E%E8%80%83%E6%A0%B8%E4%B9%A6%E6%9E%B6-20261117.md.html">2.0.2报告</a>。正式考核验收由验收人确认；QQ仍移出运行范围。旧版本提到“没有真人反馈”的结论已由本次真实用户使用记录纠正，不删除历史测试失败或伪造同事/朋友参与。</p>
+<p>实际网页核对已完成：1085px与390px视口、08阅读、7-07知识文档、真实等待秒数、生成时编辑及一次提交均有<a href="/bookshelf/review-files/docs/evidence/v202-browser-review-20261117.json">记录</a>。未将跨工具轮次恢复为桌面的读数冒充窄屏证据。</p>
+</article></body></html>

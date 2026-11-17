@@ -1,0 +1,1044 @@
+<h1 id="section-1">消息队列与后台任务可靠性（六）：重试次数、退避、最终失败与失败消息留存</h1>
+<blockquote>
+<p>对应学习目标：<strong>重试次数、退避、最终失败与失败消息留存，避免一条坏消息永远堵住正常任务。</strong></p>
+<p>文档类型：独立技术知识手册。适用场景：Kafka + Python/aiokafka + PostgreSQL + 独立 Worker，尤其是文档导入、Embedding、批量模型调用和其他耗时后台任务。</p>
+<p>修订日期：2026-11-12。文中演示参数均为教学示例，不是通用生产默认值。</p>
+</blockquote>
+<h2 id="section-2">1. 本节需要回答的根本问题</h2>
+<p>Kafka 把消息交给 Consumer，并不会保证业务处理必然成功。常见故障包括模型提供商暂时限流、数据库连接短时断开、文档格式永久错误、业务规则冲突、Worker 崩溃，以及依赖方已经执行但调用方只收到超时。</p>
+<p>一个可靠系统需要同时满足六个条件：</p>
+<ol>
+<li><strong>可判断</strong>：区分暂时故障与永久故障，不能把所有异常都无限重试。</li>
+<li><strong>有上限</strong>：尝试次数、总耗时、并发数、成本都存在明确边界。</li>
+<li><strong>能恢复</strong>：需要重试的任务及下次可执行时间持久保存，进程重启仍能继续。</li>
+<li><strong>不重复业务结果</strong>：依靠幂等键、唯一约束与事务，而不是期望 Kafka 只投递一次。</li>
+<li><strong>最终可追查</strong>：耗尽重试后将失败原因、原始消息定位信息和必要的原文保存，支持检查和受控重新处理。</li>
+<li><strong>不堵塞无关任务</strong>：对可以独立处理的消息，坏消息不应无限占用同一条消费路径；若业务要求严格顺序，则必须明确顺序与吞吐量的权衡。</li>
+</ol>
+<p>可概括为：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">                 Kafka Topic
+                      │
+               持久化接收 / Inbox
+                      │
+                 ┌────┴────┐
+                 │任务 Worker│
+                 └────┬────┘
+                      │
+              执行与错误分类
+             ┌────────┼──────────┐
+          成功       暂时失败      永久失败
+           │           │             │
+        SUCCEEDED   有界退避       FAILED
+                       │             │
+                   RETRY_WAIT    失败档案 / DLQ
+                       │             │
+                   到期再试     人工检查/修复/重放</code></pre></div><p>此图刻意分开 <strong>Kafka 消费</strong> 与 <strong>业务任务执行</strong>。这是解决长时重试阻塞的一种设计，而非 Kafka 所有系统的唯一实现。</p>
+<h2 id="section-3">2. Kafka 的失败与重试不自动等价</h2>
+<p>需要区分三个层次：</p>
+<table>
+<thead>
+<tr>
+<th>层次</th>
+<th>示例</th>
+<th>谁负责</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Kafka 客户端网络重试</td>
+<td>Producer 向 Broker 发送请求暂时失败</td>
+<td>Kafka 客户端 SDK 的内置机制</td>
+</tr>
+<tr>
+<td>Consumer 业务重试</td>
+<td>Worker 调用模型失败，决定稍后再次处理</td>
+<td>应用程序、框架或任务调度器</td>
+</tr>
+<tr>
+<td>故障恢复重投</td>
+<td>业务成功但 Offset 未提交，重启后再次读取</td>
+<td>Kafka 交付机制 + 应用业务幂等</td>
+</tr>
+</tbody></table>
+<p><code>aiokafka</code> 的 <code>retry_backoff_ms</code> 是客户端重试相关配置，<strong>不等于</strong>给你的“模型失败任务”自动创建业务重试队列。普通 <code>AIOKafkaConsumer</code> 不会凭空给每条业务消息建立 DLQ、最大尝试次数或最终失败档案。</p>
+<p>Kafka Connect 某些连接器内置错误容忍和 DLQ 选项，但这是 <strong>Kafka Connect</strong> 的能力，不能直接当作所有自写 Python Consumer 自动拥有的能力。</p>
+<h3 id="section-4">2.1 什么是 Poison Pill（毒丸消息）</h3>
+<p>指在当前处理逻辑下持续失败、可能让同一消费位置无法推进的消息。常见情况：</p>
+<ul>
+<li>JSON 无法解析，结构不符合约定。</li>
+<li>当前版本不支持对应文档类型。</li>
+<li>外键指向不存在且不会创建的资源。</li>
+<li>必填字段永久缺失。</li>
+<li>某条消息触发确定性代码缺陷。</li>
+</ul>
+<p>并非所有失败消息都是毒丸。比如模型服务返回临时 <code>503</code>，一般应视为暂时性故障，而非立刻永久失败。</p>
+<p><strong>解析器异常可能发生在业务函数调用之前。</strong> 因此对原始 Kafka <code>value: bytes</code> 的留存很重要，不能先强制 JSON 解码，解码失败就使消费者永远无法获得可归档的原始数据。</p>
+<h2 id="section-5">3. 首先分类错误，才能制定重试策略</h2>
+<p>重试的依据是“再次执行是否可能成功”，不是仅凭是否抛出了 Python 异常。</p>
+<table>
+<thead>
+<tr>
+<th>错误示例</th>
+<th>初步分类</th>
+<th>推荐处理</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>上游 HTTP 503、临时连接中断</td>
+<td>短暂错误</td>
+<td>有界重试 + 退避</td>
+<td>检查接口幂等语义</td>
+</tr>
+<tr>
+<td>HTTP 429 / 提供商限流</td>
+<td>暂时限流</td>
+<td>尊重 <code>Retry-After</code>，限速/退避</td>
+<td>必须同时控制全局并发</td>
+</tr>
+<tr>
+<td>数据库短暂连接失败</td>
+<td>短暂错误</td>
+<td>关闭失效连接并有限重试事务</td>
+<td>需判断提交是否实际成功</td>
+</tr>
+<tr>
+<td>输入缺少必需字段</td>
+<td>永久输入错误</td>
+<td>直接 FAILED / 归档</td>
+<td>不宜无限重试</td>
+</tr>
+<tr>
+<td>无权读取某资源（403）</td>
+<td>永久授权错误</td>
+<td>拒绝/归档/告警</td>
+<td>不能通过重试绕过授权</td>
+</tr>
+<tr>
+<td>文档格式不支持</td>
+<td>永久或需人工修复</td>
+<td>FAILED，留下原文与原因</td>
+<td>升级解析器后可人工重放</td>
+</tr>
+<tr>
+<td>模型生成非法 JSON</td>
+<td>视策略而定</td>
+<td>有界修复重试或返回结构错误</td>
+<td>重试不保证有用</td>
+</tr>
+<tr>
+<td>调用超时但远程可能已成功</td>
+<td><strong>结果未知</strong></td>
+<td>先查询结果或使用幂等键核对</td>
+<td>绝不能直接视为未发生</td>
+</tr>
+<tr>
+<td>数据库出现唯一约束冲突</td>
+<td>需业务判定</td>
+<td>查询现有记录、复用或拒绝</td>
+<td>不是普遍意义的暂时错误</td>
+</tr>
+</tbody></table>
+<p>错误分类应由确定性业务代码完成：将 HTTP 状态码、SDK 异常、SQLSTATE、业务错误码和幂等查询结果映射到统一分类。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> enum <span class="hljs-keyword">import</span> Enum
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ErrorKind</span>(<span class="hljs-built_in">str</span>, Enum):
+    TRANSIENT = <span class="hljs-string">"TRANSIENT"</span>
+    PERMANENT = <span class="hljs-string">"PERMANENT"</span>
+    UNKNOWN_OUTCOME = <span class="hljs-string">"UNKNOWN_OUTCOME"</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">classify_http_status</span>(<span class="hljs-params">status: <span class="hljs-built_in">int</span></span>) -&gt; ErrorKind:
+    <span class="hljs-keyword">if</span> status <span class="hljs-keyword">in</span> {<span class="hljs-number">408</span>, <span class="hljs-number">425</span>, <span class="hljs-number">429</span>, <span class="hljs-number">500</span>, <span class="hljs-number">502</span>, <span class="hljs-number">503</span>, <span class="hljs-number">504</span>}:
+        <span class="hljs-keyword">return</span> ErrorKind.TRANSIENT
+    <span class="hljs-keyword">if</span> status <span class="hljs-keyword">in</span> {<span class="hljs-number">400</span>, <span class="hljs-number">401</span>, <span class="hljs-number">403</span>, <span class="hljs-number">404</span>, <span class="hljs-number">422</span>}:
+        <span class="hljs-keyword">return</span> ErrorKind.PERMANENT
+    <span class="hljs-keyword">return</span> ErrorKind.UNKNOWN_OUTCOME</code></pre></div><p>以上分类仅是<strong>业务初始策略的示例</strong>：同一状态码在不同 API 中的语义可能不同。例如部分 <code>404</code> 可能表示依赖资源尚未创建；<code>500</code> 也不保证操作尚未完成。需要结合接口契约与执行副作用进行最终判断。</p>
+<h2 id="section-6">4. Retry Count 与 Attempt Count：次数口径必须统一</h2>
+<p>“最多重试 3 次”和“最多尝试 3 次”不是一回事。</p>
+<ul>
+<li><strong>Attempt（尝试）</strong>：包括首次执行在内的一次业务执行机会。</li>
+<li><strong>Retry（重试）</strong>：首次失败之后的再次尝试。</li>
+<li><code>max_attempts = 3</code>：最多执行 3 次，首次 1 次 + 最多重试 2 次。</li>
+<li><code>max_retries = 3</code>：首次 1 次 + 最多重试 3 次，共最多 4 次。</li>
+</ul>
+<p>不同 SDK 的命名有差异，不能凭变量名推断口径。建议在自己的业务数据库与日志中统一记录 <code>attempt_count</code> 和 <code>max_attempts</code>，在文档中写明“包含首次执行”。</p>
+<table>
+<thead>
+<tr>
+<th>尝试序号</th>
+<th>调用情况</th>
+<th>失败后的状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>第 1 次</td>
+<td>首次执行</td>
+<td>可重试则进入 RETRY_WAIT</td>
+</tr>
+<tr>
+<td>第 2 次</td>
+<td>第 1 次重试</td>
+<td>可重试则继续等待</td>
+</tr>
+<tr>
+<td>第 3 次</td>
+<td>第 2 次重试</td>
+<td>若仍失败，进入 FAILED</td>
+</tr>
+</tbody></table>
+<p>还应建立<strong>总预算</strong>：例如最长允许等待 15 分钟、消耗最多 N 个 Token 或支付费用不超过某个业务阈值。次数上限是必要条件，但不能单独限制总资源消耗。</p>
+<h2 id="section-7">5. 退避 Backoff 与随机抖动 Jitter</h2>
+<p>如果上游依赖刚发生故障，所有 Worker 立即重试，会在故障时刻进一步放大流量，形成 <strong>Retry Storm（重试风暴）</strong>。</p>
+<h3 id="section-8">5.1 常见退避算法</h3>
+<p>设基础等待时间为 <code>base</code>，第 <code>n</code> 次失败后（<code>n</code> 从 1 开始）可计算：</p>
+<p><strong>固定退避：</strong></p>
+<p>[
+D_n = base
+]</p>
+<p><strong>指数退避：</strong></p>
+<p>[
+D_n = \min(cap, base \times 2^{n-1})
+]</p>
+<p><strong>Full Jitter：</strong></p>
+<p>[
+D_n \sim U\left(0,;\min(cap, base \times 2^{n-1})\right)
+]</p>
+<p>其中 <code>cap</code> 是单次退避的最大值，<code>U</code> 表示均匀分布。Full Jitter 允许短间隔，并不是保证最少等待多久；如需最短等待或遵守服务端 <code>Retry-After</code>，应明确加入下界。</p>
+<p>以 <code>base=2s</code>、<code>cap=30s</code> 为例（不加抖动）：</p>
+<table>
+<thead>
+<tr>
+<th>第几次失败</th>
+<th>下次重试前的理论退避</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>2 秒</td>
+</tr>
+<tr>
+<td>2</td>
+<td>4 秒</td>
+</tr>
+<tr>
+<td>3</td>
+<td>8 秒</td>
+</tr>
+<tr>
+<td>4</td>
+<td>16 秒</td>
+</tr>
+<tr>
+<td>5</td>
+<td>30 秒（封顶）</td>
+</tr>
+</tbody></table>
+<p>以下 Python 使用注入随机数生成器，使测试可复现：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> random
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">next_delay</span>(<span class="hljs-params">failed_attempt: <span class="hljs-built_in">int</span>, base=<span class="hljs-number">2.0</span>, cap=<span class="hljs-number">30.0</span>, rng=<span class="hljs-literal">None</span></span>) -&gt; <span class="hljs-built_in">float</span>:
+    <span class="hljs-keyword">if</span> failed_attempt &lt; <span class="hljs-number">1</span>:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"failed_attempt must be &gt;= 1"</span>)
+    rng = rng <span class="hljs-keyword">or</span> random.Random()
+    <span class="hljs-keyword">return</span> rng.uniform(<span class="hljs-number">0.0</span>, <span class="hljs-built_in">min</span>(cap, base * <span class="hljs-number">2</span> ** (failed_attempt - <span class="hljs-number">1</span>)))
+
+<span class="hljs-built_in">print</span>(next_delay(<span class="hljs-number">3</span>, rng=random.Random(<span class="hljs-number">42</span>)))</code></pre></div><h3 id="section-9">5.2 为什么不建议 <code>await asyncio.sleep(600)</code> 占住 Worker</h3>
+<p><code>asyncio.sleep</code> 不会阻塞事件循环，但它可能继续占用业务任务槽位、内存对象、执行租约与消费者的处理资源。更稳健的做法是把 <code>next_attempt_at</code> 持久写入数据库，然后释放 Worker 容量，由调度器在到期后重新领取任务。</p>
+<p>对于短暂的毫秒级网络重试，可在客户端内部使用有界等待；对于数分钟甚至数小时的业务重试，通常应使用<strong>持久化延迟队列或可恢复任务调度</strong>。</p>
+<h3 id="section-10">5.3 Retry-After、重试预算与熔断</h3>
+<p>收到明确的 <code>Retry-After</code> 时应结合服务端语义使用，不要让随机退避导致违反明确要求的等待期限。对于持续故障，还应考虑：</p>
+<ul>
+<li><strong>Rate Limit</strong>：每秒允许多少请求。</li>
+<li><strong>Concurrency Limit</strong>：同时允许多少次模型调用。</li>
+<li><strong>Retry Budget</strong>：重试请求占总请求的比例或次数上限。</li>
+<li><strong>Circuit Breaker</strong>：依赖明显不可用时暂停新调用，避免不断失败。</li>
+<li><strong>Backpressure</strong>：队列持续堆积时降低接单速率，防止内存和数据库耗尽。</li>
+</ul>
+<p>更复杂并不一定更好，但每一种机制解决的是不同问题。</p>
+<h2 id="section-11">6. 最终失败：什么时候停止重试</h2>
+<p>任务最终失败通常来自两类条件：</p>
+<ol>
+<li><strong>不可重试错误</strong>：输入、权限、业务约束等不因再次执行而改变的错误。</li>
+<li><strong>重试上限达到</strong>：暂时错误虽然理论上可恢复，但尝试次数、总耗时或成本预算已经耗尽。</li>
+</ol>
+<p>推荐使用明确的状态机：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">PENDING ──领取──&gt; RUNNING ──成功──&gt; SUCCEEDED
+                      │
+                 暂时失败且未耗尽
+                      ▼
+                  RETRY_WAIT ──到期领取──&gt; RUNNING
+                      │
+                      └─耗尽或永久失败──&gt; FAILED
+
+FAILED / SUCCEEDED 为终态（人工重试应创建新 attempt/run 或受控重放记录）</code></pre></div><p><code>FAILED</code> 应是一个<strong>可查询、可审计的完成状态</strong>，而不是“日志里打了一句错误后悄悄丢掉消息”。</p>
+<p>尤其要避免：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">await</span> process_message(message)
+        <span class="hljs-keyword">break</span>
+    <span class="hljs-keyword">except</span> Exception:
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">1</span>)</code></pre></div><p>以上无限循环既可能卡住同一分区，又容易造成无上限模型费用；还会错误重试不可恢复的权限或数据问题。</p>
+<h2 id="section-12">7. DLQ / DLT：死信消息留存机制</h2>
+<p><strong>Dead Letter Queue（DLQ）</strong> 或 <strong>Dead Letter Topic（DLT）</strong> 用于保存无法按正常流程完成的消息及失败上下文，供排查和受控重放。它不是自动修复器。</p>
+<p>建议归档的字段：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>event_id</code> / <code>job_id</code></td>
+<td>唯一标识事件与业务任务</td>
+</tr>
+<tr>
+<td><code>original_topic</code>、<code>partition</code>、<code>offset</code></td>
+<td>定位原始 Kafka 消息</td>
+</tr>
+<tr>
+<td><code>original_key</code>、<code>original_headers</code></td>
+<td>原始消息路由和上下文</td>
+</tr>
+<tr>
+<td>原始内容或安全存储引用</td>
+<td>使解析失败的数据仍可复现</td>
+</tr>
+<tr>
+<td><code>payload_sha256</code></td>
+<td>证明重放内容对应原始字节</td>
+</tr>
+<tr>
+<td><code>error_code</code>、脱敏错误摘要</td>
+<td>解释失败类型</td>
+</tr>
+<tr>
+<td><code>attempt_count</code>、<code>first_failed_at</code>、<code>last_failed_at</code></td>
+<td>分析重复失败与时间跨度</td>
+</tr>
+<tr>
+<td><code>model_version</code>、<code>parser_version</code>、<code>rule_version</code></td>
+<td>复现当时的软件与知识条件</td>
+</tr>
+<tr>
+<td><code>status</code>、<code>resolution</code>、<code>replay_id</code></td>
+<td>跟踪修复与人工重放</td>
+</tr>
+</tbody></table>
+<p><strong>隐私与安全</strong>：DLQ 不应该无条件公开原始 Token、API Key、身份证号、聊天正文或未授权文档。应限制访问权限、加密保存、设置合理保留期并建立脱敏策略。</p>
+<h3 id="section-13">7.1 “记录 FAILED”与“发布到 Kafka DLQ”是两件事</h3>
+<p>数据库事务可以将 <code>FAILED</code> 状态和一条 Outbox 发布事件一起提交；外部 Kafka 发送不是这个数据库事务的一部分。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">业务失败，达到终态
+       ↓
+同一数据库事务：状态=FAILED + 原始数据保留 + Outbox 事件
+       ↓
+提交成功后，原 Kafka 消息可安全地完成持久化交接
+       ↓
+独立发布器读取 Outbox
+       ↓
+Kafka Producer 向 DLQ Topic 发布
+       ↓
+收到 Broker 确认，再标记 Outbox 已发布</code></pre></div><p>发送到 Kafka 成功后，若尚未更新数据库 <code>published_at</code> 就崩溃，可能再次发布，因此 DLQ 接收者仍需按 <code>event_id</code> 幂等处理。若依赖 Outbox 而不实现发布器与监控，就只有待发送记录，没有真正投递到 DLQ。</p>
+<p><strong>关键判断</strong>：只有在已经将原消息与恢复所需状态可靠保存到独立持久化存储（或确认成功发布到真正的死信 Topic）之后，才能考虑推进原消息的消费 Offset；不能先提交 Offset 再尝试保存失败记录，否则保存失败会使消息丢失。</p>
+<h3 id="section-14">7.2 什么时候重放 DLQ</h3>
+<p>DLQ 重放前，需要先确认：根因已经修复、数据权限仍有效、业务幂等仍成立、版本适用，必要时重新获得操作确认。建议将人工重放记作一个<strong>新运行实例</strong>并与原失败记录关联，避免覆盖原先的事实和诊断证据。</p>
+<p>重放不能简单把原消息重新推回主 Topic 后不加限制地反复循环。</p>
+<h2 id="section-15">8. 如何避免一条坏消息堵住正常任务</h2>
+<p>同一分区内部消息是按 Offset 有序读取的。如果 Consumer 在 Offset 101 失败后无限原地重试，那么后面的 102、103、104 就可能长期得不到处理。这称为 <strong>Head-of-Line Blocking（队头阻塞）</strong>。</p>
+<p>主要有四种架构选择：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>处理方式</th>
+<th>好处</th>
+<th>代价与约束</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A. 分区内有限重试 + 失败后 DLQ</td>
+<td>当前消息重试几次，失败保存并继续后续消息</td>
+<td>简单、容易解释</td>
+<td>在重试期间仍阻塞分区；必须确认归档成功后才能提交</td>
+</tr>
+<tr>
+<td>B. Retry Topic</td>
+<td>失败消息转到独立重试 Topic</td>
+<td>主 Topic 可快速推进</td>
+<td><strong>跨路径可能改变业务处理顺序</strong></td>
+</tr>
+<tr>
+<td>C. 持久化 Inbox + 独立 Worker</td>
+<td>原消息先持久化，之后异步按状态调度</td>
+<td>主 Kafka 消费与慢任务解耦，最适合长任务</td>
+<td>多一套持久化任务系统、调度与监控</td>
+</tr>
+<tr>
+<td>D. 严格顺序隔离</td>
+<td>对必须按顺序处理的 Key 暂停或串行处理</td>
+<td>可以保住指定业务顺序</td>
+<td>相关 Key 的后续任务仍需等待或人工介入</td>
+</tr>
+</tbody></table>
+<h3 id="section-16">8.1 方案 A：分区内有限重试</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Partition-0: 100 ✅ → 101 ❌重试×3 → DLQ 持久化 ✅ → 102 ✅</code></pre></div><p>适用于错误很少、重试时间短、强调简单流程的系统。失败归档成功后才能继续提交相应 Offset；并发处理时还应遵守前一节讲过的安全提交水位规则。</p>
+<h3 id="section-17">8.2 方案 B：Retry Topic</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">主 Topic：100 ✅ → 101（转入 retry-5m）→ 102 ✅
+                          │
+                          └─5 分钟后处理 101</code></pre></div><p>适合相互独立的任务。<strong>不适合默认要求同一业务键严格按原顺序产生副作用</strong>的系统，因为 102 可能先于 101 完成。如果必须保持业务键顺序，应对该 Key 建立阻塞屏障、版本检查或按 Key 串行调度。</p>
+<p>将记录写入 retry Topic 与提交源 Offset 是跨操作的一致性问题。如果均属于 Kafka 内部主题，可考虑 Kafka 事务性生产与消费位点协调；若牵涉 PostgreSQL 和外部 API，仍需要额外的幂等或 Outbox 机制。</p>
+<h3 id="section-18">8.3 方案 C：持久化 Inbox + Worker（本章重点示例）</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">主 Kafka Consumer
+   │
+   ├─收到消息（先保留原始 bytes）
+   ├─数据库事务中写入 Inbox / Job
+   └─持久化成功后提交源 Offset
+                 │
+                 ▼
+          独立 Worker 调度器
+           ├─ PENDING → 执行
+           ├─ RETRY_WAIT → 到期重试
+           ├─ SUCCEEDED → 保存最终结果
+           └─ FAILED → 保存原文和 Outbox → DLQ Publisher</code></pre></div><p>优势：长期等待的模型重试不会占住 Kafka Consumer 的循环，用户断线或 API 进程重启也不会使已经持久化的任务消失。</p>
+<p>局限：Inbox 的持久化成功不能替代<strong>业务唯一性、执行租约、跨进程原子领取和外部副作用的幂等保障</strong>。还必须监控任务积压与 Worker 处理能力。</p>
+<h3 id="section-19">8.4 顺序保证与无阻塞之间的真实权衡</h3>
+<p>假设同一账户的事件：</p>
+<ul>
+<li>Offset 101：账户余额 +100。</li>
+<li>Offset 102：余额扣除 50。</li>
+</ul>
+<p>若将 101 丢到延迟重试路径而立刻处理 102，则在余额不足时，业务结果可能错误。</p>
+<p>此时不能仅以“避免堵塞”为由放弃顺序。应明确业务语义并采取以下之一：</p>
+<ul>
+<li>同一账户按 Key 串行执行、不同账户并行。</li>
+<li>使用单调业务版本，拒绝旧事件或延迟新事件。</li>
+<li>为正在重试的 Key 设置持久化栅栏，后续事件等待该 Key 解除。</li>
+<li>不可恢复时进入人工干预流程，并保持该 Key 的后续执行暂停。</li>
+</ul>
+<p><strong>没有一种策略能在完全不牺牲顺序、不增加状态管理的情况下，让所有失败消息无限期等待而其他所有相关消息仍正常处理。</strong></p>
+<h2 id="section-20">9. 业务任务状态机与数据表设计</h2>
+<p>以 PostgreSQL 为例，业务任务至少需要明确：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE TABLE</span> jobs (
+    job_id TEXT <span class="hljs-keyword">PRIMARY KEY</span>,
+    original_topic TEXT <span class="hljs-keyword">NOT NULL</span>,
+    partition_no <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span>,
+    offset_no <span class="hljs-type">BIGINT</span> <span class="hljs-keyword">NOT NULL</span>,
+    payload BYTEA <span class="hljs-keyword">NOT NULL</span>,
+    payload_sha256 <span class="hljs-type">CHAR</span>(<span class="hljs-number">64</span>) <span class="hljs-keyword">NOT NULL</span>,
+    status TEXT <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">CHECK</span> (
+      status <span class="hljs-keyword">IN</span> (<span class="hljs-string">'PENDING'</span>,<span class="hljs-string">'RUNNING'</span>,<span class="hljs-string">'RETRY_WAIT'</span>,<span class="hljs-string">'SUCCEEDED'</span>,<span class="hljs-string">'FAILED'</span>)
+    ),
+    attempts <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> <span class="hljs-number">0</span>,
+    max_attempts <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">CHECK</span> (max_attempts <span class="hljs-operator">&gt;=</span> <span class="hljs-number">1</span>),
+    next_attempt_at TIMESTAMPTZ,
+    lease_owner TEXT,
+    lease_until TIMESTAMPTZ,
+    generation <span class="hljs-type">BIGINT</span> <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> <span class="hljs-number">0</span>,
+    last_error_code TEXT,
+    last_error_message TEXT,
+    <span class="hljs-keyword">result</span> JSONB,
+    <span class="hljs-keyword">UNIQUE</span> (original_topic, partition_no, offset_no)
+);
+
+<span class="hljs-keyword">CREATE</span> INDEX jobs_ready_idx
+<span class="hljs-keyword">ON</span> jobs(status, next_attempt_at);</code></pre></div><ul>
+<li><code>attempts</code>：已被 Worker 正式领取的执行次数，首次执行算 1。</li>
+<li><code>next_attempt_at</code>：持久化的下一次可执行时间，重启后可继续查询。</li>
+<li><code>lease_until</code>：Worker 的执行租约到期时间；需要心跳续租以免长任务被误接管。</li>
+<li><code>generation</code>：领取任务时增长的执行代际编号。所有最终写入应验证租约所有者与代际，防止旧 Worker 覆盖接管后的结果。</li>
+<li><code>UNIQUE(topic, partition, offset)</code>：防止相同 Kafka 位置重复导入；跨不同消息表达同一业务操作时还需要业务幂等键与结果约束。</li>
+</ul>
+<h3 id="section-21">9.1 原子领取任务（PostgreSQL 思路）</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">WITH</span> candidate <span class="hljs-keyword">AS</span> (
+  <span class="hljs-keyword">SELECT</span> job_id
+  <span class="hljs-keyword">FROM</span> jobs
+  <span class="hljs-keyword">WHERE</span> status <span class="hljs-operator">=</span> <span class="hljs-string">'PENDING'</span>
+     <span class="hljs-keyword">OR</span> (status <span class="hljs-operator">=</span> <span class="hljs-string">'RETRY_WAIT'</span> <span class="hljs-keyword">AND</span> next_attempt_at <span class="hljs-operator">&lt;=</span> now())
+     <span class="hljs-keyword">OR</span> (status <span class="hljs-operator">=</span> <span class="hljs-string">'RUNNING'</span> <span class="hljs-keyword">AND</span> lease_until <span class="hljs-operator">&lt;=</span> now())
+  <span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> job_id
+  <span class="hljs-keyword">FOR</span> <span class="hljs-keyword">UPDATE</span> <span class="hljs-keyword">SKIP</span> LOCKED
+  LIMIT <span class="hljs-number">1</span>
+)
+<span class="hljs-keyword">UPDATE</span> jobs <span class="hljs-keyword">AS</span> j
+<span class="hljs-keyword">SET</span> status <span class="hljs-operator">=</span> <span class="hljs-string">'RUNNING'</span>,
+    attempts <span class="hljs-operator">=</span> j.attempts <span class="hljs-operator">+</span> <span class="hljs-number">1</span>,
+    generation <span class="hljs-operator">=</span> j.generation <span class="hljs-operator">+</span> <span class="hljs-number">1</span>,
+    lease_owner <span class="hljs-operator">=</span> :worker_id,
+    lease_until <span class="hljs-operator">=</span> now() <span class="hljs-operator">+</span> <span class="hljs-type">interval</span> <span class="hljs-string">'30 seconds'</span>,
+    next_attempt_at <span class="hljs-operator">=</span> <span class="hljs-keyword">NULL</span>
+<span class="hljs-keyword">FROM</span> candidate
+<span class="hljs-keyword">WHERE</span> j.job_id <span class="hljs-operator">=</span> candidate.job_id
+RETURNING j.<span class="hljs-operator">*</span>;</code></pre></div><p>这个示意适用于多个 Worker 竞争任务，<code>SKIP LOCKED</code> 能减少相互等待。但<strong>并不是业务最终结果的唯一性保证</strong>：结果存储仍需独立唯一约束和事务处理。长任务还应使用续租或合理租约期限。</p>
+<h3 id="section-22">9.2 安全失败处理</h3>
+<p>失败的状态更新必须在同一个事务中完成：</p>
+<ul>
+<li>若尚可重试：写入 <code>RETRY_WAIT</code>、<code>next_attempt_at</code>、尝试次数和错误信息。</li>
+<li>若永久失败或耗尽：写入 <code>FAILED</code>、最后错误、原始数据留存；并在同一事务创建唯一的 Outbox DLQ 发布事件。</li>
+<li>Worker 过期或已被接管：旧 Worker 不得再写入最终状态。</li>
+</ul>
+<h2 id="section-23">10. 处理外部模型调用的特殊风险</h2>
+<p>模型 API 可能有成本、超时、隐式 SDK 重试、速率限制和结果不确定等问题：</p>
+<ol>
+<li><strong>Token 费用</strong>：一次失败重试仍可能产生费用；重试次数必须计入预算。</li>
+<li><strong>429 / 503</strong>：如果上游返回 <code>Retry-After</code>，需要按约定等待；多 Worker 应协调全局速率。</li>
+<li><strong>请求结果不确定</strong>：调用方超时后不能简单判定服务端未执行；具备操作副作用的工具应先检查 idempotency key 或远端执行状态。</li>
+<li><strong>模型内容错误</strong>：结构不合法不等于瞬时网络错误；是否重试取决于可否通过稳定的输出校验/修复策略提高成功率。</li>
+<li><strong>SDK 内建重试</strong>：如果 SDK 每次调用自动重试 2 次，Worker 再重试 3 次，实际请求数可能远大于日志显示的 3 次尝试。</li>
+<li><strong>客户端断开</strong>：如果任务需要跨重启恢复，应由独立 Worker 处理，并使用任务 ID 查询状态；客户端取消是否终止业务任务必须是明确设计。</li>
+</ol>
+<p>一条错误消息不应造成无限费用或持续堵塞正常任务。</p>
+<h2 id="section-24">11. 完整 Python 离线教学实现的设计</h2>
+<p>附录代码使用标准库 <code>sqlite3</code>，<strong>模拟持久化 Inbox + Worker 状态处理</strong>，不需要实际 Kafka：</p>
+<ul>
+<li><code>ingest()</code>：保存原始 Kafka 消息的字节、来源 Topic/Partition/Offset、内容哈希；重复导入原位置时检查一致性。</li>
+<li><code>claim()</code>：在事务内原子领取，递增 <code>attempts</code> 和 <code>generation</code>，创建租约。</li>
+<li><code>fail()</code>：在指定的可重试错误和剩余次数前提下进入 <code>RETRY_WAIT</code>；否则进入 <code>FAILED</code> 并创建 Outbox。</li>
+<li><code>succeed()</code>：在仍拥有有效租约的条件下完成任务。</li>
+<li><code>due_jobs()</code>：获得可领取任务列表；最终领取还需 <code>claim()</code> 原子确认，避免抢占冲突。</li>
+<li><code>mark_published()</code>：仅在发布器获得 Kafka Broker 确认后调用；实际发送器不包含在此教学代码中。</li>
+</ul>
+<p>实现了 <strong>Full Jitter、最大尝试次数、持久化状态、租约代际保护、最终失败归档事件</strong>。它不包含真实 Kafka Broker、PostgreSQL、模型 API 或生产级监控。</p>
+<p>另外，示例中 <code>last_error_message</code> 仅限制长度；真实系统必须在存储前做凭据和敏感数据脱敏，不能把这个例子当成完整日志安全方案。</p>
+<h2 id="section-25">12. 真实 aiokafka Consumer 应如何持久化交接</h2>
+<p>下面是一个<strong>关键接口示意</strong>（依赖你的 <code>store</code> 实现和连接配置，不是可独立运行的全套服务）。为了保持原分区提交安全，示例按顺序保存<strong>原始字节</strong>，且仅在数据库持久化成功之后手动提交当前 Offset：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">from</span> aiokafka <span class="hljs-keyword">import</span> AIOKafkaConsumer, TopicPartition
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">consume_into_inbox</span>(<span class="hljs-params">store</span>):
+    consumer = AIOKafkaConsumer(
+        <span class="hljs-string">"documents"</span>,
+        bootstrap_servers=<span class="hljs-string">"localhost:9092"</span>,
+        group_id=<span class="hljs-string">"document-ingester"</span>,
+        enable_auto_commit=<span class="hljs-literal">False</span>,
+        auto_offset_reset=<span class="hljs-string">"earliest"</span>,
+    )
+    <span class="hljs-keyword">await</span> consumer.start()
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">for</span> msg <span class="hljs-keyword">in</span> consumer:
+            <span class="hljs-comment"># 用源 Topic、分区和 Offset 构成稳定导入 ID</span>
+            <span class="hljs-comment"># 注意：它不是跨不同 Kafka 消息的业务幂等键</span>
+            source_id = <span class="hljs-string">f"<span class="hljs-subst">{msg.topic}</span>:<span class="hljs-subst">{msg.partition}</span>:<span class="hljs-subst">{msg.offset}</span>"</span>
+            <span class="hljs-comment"># store.ingest() 是同步 SQLite 教学代码；</span>
+            <span class="hljs-comment"># 生产中建议换成 PostgreSQL + 异步数据库访问。</span>
+            <span class="hljs-keyword">await</span> asyncio.to_thread(
+                store.ingest,
+                source_id,
+                msg.value,  <span class="hljs-comment"># 原始 bytes，不先假定可 JSON 解析</span>
+                topic=msg.topic,
+                partition=msg.partition,
+                offset=msg.offset,
+            )
+            tp = TopicPartition(msg.topic, msg.partition)
+            <span class="hljs-comment"># 安全交接完成后，提交下一条待读取的位置。</span>
+            <span class="hljs-keyword">await</span> consumer.commit({tp: msg.offset + <span class="hljs-number">1</span>})
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> consumer.stop()</code></pre></div><p><strong>这一设计的前提</strong>：Inbox 数据库必须提供满足业务可靠性要求的持久化保证；消费者的恢复语义还依赖 Retention、Offset、分区重平衡等配置。如果数据库提交成功而 Offset 提交失败，源消息可能重投，<code>ingest()</code> 通过源位置去重；如果数据库提交失败，不得提交 Offset。</p>
+<p>生产系统还需要处理 Rebalance 时的分区所有权、数据库不可用、Kafka Retention、指标报警及 Worker 排队能力。简化示例使用一条一提交的方式说明安全边界，吞吐量较高的生产系统可采用按分区批量持久化后提交对应的安全水位。</p>
+<h2 id="section-26">13. DLQ Publisher 的必要处理</h2>
+<p>示例代码只负责事务内创建 Outbox。真实发布器至少应做到：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">读取未发布 Outbox（带领取/租约，防多实例争抢）
+      ↓
+构造 DLQ 消息，携带 event_id 与原始来源标识
+      ↓
+Producer send_and_wait() 获取 Broker ACK
+      ↓
+把 published_at 写回 Outbox</code></pre></div><p>如果在 <code>send_and_wait()</code> 成功后、写回 <code>published_at</code> 前崩溃，则可能再次发送同一 Outbox。DLQ 消费者依然需要按 <code>event_id</code> 幂等。<strong>这不是设计错误，而是将跨系统非原子故障转化为可识别的重复事件。</strong></p>
+<p>对于无需真正 Kafka DLQ 的小项目，也可以先使用 PostgreSQL 失败档案 + 管理后台进行人工查阅；但不要把“数据库失败档案”等同为“消息已发往 DLQ Topic”。</p>
+<h2 id="section-27">14. 故障注入与验收矩阵</h2>
+<table>
+<thead>
+<tr>
+<th>测试场景</th>
+<th>预期结果</th>
+<th>核验对象</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>第 1 次临时失败</td>
+<td>RETRY_WAIT，记录下一次时间</td>
+<td><code>jobs</code> 表</td>
+</tr>
+<tr>
+<td>未到下次时间</td>
+<td>不应再次领取</td>
+<td><code>claim()</code></td>
+</tr>
+<tr>
+<td>到期之后</td>
+<td>新 Worker 可领取</td>
+<td>租约、尝试次数</td>
+</tr>
+<tr>
+<td>达最大尝试次数</td>
+<td>FAILED 且记录 Outbox</td>
+<td>任务与事件一致性</td>
+</tr>
+<tr>
+<td>不可重试的格式错误</td>
+<td>不浪费剩余重试预算</td>
+<td>错误分类</td>
+</tr>
+<tr>
+<td>多个 Worker 同时领取</td>
+<td>仅一个成功认领</td>
+<td>原子事务</td>
+</tr>
+<tr>
+<td>Worker 租约过期</td>
+<td>新 Worker 可接管</td>
+<td>generation</td>
+</tr>
+<tr>
+<td>旧 Worker 迟到</td>
+<td>不可覆盖新 Worker 结果</td>
+<td>租约与 fencing</td>
+</tr>
+<tr>
+<td>FAILED 已归档</td>
+<td>同一任务不会继续无限重试</td>
+<td>终态保护</td>
+</tr>
+<tr>
+<td>错误任务 FAILED，后续正常任务到达</td>
+<td>后续任务可领取和成功</td>
+<td>独立任务处理</td>
+</tr>
+<tr>
+<td>Kafka Offset 未提交就崩溃</td>
+<td>源消息重投但 Inbox 不重复</td>
+<td>来源唯一性</td>
+</tr>
+<tr>
+<td>归档事务失败</td>
+<td>不允许确认源消息已安全交接</td>
+<td>原子性</td>
+</tr>
+<tr>
+<td>Broker ACK 后 Outbox 更新前崩溃</td>
+<td>可能重复发布，event_id 一致</td>
+<td>DLQ 幂等</td>
+</tr>
+<tr>
+<td>重放前修复解析器</td>
+<td>可创建受控新执行，原失败记录不丢失</td>
+<td>审计与回放</td>
+</tr>
+</tbody></table>
+<p><strong>需区分验证层级：</strong> 本章离线测试会真正运行 SQLite 状态机与线程竞争测试；真实 Kafka 重启、Rebalance、DLQ Producer ACK、PostgreSQL 行锁行为必须在真实服务环境中另行集成验证。</p>
+<h2 id="section-28">15. 可观测性、报警与运维指标</h2>
+<p>只记录“日志里发生了错误”远远不够。至少应记录：</p>
+<table>
+<thead>
+<tr>
+<th>指标 / 日志字段</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>job_id</code>、<code>event_id</code>、<code>trace_id</code></td>
+<td>串联任务与消息</td>
+</tr>
+<tr>
+<td><code>attempt_count</code> / <code>max_attempts</code></td>
+<td>了解重试预算与消耗</td>
+</tr>
+<tr>
+<td><code>error_code</code> / <code>error_kind</code></td>
+<td>按暂时/永久/未知结果分类</td>
+</tr>
+<tr>
+<td><code>next_attempt_at</code></td>
+<td>诊断重试是否被调度</td>
+</tr>
+<tr>
+<td><code>retry_wait_count</code></td>
+<td>观察排队重试规模</td>
+</tr>
+<tr>
+<td><code>failed_terminal_count</code></td>
+<td>观察最终失败率</td>
+</tr>
+<tr>
+<td><code>oldest_pending_age_seconds</code></td>
+<td>识别任务是否长期无人处理</td>
+</tr>
+<tr>
+<td><code>outbox_unpublished_count</code></td>
+<td>发现 DLQ Publisher 停滞</td>
+</tr>
+<tr>
+<td><code>consumer_lag</code></td>
+<td>判断 Kafka 消费是否跟得上</td>
+</tr>
+<tr>
+<td><code>worker_inflight</code>、<code>lease_expired_count</code></td>
+<td>查找 Worker 阻塞和异常退出</td>
+</tr>
+<tr>
+<td>模型耗时、Token、错误率</td>
+<td>判断是否由上游模型导致</td>
+</tr>
+</tbody></table>
+<p>推荐配置的报警应包括：失败终态突然增加、Outbox 长时间未发布、最旧待处理任务超时、Consumer Lag 持续上升、全部 Worker 退出和模型成本超预算。</p>
+<h2 id="section-29">16. 常见技术误区</h2>
+<ol>
+<li><strong>无限重试更可靠？</strong> 错。无限重试可能让任务永久不结束，持续占用预算并放大服务故障。</li>
+<li><strong>sleep 不阻塞事件循环，故可以无限等待？</strong> 错。<code>asyncio.sleep</code> 不阻塞事件循环，但仍可能保留大量任务对象、等待槽位或状态；跨重启更无法依赖内存等待。</li>
+<li><strong>Kafka 会自动把失败消息放进 DLQ？</strong> 错。普通自写 Consumer 需要自行实现；Kafka Connect 或某些框架有专门错误处理能力。</li>
+<li><strong>提交 Offset 就表示业务完成？</strong> 错。只有可靠持久化交接或业务处理达到安全状态后才可提交；提交只是 Kafka 记录消费位置。</li>
+<li><strong>FAILED 代表消息被丢掉？</strong> 错。应该保留错误、来源、原文与重放信息。</li>
+<li><strong>有了 DLQ 就能忽略消息顺序？</strong> 错。把失败消息分流会改变其与后续消息之间的业务完成顺序。</li>
+<li><strong>模型请求超时等于模型没有执行？</strong> 错。结果未知时应检查远端或通过幂等语义处理。</li>
+<li><strong>一条 Worker 重试失败不会影响其他任务？</strong> 不一定。若在同一分区原地等待或独占全局队列/信号量，仍可能阻塞正常工作。</li>
+<li><strong>设置 max_attempts 就能限制费用？</strong> 错。一次业务尝试可能触发 SDK 内部多次重试、多个模型和工具调用。</li>
+<li><strong>记录原始 payload 就没有隐私问题？</strong> 错。失败归档应有权限、脱敏、加密和保留期限。</li>
+</ol>
+<h2 id="section-30">17. 本节知识总结</h2>
+<p>可靠后台任务不是“在异常上加一个 <code>try/except</code> 再 <code>sleep</code>”。它的核心是：</p>
+<ul>
+<li>把错误分为暂时性、永久性和结果未知三类。</li>
+<li>给重试设置明确的次数、时间与费用边界，并使用退避和抖动。</li>
+<li>将等待重试状态持久化，避免进程退出后无法恢复。</li>
+<li>最终失败保留原始消息、来源与错误上下文；必要时使用事务性 Outbox 将失败事件可靠投递至 DLQ。</li>
+<li>通过幂等、唯一约束与执行代际阻止重复副作用和旧 Worker 覆盖结果。</li>
+<li>让无关任务继续推进，同时对必须保证顺序的同一业务 Key 实施适当隔离。</li>
+</ul>
+<p>下一条“消费延迟、在途任务、优雅停机和重平衡”将进一步讨论如何区分消费者进程存活与真实任务推进。</p>
+<h2 id="section-31">18. 官方与技术参考资料</h2>
+<ol>
+<li><a href="https://kafka.apache.org/44/kafka-connect/user-guide/">Apache Kafka 4.4 Kafka Connect 错误报告与 DLQ</a> —— 这是 <strong>Kafka Connect 特定机制</strong>。</li>
+<li><a href="https://aiokafka.readthedocs.io/en/latest/consumer.html">aiokafka Consumer 文档：Offset、手动提交与 Consumer Group</a>。</li>
+<li><a href="https://aiokafka.readthedocs.io/en/latest/api.html">aiokafka API：pause、resume 与 Consumer 参数</a>。</li>
+<li><a href="https://www.confluent.io/blog/error-handling-patterns-in-kafka/">Confluent：Error Handling Patterns in Kafka</a> —— Retry Topic 与严格顺序之间的权衡。</li>
+<li><a href="https://docs.aws.amazon.com/wellarchitected/latest/framework/rel_mitigate_interaction_failure_limit_retries.html">AWS Well-Architected：控制重试次数</a>。</li>
+<li><a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/retry-backoff.html">AWS Prescriptive Guidance：Retry with Backoff</a>。</li>
+<li><a href="https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html">AWS SDK：Retry Behavior</a> —— Full Jitter 与 SDK 重试策略。</li>
+<li><a href="https://docs.spring.io/spring-kafka/reference/kafka/annotation-error-handling.html">Spring Kafka Error Handling</a> —— 框架级有限重试与死信处理，对 Python 项目仅供架构比较。</li>
+</ol>
+<hr />
+<h1 id="section-32">附录 A：完整可运行的 SQLite 持久化重试教学程序</h1>
+<p>下面的代码只依赖 Python 标准库。它验证“重试次数、退避、租约、终态与 Outbox 在数据库侧的处理”，不模拟 Kafka 的全部 Broker 行为。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Durable retry teaching demo. Python 3.10+, standard library only.
+No Kafka broker is used. It models the database side of a durable handoff.
+"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+<span class="hljs-keyword">import</span> hashlib
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> random
+<span class="hljs-keyword">import</span> sqlite3
+<span class="hljs-keyword">from</span> contextlib <span class="hljs-keyword">import</span> contextmanager
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> Iterator
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">BusinessConflict</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">TransientFailure</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">PermanentFailure</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">RetryPolicy</span>:
+    max_attempts: <span class="hljs-built_in">int</span> = <span class="hljs-number">3</span>   <span class="hljs-comment"># inclusive of initial attempt</span>
+    base_delay: <span class="hljs-built_in">float</span> = <span class="hljs-number">2.0</span>
+    cap_delay: <span class="hljs-built_in">float</span> = <span class="hljs-number">60.0</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__post_init__</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.max_attempts &lt; <span class="hljs-number">1</span> <span class="hljs-keyword">or</span> <span class="hljs-variable language_">self</span>.base_delay &lt; <span class="hljs-number">0</span> <span class="hljs-keyword">or</span> <span class="hljs-variable language_">self</span>.cap_delay &lt; <span class="hljs-number">0</span>:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'invalid retry policy'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">delay</span>(<span class="hljs-params">self, failed_attempt: <span class="hljs-built_in">int</span>, rng: random.Random</span>) -&gt; <span class="hljs-built_in">float</span>:
+        <span class="hljs-keyword">if</span> failed_attempt &lt; <span class="hljs-number">1</span>:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'failed_attempt must be &gt;= 1'</span>)
+        <span class="hljs-comment"># Full jitter, bounded exponential delay. Guard extreme exponents.</span>
+        exponent = <span class="hljs-built_in">min</span>(failed_attempt - <span class="hljs-number">1</span>, <span class="hljs-number">60</span>)
+        upper = <span class="hljs-built_in">min</span>(<span class="hljs-variable language_">self</span>.cap_delay, <span class="hljs-variable language_">self</span>.base_delay * (<span class="hljs-number">2</span> ** exponent))
+        <span class="hljs-keyword">return</span> rng.uniform(<span class="hljs-number">0</span>, upper)
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">RetryStore</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, path: <span class="hljs-built_in">str</span> | Path, policy: RetryPolicy | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span></span>):
+        <span class="hljs-variable language_">self</span>.path = <span class="hljs-built_in">str</span>(path)
+        <span class="hljs-variable language_">self</span>.policy = policy <span class="hljs-keyword">or</span> RetryPolicy()
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>._connect() <span class="hljs-keyword">as</span> db:
+            db.executescript(<span class="hljs-string">'''
+            CREATE TABLE IF NOT EXISTS jobs(
+              job_id TEXT PRIMARY KEY,
+              topic TEXT NOT NULL,
+              partition_no INTEGER NOT NULL,
+              offset_no INTEGER NOT NULL,
+              original_payload BLOB NOT NULL,
+              payload_hash TEXT NOT NULL,
+              status TEXT NOT NULL CHECK(status IN
+                ('PENDING','RUNNING','RETRY_WAIT','SUCCEEDED','FAILED')),
+              attempts INTEGER NOT NULL DEFAULT 0,
+              next_attempt_at REAL NOT NULL DEFAULT 0,
+              lease_owner TEXT,
+              generation INTEGER NOT NULL DEFAULT 0,
+              lease_until REAL,
+              last_error_code TEXT,
+              last_error_message TEXT,
+              result TEXT,
+              UNIQUE(topic, partition_no, offset_no)
+            );
+            CREATE TABLE IF NOT EXISTS outbox(
+              event_id TEXT PRIMARY KEY,
+              job_id TEXT NOT NULL,
+              event_type TEXT NOT NULL,
+              body TEXT NOT NULL,
+              published_at REAL,
+              FOREIGN KEY(job_id) REFERENCES jobs(job_id)
+            );
+            CREATE INDEX IF NOT EXISTS jobs_due
+                ON jobs(status, next_attempt_at);
+            '''</span>)
+
+<span class="hljs-meta">    @contextmanager</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_connect</span>(<span class="hljs-params">self</span>) -&gt; Iterator[sqlite3.Connection]:
+        db = sqlite3.connect(<span class="hljs-variable language_">self</span>.path, timeout=<span class="hljs-number">5.0</span>)
+        db.row_factory = sqlite3.Row
+        db.execute(<span class="hljs-string">'PRAGMA busy_timeout=5000'</span>)
+        db.execute(<span class="hljs-string">'PRAGMA foreign_keys=ON'</span>)
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">yield</span> db
+            db.commit()
+        <span class="hljs-keyword">except</span> BaseException:
+            db.rollback()
+            <span class="hljs-keyword">raise</span>
+        <span class="hljs-keyword">finally</span>:
+            db.close()
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">ingest</span>(<span class="hljs-params">self, job_id: <span class="hljs-built_in">str</span>, raw: <span class="hljs-built_in">bytes</span>, *, topic=<span class="hljs-string">'documents'</span>, partition=<span class="hljs-number">0</span>, offset=<span class="hljs-number">0</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+        <span class="hljs-string">"""Durably copy raw Kafka record before acknowledging its offset.
+        Same source offset and byte-for-byte content is idempotent.
+        """</span>
+        digest = hashlib.sha256(raw).hexdigest()
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>._connect() <span class="hljs-keyword">as</span> db:
+            db.execute(<span class="hljs-string">'BEGIN IMMEDIATE'</span>)
+            current = db.execute(<span class="hljs-string">'SELECT * FROM jobs WHERE job_id=? OR '</span>
+                                 <span class="hljs-string">'(topic=? AND partition_no=? AND offset_no=?)'</span>,
+                                 (job_id, topic, partition, offset)).fetchone()
+            <span class="hljs-keyword">if</span> current:
+                <span class="hljs-keyword">if</span> (current[<span class="hljs-string">'job_id'</span>] != job_id <span class="hljs-keyword">or</span> current[<span class="hljs-string">'topic'</span>] != topic <span class="hljs-keyword">or</span>
+                    current[<span class="hljs-string">'partition_no'</span>] != partition <span class="hljs-keyword">or</span> current[<span class="hljs-string">'offset_no'</span>] != offset <span class="hljs-keyword">or</span>
+                    current[<span class="hljs-string">'payload_hash'</span>] != digest):
+                    <span class="hljs-keyword">raise</span> BusinessConflict(<span class="hljs-string">'same job_id or Kafka position with different contents'</span>)
+                <span class="hljs-keyword">return</span> <span class="hljs-string">'ALREADY_SAVED'</span>
+            db.execute(<span class="hljs-string">'''INSERT INTO jobs(job_id,topic,partition_no,offset_no,
+                       original_payload,payload_hash,status)
+                       VALUES(?,?,?,?,?,?,'PENDING')'''</span>,
+                       (job_id, topic, partition, offset, raw, digest))
+            <span class="hljs-keyword">return</span> <span class="hljs-string">'SAVED'</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">claim</span>(<span class="hljs-params">self, job_id: <span class="hljs-built_in">str</span>, worker_id: <span class="hljs-built_in">str</span>, now: <span class="hljs-built_in">float</span>, lease_seconds=<span class="hljs-number">30.0</span></span>):
+        <span class="hljs-string">"""Atomic lease and monotonically growing generation (fencing)."""</span>
+        <span class="hljs-keyword">if</span> lease_seconds &lt;= <span class="hljs-number">0</span>:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'lease_seconds must be positive'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>._connect() <span class="hljs-keyword">as</span> db:
+            db.execute(<span class="hljs-string">'BEGIN IMMEDIATE'</span>)
+            row = db.execute(<span class="hljs-string">'SELECT * FROM jobs WHERE job_id=?'</span>, (job_id,)).fetchone()
+            <span class="hljs-keyword">if</span> row <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span>
+            can_claim = (row[<span class="hljs-string">'status'</span>] == <span class="hljs-string">'PENDING'</span> <span class="hljs-keyword">or</span>
+                         (row[<span class="hljs-string">'status'</span>] == <span class="hljs-string">'RETRY_WAIT'</span> <span class="hljs-keyword">and</span> row[<span class="hljs-string">'next_attempt_at'</span>] &lt;= now) <span class="hljs-keyword">or</span>
+                         (row[<span class="hljs-string">'status'</span>] == <span class="hljs-string">'RUNNING'</span> <span class="hljs-keyword">and</span> row[<span class="hljs-string">'lease_until'</span>] &lt;= now))
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> can_claim:
+                <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span>
+            generation = row[<span class="hljs-string">'generation'</span>] + <span class="hljs-number">1</span>
+            db.execute(<span class="hljs-string">'''UPDATE jobs SET status='RUNNING',attempts=attempts+1,
+                      generation=?,lease_owner=?,lease_until=?,next_attempt_at=0
+                      WHERE job_id=?'''</span>,
+                      (generation, worker_id, now + lease_seconds, job_id))
+            <span class="hljs-keyword">return</span> generation
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_owned</span>(<span class="hljs-params">self, db, job_id: <span class="hljs-built_in">str</span>, worker_id: <span class="hljs-built_in">str</span>, generation: <span class="hljs-built_in">int</span>, now: <span class="hljs-built_in">float</span></span>):
+        row = db.execute(<span class="hljs-string">'SELECT * FROM jobs WHERE job_id=?'</span>, (job_id,)).fetchone()
+        <span class="hljs-keyword">if</span> (row <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">or</span> row[<span class="hljs-string">'status'</span>] != <span class="hljs-string">'RUNNING'</span> <span class="hljs-keyword">or</span>
+            row[<span class="hljs-string">'lease_owner'</span>] != worker_id <span class="hljs-keyword">or</span> row[<span class="hljs-string">'generation'</span>] != generation <span class="hljs-keyword">or</span>
+            row[<span class="hljs-string">'lease_until'</span>] &lt;= now):
+            <span class="hljs-keyword">raise</span> BusinessConflict(<span class="hljs-string">'worker lost execution lease / stale generation'</span>)
+        <span class="hljs-keyword">return</span> row
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">succeed</span>(<span class="hljs-params">self, job_id: <span class="hljs-built_in">str</span>, worker_id: <span class="hljs-built_in">str</span>, generation: <span class="hljs-built_in">int</span>,
+                now: <span class="hljs-built_in">float</span>, result: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>._connect() <span class="hljs-keyword">as</span> db:
+            db.execute(<span class="hljs-string">'BEGIN IMMEDIATE'</span>)
+            <span class="hljs-variable language_">self</span>._owned(db, job_id, worker_id, generation, now)
+            db.execute(<span class="hljs-string">'''UPDATE jobs SET status='SUCCEEDED', result=?,
+                       lease_owner=NULL,lease_until=NULL,
+                       last_error_code=NULL,last_error_message=NULL
+                       WHERE job_id=?'''</span>, (result, job_id))
+            <span class="hljs-keyword">return</span> <span class="hljs-string">'SUCCEEDED'</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">fail</span>(<span class="hljs-params">self, job_id: <span class="hljs-built_in">str</span>, worker_id: <span class="hljs-built_in">str</span>, generation: <span class="hljs-built_in">int</span>,
+             now: <span class="hljs-built_in">float</span>, error_code: <span class="hljs-built_in">str</span>, message: <span class="hljs-built_in">str</span>, *, transient: <span class="hljs-built_in">bool</span>,
+             rng: random.Random | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+        <span class="hljs-comment"># Caller must classify failure type; this class doesn't guess using text.</span>
+        rng = rng <span class="hljs-keyword">or</span> random.Random()
+        safe_message = message[:<span class="hljs-number">256</span>]  <span class="hljs-comment"># sanitize/redact upstream before storing</span>
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>._connect() <span class="hljs-keyword">as</span> db:
+            db.execute(<span class="hljs-string">'BEGIN IMMEDIATE'</span>)
+            row = <span class="hljs-variable language_">self</span>._owned(db, job_id, worker_id, generation, now)
+            <span class="hljs-keyword">if</span> transient <span class="hljs-keyword">and</span> row[<span class="hljs-string">'attempts'</span>] &lt; <span class="hljs-variable language_">self</span>.policy.max_attempts:
+                backoff = <span class="hljs-variable language_">self</span>.policy.delay(row[<span class="hljs-string">'attempts'</span>], rng)
+                db.execute(<span class="hljs-string">'''UPDATE jobs SET status='RETRY_WAIT',next_attempt_at=?,
+                         lease_owner=NULL,lease_until=NULL,
+                         last_error_code=?,last_error_message=? WHERE job_id=?'''</span>,
+                         (now + backoff, error_code, safe_message, job_id))
+                <span class="hljs-keyword">return</span> <span class="hljs-string">'RETRY_WAIT'</span>
+            db.execute(<span class="hljs-string">'''UPDATE jobs SET status='FAILED', lease_owner=NULL,
+                     lease_until=NULL,last_error_code=?,last_error_message=?
+                     WHERE job_id=?'''</span>, (error_code, safe_message, job_id))
+            payload = {
+                <span class="hljs-string">'job_id'</span>: job_id, <span class="hljs-string">'topic'</span>: row[<span class="hljs-string">'topic'</span>],
+                <span class="hljs-string">'partition'</span>: row[<span class="hljs-string">'partition_no'</span>], <span class="hljs-string">'offset'</span>: row[<span class="hljs-string">'offset_no'</span>],
+                <span class="hljs-string">'error_code'</span>: error_code, <span class="hljs-string">'attempts'</span>: row[<span class="hljs-string">'attempts'</span>],
+                <span class="hljs-string">'payload_sha256'</span>: row[<span class="hljs-string">'payload_hash'</span>],
+                <span class="hljs-string">'raw_bytes_retained_in_jobs'</span>: <span class="hljs-literal">True</span>,
+            }
+            db.execute(<span class="hljs-string">'''INSERT OR IGNORE INTO outbox(event_id,job_id,event_type,body)
+                       VALUES(?,?,'DEAD_LETTER',?)'''</span>,
+                       (<span class="hljs-string">f'dlq:<span class="hljs-subst">{job_id}</span>'</span>, job_id, json.dumps(payload, ensure_ascii=<span class="hljs-literal">False</span>)))
+            <span class="hljs-keyword">return</span> <span class="hljs-string">'FAILED'</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get</span>(<span class="hljs-params">self, job_id: <span class="hljs-built_in">str</span></span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>._connect() <span class="hljs-keyword">as</span> db:
+            row = db.execute(<span class="hljs-string">'SELECT * FROM jobs WHERE job_id=?'</span>, (job_id,)).fetchone()
+            <span class="hljs-keyword">return</span> <span class="hljs-built_in">dict</span>(row) <span class="hljs-keyword">if</span> row <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">outbox</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>._connect() <span class="hljs-keyword">as</span> db:
+            <span class="hljs-keyword">return</span> [<span class="hljs-built_in">dict</span>(r) <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> db.execute(<span class="hljs-string">'SELECT * FROM outbox ORDER BY event_id'</span>)]
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">due_jobs</span>(<span class="hljs-params">self, now: <span class="hljs-built_in">float</span>, limit=<span class="hljs-number">100</span></span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>._connect() <span class="hljs-keyword">as</span> db:
+            <span class="hljs-keyword">return</span> [r[<span class="hljs-number">0</span>] <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> db.execute(<span class="hljs-string">'''SELECT job_id FROM jobs WHERE
+                status='PENDING' OR (status='RETRY_WAIT' AND next_attempt_at &lt;= ?)
+                OR (status='RUNNING' AND lease_until &lt;= ?)
+                ORDER BY job_id LIMIT ?'''</span>, (now, now, limit))]
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">mark_published</span>(<span class="hljs-params">self, event_id: <span class="hljs-built_in">str</span>, now: <span class="hljs-built_in">float</span></span>):
+        <span class="hljs-string">"""Only call AFTER broker acknowledges publication (not before)."""</span>
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>._connect() <span class="hljs-keyword">as</span> db:
+            db.execute(<span class="hljs-string">'UPDATE outbox SET published_at=COALESCE(published_at,?) WHERE event_id=?'</span>,
+                       (now, event_id))
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">'__main__'</span>:
+    <span class="hljs-keyword">import</span> tempfile
+    <span class="hljs-keyword">with</span> tempfile.TemporaryDirectory() <span class="hljs-keyword">as</span> td:
+        s = RetryStore(Path(td)/<span class="hljs-string">'jobs.db'</span>, RetryPolicy(max_attempts=<span class="hljs-number">2</span>, base_delay=<span class="hljs-number">1</span>, cap_delay=<span class="hljs-number">4</span>))
+        s.ingest(<span class="hljs-string">'job-poison'</span>, <span class="hljs-string">b'bad data'</span>, offset=<span class="hljs-number">3</span>)
+        gen = s.claim(<span class="hljs-string">'job-poison'</span>, <span class="hljs-string">'worker-A'</span>, now=<span class="hljs-number">100</span>)
+        s.fail(<span class="hljs-string">'job-poison'</span>, <span class="hljs-string">'worker-A'</span>, gen, <span class="hljs-number">101</span>, <span class="hljs-string">'UPSTREAM_TIMEOUT'</span>,
+               <span class="hljs-string">'temporary outage'</span>, transient=<span class="hljs-literal">True</span>, rng=random.Random(<span class="hljs-number">1</span>))
+        gen = s.claim(<span class="hljs-string">'job-poison'</span>, <span class="hljs-string">'worker-A'</span>, now=<span class="hljs-number">110</span>)
+        s.fail(<span class="hljs-string">'job-poison'</span>, <span class="hljs-string">'worker-A'</span>, gen, <span class="hljs-number">111</span>, <span class="hljs-string">'UPSTREAM_TIMEOUT'</span>,
+               <span class="hljs-string">'still unavailable'</span>, transient=<span class="hljs-literal">True</span>, rng=random.Random(<span class="hljs-number">1</span>))
+        <span class="hljs-built_in">print</span>(s.get(<span class="hljs-string">'job-poison'</span>)[<span class="hljs-string">'status'</span>], <span class="hljs-built_in">len</span>(s.outbox()))
+</code></pre></div><h1 id="section-33">附录 B：26 项自动化测试代码</h1>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> random
+<span class="hljs-keyword">import</span> tempfile
+<span class="hljs-keyword">import</span> threading
+<span class="hljs-keyword">import</span> unittest
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<span class="hljs-keyword">from</span> retry_demo <span class="hljs-keyword">import</span> RetryStore, RetryPolicy, BusinessConflict
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">RetryDemoTests</span>(unittest.TestCase):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">setUp</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.tmp = tempfile.TemporaryDirectory()
+        <span class="hljs-variable language_">self</span>.s = RetryStore(Path(<span class="hljs-variable language_">self</span>.tmp.name) / <span class="hljs-string">'test.db'</span>, RetryPolicy(max_attempts=<span class="hljs-number">3</span>, base_delay=<span class="hljs-number">2</span>, cap_delay=<span class="hljs-number">10</span>))
+        <span class="hljs-variable language_">self</span>.s.ingest(<span class="hljs-string">'job1'</span>, <span class="hljs-string">b'payload'</span>, topic=<span class="hljs-string">'t'</span>, partition=<span class="hljs-number">0</span>, offset=<span class="hljs-number">11</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">tearDown</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.tmp.cleanup()
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">claim</span>(<span class="hljs-params">self, now=<span class="hljs-number">100</span></span>):
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.s.claim(<span class="hljs-string">'job1'</span>, <span class="hljs-string">'w'</span>, now)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">fail</span>(<span class="hljs-params">self, gen, now=<span class="hljs-number">101</span>, transient=<span class="hljs-literal">True</span></span>):
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.s.fail(<span class="hljs-string">'job1'</span>,<span class="hljs-string">'w'</span>,gen,now,<span class="hljs-string">'FAIL'</span>,<span class="hljs-string">'sanitized message'</span>,transient=transient,rng=random.Random(<span class="hljs-number">0</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_initial_pending</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.get(<span class="hljs-string">'job1'</span>)[<span class="hljs-string">'status'</span>], <span class="hljs-string">'PENDING'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_duplicate_ingest_idempotent</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.ingest(<span class="hljs-string">'job1'</span>,<span class="hljs-string">b'payload'</span>,topic=<span class="hljs-string">'t'</span>,partition=<span class="hljs-number">0</span>,offset=<span class="hljs-number">11</span>), <span class="hljs-string">'ALREADY_SAVED'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_conflicting_payload_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(BusinessConflict): <span class="hljs-variable language_">self</span>.s.ingest(<span class="hljs-string">'job1'</span>,<span class="hljs-string">b'changed'</span>,topic=<span class="hljs-string">'t'</span>,partition=<span class="hljs-number">0</span>,offset=<span class="hljs-number">11</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_duplicate_source_position_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(BusinessConflict): <span class="hljs-variable language_">self</span>.s.ingest(<span class="hljs-string">'other'</span>,<span class="hljs-string">b'payload'</span>,topic=<span class="hljs-string">'t'</span>,partition=<span class="hljs-number">0</span>,offset=<span class="hljs-number">11</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_claim_increases_attempts</span>(<span class="hljs-params">self</span>):
+        gen = <span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.assertEqual(gen, <span class="hljs-number">1</span>); <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.get(<span class="hljs-string">'job1'</span>)[<span class="hljs-string">'attempts'</span>],<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_second_claim_blocked</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.assertIsNone(<span class="hljs-variable language_">self</span>.s.claim(<span class="hljs-string">'job1'</span>,<span class="hljs-string">'x'</span>,<span class="hljs-number">101</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_retry_after_transient</span>(<span class="hljs-params">self</span>):
+        gen=<span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.fail(gen),<span class="hljs-string">'RETRY_WAIT'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_retry_not_due</span>(<span class="hljs-params">self</span>):
+        gen=<span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.fail(gen); <span class="hljs-variable language_">self</span>.assertIsNone(<span class="hljs-variable language_">self</span>.s.claim(<span class="hljs-string">'job1'</span>,<span class="hljs-string">'w'</span>,<span class="hljs-number">101</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_retry_when_due</span>(<span class="hljs-params">self</span>):
+        gen=<span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.fail(gen); <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.claim(<span class="hljs-string">'job1'</span>,<span class="hljs-string">'w'</span>,<span class="hljs-number">200</span>),<span class="hljs-number">2</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_permanent_to_failed</span>(<span class="hljs-params">self</span>):
+        gen=<span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.fail(gen,transient=<span class="hljs-literal">False</span>),<span class="hljs-string">'FAILED'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_final_failure_outbox_once</span>(<span class="hljs-params">self</span>):
+        gen=<span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.fail(gen,transient=<span class="hljs-literal">False</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-built_in">len</span>(<span class="hljs-variable language_">self</span>.s.outbox()),<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_retry_exhaustion</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">3</span>):
+            g=<span class="hljs-variable language_">self</span>.claim(<span class="hljs-number">100</span>+i*<span class="hljs-number">100</span>)
+            state=<span class="hljs-variable language_">self</span>.fail(g, <span class="hljs-number">101</span>+i*<span class="hljs-number">100</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(state,<span class="hljs-string">'FAILED'</span>); <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.get(<span class="hljs-string">'job1'</span>)[<span class="hljs-string">'attempts'</span>],<span class="hljs-number">3</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_final_failure_retains_original</span>(<span class="hljs-params">self</span>):
+        g=<span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.fail(g,transient=<span class="hljs-literal">False</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.get(<span class="hljs-string">'job1'</span>)[<span class="hljs-string">'original_payload'</span>],<span class="hljs-string">b'payload'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_expired_lease_reclaim</span>(<span class="hljs-params">self</span>):
+        g=<span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.claim(<span class="hljs-string">'job1'</span>,<span class="hljs-string">'w2'</span>,<span class="hljs-number">200</span>),g+<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_stale_worker_cannot_succeed</span>(<span class="hljs-params">self</span>):
+        g=<span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.s.claim(<span class="hljs-string">'job1'</span>,<span class="hljs-string">'w2'</span>,<span class="hljs-number">200</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(BusinessConflict): <span class="hljs-variable language_">self</span>.s.succeed(<span class="hljs-string">'job1'</span>,<span class="hljs-string">'w'</span>,g,<span class="hljs-number">201</span>,<span class="hljs-string">'bad'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_stale_worker_cannot_fail</span>(<span class="hljs-params">self</span>):
+        g=<span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.s.claim(<span class="hljs-string">'job1'</span>,<span class="hljs-string">'w2'</span>,<span class="hljs-number">200</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(BusinessConflict): <span class="hljs-variable language_">self</span>.fail(g,now=<span class="hljs-number">201</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_succeed_terminal</span>(<span class="hljs-params">self</span>):
+        g=<span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.s.succeed(<span class="hljs-string">'job1'</span>,<span class="hljs-string">'w'</span>,g,<span class="hljs-number">101</span>,<span class="hljs-string">'done'</span>)
+        <span class="hljs-variable language_">self</span>.assertIsNone(<span class="hljs-variable language_">self</span>.s.claim(<span class="hljs-string">'job1'</span>,<span class="hljs-string">'w'</span>,<span class="hljs-number">500</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_failed_terminal</span>(<span class="hljs-params">self</span>):
+        g=<span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.fail(g,transient=<span class="hljs-literal">False</span>)
+        <span class="hljs-variable language_">self</span>.assertIsNone(<span class="hljs-variable language_">self</span>.s.claim(<span class="hljs-string">'job1'</span>,<span class="hljs-string">'w'</span>,<span class="hljs-number">500</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_due_jobs</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertIn(<span class="hljs-string">'job1'</span>,<span class="hljs-variable language_">self</span>.s.due_jobs(<span class="hljs-number">100</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_running_not_due_before_lease</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.due_jobs(<span class="hljs-number">101</span>),[])
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_running_due_after_lease</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.assertIn(<span class="hljs-string">'job1'</span>,<span class="hljs-variable language_">self</span>.s.due_jobs(<span class="hljs-number">200</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_outbox_publish_mark</span>(<span class="hljs-params">self</span>):
+        g=<span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.fail(g,transient=<span class="hljs-literal">False</span>)
+        <span class="hljs-variable language_">self</span>.s.mark_published(<span class="hljs-string">'dlq:job1'</span>,<span class="hljs-number">222</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.outbox()[<span class="hljs-number">0</span>][<span class="hljs-string">'published_at'</span>],<span class="hljs-number">222</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_backoff_bounded</span>(<span class="hljs-params">self</span>):
+        p=RetryPolicy(max_attempts=<span class="hljs-number">5</span>,base_delay=<span class="hljs-number">2</span>,cap_delay=<span class="hljs-number">10</span>)
+        <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">1</span>,<span class="hljs-number">9</span>): <span class="hljs-variable language_">self</span>.assertLessEqual(p.delay(i,random.Random(i)),<span class="hljs-number">10</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_invalid_policy</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): RetryPolicy(max_attempts=<span class="hljs-number">0</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_failed_not_block_next</span>(<span class="hljs-params">self</span>):
+        g=<span class="hljs-variable language_">self</span>.claim(); <span class="hljs-variable language_">self</span>.fail(g,transient=<span class="hljs-literal">False</span>)
+        <span class="hljs-variable language_">self</span>.s.ingest(<span class="hljs-string">'job2'</span>,<span class="hljs-string">b'good'</span>,topic=<span class="hljs-string">'t'</span>,partition=<span class="hljs-number">0</span>,offset=<span class="hljs-number">12</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.s.claim(<span class="hljs-string">'job2'</span>,<span class="hljs-string">'w2'</span>,<span class="hljs-number">102</span>),<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_parallel_claim_single_owner</span>(<span class="hljs-params">self</span>):
+        results=[]
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">work</span>(<span class="hljs-params">name</span>): results.append(<span class="hljs-variable language_">self</span>.s.claim(<span class="hljs-string">'job1'</span>,name,<span class="hljs-number">100</span>))
+        threads=[threading.Thread(target=work,args=(<span class="hljs-built_in">str</span>(i),)) <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">5</span>)]
+        <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> threads: t.start()
+        <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> threads: t.join()
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-built_in">sum</span>(r <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> results),<span class="hljs-number">1</span>)
+
+<span class="hljs-keyword">if</span> __name__==<span class="hljs-string">'__main__'</span>: unittest.main(verbosity=<span class="hljs-number">2</span>)
+</code></pre></div><h2 id="section-34">运行方式</h2>
+<p>将附录 A 保存为 <code>retry_demo.py</code>，附录 B 保存为 <code>test_retry_demo.py</code>，并放到同一目录：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python retry_demo.py
+python -m unittest -v test_retry_demo.py</code></pre></div><p>本次实际运行环境中，<code>python -m unittest -v test_retry_demo.py</code> 执行结果为 <strong>26 项测试通过</strong>。测试包括线程并发领取、失败转入 RETRY_WAIT、达到尝试上限进入 FAILED、Outbox 唯一性、租约过期后接管、旧 Worker 写入拒绝、原始消息留存和坏消息终态后正常任务仍可领取。</p>
+<p><strong>验证局限</strong>：</p>
+<ul>
+<li>采用 SQLite 文件数据库，不是 PostgreSQL 行锁/事务隔离的实际性能验证。</li>
+<li>不连接 Kafka Broker，无法证明实际 Commit、Rebalance、网络断开与 DLQ Publisher 的端到端正确性。</li>
+<li>不模拟真实模型 API 的费用、时延和 Rate Limit。</li>
+<li>租约示例只实现期限与代际检查，长任务在生产中还需要续租、心跳与强制资源限制。</li>
+<li>Outbox 仅创建与标记发布状态，不包含真实 Kafka 发布器。</li>
+<li><code>original_payload</code> 直接保留字节用于教学；真实业务必须考虑加密、敏感数据保护和保留期限。</li>
+</ul>

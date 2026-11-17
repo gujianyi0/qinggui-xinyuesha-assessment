@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "before": {
+    "sourceButtons": 18,
+    "bodyPaths": 0,
+    "bodyMarkers": 0,
+    "latestText": "结论：曹操是 standard（标准包）中的魏势力男性武将，体力为 4，体力上限为 4，拥有技能【奸雄】和【护驾】。\n\n- 【奸雄】：当你受到伤害后，你可以获得对你造成伤害的牌。\n- 【护驾】：主公技，当你需要使用或打出【闪】时，你可以令其他魏势力角色选择是否打出一张【闪】（该【闪】视为由你使用或打出）。\n\n依据与来源（均为本次工具实际返回，快照 freekill-local-b9dc701220bc）：\n- 武将实体定义来自 《曹操》 第 12 行：General:new(extension, \"caocao\", \"wei\", 4):addSkills { \"jianxiong\", \"hujia\" }，其中势力为 wei、体力为 4，技能为 jianxiong 和 hujia。\n- 技能中文说明来自 《护驾》 中的“奸雄”（第 17 行）和“护驾”（第 21 行）。\n\n必要前提：以上信息仅对应快照中 standard 包的“曹操”；按技能名查询未返回条目，此处技能描述以武将记录附带的说明为准。",
+    "inputEnabled": true,
+    "assets": [
+      "http://127.0.0.1:15174/assets/index-BOYBUghS.js"
+    ]
+  },
+  "detail": {
+    "pathShown": true,
+    "snapshotShown": true
+  },
+  "scope": "Actual Docker owner UI; existing conversation only, no model submission"
+}
