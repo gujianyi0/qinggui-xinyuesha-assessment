@@ -442,8 +442,8 @@
     {
       "path": "frontend/src/features/chat/components/chat-screen.tsx",
       "url": "/bookshelf/review-files/frontend/src/features/chat/components/chat-screen.tsx.txt",
-      "sha256": "c75eea4fd4dfcaadc1a5c4809810f949d6e8a86d1c1895e06efa32a49587fb13",
-      "bytes": 23375
+      "sha256": "eab2d0bdf1cbdf2f81ec93d0a481e503d5607cddd376fa3a99e334000d9d8f70",
+      "bytes": 24800
     },
     {
       "path": "docs/evidence/v201-pytest-20261117.log",
@@ -2344,8 +2344,8 @@
     {
       "path": "frontend/src/features/chat/components/__tests__/chat-screen.test.tsx",
       "url": "/bookshelf/review-files/frontend/src/features/chat/components/__tests__/chat-screen.test.tsx.txt",
-      "sha256": "7af6e84aca69af4d713e3906625229ce9e736f5a5c7d171b521da9d70b452977",
-      "bytes": 15874
+      "sha256": "7a14ad13721ab13a6d706269991d2310707b7c44539d4b02a73a239bcc6e8740",
+      "bytes": 18757
     },
     {
       "path": "frontend/src/features/feedback/components/__tests__/feedback-screen.test.tsx",

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { flushSync } from 'react-dom'
 import { expect, it, vi } from 'vitest'
 import Chat from '@/features/chat/components/chat-screen'
 import { streamRun } from '@/features/chat/services/run-transport'
@@ -525,5 +526,95 @@ it('keeps a next-question draft while recovering the previous request', async ()
   } finally {
     localStorage.removeItem(key)
     vi.unstubAllGlobals()
+  }
+})
+
+it('sends the first question when selecting the newly created session commits immediately', async () => {
+  const props = {
+    userId: 'first-send',
+    token: 'test',
+    onCreate: vi.fn(async () => ({
+      id: 'new-conversation',
+      title: '1',
+      created_at: '2026-11-18T00:00:00Z',
+    })),
+    snapshots: [],
+    snapshotId: 'test',
+    onSnapshotChange: vi.fn(),
+    isMockMode: false,
+    onFeedback: vi.fn(),
+  }
+  let finish!: (event: StreamEvent) => void
+  const observe = vi.mocked(streamRun).mockImplementationOnce(
+    ({ onEvent, signal }) =>
+      new Promise<void>((resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        })
+        finish = (event) => {
+          onEvent(event)
+          resolve()
+        }
+      }),
+  )
+  const select = vi.fn((id: string) => {
+    flushSync(() =>
+      rerender(<Chat {...props} sessionId={id} onSessionCreated={select} />),
+    )
+  })
+  const { rerender } = render(
+    <Chat {...props} sessionId={null} onSessionCreated={select} />,
+  )
+
+  fireEvent.change(screen.getByRole('textbox', { name: '输入问题' }), {
+    target: { value: '1' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: '发送问题' }))
+  await waitFor(() =>
+    expect(select).toHaveBeenCalledExactlyOnceWith('new-conversation'),
+  )
+  expect(observe.mock.calls.at(-1)?.[0]).toMatchObject({
+    sessionId: 'new-conversation',
+    message: '1',
+  })
+  expect(observe.mock.calls.at(-1)?.[0].signal.aborted).toBe(false)
+  act(() =>
+    finish({
+      event: 'completed',
+      data: { text: '请补充想问的规则', citations: [] },
+    }),
+  )
+  expect(await screen.findByText('请补充想问的规则')).toBeVisible()
+})
+
+it('restores the first question after a reload interrupts creating the session', async () => {
+  const props = {
+    userId: 'refresh-during-creation',
+    token: 'test',
+    sessionId: null,
+    onCreate: vi.fn(() => new Promise<never>(() => {})),
+    snapshots: [],
+    snapshotId: 'test',
+    onSnapshotChange: vi.fn(),
+    isMockMode: false,
+    onFeedback: vi.fn(),
+  }
+  const before = render(<Chat {...props} />)
+  fireEvent.change(screen.getByRole('textbox', { name: '输入问题' }), {
+    target: { value: '1' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: '发送问题' }))
+  expect(props.onCreate).toHaveBeenCalledExactlyOnceWith('1')
+  before.unmount()
+  const after = render(<Chat {...props} />)
+  try {
+    expect(screen.getByRole('textbox', { name: '输入问题' })).toHaveValue('1')
+    expect(
+      screen.getByText('已找回刷新前的问题，点击发送即可继续'),
+    ).toBeVisible()
+    expect(props.onCreate).toHaveBeenCalledTimes(1)
+  } finally {
+    after.unmount()
+    sessionStorage.removeItem('qinggui-first-question:refresh-during-creation')
   }
 })

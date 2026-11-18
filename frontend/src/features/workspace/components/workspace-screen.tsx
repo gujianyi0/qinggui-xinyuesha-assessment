@@ -115,7 +115,6 @@ export default function WorkspaceScreen({
       session,
       ...(current ?? []),
     ])
-    setSelected(session.id)
     return session
   }
   function handleNavigate(destination: WorkspaceDestination) {
@@ -236,6 +235,7 @@ export default function WorkspaceScreen({
                   token={token}
                   sessionId={selected}
                   onCreate={createSession}
+                  onSessionCreated={setSelected}
                   snapshots={snapshots}
                   snapshotId={snapshotId}
                   onSnapshotChange={setSnapshotId}

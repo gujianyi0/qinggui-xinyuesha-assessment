@@ -39,6 +39,7 @@ interface ChatScreenProps {
   token: string
   sessionId: string | null
   onCreate: (title: string) => Promise<Session>
+  onSessionCreated?: (id: string) => void
   snapshots: Snapshot[]
   snapshotId: string
   onSnapshotChange: (id: string) => void
@@ -77,6 +78,7 @@ export default function ChatScreen({
   token,
   sessionId,
   onCreate,
+  onSessionCreated,
   snapshots,
   snapshotId,
   onSnapshotChange,
@@ -86,6 +88,7 @@ export default function ChatScreen({
   const isOnline = useOnlineStatus()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
+  const [hasRestoredQuestion, setRestoredQuestion] = useState(false)
   const [isBusy, setBusy] = useState(false)
   const elapsedSeconds = useElapsedSeconds(isBusy)
   const [isLoading, setLoading] = useState(false)
@@ -110,11 +113,16 @@ export default function ChatScreen({
   const busyRef = useRef(false)
   const activeSession = useRef<string | null>(sessionId)
   const generation = useRef(0)
+  const initialQuestionKey = `qinggui-first-question:${userId}`
 
   useEffect(() => {
     if (!token) return
+    const previous = sessionStorage.getItem(initialQuestionKey)
     const question = sessionStorage.getItem(`qinggui-next-question:${userId}`)
-    if (question) {
+    if (previous) {
+      setInput(previous)
+      setRestoredQuestion(true)
+    } else if (question) {
       setInput(question)
       sessionStorage.removeItem(`qinggui-next-question:${userId}`)
     }
@@ -122,7 +130,7 @@ export default function ChatScreen({
       generation.current += 1
       controller.current?.abort('detach')
     }
-  }, [token, userId])
+  }, [token, userId, initialQuestionKey])
 
   useEffect(() => {
     if (busyRef.current && activeSession.current === sessionId) return
@@ -184,6 +192,15 @@ export default function ChatScreen({
     const message = saved?.message || input.trim()
     if (!message || busyRef.current || isLoading || !isOnline) return
     const submittedDraft = input
+    if (!sessionId) {
+      try {
+        sessionStorage.setItem(initialQuestionKey, message)
+      } catch {
+        setError('无法保存待发送的问题，请检查浏览器存储设置后重试')
+        return
+      }
+    }
+    if (!saved) setRestoredQuestion(false)
     if (!saved) setInput('')
     followTail.current = true
     busyRef.current = true
@@ -197,10 +214,14 @@ export default function ChatScreen({
     runId.current = null
     const assistantId = `answer-${crypto.randomUUID()}`
     let terminal = false
-    let hasSession = Boolean(sessionId)
     try {
       const id = sessionId || (await onCreate(message.slice(0, 28))).id
-      hasSession = true
+      if (
+        currentGeneration !== generation.current ||
+        currentController.signal.aborted
+      )
+        return
+      activeSession.current = id
       if (saved) {
         try {
           const found = await lookupSubmission({
@@ -226,7 +247,6 @@ export default function ChatScreen({
             throw error
         }
       }
-      activeSession.current = id
       if (currentGeneration !== generation.current) return
       setMessages((current) => [
         ...current,
@@ -244,7 +264,7 @@ export default function ChatScreen({
             ]),
         { id: assistantId, role: 'assistant', content: '', citations: [] },
       ])
-      await streamRun({
+      const observation = streamRun({
         sessionId: id,
         message: message,
         snapshotId: saved?.snapshot_id ?? snapshotId,
@@ -314,17 +334,30 @@ export default function ChatScreen({
         },
         scope: userId,
       })
+      if (!sessionId) {
+        // The request is now bound to this session before navigation can rerender the chat.
+        if (pendingSubmission(userId, id))
+          sessionStorage.removeItem(initialQuestionKey)
+        onSessionCreated?.(id)
+      }
+      await observation
       if (!terminal) setError('回答连接提前结束，请刷新记录核对最终状态')
     } catch (error) {
       if (
         currentGeneration === generation.current &&
         !(error instanceof Error && error.name === 'AbortError')
       ) {
-        if (!hasSession && !saved) setInput((draft) => draft || submittedDraft)
+        if (
+          !sessionId &&
+          !pendingSubmission(userId, activeSession.current ?? '')
+        )
+          setInput((draft) => draft || submittedDraft)
         setError(displayError(error))
       }
     } finally {
       if (currentGeneration === generation.current) {
+        if (!sessionId || (!saved && hasRestoredQuestion))
+          sessionStorage.removeItem(initialQuestionKey)
         busyRef.current = false
         setBusy(false)
         controller.current = null
@@ -547,6 +580,11 @@ export default function ChatScreen({
               当前离线，输入内容会保留，联网后可继续发送
             </p>
           )}
+          {hasRestoredQuestion && !isBusy && (
+            <p className="composer-status" role="status">
+              已找回刷新前的问题，点击发送即可继续
+            </p>
+          )}
           {pending && !isBusy && (
             <div className="mock-notice">
               有一条待核对的原请求。恢复会沿用原编号，不会重新计费。
@@ -563,7 +601,7 @@ export default function ChatScreen({
           {error && (
             <ErrorNotice
               message={error}
-              onRetry={() => void reload()}
+              onRetry={sessionId ? () => void reload() : undefined}
               onDismiss={() => setError('')}
             />
           )}
