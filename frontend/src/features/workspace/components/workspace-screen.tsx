@@ -124,6 +124,12 @@ export default function WorkspaceScreen({
       ...(destination.sessionId !== undefined
         ? { session: destination.sessionId }
         : {}),
+      ...(destination.sharedTab && {
+        sharedTab: destination.sharedTab,
+        sharedOffset: null,
+        sharedSession: null,
+        sharedMessageOffset: null,
+      }),
     })
     setMobileNavOpen(false)
   }
@@ -262,6 +268,15 @@ export default function WorkspaceScreen({
                   token={token}
                   sessionId={selected}
                   initialActual={feedbackActual}
+                  onViewShared={
+                    isPublicMode
+                      ? () =>
+                          handleNavigate({
+                            page: 'shared',
+                            sharedTab: 'submitted',
+                          })
+                      : undefined
+                  }
                 />
               )}
               {page === 'jobs' && (

@@ -621,6 +621,10 @@ label {
 .history-heading .nav-label {
   margin-bottom: 0;
 }
+.history-shared-link {
+  align-self: flex-start;
+  margin-top: 8px;
+}
 .session-list {
   flex: 1;
   min-height: 40px;

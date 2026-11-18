@@ -33,6 +33,7 @@ interface FeedbackScreenProps {
   token: string
   sessionId: string | null
   initialActual?: string
+  onViewShared?: () => void
 }
 const blankDraft = (sessionId: string | null, actual = ''): DraftInput => ({
   ...(sessionId ? { session_id: sessionId } : {}),
@@ -70,6 +71,7 @@ export default function FeedbackScreen({
   token,
   sessionId,
   initialActual = '',
+  onViewShared,
 }: FeedbackScreenProps) {
   const client = useQueryClient()
   const draftsKey = ['feedback-drafts', userId],
@@ -193,6 +195,15 @@ export default function FeedbackScreen({
           <span className="section-kicker">让问题更容易被理解和复现</span>
           <h1>我的反馈</h1>
           <p>先整理现象与条件，核对草稿后，再由你确认保存</p>
+          {onViewShared && (
+            <button
+              type="button"
+              className="text-button"
+              onClick={onViewShared}
+            >
+              查看公开反馈 <ArrowRight size={14} />
+            </button>
+          )}
         </div>
         <button
           type="button"

@@ -17,6 +17,7 @@ import { NAVIGATION } from '../navigation'
 export interface WorkspaceDestination {
   page: Page
   sessionId?: string | null
+  sharedTab?: 'sessions' | 'submitted'
 }
 interface WorkspaceSidebarProps {
   user: User
@@ -103,9 +104,20 @@ export default function WorkspaceSidebar({
         ))}
       </nav>
       <div className="history-heading">
-        <span className="nav-label">最近对话</span>
+        <span className="nav-label">
+          {isPublicMode ? '我的对话' : '最近对话'}
+        </span>
         <span>{sessions.length}</span>
       </div>
+      {isPublicMode && (
+        <button
+          type="button"
+          className="text-button history-shared-link"
+          onClick={() => onNavigate({ page: 'shared', sharedTab: 'sessions' })}
+        >
+          查看公开历史对话 <ChevronRight size={13} />
+        </button>
+      )}
       <label className="history-search">
         <span className="sr-only">搜索历史对话</span>
         <input
@@ -142,7 +154,11 @@ export default function WorkspaceSidebar({
           ))
         ) : (
           <p className="sidebar-empty">
-            {historyFilter ? '没有匹配的历史对话' : '新的疑问，值得好好聊聊'}
+            {historyFilter
+              ? '没有匹配的对话'
+              : isPublicMode
+                ? '你还没有创建对话'
+                : '新的疑问，值得好好聊聊'}
           </p>
         )}
         {filteredSessions.length > historyLimit && (
