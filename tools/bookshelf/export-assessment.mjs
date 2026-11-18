@@ -102,8 +102,12 @@ for(const name of names){
   html=html.replace(/<h([1-6])>([\s\S]*?)<\/h\1>/g,(_,level,inner)=>{const anchor=`section-${++n}`;if(Number(level)>=2&&Number(level)<=3)toc.push({id:anchor,level:Number(level),text:inner.replace(/<[^>]+>/g,'')});return `<h${level} id="${anchor}">${inner}</h${level}>`;});
   await fs.writeFile(path.join(output,'articles',id+'.html'),html);
   await fs.writeFile(path.join(output,'originals',id+'.md'),markdown);
-  const title=name==='../../README.md'?'项目 README · 使用与实现说明':markdown.split('\n').find(line=>line.startsWith('# '))?.slice(2).trim()||name;
-  data.reviewDocuments.push({id,kind:'assessment_reference',sourcePath:path.relative(root,file).replaceAll('\\','/'),title,available:true,filename:name,characters:markdown.length,hash:hash(markdown),search:markdown.replace(/[#*>`|\[\]]/g,' '),toc});
+  const isReadme = file === path.join(root, 'README.md');
+  const title=isReadme?'项目 README · 使用与实现说明':markdown.split('\n').find(line=>line.startsWith('# '))?.slice(2).trim()||name;
+  const record = {id,kind:'assessment_reference',sourcePath:path.relative(root,file).replaceAll('\\','/'),title,available:true,filename:name,characters:markdown.length,hash:hash(markdown),search:markdown.replace(/[#*>`|\[\]]/g,' '),toc};
+  // Display README first without changing existing document IDs and links.
+  if (isReadme) data.reviewDocuments.unshift(record);
+  else data.reviewDocuments.push(record);
 }
 data.evidenceLinks=Object.fromEntries([...copied].map(([file,value])=>[path.relative(root,path.resolve(file)).replaceAll('\\','/'),value.directory?urlFor(path.resolve(file))+'/index.html':value.url+(file.endsWith('.md')?'.html':'')]));
 data.evidenceFiles=Object.fromEntries([...copied].filter(([,value])=>!value.directory).map(([file,value])=>[path.relative(root,file).replaceAll('\\','/'),value]));
@@ -111,7 +115,7 @@ const searchIndex=Object.fromEntries([...data.records,...data.reviewDocuments].m
 for(const record of [...data.records,...data.reviewDocuments])record.search='';
 await fs.writeFile(path.join(output,'search.json'),JSON.stringify(searchIndex));
 await fs.writeFile(path.join(output,'data.json'),JSON.stringify(data));
-await fs.writeFile(path.join(output,'index.html'),'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/?page=bookshelf"><title>轻归 · 知识书架</title><a href="/?page=bookshelf">进入轻归知识书架</a></html>');
+await fs.writeFile(path.join(output,'index.html'),'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/?page=bookshelf"><title>轻归 · 知识书架＆QA</title><a href="/?page=bookshelf">进入轻归知识书架＆QA</a></html>');
 await fs.mkdir(path.join(output,'licenses'),{recursive:true});
 await fs.cp(path.join(input,'licenses'),path.join(output,'licenses'),{recursive:true,force:true});
 await fs.writeFile(path.join(output,'THIRD-PARTY-NOTICES.md'),'# 本地知识书架来源\n\n原书架来自本工作区知识浏览网页，保留7个学习方向、49条目标和49份原文；文档导航QA单列为考核资料，不进入学习目录。轻归原生模块复用既有Markdown适配与Query层提供搜索、阅读目录和字号；导出保留原文和证据链接，不加载独立书架的重复界面。\n\nMarkdown生成使用marked与sanitize-html；已有代码高亮及样式来自highlight.js。许可证见licenses/。本地副本不连接Cloudflare D1、不导出主人管理口令、不修改云端掌握进度。\n');

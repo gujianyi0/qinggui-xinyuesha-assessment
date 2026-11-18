@@ -166,8 +166,8 @@
     {
       "path": "frontend/src/features/bookshelf/components/bookshelf-screen.tsx",
       "url": "/bookshelf/review-files/frontend/src/features/bookshelf/components/bookshelf-screen.tsx.txt",
-      "sha256": "c659b3548cbd27c33711a4d2b2895d32ddaead2841b9b367f0d0d0e80d4f81e1",
-      "bytes": 10892
+      "sha256": "19bb025fa1437e381be1d00c578e2c44241d106c0e9a7e86b0500b1f1d0a8cf8",
+      "bytes": 10897
     },
     {
       "path": "docs/进度同步-20261117-v203.md",
@@ -922,8 +922,8 @@
     {
       "path": "scripts/verify_bookshelf.py",
       "url": "/bookshelf/review-files/scripts/verify_bookshelf.py",
-      "sha256": "7e3189c91c9973acd3c0c9184d4590a2249dcd02e5eff66b500ab2780ec84495",
-      "bytes": 5274
+      "sha256": "b77a3bd6cbc7a703c4d99b19998becfa62c10669e4c9eb8616c76993629479fe",
+      "bytes": 5341
     },
     {
       "path": "scripts/verify_browser_request_recovery.py",

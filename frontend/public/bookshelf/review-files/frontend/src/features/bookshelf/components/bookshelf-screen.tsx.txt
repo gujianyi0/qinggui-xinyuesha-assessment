@@ -104,7 +104,7 @@ export default function BookshelfScreen({
     catalog.data?.records.filter((item) => progress.data?.ids.includes(item.id))
       .length ?? 0
   return (
-    <section className="shelf-module" aria-label="知识书架">
+    <section className="shelf-module" aria-label="知识书架＆QA">
       <div
         className="tab-row"
         role="tablist"

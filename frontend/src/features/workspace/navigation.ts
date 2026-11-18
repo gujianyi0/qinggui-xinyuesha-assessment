@@ -45,7 +45,7 @@ export const NAVIGATION = [
   },
   {
     id: 'bookshelf' as const,
-    label: '知识书架',
+    label: '知识书架＆QA',
     icon: LibraryBig,
     sub: '知识文档与考核资料',
   },

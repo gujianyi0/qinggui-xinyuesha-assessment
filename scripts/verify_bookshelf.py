@@ -29,7 +29,8 @@ def verify():
     assert all(r['kind'] == 'learning' for r in data['records'])
     review = data['reviewDocuments']
     assert len(review) == 12
-    assert review[-1]['sourcePath'] == 'README.md'
+    assert review[0]['sourcePath'] == 'README.md' and review[0]['id'] == '8-12'
+    assert review[1]['id'] == '8-01'
     assert all(r['kind'] == 'assessment_reference' and 'group' not in r for r in review)
     assert not set(r['id'] for r in review) & set(r['id'] for r in data['records'])
     for path, metadata in data['evidenceFiles'].items():
