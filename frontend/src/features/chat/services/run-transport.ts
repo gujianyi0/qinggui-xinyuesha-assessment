@@ -12,6 +12,7 @@ export interface RunObservationOptions {
   signal: AbortSignal
   onEvent: (event: StreamEvent) => void
   scope?: string
+  requestId?: string
 }
 export interface PendingSubmission {
   request_id: string
@@ -88,6 +89,7 @@ async function acceptSubmission({
   token,
   signal,
   scope,
+  requestId,
 }: {
   sessionId: string
   message: string
@@ -95,16 +97,22 @@ async function acceptSubmission({
   token: string
   signal: AbortSignal
   scope: string
+  requestId?: string
 }): Promise<PendingSubmission> {
   let value = pendingSubmission(scope, sessionId)
   const recovering = Boolean(value)
-  if (value && (value.message !== message || value.snapshot_id !== snapshotId))
+  if (
+    value &&
+    (value.message !== message ||
+      value.snapshot_id !== snapshotId ||
+      (requestId && value.request_id !== requestId))
+  )
     throw new ApiError(
       '此会话有待确认请求，请先恢复原请求；不会覆盖原编号。',
       409,
     )
   value ||= {
-    request_id: crypto.randomUUID(),
+    request_id: requestId ?? crypto.randomUUID(),
     session_id: sessionId,
     message,
     snapshot_id: snapshotId,
@@ -211,6 +219,7 @@ async function durableRun({
   signal,
   onEvent,
   scope = '',
+  requestId,
   useStream,
 }: RunObservationOptions & { useStream: boolean }) {
   if (!scope) throw new Error('尚未取得工作区身份，不能提交付费请求。')
@@ -223,6 +232,7 @@ async function durableRun({
       token: token,
       signal: signal,
       scope: scope,
+      requestId,
     })
     const runId = value.run_id
     if (!runId) throw new Error('提交回执缺少运行编号，请恢复原请求核对。')

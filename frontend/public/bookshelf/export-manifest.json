@@ -442,8 +442,8 @@
     {
       "path": "frontend/src/features/chat/components/chat-screen.tsx",
       "url": "/bookshelf/review-files/frontend/src/features/chat/components/chat-screen.tsx.txt",
-      "sha256": "eab2d0bdf1cbdf2f81ec93d0a481e503d5607cddd376fa3a99e334000d9d8f70",
-      "bytes": 24800
+      "sha256": "25da3f7d789a51a9a70c2a616662faf51481183f9d8107eb0e0044e2ae6bf640",
+      "bytes": 28405
     },
     {
       "path": "docs/evidence/v201-pytest-20261117.log",
@@ -2344,8 +2344,8 @@
     {
       "path": "frontend/src/features/chat/components/__tests__/chat-screen.test.tsx",
       "url": "/bookshelf/review-files/frontend/src/features/chat/components/__tests__/chat-screen.test.tsx.txt",
-      "sha256": "7a14ad13721ab13a6d706269991d2310707b7c44539d4b02a73a239bcc6e8740",
-      "bytes": 18757
+      "sha256": "3f6a2f22ba2a8d94ee7ddf8e397ea13551c98d750919473be425b08e1e7da189",
+      "bytes": 23567
     },
     {
       "path": "frontend/src/features/feedback/components/__tests__/feedback-screen.test.tsx",
@@ -2692,8 +2692,8 @@
     {
       "path": "frontend/src/features/chat/services/run-transport.ts",
       "url": "/bookshelf/review-files/frontend/src/features/chat/services/run-transport.ts.txt",
-      "sha256": "b2716a514748237a37f5657b99f48be614879cb5609190a96a012351670c13ab",
-      "bytes": 8992
+      "sha256": "46dddc87a52d91d1a01b3b4600363452fdcba6ec9807d823df9c123299639e15",
+      "bytes": 9163
     },
     {
       "path": "backend/app/history_sources.py",
