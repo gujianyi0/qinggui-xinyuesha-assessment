@@ -1,0 +1,35 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2.0.8-问答引用修复-20261118.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>2.0.8 问答引用修复</h1>
+<p>原问题「请说明【闪】的使用时机、目标和效果，并给出来源」的答案正确，但两次工具共返回11条候选来源，其中包含闪电牌堆配置。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv204-public-live-20261117.json">修复前真实问答</a>。</p>
+<p>卡牌工具对同快照的唯一完整牌名优先精确匹配。后端按来源位置合并重复证据，为当前题目选出直接引用，完整候选仍留在工具审计。基础牌面题保留资料原文的「使用」与「打出」区别。详情见<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fanswer_sources.py">引用筛选实现</a>。</p>
+<table>
+<thead>
+<tr>
+<th>复测</th>
+<th>结果</th>
+<th>来源</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>闪的使用时机、目标和效果</td>
+<td>杀对你生效时，抵消此杀</td>
+<td>闪牌面，1条（原11条）</td>
+</tr>
+<tr>
+<td>闪电的花色点数</td>
+<td>黑桃A、红桃Q</td>
+<td>闪电牌堆配置，1条</td>
+</tr>
+<tr>
+<td>闪和闪电有什么区别</td>
+<td>基本牌抵消杀；延时锦囊牌进入判定区</td>
+<td>两张牌的牌面，2条</td>
+</tr>
+<tr>
+<td>万箭齐发能用闪响应吗</td>
+<td>可以打出一张闪，否则受到1点伤害</td>
+<td>万箭齐发牌面，1条</td>
+</tr>
+</tbody></table>
+<p>四题通过真实模型和索引复测，逐项核对正文、原文哈希及浏览器来源。最终四题费用0.04154元，修复迭代共0.211512元，后端253项通过。用户已在隔离本地预览确认通过。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv208-citations-local-20261118.json">验证记录</a>。</p>
+<p>公开版本的历史消息保留当时保存的引用，新问答使用此规则。GitHub发行标签为v2.0.8，前端内部构建号沿用2.0.5-local.1。</p>
+</article></body></html>

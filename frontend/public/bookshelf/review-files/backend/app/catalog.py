@@ -72,11 +72,17 @@ class Catalog:
             raise ValueError("未知资料快照，请先选择已有版本")
         return selected
 
-    def query(self, query: str = "", kind: str | None = None, limit: int = 30) -> list[dict]:
-        items = [e for e in self.entities if kind is None or e["kind"] == kind]
+    def query(self, query: str = "", kind: str | None = None, limit: int = 30, *, snapshot_id: str | None = None) -> list[dict]:
+        items = [e for e in self.entities if (kind is None or e["kind"] == kind)
+                 and (snapshot_id is None or e["source"].get("snapshot_id") == snapshot_id)]
+        query = query.strip()
         if not query:
             return items[:limit]
         query = query.lower()
+        name = query[1:-1].strip() if query.startswith("【") and query.endswith("】") else query
+        exact = [entity for entity in items if entity["name"].lower() == name]
+        if len(exact) == 1 and exact[0]["kind"] == "card":
+            return exact[:limit]
         ranked = []
         for entity in items:
             name = entity["name"].lower()
