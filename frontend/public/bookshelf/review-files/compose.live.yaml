@@ -8,7 +8,7 @@ services:
 
   api:
 
-    image: qinggui-assessment-api:v2.0.5-local.1
+    image: qinggui-assessment-api:v2.0.8-citations
 
     environment:
 

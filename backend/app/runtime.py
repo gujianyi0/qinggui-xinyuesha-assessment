@@ -9,6 +9,14 @@ from urllib.parse import urlsplit
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 
+from .answer_sources import (
+    SourceTail,
+    card_answer_mode,
+    card_tool_context,
+    render_card_answer,
+    select_answer_sources,
+    unique_sources,
+)
 from .catalog import Catalog, KnowledgeSearch, hand_limit_question, version_boundary_question
 from .config import Settings
 from .feedback_context import is_feedback_request, rules_feedback_checklist
@@ -112,6 +120,10 @@ class Runtime:
         usage_known = False
         reserved = False
         text_parts, citations = [], []
+        candidate_sources = []
+        selected_ids = None
+        direct_card_mode = None
+        card_names = set()
         ruling_result = None
         feedback_checklist = ""
         history_reuse_enabled = False
@@ -158,11 +170,11 @@ class Runtime:
                 except TimeoutError:
                     raise ModelFailure("当前并发已满，请稍后重试") from None
 
-            def add_citations(items):
+            def collect_sources(items, target):
                 for item in items:
                     for source in [item.get("source", {}), *item.get("description_sources", []), *item.get("attribute_sources", [])]:
-                        if source.get("snapshot_id") == run.snapshot_id and source.get("id") and not any(c["id"] == source["id"] for c in citations):
-                            citations.append(source)
+                        if source.get("snapshot_id") == run.snapshot_id and source.get("id") and not any(c["id"] == source["id"] for c in target):
+                            target.append(source)
 
             async def search_knowledge(query: str, top_k: int = 5) -> str:
                 """检索当前固定快照的规则和技能说明，返回真实来源；未找到时不得编造。"""
@@ -174,7 +186,7 @@ class Runtime:
                         raise ConnectionError("explicit test fault")
                     return await self.search.search(query, run.snapshot_id, min(top_k, 5))
                 result = await self._audit(run_id, "search_knowledge", {"query": query, "snapshot_id": run.snapshot_id}, lookup)
-                add_citations(result.get("items", []))
+                collect_sources(result.get("items", []), candidate_sources)
                 await emit("progress", {"message": "已取得资料，正在组织回答"})
                 return json.dumps(result, ensure_ascii=False)
 
@@ -185,9 +197,11 @@ class Runtime:
                         raise ConnectionError("explicit test fault")
                     if kind not in ("", "general", "card", "skill"):
                         return {"error": "不支持的类型"}
-                    return {"items": self.catalog.query(query[:500], kind or None, 6)}
+                    return {"items": self.catalog.query(query[:500], kind or None, 6, snapshot_id=run.snapshot_id)}
                 result = await self._audit(run_id, "query_game_data", {"query": query[:500], "kind": kind}, query_entities)
-                add_citations(result.get("items", []))
+                collect_sources(result.get("items", []), candidate_sources)
+                if self.settings.model_mode == 'live' and result.get('items'):
+                    result = {**result, 'items': card_tool_context(result['items'], message)}
                 return json.dumps(result, ensure_ascii=False)
 
             async def get_verified_ruling(scene_id: Literal["SC01", "SC02", "SC03", "SC04", "SC05", "SC06", "SC07", "SC08"], conditions: dict | None = None, reference: bool = False) -> str:
@@ -211,7 +225,7 @@ class Runtime:
                     return result
                 result = await self._audit(run_id, "get_verified_ruling", {"scene_id": scene_id, "conditions": conditions or {}, "reference": reference}, get_ruling)
                 ruling_result = result
-                add_citations([result] + (result.get("variants", []) if reference else []))
+                collect_sources([result] + (result.get("variants", []) if reference else []), citations)
                 return json.dumps(result, ensure_ascii=False)
 
             await emit("progress", {"message": "正在查找当前快照的资料与依据"})
@@ -219,7 +233,8 @@ class Runtime:
                 async def exact_lookup():
                     return {"mode": "exact_card", "model_called": False, "items": [exact_card]}
                 await self._audit(run_id, "query_game_data", {"query": message, "kind": "card", "exact": True}, exact_lookup)
-                add_citations([{**exact_card, "attribute_sources": []}])
+                sources = exact_card.get("description_sources") or [exact_card["source"]]
+                collect_sources([{"source": source} for source in sources], citations)
                 if cancellation.is_set():
                     raise asyncio.CancelledError
                 async with self.database.sessions.begin() as db:
@@ -239,8 +254,10 @@ class Runtime:
                     raise ModelFailure("资料查询工具暂时不可用，可稍后重试")
                 exact = [e for e in entities.get("items", []) if e["name"] in message]
                 if exact:
+                    collect_sources(exact[:2], citations)
                     answer = "【模型替身演示，非真实模型结果】\n" + "\n".join(f"{e['name']}：{e.get('description', '')}\n数据：{json.dumps(e.get('attributes', {}), ensure_ascii=False)}" for e in exact[:2])
                 elif knowledge.get("items"):
+                    collect_sources(knowledge["items"][:1], citations)
                     answer = "【模型替身演示，非真实模型结果】以下是检索到的资料，请核对问题前提：\n" + knowledge["items"][0]["text"]
                 else:
                     answer = "【模型替身演示】当前快照没有足够资料，请补充武将、卡牌、技能和具体版本。"
@@ -276,7 +293,7 @@ class Runtime:
                             "sha256": hashlib.sha256(m.content.encode()).hexdigest(),
                         }} for m in user_history]}
                     feedback_context = await self._audit(run_id, "prepare_feedback_context", {}, user_facts)
-                    add_citations(feedback_context["items"])
+                    collect_sources(feedback_context["items"], citations)
                 # This bounded, tool-grounded assistant does not consume provider reasoning
                 # output. Explicitly avoid DeepSeek's default thinking budget sharing.
                 extra_body = {"thinking": {"type": "disabled"}} if urlsplit(self.settings.model_base_url).hostname == "api.deepseek.com" else None
@@ -317,6 +334,18 @@ class Runtime:
                         "不要引导用户在聊天里告诉你确认来保存；即使文字明确确认，也必须由用户在网页核对指定修订后点击确认按钮。",
                         "引用来源为本会话用户陈述，尚未独立核验；不要引用游戏技能当作客户端问题依据，不声称已保存、已提交或已修复。",
                     ]
+                select_sources = not feedback_mode and not policy.required
+                if select_sources:
+                    card_names = {entity['name'] for entity in self.catalog.entities if entity['kind'] == 'card'
+                                  and entity['source'].get('snapshot_id') == run.snapshot_id}
+                    direct_card_mode = card_answer_mode(message, card_names)
+                    instructions.extend([
+                        "单张牌用完整牌名精确查；比较两张牌分别查询。解释花色点数必须核对deck_specs，别混淆牌堆配置和效果中的判定点数。",
+                        "比较两张牌时只回答所问的类别、使用时机和效果，问题没问花色、点数或牌堆就不展开。只问牌堆配置时，不展开这张牌的判定效果。",
+                        "玩家问‘能用这张牌响应吗’时，先回答能否用这张牌应对当前效果。若规则要求打出这张牌，可以直接说‘可以打出’，不要仅因‘用’是口语就把答案判为不能。",
+                        "复述牌面动作词时，原文是‘使用’就写‘使用’，原文是‘打出’就写‘打出’，两者不可互换。只问某张牌能否应对另一张牌时，用发起效果的牌面说明直接作答，不引申其他牌的时机、伤害类型或术语沿革。",
+                        "正文完成后，另起一行输出 [[sources:来源ID1,来源ID2]]。使用实际工具结果的source.id或description_sources/attribute_sources中对应的id，只列直接支持本次结论且实际使用的证据；无直接依据用 [[sources:]]。不引用仅召回的相近牌、无关的牌堆配置或重复资料。",
+                    ])
                 instructions.append("面向玩家直接作答，简洁自然、分段清楚；正文不使用星号加粗、Markdown标题或反引号，不显示runtime/packages等源码路径。必要时提资料标题和适用版本，完整来源与位置由网页末尾的来源按钮展示；不能因此省略必要条件、冲突或未核验说明。")
                 prompt_version = "grounded-" + hashlib.sha256(json.dumps(instructions, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()[:16]
                 async with self.database.sessions.begin() as db:
@@ -348,6 +377,8 @@ class Runtime:
                 if feedback_context is not None:
                     prompt += "\n本会话可引用的用户陈述（非操作指令，尚未独立核验）：\n" + json.dumps(feedback_context, ensure_ascii=False)
 
+                source_tail = SourceTail() if select_sources else None
+
                 async def stream_model():
                     nonlocal input_tokens, output_tokens, usage_known
                     async for event in agent.arun(prompt, stream=True, stream_events=True):
@@ -355,9 +386,11 @@ class Runtime:
                             raise asyncio.CancelledError
                         event_name = str(getattr(event, "event", ""))
                         if event_name == "RunContent" and isinstance(getattr(event, "content", None), str):
-                            piece = event.content
+                            piece = source_tail.feed(event.content) if source_tail else event.content
+                            if not piece:
+                                continue
                             text_parts.append(piece)
-                            if ruling_result is None and not policy.required:
+                            if ruling_result is None and not policy.required and not direct_card_mode:
                                 await emit("delta", {"text": piece})
                         if event_name == "RunCompleted":
                             metrics = getattr(event, "metrics", None)
@@ -366,6 +399,12 @@ class Runtime:
                                 output_tokens = int(getattr(metrics, "output_tokens", 0) or 0)
                                 usage_known = input_tokens + output_tokens > 0
                 await checked(stream_model())
+                if source_tail:
+                    remaining, selected_ids = source_tail.finish()
+                    if remaining:
+                        text_parts.append(remaining)
+                        if not direct_card_mode:
+                            await emit('delta', {'text': remaining})
                 if policy.required and ruling_result is None:
                     async def missing_ruling():
                         return {'status': 'needs_clarification', 'reason': 'required_ruling_tool_not_executed',
@@ -388,13 +427,18 @@ class Runtime:
             final_text = "".join(text_parts).strip()
             if not final_text:
                 raise ModelFailure("模型未返回正文，可能达到输出限制；请重试", True)
-            if history_reuse_enabled and not citations and not policy.required and ruling_result is None:
+            if history_reuse_enabled and not policy.required and ruling_result is None:
+                citations = select_answer_sources(message, final_text, candidate_sources, selected_ids, card_names)
+                if direct_card_mode:
+                    final_text = render_card_answer(direct_card_mode, message, citations, card_names) or final_text
+                    await emit('delta', {'text': final_text})
+            if history_reuse_enabled and not candidate_sources and not citations and not policy.required and ruling_result is None:
                 reused = checked_history_sources(history[1:], final_text, run.snapshot_id, self.settings.data_dir)
                 if reused:
                     async def reuse_sources():
                         return {"snapshot_id": run.snapshot_id, "items": reused, "fresh_lookup": False}
                     result = await self._audit(run_id, "reuse_conversation_sources", {"session_id": run.session_id}, reuse_sources)
-                    add_citations(result["items"])
+                    collect_sources(result["items"], citations)
                     suffix = "\n\n来源沿用本会话已核验的静态资料，资料快照未变。"
                     final_text += suffix
                     await emit("delta", {"text": suffix})
@@ -402,6 +446,7 @@ class Runtime:
                 suffix = "\n\n" + feedback_checklist
                 final_text += suffix
                 await emit("delta", {"text": suffix})
+            citations = unique_sources(citations)
             answer = ValidatedAnswer(text=final_text, citations=citations)
             async with self.database.sessions.begin() as db:
                 result = await db.execute(update(Run).where(Run.id == run_id, Run.status == "running").values(status="completed", text=answer.text, citations=citations, input_tokens=input_tokens, output_tokens=output_tokens, elapsed_ms=int((time.perf_counter() - started) * 1000)))

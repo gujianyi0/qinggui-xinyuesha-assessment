@@ -8,6 +8,30 @@
   "cloudModified": false,
   "files": [
     {
+      "path": "docs/2.0.8-问答引用修复-20261118.md",
+      "url": "/bookshelf/review-files/docs/2.0.8-%E9%97%AE%E7%AD%94%E5%BC%95%E7%94%A8%E4%BF%AE%E5%A4%8D-20261118.md",
+      "sha256": "1f31fc530432ca05c29bf72c1cb0fb0cb771bb0d115045d7af96c27c1bc17869",
+      "bytes": 1522
+    },
+    {
+      "path": "docs/evidence/v204-public-live-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v204-public-live-20261117.json",
+      "sha256": "5cc6260085373beb5d5b2b10c16a3d56d850dfc11f58735123e84c3879c80eff",
+      "bytes": 30914
+    },
+    {
+      "path": "backend/app/answer_sources.py",
+      "url": "/bookshelf/review-files/backend/app/answer_sources.py",
+      "sha256": "72189e574b6553731e27752b8777e5551027ea89b04cbf9bff5e4d8c7f46d959",
+      "bytes": 8665
+    },
+    {
+      "path": "docs/evidence/v208-citations-local-20261118.json",
+      "url": "/bookshelf/review-files/docs/evidence/v208-citations-local-20261118.json",
+      "sha256": "6870ece594b331437d5594d991d4a5ae7b1269827406d9324472f93047d8c411",
+      "bytes": 8818
+    },
+    {
       "path": "docs/2.0.5-README导航与公开历史反馈-20261118.md",
       "url": "/bookshelf/review-files/docs/2.0.5-README%E5%AF%BC%E8%88%AA%E4%B8%8E%E5%85%AC%E5%BC%80%E5%8E%86%E5%8F%B2%E5%8F%8D%E9%A6%88-20261118.md",
       "sha256": "77b8208c5bc7a4f4b6ddeb76d86642512ea0325193d31423c7c4d6e50de9d74e",
@@ -54,12 +78,6 @@
       "url": "/bookshelf/review-files/docs/evidence/v204-public-gateway-20261117.xml",
       "sha256": "4647c1b9c0f3925c9061cf65ceff537867c9dcc1cb216f1dd455537fdcb84aed",
       "bytes": 2279
-    },
-    {
-      "path": "docs/evidence/v204-public-live-20261117.json",
-      "url": "/bookshelf/review-files/docs/evidence/v204-public-live-20261117.json",
-      "sha256": "5cc6260085373beb5d5b2b10c16a3d56d850dfc11f58735123e84c3879c80eff",
-      "bytes": 30914
     },
     {
       "path": "docs/evidence/v204-public-browser-20261117.json",
@@ -238,14 +256,14 @@
     {
       "path": "backend/app/runtime.py",
       "url": "/bookshelf/review-files/backend/app/runtime.py",
-      "sha256": "5b3f641f80f97521c96f4b66f0a8ffd3275e5ec52225c029bbd403d687911164",
-      "bytes": 34514
+      "sha256": "93d719bea8847ee3598d6b6b70ee3b793c2ea4a159aa041dd39bddba9a9baa63",
+      "bytes": 38608
     },
     {
       "path": "tests/test_agno_protocol.py",
       "url": "/bookshelf/review-files/tests/test_agno_protocol.py",
-      "sha256": "1cfc784ff078b80b89e61d2daa5839104b06b89724e2d6e67faaca0d7b812f91",
-      "bytes": 19124
+      "sha256": "3cd83b43b196decae9678cff63f9c8e82ce3d1d41d26c007f9f5209e6bfa59e7",
+      "bytes": 22031
     },
     {
       "path": "tests/test_full_regression_fixes.py",
@@ -562,8 +580,8 @@
     {
       "path": "backend/app/catalog.py",
       "url": "/bookshelf/review-files/backend/app/catalog.py",
-      "sha256": "db2d935edfbf9eae05d5f913c905a0c5c079d29403a5779c9b5e5ae1110cea51",
-      "bytes": 16079
+      "sha256": "1b74eaf37b8a3508e004b408eee22bb7bb1e39753764846c948da111f8b1bb08",
+      "bytes": 16508
     },
     {
       "path": "backend/app/jobs.py",
@@ -1972,8 +1990,8 @@
     {
       "path": "compose.live.yaml",
       "url": "/bookshelf/review-files/compose.live.yaml",
-      "sha256": "8ad8b80f2db540bc2b4a1f75ca9cd6a1a7e7b6c295a82d508ad78471744602a2",
-      "bytes": 443
+      "sha256": "5124e345369c2b25651c0cfc8d0d04097a43a84496a60dbdebe1040287f8568d",
+      "bytes": 445
     },
     {
       "path": "compose.v2-local.yaml",

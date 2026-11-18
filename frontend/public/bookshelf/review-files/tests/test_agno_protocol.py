@@ -388,3 +388,50 @@ async def test_verified_ruling_finishes_without_second_model_request(client, app
         assert sdk.is_closed()
     finally:
         await sdk.close()
+
+
+async def test_card_citations_select_direct_rules_even_if_model_lists_unrelated_ids(client, app, monkeypatch, protocol_model):
+    catalog = app.state.catalog
+    snapshot = catalog.active_id
+    jink = catalog.exact_card('闪', snapshot)
+    lightning = catalog.exact_card('闪电', snapshot)
+    jink_source = jink['description_sources'][0]
+    alias = {**jink_source, 'id': jink_source['id'] + ':passage'}
+    other = lightning['attribute_sources'][0]
+    items = [{'source': alias, 'title': '闪'}, {'source': other, 'title': '闪电牌堆配置'}]
+
+    async def broad_search(*args):
+        return {'mode': 'test', 'snapshot_id': snapshot, 'items': items}
+
+    monkeypatch.setattr(app.state.search, 'search', broad_search)
+    requests = []
+
+    def handler(request):
+        requests.append(json.loads(request.content))
+        if len(requests) == 1:
+            return sse_response(tool='query_game_data', arguments={'query': '【闪】', 'kind': 'card'})
+        if len(requests) == 2:
+            return sse_response(tool='search_knowledge', arguments={'query': '闪 使用时机 目标 效果'})
+        footer = ','.join([jink_source['id'], alias['id'], other['id'], 'unknown-id'])
+        return sse_response(answer=f'【闪】在【杀】对你生效时打出，目标是此【杀】，可以抵消它的效果。\n[[sources:{footer}]]')
+
+    protocol_model(handler)
+    stream, run = await run_question(client, '请说明【闪】的使用时机、目标和效果，并给出来源。')
+    assert run['status'] == 'completed'
+    assert '[[sources:' not in stream and '[[sources:' not in run['text']
+    assert '打出' not in stream and '时机：【杀】对你生效时' in run['text']
+    assert [s['id'] for s in run['citations']] == [jink_source['id']]
+    assert [item['name'] for item in run['tool_calls'][0]['result']['items']] == ['闪']
+    assert run['tool_calls'][1]['result']['items'][-1]['source']['title'] == '闪电牌堆配置'
+    history = (await client.get(f"/sessions/{run['session_id']}/messages")).json()
+    assert history[-1]['citations'] == run['citations']
+
+
+def test_source_footer_is_hidden_when_stream_chunks_split_marker():
+    from backend.app.answer_sources import SourceTail
+
+    tail = SourceTail()
+    deltas = [tail.feed(piece) for piece in ('结论。', '\n[[sou', 'rces:id-1,', 'id-2]]')]
+    rest, ids = tail.finish()
+    assert (''.join(deltas) + rest).strip() == '结论。'
+    assert ids == ['id-1', 'id-2']

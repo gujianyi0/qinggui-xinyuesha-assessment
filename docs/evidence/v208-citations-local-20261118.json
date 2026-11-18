@@ -1,0 +1,230 @@
+{
+  "date": "2026-11-18",
+  "user_accepted_local_preview": true,
+  "snapshot": "freekill-local-b9dc701220bc",
+  "model_charged_cny_final_four": 0.04154,
+  "model_charged_cny_all_iterations": 0.211512,
+  "candidate_source_hashes": {
+    "backend/app/catalog.py": "1b74eaf37b8a3508e004b408eee22bb7bb1e39753764846c948da111f8b1bb08",
+    "backend/app/runtime.py": "93d719bea8847ee3598d6b6b70ee3b793c2ea4a159aa041dd39bddba9a9baa63",
+    "backend/app/answer_sources.py": "72189e574b6553731e27752b8777e5551027ea89b04cbf9bff5e4d8c7f46d959"
+  },
+  "baseline": {
+    "question": "请说明【闪】的使用时机、目标和效果，并给出来源。",
+    "run_id": "bed3df24-09a2-55b9-8d47-e0d4122c6781",
+    "citations": 11,
+    "included_unrelated_lightning_deck": true
+  },
+  "browser_checked": {
+    "reference_buttons": [
+      1,
+      1,
+      2,
+      1
+    ],
+    "expanded_archery_rule": true
+  },
+  "backend_tests": {
+    "tests": 253,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "case": "C01",
+      "question": "请说明【闪】的使用时机、目标和效果，并给出来源。",
+      "run_id": "dbac2651-417a-5f99-ab9d-baa7fe08abb8",
+      "answer": "【闪】\n基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+      "citations": [
+        {
+          "id": "34034dde99373473c693",
+          "title": "闪",
+          "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+          "line_start": 91,
+          "line_end": 91,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "evidence_type": "skill_description",
+          "excerpt": "基本牌<br /><b>时机</b>：【杀】对你生效时<br /><b>目标</b>：此【杀】<br /><b>效果</b>：抵消此【杀】的效果。",
+          "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+        }
+      ],
+      "model": "deepseek-flash",
+      "prompt_version": "grounded-059b2d1fe9d269a3",
+      "usage": {
+        "run_id": "dbac2651-417a-5f99-ab9d-baa7fe08abb8",
+        "reserved_cny": 1.010688,
+        "charged_cny": 0.013826,
+        "estimated": false,
+        "settled": true
+      },
+      "tools": [
+        {
+          "name": "query_game_data",
+          "arguments": {
+            "query": "闪",
+            "kind": "card"
+          },
+          "returned_titles": [
+            "闪"
+          ]
+        },
+        {
+          "name": "search_knowledge",
+          "arguments": {
+            "query": "闪 使用时机 目标 效果",
+            "snapshot_id": "freekill-local-b9dc701220bc"
+          },
+          "returned_titles": [
+            "身份模式",
+            "闪",
+            "闪电",
+            "万箭齐发",
+            "铁骑"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "C02",
+      "question": "闪电的花色点数是什么？",
+      "run_id": "0c7851e0-ffae-5919-8954-381bfadf492f",
+      "answer": "闪电在牌堆中的花色点数配置为两张：黑桃A（黑桃1）和红桃Q（红桃12）。\n\n依据：资料快照 freekill-local-b9dc701220bc 的“闪电牌堆配置”记录了两条配置，分别为 Spade 1 和 Heart 12。\n\n必要前提：这是牌堆中的配置；如果实际对局中的闪电来自自定义或扩展牌堆，应以该牌堆配置为准。",
+      "citations": [
+        {
+          "id": "f5bab80055ed9c6e9aee:deck-spec",
+          "title": "闪电牌堆配置",
+          "path": "runtime/packages/standard_cards/pkg/init.lua",
+          "line_start": 354,
+          "line_end": 355,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "evidence_type": "implementation",
+          "excerpt": "extension:addCardSpec(\"lightning\", Card.Spade, 1)\nextension:addCardSpec(\"lightning\", Card.Heart, 12)",
+          "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+        }
+      ],
+      "model": "deepseek-flash",
+      "prompt_version": "grounded-059b2d1fe9d269a3",
+      "usage": {
+        "run_id": "0c7851e0-ffae-5919-8954-381bfadf492f",
+        "reserved_cny": 1.010688,
+        "charged_cny": 0.00854,
+        "estimated": false,
+        "settled": true
+      },
+      "tools": [
+        {
+          "name": "query_game_data",
+          "arguments": {
+            "query": "闪电",
+            "kind": "card"
+          },
+          "returned_titles": [
+            "闪电"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "C03",
+      "question": "闪和闪电有什么区别？",
+      "run_id": "c687d4a3-dafd-5119-9944-0999f310228e",
+      "answer": "【闪】\n基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。\n\n【闪电】\n延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+      "citations": [
+        {
+          "id": "34034dde99373473c693",
+          "title": "闪",
+          "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+          "line_start": 91,
+          "line_end": 91,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "evidence_type": "skill_description",
+          "excerpt": "基本牌<br /><b>时机</b>：【杀】对你生效时<br /><b>目标</b>：此【杀】<br /><b>效果</b>：抵消此【杀】的效果。",
+          "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+        },
+        {
+          "id": "0fe86bbd86ca08d57de7",
+          "title": "闪电",
+          "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+          "line_start": 149,
+          "line_end": 149,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "evidence_type": "skill_description",
+          "excerpt": "延时锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：你<br /><b>效果</b>：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+          "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+        }
+      ],
+      "model": "deepseek-flash",
+      "prompt_version": "grounded-059b2d1fe9d269a3",
+      "usage": {
+        "run_id": "c687d4a3-dafd-5119-9944-0999f310228e",
+        "reserved_cny": 1.010688,
+        "charged_cny": 0.01048,
+        "estimated": false,
+        "settled": true
+      },
+      "tools": [
+        {
+          "name": "query_game_data",
+          "arguments": {
+            "query": "闪",
+            "kind": "card"
+          },
+          "returned_titles": [
+            "闪"
+          ]
+        },
+        {
+          "name": "query_game_data",
+          "arguments": {
+            "query": "闪电",
+            "kind": "card"
+          },
+          "returned_titles": [
+            "闪电"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "C04",
+      "question": "万箭齐发能用闪响应吗？",
+      "run_id": "1a885544-c057-52ee-99ea-993470b480df",
+      "answer": "可以。按【万箭齐发】的牌面说明，每名目标角色需打出一张【闪】，否则受到1点伤害。",
+      "citations": [
+        {
+          "id": "5baffa3e717d8d17719c",
+          "title": "万箭齐发",
+          "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+          "line_start": 134,
+          "line_end": 134,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "evidence_type": "skill_description",
+          "excerpt": "锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：所有其他角色<br /><b>效果</b>：每名目标角色需打出一张【闪】，否则受到1点伤害。",
+          "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+        }
+      ],
+      "model": "deepseek-flash",
+      "prompt_version": "grounded-059b2d1fe9d269a3",
+      "usage": {
+        "run_id": "1a885544-c057-52ee-99ea-993470b480df",
+        "reserved_cny": 1.010688,
+        "charged_cny": 0.008694,
+        "estimated": false,
+        "settled": true
+      },
+      "tools": [
+        {
+          "name": "query_game_data",
+          "arguments": {
+            "query": "万箭齐发",
+            "kind": "card"
+          },
+          "returned_titles": [
+            "万箭齐发"
+          ]
+        }
+      ]
+    }
+  ]
+}
