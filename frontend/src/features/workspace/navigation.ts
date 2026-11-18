@@ -5,8 +5,20 @@ import {
   LibraryBig,
   MessageCircle,
 } from 'lucide-react'
-export type Page = 'chat' | 'library' | 'feedback' | 'jobs' | 'bookshelf'
+export type Page =
+  | 'chat'
+  | 'library'
+  | 'feedback'
+  | 'jobs'
+  | 'bookshelf'
+  | 'shared'
 export const NAVIGATION = [
+  {
+    id: 'shared' as const,
+    label: '公开历史与反馈',
+    icon: FolderClock,
+    sub: '主人授权的只读记录',
+  },
   {
     id: 'chat' as const,
     label: '问答工作台',

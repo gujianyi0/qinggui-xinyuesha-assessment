@@ -1,0 +1,89 @@
+.shared-records {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+  min-width: 0;
+}
+.shared-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.shared-heading h1 {
+  font-size: 25px;
+  margin-bottom: 6px;
+}
+.shared-session-list {
+  display: grid;
+  gap: 10px;
+}
+.shared-session-list button {
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+  gap: 20px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  color: inherit;
+}
+.shared-session-list strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.shared-session-list span {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.shared-message {
+  padding: 20px;
+  margin: 18px 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  min-width: 0;
+}
+.shared-message h2 {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+.shared-content,
+.shared-message dd {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+}
+.shared-message dt {
+  font-weight: 600;
+  margin-top: 12px;
+}
+.shared-message dd {
+  margin: 6px 0 0;
+}
+.shared-pagination {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  margin: 24px 0;
+  flex-wrap: wrap;
+}
+.shared-records button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (max-width: 650px) {
+  .shared-records {
+    padding: 16px;
+  }
+  .shared-message {
+    padding: 14px;
+  }
+  .shared-session-list button {
+    flex-direction: column;
+    gap: 6px;
+  }
+}

@@ -20,6 +20,7 @@ import type { Auth, Session } from '@/types/domain'
 const Library = lazy(() => import('@/features/library'))
 const FeedbackPanel = lazy(() => import('@/features/feedback'))
 const JobsPanel = lazy(() => import('@/features/jobs'))
+const SharedRecords = lazy(() => import('@/features/shared-records'))
 const Bookshelf = lazy(() => import('@/features/bookshelf'))
 
 import { ErrorNotice } from '@/components/ui'
@@ -38,9 +39,13 @@ export default function WorkspaceScreen({
 }: WorkspaceScreenProps) {
   const params = new URLSearchParams(useUrlSearch())
   const requestedPage = params.get('page')
-  const page: Page = ['library', 'feedback', 'jobs', 'bookshelf'].includes(
-    requestedPage || '',
-  )
+  const page: Page = [
+    'library',
+    'feedback',
+    'jobs',
+    'bookshelf',
+    'shared',
+  ].includes(requestedPage || '')
     ? (requestedPage as Page)
     : 'chat'
   const requestedSession = params.get('session')
@@ -196,7 +201,7 @@ export default function WorkspaceScreen({
             </span>
             {isMockMode && <span className="mode-badge">模型替身模式</span>}
             <span className="preview-badge">
-              v2.0.4 · {isPublicMode ? '公开试用' : '本地内测'}
+              v2.0.5 · {isPublicMode ? '公开试用' : '本地内测'}
             </span>
           </div>
         </header>
@@ -266,6 +271,9 @@ export default function WorkspaceScreen({
                   snapshots={snapshots}
                   snapshotId={snapshotId}
                 />
+              )}
+              {page === 'shared' && (
+                <SharedRecords userId={auth.user.id} token={token} />
               )}
               {page === 'bookshelf' && (
                 <Bookshelf userId={auth.user.id} token={token} />

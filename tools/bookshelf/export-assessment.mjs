@@ -28,7 +28,7 @@ data.assessmentExport={updated:'2026-11-17',scope:'local-read-only',source:'docs
 const names=['文档导航QA.md','01-源码依赖迁移配置与资料.md','02-验证测试修正与试用反馈.md','03-主要功能与后台任务进度.md',
   '测试与修复记录/测试与修复记录.md','测试与修复记录/01-固定样例与来源核对.md','测试与修复记录/02-真实模型前后对照.md',
   '测试与修复记录/03-具体问题修正全过程.md','测试与修复记录/04-自动化与后台故障测试.md',
-  '测试与修复记录/05-AI代码修复与调用方检查.md','测试与修复记录/06-成功失败演示与真人试用.md'];
+  '测试与修复记录/05-AI代码修复与调用方检查.md','测试与修复记录/06-成功失败演示与真人试用.md','../../README.md'];
 const ids=new Map(names.map((name,i)=>[path.join(nav,name),`8-${String(i+1).padStart(2,'0')}`]));
 const copied=new Map();
 const excluded=[];
@@ -102,8 +102,8 @@ for(const name of names){
   html=html.replace(/<h([1-6])>([\s\S]*?)<\/h\1>/g,(_,level,inner)=>{const anchor=`section-${++n}`;if(Number(level)>=2&&Number(level)<=3)toc.push({id:anchor,level:Number(level),text:inner.replace(/<[^>]+>/g,'')});return `<h${level} id="${anchor}">${inner}</h${level}>`;});
   await fs.writeFile(path.join(output,'articles',id+'.html'),html);
   await fs.writeFile(path.join(output,'originals',id+'.md'),markdown);
-  const title=markdown.split('\n').find(line=>line.startsWith('# '))?.slice(2).trim()||name;
-  data.reviewDocuments.push({id,kind:'assessment_reference',sourcePath:'docs/文档导航QA/'+name,title,available:true,filename:name,characters:markdown.length,hash:hash(markdown),search:markdown.replace(/[#*>`|\[\]]/g,' '),toc});
+  const title=name==='../../README.md'?'项目 README · 使用与实现说明':markdown.split('\n').find(line=>line.startsWith('# '))?.slice(2).trim()||name;
+  data.reviewDocuments.push({id,kind:'assessment_reference',sourcePath:path.relative(root,file).replaceAll('\\','/'),title,available:true,filename:name,characters:markdown.length,hash:hash(markdown),search:markdown.replace(/[#*>`|\[\]]/g,' '),toc});
 }
 data.evidenceLinks=Object.fromEntries([...copied].map(([file,value])=>[path.relative(root,path.resolve(file)).replaceAll('\\','/'),value.directory?urlFor(path.resolve(file))+'/index.html':value.url+(file.endsWith('.md')?'.html':'')]));
 data.evidenceFiles=Object.fromEntries([...copied].filter(([,value])=>!value.directory).map(([file,value])=>[path.relative(root,file).replaceAll('\\','/'),value]));

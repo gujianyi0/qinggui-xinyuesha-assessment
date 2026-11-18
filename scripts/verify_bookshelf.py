@@ -28,7 +28,8 @@ def verify():
     assert len(data['groups']) == 7 and len(data['records']) == 49
     assert all(r['kind'] == 'learning' for r in data['records'])
     review = data['reviewDocuments']
-    assert len(review) == 11
+    assert len(review) == 12
+    assert review[-1]['sourcePath'] == 'README.md'
     assert all(r['kind'] == 'assessment_reference' and 'group' not in r for r in review)
     assert not set(r['id'] for r in review) & set(r['id'] for r in data['records'])
     for path, metadata in data['evidenceFiles'].items():
@@ -93,7 +94,7 @@ def verify():
             count += 1
     assert not (SHELF / 'app.js').exists()
     assert not (SHELF / 'shared-progress.js').exists()
-    result = {'review_documents': 11, 'learning_goals': 49, 'linked_source_files': len(manifest['files']),
+    result = {'review_documents': len(review), 'learning_goals': 49, 'linked_source_files': len(manifest['files']),
               'local_links_checked': count, 'private_values_found': 0, 'owner_credentials_in_static_assets': False,
               'historical_missing_paths': manifest['unexported']}
     print(json.dumps(result, ensure_ascii=False))

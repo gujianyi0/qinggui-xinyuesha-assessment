@@ -176,3 +176,59 @@ async def test_public_feedback_ownership_and_explicit_confirmation(public):
     again = (await client.post('/api/feedback-drafts/'+identifier+'/confirm', headers=a, json={'revision':1})).json()
     assert first['id'] == again['id'] and again['duplicate']
     assert (await client.get('/api/feedback', headers=b)).json() == []
+
+
+@pytest.mark.asyncio
+async def test_shared_owner_records_are_read_only_paginated_and_live(public, app, client):
+    from backend.app.models import ChatSession, Message, User
+    app.state.settings.public_shared_username = 'alice'
+    app.state.settings.model_api_key = 'private-model-value-for-redaction'
+    visitor, _ = await guest(public[0])
+    gateway = public[0]
+    first = (await client.post('/sessions', json={'title': '主人公开会话'})).json()['id']
+    async with app.state.database.sessions.begin() as db:
+        bob = await db.scalar(select(User).where(User.username == 'bob'))
+        hidden = ChatSession(user_id=bob.id, title='其他身份的私人会话')
+        db.add(hidden)
+        await db.flush()
+        hidden_id = hidden.id
+        db.add(Message(session_id=first, role='user', content='公开提问 private-model-value-for-redaction', citations=[]))
+        db.add(Message(session_id=first, role='assistant', content='公开回答', citations=[]))
+    draft = (await client.post('/feedback-drafts', json={'category': 'client', 'actual': '公开现象', 'expected': '预期', 'steps': '重现步骤', 'context': '上下文', 'platform': 'Windows', 'client_version': '0.5.25'})).json()
+    assert (await client.post('/feedback-drafts/' + draft['id'] + '/confirm', json={'revision': draft['revision']})).status_code == 200
+    shared = (await gateway.get('/api/shared/sessions?limit=1', headers=visitor)).json()
+    assert shared['readonly'] and shared['total'] == 1 and shared['items'][0]['id'] == first
+    assert 'user_id' not in shared['items'][0]
+    history = (await gateway.get(f'/api/shared/sessions/{first}/messages?limit=1', headers=visitor)).json()
+    assert history['total'] == 2 and len(history['items']) == 1
+    assert '[凭据已隐藏]' in history['items'][0]['content']
+    assert 'private-model-value-for-redaction' not in str(history)
+    assert len((await gateway.get(f'/api/shared/sessions/{first}/messages?limit=1&offset=1', headers=visitor)).json()['items']) == 1
+    for kind in ['drafts', 'submitted']:
+        result = (await gateway.get('/api/shared/feedback?kind=' + kind, headers=visitor)).json()
+        assert result['total'] == 1 and result['items'][0]['payload']['actual'] == '公开现象'
+        assert 'user_id' not in result['items'][0]
+    assert (await gateway.get('/api/sessions', headers=visitor)).json() == []
+    assert (await gateway.get(f'/api/sessions/{first}/messages', headers=visitor)).status_code == 404
+    assert (await gateway.get(f'/api/shared/sessions/{hidden_id}/messages', headers=visitor)).status_code == 404
+    assert (await gateway.post('/api/shared/sessions', headers=visitor, json={})).status_code == 404
+    assert (await gateway.post(f'/api/sessions/{first}/submissions', headers=visitor, json={'message': '不能写入主人会话', 'request_id': str(uuid.uuid4())})).status_code == 404
+    assert (await gateway.patch('/api/feedback-drafts/' + draft['id'], headers=visitor, json={'revision': 1, 'actual': '不能修改'})).status_code == 404
+    assert (await gateway.post('/api/feedback-drafts/' + draft['id'] + '/confirm', headers=visitor, json={'revision': 1})).status_code == 404
+    for query in ['limit=0', 'limit=51', 'offset=-1']:
+        assert (await gateway.get('/api/shared/sessions?' + query, headers=visitor)).status_code == 422
+    assert (await gateway.get('/api/shared/feedback?kind=anything', headers=visitor)).status_code == 422
+    await client.post('/sessions', json={'title': '主人后来新增'})
+    assert (await gateway.get('/api/shared/sessions', headers=visitor)).json()['total'] == 2
+
+
+@pytest.mark.asyncio
+async def test_shared_records_require_explicit_owner_and_guest_auth(public, app):
+    gateway, config = public
+    headers, _ = await guest(gateway)
+    assert (await gateway.get('/api/shared/sessions', headers=headers)).status_code == 404
+    app.state.settings.public_shared_username = 'alice'
+    assert (await gateway.get('/api/shared/sessions')).status_code == 401
+    assert (await gateway.get('/api/shared/sessions?username=bob', headers=headers)).json()['total'] == 0
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://app') as direct:
+        assert (await direct.get('/internal/public/shared/sessions')).status_code == 401

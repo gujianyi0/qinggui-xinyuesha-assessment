@@ -1,14 +1,28 @@
-# Migrated primary deployment; private configuration is generated locally.
-services:
-  migrate:
-    image: qinggui-assessment-migrate:latest
-  api:
-    image: qinggui-assessment-api:v2.0.4-local.1
-    environment:
-      ENABLE_TEST_FAULTS: 'false'
-  worker:
-    image: qinggui-assessment-worker:latest
-    environment:
-      ENABLE_TEST_FAULTS: 'false'
-  web:
-    image: qinggui-assessment-web:latest
+# Migrated primary deployment; private configuration is generated locally.
+
+services:
+
+  migrate:
+
+    image: qinggui-assessment-migrate:latest
+
+  api:
+
+    image: qinggui-assessment-api:v2.0.5-local.1
+
+    environment:
+
+      ENABLE_TEST_FAULTS: 'false'
+
+  worker:
+
+    image: qinggui-assessment-worker:latest
+
+    environment:
+
+      ENABLE_TEST_FAULTS: 'false'
+
+  web:
+
+    image: qinggui-assessment-web:latest
+

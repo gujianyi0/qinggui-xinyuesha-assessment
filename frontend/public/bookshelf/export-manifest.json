@@ -4,9 +4,33 @@
   "sourceOrigin": "工作区知识浏览网页，2026-11-17本地快照",
   "learningGoals": 49,
   "learningDocuments": 49,
-  "reviewDocuments": 11,
+  "reviewDocuments": 12,
   "cloudModified": false,
   "files": [
+    {
+      "path": "docs/2.0.5-README导航与公开历史反馈-20261118.md",
+      "url": "/bookshelf/review-files/docs/2.0.5-README%E5%AF%BC%E8%88%AA%E4%B8%8E%E5%85%AC%E5%BC%80%E5%8E%86%E5%8F%B2%E5%8F%8D%E9%A6%88-20261118.md",
+      "sha256": "14e39c7576368cab0c29792aff6871047fad42e5bc1488dbd4bf3f2b9e0e863d",
+      "bytes": 2934
+    },
+    {
+      "path": "docs/evidence/v205-public-records-tests-20261118.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v205-public-records-tests-20261118.xml",
+      "sha256": "24a5c8be2ea3ca537b2224300c848396b8acccf11b7870bd651201817eb86471",
+      "bytes": 2532
+    },
+    {
+      "path": "docs/evidence/v205-pytest-20261118.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v205-pytest-20261118.xml",
+      "sha256": "df65b0014e1f90125c506136cbde6ea3a693ff8c4b323cb33257e346e2edcdd2",
+      "bytes": 33722
+    },
+    {
+      "path": "docs/evidence/v205-frontend-check-20261118.log",
+      "url": "/bookshelf/review-files/docs/evidence/v205-frontend-check-20261118.log.txt",
+      "sha256": "409c63cfab221ce5f941083be6d33fdf07e5b55fabf1f186f58b047391d4f15c",
+      "bytes": 2501
+    },
     {
       "path": "docs/2.0.4-公网发布与GitHub同步-20261117.md",
       "url": "/bookshelf/review-files/docs/2.0.4-%E5%85%AC%E7%BD%91%E5%8F%91%E5%B8%83%E4%B8%8EGitHub%E5%90%8C%E6%AD%A5-20261117.md",
@@ -488,10 +512,22 @@
       "bytes": 44424
     },
     {
-      "path": "README.md",
-      "url": "/bookshelf/review-files/README.md",
-      "sha256": "dea85295d82147ebddb38dc547bc6a208f3d6fd54725bcfb8016b37e2f32ef4b",
-      "bytes": 10946
+      "path": "docs/进度同步-20261117-v201.md",
+      "url": "/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261117-v201.md",
+      "sha256": "a9b8599234b7dcca11ccd265f7b32596224697cff11811ffa283fbb94cabfe0a",
+      "bytes": 1254
+    },
+    {
+      "path": "docs/evidence/doc-navigation-password-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/doc-navigation-password-20261117.json",
+      "sha256": "094a875c0db4ddb09fcccf0f5d8a456aa33c0e74023224d683d0dd7c638a30e7",
+      "bytes": 492
+    },
+    {
+      "path": "docs/GitHub内测版本同步-20261117.md",
+      "url": "/bookshelf/review-files/docs/GitHub%E5%86%85%E6%B5%8B%E7%89%88%E6%9C%AC%E5%90%8C%E6%AD%A5-20261117.md",
+      "sha256": "5c2e4da4bd6a20d5d1de92365f1c6b1852410c94780f27fb897d83974ac9e02a",
+      "bytes": 2348
     },
     {
       "path": "tools/bookshelf/README.md",
@@ -502,8 +538,20 @@
     {
       "path": "backend/app/main.py",
       "url": "/bookshelf/review-files/backend/app/main.py",
-      "sha256": "e819a5326a0d1b35f06989bf97d4bdb0a83a2ad46a7f3874b5a0e7107b30b594",
-      "bytes": 29822
+      "sha256": "798de012e15acdf2c063035ba9affb5331ad37dca3aa208433b58c6403313db7",
+      "bytes": 29961
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "url": "/bookshelf/review-files/backend/app/schemas.py",
+      "sha256": "4a0c8f43385606cb5e934f127bee36257400d3ffdf5110f0ab5a65b8597385ee",
+      "bytes": 2497
+    },
+    {
+      "path": "backend/app/catalog.py",
+      "url": "/bookshelf/review-files/backend/app/catalog.py",
+      "sha256": "db2d935edfbf9eae05d5f913c905a0c5c079d29403a5779c9b5e5ae1110cea51",
+      "bytes": 16079
     },
     {
       "path": "backend/app/jobs.py",
@@ -518,28 +566,532 @@
       "bytes": 8552
     },
     {
-      "path": "backend/app/models.py",
-      "url": "/bookshelf/review-files/backend/app/models.py",
-      "sha256": "f68eeaf741fbdb7b52f314f29a027108b3f462fe57889291858f8612b3ab26cf",
-      "bytes": 9815
+      "path": "frontend/src/main.tsx",
+      "url": "/bookshelf/review-files/frontend/src/main.tsx.txt",
+      "sha256": "a388f1941bc1bb3fe340f1acdf9c995cf70d3b6fcb8751bd05e645ca03aee5d8",
+      "bytes": 314
     },
     {
-      "path": "migrations/versions/0001_initial.py",
-      "url": "/bookshelf/review-files/migrations/versions/0001_initial.py",
-      "sha256": "4b981890e6383632503b4ba65eb3cfea589c0d361a9ca1ce4df062a9ccfff514",
-      "bytes": 13511
+      "path": "frontend/src/services/api.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/api.ts.txt",
+      "sha256": "bda184d5fe73ff42b078464488fb2348ca81ba62ef1abad4f4cfcd032810eecb",
+      "bytes": 2277
     },
     {
-      "path": "migrations/versions/0002_request_recovery.py",
-      "url": "/bookshelf/review-files/migrations/versions/0002_request_recovery.py",
-      "sha256": "6f7f92115d0c66aafc2c48fcd8a455e1ae1646b13ddeb4dedad4f132a8e78b24",
-      "bytes": 931
+      "path": "frontend/src/services/auth.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/auth.ts.txt",
+      "sha256": "499cf7e0fa97501033e1e35fd9c5c07320851b2bf00a611126c4d5da9d3703bc",
+      "bytes": 490
     },
     {
-      "path": "docs/Docker主库备份与恢复.md",
-      "url": "/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E5%A4%87%E4%BB%BD%E4%B8%8E%E6%81%A2%E5%A4%8D.md",
-      "sha256": "6906871c940b6d2d0453df7c695f2567ef3f576f8460e1d0c891b5da4cfb8e2e",
-      "bytes": 4307
+      "path": "frontend/src/services/bookshelf.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/bookshelf.ts.txt",
+      "sha256": "ccb0b39beb30a321795caa9df3ff8cb631fa95496cc1e7258db6b76444c51aae",
+      "bytes": 1864
+    },
+    {
+      "path": "frontend/src/services/feedback.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/feedback.ts.txt",
+      "sha256": "aaec6d83f53004f47eb6e68426e5ae3f822d215d311f91063f50617dc2e604b4",
+      "bytes": 1419
+    },
+    {
+      "path": "frontend/src/services/jobs.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/jobs.ts.txt",
+      "sha256": "7c04c3e545edcdf0065e6fa23b393e7cc3e02bb319259d60f0e638ebcb449538",
+      "bytes": 784
+    },
+    {
+      "path": "frontend/src/services/knowledge.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/knowledge.ts.txt",
+      "sha256": "ca64225f7c1270ae23d11920326b634cb08bff08a6dcd5e81f6296ae30ec12aa",
+      "bytes": 1255
+    },
+    {
+      "path": "frontend/src/services/sessions.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/sessions.ts.txt",
+      "sha256": "75eade6e978b66f2cab551a4a48ca9e75803d13dd035962822cce6115c9215d2",
+      "bytes": 1051
+    },
+    {
+      "path": "frontend/src/services/shared-records.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/shared-records.ts.txt",
+      "sha256": "e563e65036c8f3b728ba3347061fef518235226b750dc9af4873c55b184baf7c",
+      "bytes": 974
+    },
+    {
+      "path": "frontend/src/lib/browser-lifecycle.ts",
+      "url": "/bookshelf/review-files/frontend/src/lib/browser-lifecycle.ts.txt",
+      "sha256": "e97f896a85aa9f1b0341506e544dc2a77fa78c19f544df83c4811cdafbf85c29",
+      "bytes": 1053
+    },
+    {
+      "path": "frontend/src/lib/date-time.ts",
+      "url": "/bookshelf/review-files/frontend/src/lib/date-time.ts.txt",
+      "sha256": "233381c8fa4a1051c749c43def6192221f70b9b8a7b175f38697a7e65bde4e11",
+      "bytes": 490
+    },
+    {
+      "path": "frontend/src/lib/runtime-config.ts",
+      "url": "/bookshelf/review-files/frontend/src/lib/runtime-config.ts.txt",
+      "sha256": "b68a858a21c875aed6e73f57e8e6b6143b4197f4483352dbba083a058c3052d6",
+      "bytes": 278
+    },
+    {
+      "path": "frontend/src/lib/screen-boundary.ts",
+      "url": "/bookshelf/review-files/frontend/src/lib/screen-boundary.ts.txt",
+      "sha256": "be2accc6a2b42e676b998caa7a2e4f8fd6b3edf5e4c79e7fdc54e76ae61ce1d7",
+      "bytes": 580
+    },
+    {
+      "path": "frontend/src/lib/sse.ts",
+      "url": "/bookshelf/review-files/frontend/src/lib/sse.ts.txt",
+      "sha256": "527e185d8a5651055b0e51ec3c8357b080c9013930716cfc00e99092a807ea3b",
+      "bytes": 1624
+    },
+    {
+      "path": "frontend/src/lib/url-state.ts",
+      "url": "/bookshelf/review-files/frontend/src/lib/url-state.ts.txt",
+      "sha256": "fb6b690642337c972bffeeb769d409d1756ec321508e9f6a6eff793ad6bb28b6",
+      "bytes": 993
+    },
+    {
+      "path": "backend/public_gateway.py",
+      "url": "/bookshelf/review-files/backend/public_gateway.py",
+      "sha256": "4cd6e1e9dd6b30a85127caf4c14b0823a4088b23181a5df22e0a585af58bab18",
+      "bytes": 6397
+    },
+    {
+      "path": "public-entry/package-lock.json",
+      "url": "/bookshelf/review-files/public-entry/package-lock.json",
+      "sha256": "bac8690970ec726c27fda99cd8ffcb0f18f81a495103552a1c653efc45be029d",
+      "bytes": 53245
+    },
+    {
+      "path": "public-entry/package.json",
+      "url": "/bookshelf/review-files/public-entry/package.json",
+      "sha256": "6d3fd9ee190bf917c54a26aa1c7c503578519cc1a04eebc6755562a010d065c4",
+      "bytes": 386
+    },
+    {
+      "path": "public-entry/policy.test.mjs",
+      "url": "/bookshelf/review-files/public-entry/policy.test.mjs.txt",
+      "sha256": "5fff2ae8b68ba8703cec1da358ae43c527ca6c5280096ca4c26fcd81a0c73932",
+      "bytes": 527
+    },
+    {
+      "path": "public-entry/tsconfig.json",
+      "url": "/bookshelf/review-files/public-entry/tsconfig.json",
+      "sha256": "d77c3fac9d6e1a7934dc4e377dea1b148daa60ef403fd2c53ab618299ca23722",
+      "bytes": 275
+    },
+    {
+      "path": "public-entry/worker-configuration.d.ts",
+      "url": "/bookshelf/review-files/public-entry/worker-configuration.d.ts.txt",
+      "sha256": "5a6b7aca1025ca74a15892e3fa32ec316c1acb8d546705350cecbd1e6a3716a1",
+      "bytes": 1241
+    },
+    {
+      "path": "public-entry/wrangler.jsonc",
+      "url": "/bookshelf/review-files/public-entry/wrangler.jsonc",
+      "sha256": "d20339ccd5a972dc9918bc403829df8a25196d8919f2bab2cdff9133a53e5395",
+      "bytes": 886
+    },
+    {
+      "path": "compose.client.yaml",
+      "url": "/bookshelf/review-files/compose.client.yaml",
+      "sha256": "1eb03ced95b9ddb292687e7854a640a8dfdecf1b72fd58f25827b125896d15d7",
+      "bytes": 285
+    },
+    {
+      "path": "scripts/audit_eval_sources.py",
+      "url": "/bookshelf/review-files/scripts/audit_eval_sources.py",
+      "sha256": "a7aabaf377f67ca070edcfa6cb7181d7ecb33992494dc0370f7bea9ef02b4047",
+      "bytes": 4337
+    },
+    {
+      "path": "scripts/audit_worker_soak.py",
+      "url": "/bookshelf/review-files/scripts/audit_worker_soak.py",
+      "sha256": "86e25de3d4a5fcd45b4790e06e01b50dc7a8c26a547079358788ec99406a4035",
+      "bytes": 3775
+    },
+    {
+      "path": "scripts/backup_docker_primary.py",
+      "url": "/bookshelf/review-files/scripts/backup_docker_primary.py",
+      "sha256": "bba791bf2489aae2146e380ea05de138cc8509495101b849594993329e5972a3",
+      "bytes": 8397
+    },
+    {
+      "path": "scripts/backup_native_database.py",
+      "url": "/bookshelf/review-files/scripts/backup_native_database.py",
+      "sha256": "a780e2d6872b8bc26e5273b155800a8da358e3d7113ec74e7bc698bd458e50e9",
+      "bytes": 7897
+    },
+    {
+      "path": "scripts/browser_smoke.py",
+      "url": "/bookshelf/review-files/scripts/browser_smoke.py",
+      "sha256": "3268e8d5f661171790e10bfc477d889ec3dde6f9ba2dc0f13cf78c2307415ada",
+      "bytes": 5827
+    },
+    {
+      "path": "scripts/build_native_pgvector.ps1",
+      "url": "/bookshelf/review-files/scripts/build_native_pgvector.ps1",
+      "sha256": "c88a089c865d544635249df441915bf3d7c3952d07fd392da2aecf8f2d3d11fe",
+      "bytes": 1173
+    },
+    {
+      "path": "scripts/deploy_public_entry.py",
+      "url": "/bookshelf/review-files/scripts/deploy_public_entry.py",
+      "sha256": "300501e191606b6aaade8e793a15f69f401843b09779e2d47fa727c26dda892b",
+      "bytes": 3328
+    },
+    {
+      "path": "scripts/docker_live.py",
+      "url": "/bookshelf/review-files/scripts/docker_live.py",
+      "sha256": "1d43ae5b9aa3da606b48c21f0c355bea564eb2d4fc9de4852d9baa8261e70b63",
+      "bytes": 1223
+    },
+    {
+      "path": "scripts/fingerprint_database.py",
+      "url": "/bookshelf/review-files/scripts/fingerprint_database.py",
+      "sha256": "97a824c4811fc76a0c44435e2890dad1f0979e8756449ac5805f560b6f3eb2c2",
+      "bytes": 624
+    },
+    {
+      "path": "scripts/import_qinggui_model.py",
+      "url": "/bookshelf/review-files/scripts/import_qinggui_model.py",
+      "sha256": "7928f57a89ed97e2520c0724df2922b2636018f073d5983034a9a4fff0b20d64",
+      "bytes": 3089
+    },
+    {
+      "path": "scripts/isolated_real_eval.py",
+      "url": "/bookshelf/review-files/scripts/isolated_real_eval.py",
+      "sha256": "96cd6c365e5ba75d8f41fac8a4f3a628e35d35932da36d5da8419ba2df8acda6",
+      "bytes": 5427
+    },
+    {
+      "path": "scripts/local_demo.py",
+      "url": "/bookshelf/review-files/scripts/local_demo.py",
+      "sha256": "b03a10db99e4327ba67068f44a0e9a5679a870f85b8b4c4ae757735a2155be3c",
+      "bytes": 1343
+    },
+    {
+      "path": "scripts/native_demo.py",
+      "url": "/bookshelf/review-files/scripts/native_demo.py",
+      "sha256": "eaeb0143bf444da961b187167819b6f9dd4ac6fe77808706bdbd770aad429973",
+      "bytes": 16684
+    },
+    {
+      "path": "scripts/prepare_embedding.py",
+      "url": "/bookshelf/review-files/scripts/prepare_embedding.py",
+      "sha256": "5e7f7d1ed2f5cb27df327fc288bfcf0f557714240d55f1881bfe93ab6fa9701c",
+      "bytes": 4804
+    },
+    {
+      "path": "scripts/prepare_isolated_eval.py",
+      "url": "/bookshelf/review-files/scripts/prepare_isolated_eval.py",
+      "sha256": "51a5936a86ff4c4dd22af42c054eb66c1c01d2148711055a4c356ec53bd009e7",
+      "bytes": 5225
+    },
+    {
+      "path": "scripts/prepare_native_kafka.py",
+      "url": "/bookshelf/review-files/scripts/prepare_native_kafka.py",
+      "sha256": "516425b7f5474735d1869678833ba862b2a841c07eddbf08528203d527e94cfb",
+      "bytes": 2420
+    },
+    {
+      "path": "scripts/prepare_native_postgres.py",
+      "url": "/bookshelf/review-files/scripts/prepare_native_postgres.py",
+      "sha256": "330230e2eef5c6f827145317affd222eb2ccd3db076a53f5759272c935eeeffb",
+      "bytes": 2268
+    },
+    {
+      "path": "scripts/prepare_native_redis.py",
+      "url": "/bookshelf/review-files/scripts/prepare_native_redis.py",
+      "sha256": "1753a0b3aefba4eeecc92587b5a63ad20190caab8b6a393dc9fba5b715ca6b09",
+      "bytes": 2826
+    },
+    {
+      "path": "scripts/prepare_public_service.py",
+      "url": "/bookshelf/review-files/scripts/prepare_public_service.py",
+      "sha256": "75d45715cda832dc4f845103e6060e2708e5980ae127d221481133ca31be647a",
+      "bytes": 1628
+    },
+    {
+      "path": "scripts/public_service.py",
+      "url": "/bookshelf/review-files/scripts/public_service.py",
+      "sha256": "247aa2e3f54c850daba0adb26e4189d45a0e9c936650873f6379f59971c83001",
+      "bytes": 7456
+    },
+    {
+      "path": "scripts/restore_docker_database.py",
+      "url": "/bookshelf/review-files/scripts/restore_docker_database.py",
+      "sha256": "eab6642bcf481ef4622b7a104c0065496de18e801e6494be4d2f83a5bbb4409f",
+      "bytes": 5543
+    },
+    {
+      "path": "scripts/run_rulings.py",
+      "url": "/bookshelf/review-files/scripts/run_rulings.py",
+      "sha256": "6af50cc41dd2d0e192756d9faad1980c725a4f068e7d039fcdbac58dc0d995f9",
+      "bytes": 8824
+    },
+    {
+      "path": "scripts/snapshot_local_git.py",
+      "url": "/bookshelf/review-files/scripts/snapshot_local_git.py",
+      "sha256": "5b242b90261e6006a56a47c985cb3ec3db8a3c2aa4741e3e96c5761b7d8da912",
+      "bytes": 7020
+    },
+    {
+      "path": "scripts/soak_native_worker.py",
+      "url": "/bookshelf/review-files/scripts/soak_native_worker.py",
+      "sha256": "6357f397116571cfeb9c9938f6e3e61c6499889ccf7c6b5d5a005cdb181ebe4a",
+      "bytes": 12028
+    },
+    {
+      "path": "scripts/source_snapshot.py",
+      "url": "/bookshelf/review-files/scripts/source_snapshot.py",
+      "sha256": "2421a8a22ab143ba1587fb4ca3c9f99b052e945eeb80dd738d439a189391a742",
+      "bytes": 15407
+    },
+    {
+      "path": "scripts/start_docker_live.ps1",
+      "url": "/bookshelf/review-files/scripts/start_docker_live.ps1",
+      "sha256": "36010dd68640b4fdb0ea2972057f54b558aff5c13ee189ca071f74e3f1efb7ba",
+      "bytes": 1531
+    },
+    {
+      "path": "scripts/start_local.ps1",
+      "url": "/bookshelf/review-files/scripts/start_local.ps1",
+      "sha256": "8aa0b95b26f1a75914f0545b6802698c34e076505066eb05524f4f1d451b3f37",
+      "bytes": 3326
+    },
+    {
+      "path": "scripts/start_native.ps1",
+      "url": "/bookshelf/review-files/scripts/start_native.ps1",
+      "sha256": "466d5210c3895b1384096a6fb70dc1c97b05bcae28c57438a9db3306294de57d",
+      "bytes": 1723
+    },
+    {
+      "path": "scripts/start_public_service.ps1",
+      "url": "/bookshelf/review-files/scripts/start_public_service.ps1",
+      "sha256": "3cd1960f035bcc519a9bb6ca3fca14a5202910ef32e9d3dd979ed469539e559c",
+      "bytes": 1081
+    },
+    {
+      "path": "scripts/start_v2_local.ps1",
+      "url": "/bookshelf/review-files/scripts/start_v2_local.ps1",
+      "sha256": "fb539d87550513ff4d796696b44974661eb16c940c5db2ddaab9fb055385c789",
+      "bytes": 1471
+    },
+    {
+      "path": "scripts/stop_docker_live.ps1",
+      "url": "/bookshelf/review-files/scripts/stop_docker_live.ps1",
+      "sha256": "96f22578b893074e529fc1db453ed1c85f9c4fbcdd077ef4851e9ad395a013b2",
+      "bytes": 752
+    },
+    {
+      "path": "scripts/stop_native.ps1",
+      "url": "/bookshelf/review-files/scripts/stop_native.ps1",
+      "sha256": "299798932324edfb57ea86b2f2fc0fda87ebac82a8dd4af3f5db656e346b5960",
+      "bytes": 715
+    },
+    {
+      "path": "scripts/stop_public_service.ps1",
+      "url": "/bookshelf/review-files/scripts/stop_public_service.ps1",
+      "sha256": "0889c60af669ddd1fd1d4fa6273c65947405f4f82c72922d462f6aacc7431e4e",
+      "bytes": 306
+    },
+    {
+      "path": "scripts/stop_v2_local.ps1",
+      "url": "/bookshelf/review-files/scripts/stop_v2_local.ps1",
+      "sha256": "acfc21cfc7f5af7413fb66c9d42cc19a53a038dd439d263d0d49d78e822a8b9b",
+      "bytes": 288
+    },
+    {
+      "path": "scripts/verify_bookshelf.py",
+      "url": "/bookshelf/review-files/scripts/verify_bookshelf.py",
+      "sha256": "7e3189c91c9973acd3c0c9184d4590a2249dcd02e5eff66b500ab2780ec84495",
+      "bytes": 5274
+    },
+    {
+      "path": "scripts/verify_browser_request_recovery.py",
+      "url": "/bookshelf/review-files/scripts/verify_browser_request_recovery.py",
+      "sha256": "e81ed1c4fbdcd78afe2d35a5d9b59539f85dd45b49e6f73e9d64e7a2e21c270d",
+      "bytes": 5300
+    },
+    {
+      "path": "scripts/verify_compose.py",
+      "url": "/bookshelf/review-files/scripts/verify_compose.py",
+      "sha256": "c09a8e9377317013d84f5c206271a0795ee9ed391229b032d7fb931702cc7672",
+      "bytes": 26898
+    },
+    {
+      "path": "scripts/verify_docker_cutover.py",
+      "url": "/bookshelf/review-files/scripts/verify_docker_cutover.py",
+      "sha256": "744067cb096aedbc0162625322e296be1ef9ec9ab229f0626674acb4fcb8ad32",
+      "bytes": 9911
+    },
+    {
+      "path": "scripts/verify_embeddings.py",
+      "url": "/bookshelf/review-files/scripts/verify_embeddings.py",
+      "sha256": "ee4f1b6296b2653d1a1668cd2817db3a03175bf63e3a54d970c982813a4f599f",
+      "bytes": 5891
+    },
+    {
+      "path": "scripts/verify_input_focus.py",
+      "url": "/bookshelf/review-files/scripts/verify_input_focus.py",
+      "sha256": "7bbfccbd73e07e09bdd21e6aa491c58fbfb4e2258390a0f49c250ac5fd775b86",
+      "bytes": 6499
+    },
+    {
+      "path": "scripts/verify_native_kafka.py",
+      "url": "/bookshelf/review-files/scripts/verify_native_kafka.py",
+      "sha256": "0133b0ff230f8e069da39a97cc43067d894c8bb3980d213787bea7000aa47360",
+      "bytes": 13214
+    },
+    {
+      "path": "scripts/verify_native_postgres.py",
+      "url": "/bookshelf/review-files/scripts/verify_native_postgres.py",
+      "sha256": "802f08a813e6f53de65862a975120bfc395acd2d48d9ce5b8712440bb0f16615",
+      "bytes": 12524
+    },
+    {
+      "path": "scripts/verify_native_redis.py",
+      "url": "/bookshelf/review-files/scripts/verify_native_redis.py",
+      "sha256": "d174ab29807f2bd18c42922bf41e03433483f96c538479b46c4b487f5bc446e1",
+      "bytes": 8686
+    },
+    {
+      "path": "scripts/verify_public_recovery.py",
+      "url": "/bookshelf/review-files/scripts/verify_public_recovery.py",
+      "sha256": "a92a748d2e765be6fcefd27bc2a88f535762dadd80cf02a2864bebb437b5883c",
+      "bytes": 4089
+    },
+    {
+      "path": "scripts/verify_public_service.py",
+      "url": "/bookshelf/review-files/scripts/verify_public_service.py",
+      "sha256": "2a1f041bb00c5b99b8aa1229f1bd7733f92fabfba143fa01729c124bbec0c32a",
+      "bytes": 9012
+    },
+    {
+      "path": "scripts/verify_redis_postgres.py",
+      "url": "/bookshelf/review-files/scripts/verify_redis_postgres.py",
+      "sha256": "42490237c4d14c20dff2add10f785fe61c50ffcdbdad878cfcf8fb574d74b7fd",
+      "bytes": 10637
+    },
+    {
+      "path": "scripts/verify_restored_service.py",
+      "url": "/bookshelf/review-files/scripts/verify_restored_service.py",
+      "sha256": "e853e6158e09696965ee1dbb79b370d0b2965e9eb39733bfbf82f4ba7d4e6ab8",
+      "bytes": 4171
+    },
+    {
+      "path": "scripts/verify_runtime_source.py",
+      "url": "/bookshelf/review-files/scripts/verify_runtime_source.py",
+      "sha256": "e953b6e4e19b7a34f2d537d58884fb9d7716f618004ca5e3a763d17035e55e7a",
+      "bytes": 1968
+    },
+    {
+      "path": "scripts/verify_worker_memory_recovery.py",
+      "url": "/bookshelf/review-files/scripts/verify_worker_memory_recovery.py",
+      "sha256": "2acb3a475debb43537d29fea76cf7a6d708c9cea48673ea3a0f3041aa14523cd",
+      "bytes": 4497
+    },
+    {
+      "path": "docs/架构与接口说明.md",
+      "url": "/bookshelf/review-files/docs/%E6%9E%B6%E6%9E%84%E4%B8%8E%E6%8E%A5%E5%8F%A3%E8%AF%B4%E6%98%8E.md",
+      "sha256": "8ba1fd807bd77eebff4db09246560ba5c30fd22dd8e580260e743be6c49be060",
+      "bytes": 9193
+    },
+    {
+      "path": "docs/1.10-回答展示与浏览器排查-20261114.md",
+      "url": "/bookshelf/review-files/docs/1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md",
+      "sha256": "3ffba6d747968d2d5c8c03bd2fc5d7558d6483fb6fe1c8a04067dfc88c1628f0",
+      "bytes": 6511
+    },
+    {
+      "path": "docs/evidence/v110-frontend-summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-frontend-summary.json",
+      "sha256": "978b9a0548a104380ba61e768bbe7f387a94b5a84d05234d2a3eb61a3c807ef4",
+      "bytes": 296
+    },
+    {
+      "path": "docs/evidence/v110-answer-style-backend-final.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v110-answer-style-backend-final.xml",
+      "sha256": "7e9689b348152d2659c4dc2f0b7a19bff5a5ccb781302e143d80d07250cb3f6f",
+      "bytes": 7085
+    },
+    {
+      "path": "docs/浏览器无响应排查-20261114.md",
+      "url": "/bookshelf/review-files/docs/%E6%B5%8F%E8%A7%88%E5%99%A8%E6%97%A0%E5%93%8D%E5%BA%94%E6%8E%92%E6%9F%A5-20261114.md",
+      "sha256": "98af1d897545b4085fcc637343d4a788c0b831b0f310a9bf6355b3c3abf2a3e1",
+      "bytes": 2441
+    },
+    {
+      "path": "docs/evidence/v110-browser-memory-investigation.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-browser-memory-investigation.json",
+      "sha256": "12dc3a75ecc9468d76a4c4bf906139879f851e735fe5b4f09242f37e481d7dc3",
+      "bytes": 2731
+    },
+    {
+      "path": "docs/evidence/v110-browser-answer-display.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-browser-answer-display.json",
+      "sha256": "7904485f02283790b069133b753ba1c33397c29ddceca67f8ebb46ba5d9f3d43",
+      "bytes": 1397
+    },
+    {
+      "path": "docs/evidence/v110-browser-answer-display-final.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-browser-answer-display-final.json",
+      "sha256": "0a2697319d35529ae521a4b2eb0f94ee3cf36bd46b9e8fde0c658c9cb435a817",
+      "bytes": 962
+    },
+    {
+      "path": "docs/evidence/v110-deployment.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-deployment.json",
+      "sha256": "e29e1aef2437a48f572d3d90890e189129fb17263632fe9bbc8f659c1121df8d",
+      "bytes": 1070
+    },
+    {
+      "path": "docs/evidence/v110-deployment-final.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-deployment-final.json",
+      "sha256": "f76b2eb4b88eff4d2238fe45db002f3d9ff6158288d1994ea10030e50c0fb3a2",
+      "bytes": 1071
+    },
+    {
+      "path": "docs/evidence/v110-final-runtime.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-final-runtime.json",
+      "sha256": "07ff8947e5ddaf1f0bea7106754eb4584595ce02105826189105484cd9400b1a",
+      "bytes": 1225
+    },
+    {
+      "path": "evaluations/results/live-v110-style/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-v110-style/results.jsonl",
+      "sha256": "f6213891f4d5b93536c35757bbdfdfe84363cc896fc9ae0181ad991c395aa73c",
+      "bytes": 39988
+    },
+    {
+      "path": "evaluations/results/live-v110-style-sc03-retry/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-v110-style-sc03-retry/results.jsonl",
+      "sha256": "40736f1ef8cd438afc61b9d9cc0f4e6893902dfbea8aa5a19a3734d8c1701f57",
+      "bytes": 11266
+    },
+    {
+      "path": "evaluations/results/live-v110-style-sc03-retry/citation-audit.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v110-style-sc03-retry/citation-audit.json",
+      "sha256": "c9a860c12f321d734b1679ea7b46ddfb0d508e18b2a88029a3bc53dae03cc85f",
+      "bytes": 629
+    },
+    {
+      "path": "docs/evidence/v110-live-style-summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-live-style-summary.json",
+      "sha256": "a1bb3368e5a5c3715b93c19e54dc2cfbbeb2c280f0284aa243dc359d03b4cb14",
+      "bytes": 163
+    },
+    {
+      "path": "docs/evidence/v110-live-style-sc03-retry-summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-live-style-sc03-retry-summary.json",
+      "sha256": "f43636fc9bb47b7cdcf299eac1b0a3cad9f123ba070491881f802f2ebea5bab9",
+      "bytes": 187
     },
     {
       "path": "docs/1.9-裁定约束断线恢复与完整回归-20261113.md",
@@ -644,6 +1196,12 @@
       "bytes": 329
     },
     {
+      "path": "docs/Docker主库备份与恢复.md",
+      "url": "/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E5%A4%87%E4%BB%BD%E4%B8%8E%E6%81%A2%E5%A4%8D.md",
+      "sha256": "6906871c940b6d2d0453df7c695f2567ef3f576f8460e1d0c891b5da4cfb8e2e",
+      "bytes": 4307
+    },
+    {
       "path": "docs/evidence/v19-final-overview.json",
       "url": "/bookshelf/review-files/docs/evidence/v19-final-overview.json",
       "sha256": "3248f7a65d2d1c05f6122e7308e13a4bdd6861cdd0edd29d145e2b729dc26797",
@@ -654,96 +1212,6 @@
       "url": "/bookshelf/review-files/docs/%E9%AA%8C%E6%94%B6%E7%9F%A9%E9%98%B5.md",
       "sha256": "a6936ca7f9225d89754dae8faf5aea89d7812d9539457f472911f7853480f18a",
       "bytes": 9595
-    },
-    {
-      "path": "docs/1.10-回答展示与浏览器排查-20261114.md",
-      "url": "/bookshelf/review-files/docs/1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md",
-      "sha256": "3ffba6d747968d2d5c8c03bd2fc5d7558d6483fb6fe1c8a04067dfc88c1628f0",
-      "bytes": 6511
-    },
-    {
-      "path": "docs/evidence/v110-frontend-summary.json",
-      "url": "/bookshelf/review-files/docs/evidence/v110-frontend-summary.json",
-      "sha256": "978b9a0548a104380ba61e768bbe7f387a94b5a84d05234d2a3eb61a3c807ef4",
-      "bytes": 296
-    },
-    {
-      "path": "docs/evidence/v110-answer-style-backend-final.xml",
-      "url": "/bookshelf/review-files/docs/evidence/v110-answer-style-backend-final.xml",
-      "sha256": "7e9689b348152d2659c4dc2f0b7a19bff5a5ccb781302e143d80d07250cb3f6f",
-      "bytes": 7085
-    },
-    {
-      "path": "docs/浏览器无响应排查-20261114.md",
-      "url": "/bookshelf/review-files/docs/%E6%B5%8F%E8%A7%88%E5%99%A8%E6%97%A0%E5%93%8D%E5%BA%94%E6%8E%92%E6%9F%A5-20261114.md",
-      "sha256": "98af1d897545b4085fcc637343d4a788c0b831b0f310a9bf6355b3c3abf2a3e1",
-      "bytes": 2441
-    },
-    {
-      "path": "docs/evidence/v110-browser-memory-investigation.json",
-      "url": "/bookshelf/review-files/docs/evidence/v110-browser-memory-investigation.json",
-      "sha256": "12dc3a75ecc9468d76a4c4bf906139879f851e735fe5b4f09242f37e481d7dc3",
-      "bytes": 2731
-    },
-    {
-      "path": "docs/evidence/v110-browser-answer-display.json",
-      "url": "/bookshelf/review-files/docs/evidence/v110-browser-answer-display.json",
-      "sha256": "7904485f02283790b069133b753ba1c33397c29ddceca67f8ebb46ba5d9f3d43",
-      "bytes": 1397
-    },
-    {
-      "path": "docs/evidence/v110-browser-answer-display-final.json",
-      "url": "/bookshelf/review-files/docs/evidence/v110-browser-answer-display-final.json",
-      "sha256": "0a2697319d35529ae521a4b2eb0f94ee3cf36bd46b9e8fde0c658c9cb435a817",
-      "bytes": 962
-    },
-    {
-      "path": "docs/evidence/v110-deployment.json",
-      "url": "/bookshelf/review-files/docs/evidence/v110-deployment.json",
-      "sha256": "e29e1aef2437a48f572d3d90890e189129fb17263632fe9bbc8f659c1121df8d",
-      "bytes": 1070
-    },
-    {
-      "path": "docs/evidence/v110-deployment-final.json",
-      "url": "/bookshelf/review-files/docs/evidence/v110-deployment-final.json",
-      "sha256": "f76b2eb4b88eff4d2238fe45db002f3d9ff6158288d1994ea10030e50c0fb3a2",
-      "bytes": 1071
-    },
-    {
-      "path": "docs/evidence/v110-final-runtime.json",
-      "url": "/bookshelf/review-files/docs/evidence/v110-final-runtime.json",
-      "sha256": "07ff8947e5ddaf1f0bea7106754eb4584595ce02105826189105484cd9400b1a",
-      "bytes": 1225
-    },
-    {
-      "path": "evaluations/results/live-v110-style/results.jsonl",
-      "url": "/bookshelf/review-files/evaluations/results/live-v110-style/results.jsonl",
-      "sha256": "f6213891f4d5b93536c35757bbdfdfe84363cc896fc9ae0181ad991c395aa73c",
-      "bytes": 39988
-    },
-    {
-      "path": "evaluations/results/live-v110-style-sc03-retry/results.jsonl",
-      "url": "/bookshelf/review-files/evaluations/results/live-v110-style-sc03-retry/results.jsonl",
-      "sha256": "40736f1ef8cd438afc61b9d9cc0f4e6893902dfbea8aa5a19a3734d8c1701f57",
-      "bytes": 11266
-    },
-    {
-      "path": "evaluations/results/live-v110-style-sc03-retry/citation-audit.json",
-      "url": "/bookshelf/review-files/evaluations/results/live-v110-style-sc03-retry/citation-audit.json",
-      "sha256": "c9a860c12f321d734b1679ea7b46ddfb0d508e18b2a88029a3bc53dae03cc85f",
-      "bytes": 629
-    },
-    {
-      "path": "docs/evidence/v110-live-style-summary.json",
-      "url": "/bookshelf/review-files/docs/evidence/v110-live-style-summary.json",
-      "sha256": "a1bb3368e5a5c3715b93c19e54dc2cfbbeb2c280f0284aa243dc359d03b4cb14",
-      "bytes": 163
-    },
-    {
-      "path": "docs/evidence/v110-live-style-sc03-retry-summary.json",
-      "url": "/bookshelf/review-files/docs/evidence/v110-live-style-sc03-retry-summary.json",
-      "sha256": "f43636fc9bb47b7cdcf299eac1b0a3cad9f123ba070491881f802f2ebea5bab9",
-      "bytes": 187
     },
     {
       "path": "docs/进度同步-20261113.md",
@@ -1394,12 +1862,6 @@
       "bytes": 1588
     },
     {
-      "path": "docs/架构与接口说明.md",
-      "url": "/bookshelf/review-files/docs/%E6%9E%B6%E6%9E%84%E4%B8%8E%E6%8E%A5%E5%8F%A3%E8%AF%B4%E6%98%8E.md",
-      "sha256": "8ba1fd807bd77eebff4db09246560ba5c30fd22dd8e580260e743be6c49be060",
-      "bytes": 9193
-    },
-    {
       "path": "docs/来源与复用说明.md",
       "url": "/bookshelf/review-files/docs/%E6%9D%A5%E6%BA%90%E4%B8%8E%E5%A4%8D%E7%94%A8%E8%AF%B4%E6%98%8E.md",
       "sha256": "cd8d7d9c99c4eed9d3bdcb2cf0ca3dfb5290c3e6465ef7f600ddbad3d0ea3a08",
@@ -1454,465 +1916,9 @@
       "bytes": 1628
     },
     {
-      "path": "docs/进度同步-20261117-v201.md",
-      "url": "/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261117-v201.md",
-      "sha256": "a9b8599234b7dcca11ccd265f7b32596224697cff11811ffa283fbb94cabfe0a",
-      "bytes": 1254
-    },
-    {
-      "path": "docs/evidence/doc-navigation-password-20261117.json",
-      "url": "/bookshelf/review-files/docs/evidence/doc-navigation-password-20261117.json",
-      "sha256": "094a875c0db4ddb09fcccf0f5d8a456aa33c0e74023224d683d0dd7c638a30e7",
-      "bytes": 492
-    },
-    {
-      "path": "docs/GitHub内测版本同步-20261117.md",
-      "url": "/bookshelf/review-files/docs/GitHub%E5%86%85%E6%B5%8B%E7%89%88%E6%9C%AC%E5%90%8C%E6%AD%A5-20261117.md",
-      "sha256": "5c2e4da4bd6a20d5d1de92365f1c6b1852410c94780f27fb897d83974ac9e02a",
-      "bytes": 2348
-    },
-    {
-      "path": "backend/app/schemas.py",
-      "url": "/bookshelf/review-files/backend/app/schemas.py",
-      "sha256": "4a0c8f43385606cb5e934f127bee36257400d3ffdf5110f0ab5a65b8597385ee",
-      "bytes": 2497
-    },
-    {
-      "path": "backend/app/catalog.py",
-      "url": "/bookshelf/review-files/backend/app/catalog.py",
-      "sha256": "db2d935edfbf9eae05d5f913c905a0c5c079d29403a5779c9b5e5ae1110cea51",
-      "bytes": 16079
-    },
-    {
-      "path": "frontend/src/main.tsx",
-      "url": "/bookshelf/review-files/frontend/src/main.tsx.txt",
-      "sha256": "a388f1941bc1bb3fe340f1acdf9c995cf70d3b6fcb8751bd05e645ca03aee5d8",
-      "bytes": 314
-    },
-    {
-      "path": "frontend/src/services/api.ts",
-      "url": "/bookshelf/review-files/frontend/src/services/api.ts.txt",
-      "sha256": "bda184d5fe73ff42b078464488fb2348ca81ba62ef1abad4f4cfcd032810eecb",
-      "bytes": 2277
-    },
-    {
-      "path": "frontend/src/services/auth.ts",
-      "url": "/bookshelf/review-files/frontend/src/services/auth.ts.txt",
-      "sha256": "499cf7e0fa97501033e1e35fd9c5c07320851b2bf00a611126c4d5da9d3703bc",
-      "bytes": 490
-    },
-    {
-      "path": "frontend/src/services/bookshelf.ts",
-      "url": "/bookshelf/review-files/frontend/src/services/bookshelf.ts.txt",
-      "sha256": "ccb0b39beb30a321795caa9df3ff8cb631fa95496cc1e7258db6b76444c51aae",
-      "bytes": 1864
-    },
-    {
-      "path": "frontend/src/services/feedback.ts",
-      "url": "/bookshelf/review-files/frontend/src/services/feedback.ts.txt",
-      "sha256": "aaec6d83f53004f47eb6e68426e5ae3f822d215d311f91063f50617dc2e604b4",
-      "bytes": 1419
-    },
-    {
-      "path": "frontend/src/services/jobs.ts",
-      "url": "/bookshelf/review-files/frontend/src/services/jobs.ts.txt",
-      "sha256": "7c04c3e545edcdf0065e6fa23b393e7cc3e02bb319259d60f0e638ebcb449538",
-      "bytes": 784
-    },
-    {
-      "path": "frontend/src/services/knowledge.ts",
-      "url": "/bookshelf/review-files/frontend/src/services/knowledge.ts.txt",
-      "sha256": "ca64225f7c1270ae23d11920326b634cb08bff08a6dcd5e81f6296ae30ec12aa",
-      "bytes": 1255
-    },
-    {
-      "path": "frontend/src/services/sessions.ts",
-      "url": "/bookshelf/review-files/frontend/src/services/sessions.ts.txt",
-      "sha256": "75eade6e978b66f2cab551a4a48ca9e75803d13dd035962822cce6115c9215d2",
-      "bytes": 1051
-    },
-    {
-      "path": "frontend/src/lib/browser-lifecycle.ts",
-      "url": "/bookshelf/review-files/frontend/src/lib/browser-lifecycle.ts.txt",
-      "sha256": "e97f896a85aa9f1b0341506e544dc2a77fa78c19f544df83c4811cdafbf85c29",
-      "bytes": 1053
-    },
-    {
-      "path": "frontend/src/lib/date-time.ts",
-      "url": "/bookshelf/review-files/frontend/src/lib/date-time.ts.txt",
-      "sha256": "233381c8fa4a1051c749c43def6192221f70b9b8a7b175f38697a7e65bde4e11",
-      "bytes": 490
-    },
-    {
-      "path": "frontend/src/lib/runtime-config.ts",
-      "url": "/bookshelf/review-files/frontend/src/lib/runtime-config.ts.txt",
-      "sha256": "b68a858a21c875aed6e73f57e8e6b6143b4197f4483352dbba083a058c3052d6",
-      "bytes": 278
-    },
-    {
-      "path": "frontend/src/lib/screen-boundary.ts",
-      "url": "/bookshelf/review-files/frontend/src/lib/screen-boundary.ts.txt",
-      "sha256": "be2accc6a2b42e676b998caa7a2e4f8fd6b3edf5e4c79e7fdc54e76ae61ce1d7",
-      "bytes": 580
-    },
-    {
-      "path": "frontend/src/lib/sse.ts",
-      "url": "/bookshelf/review-files/frontend/src/lib/sse.ts.txt",
-      "sha256": "527e185d8a5651055b0e51ec3c8357b080c9013930716cfc00e99092a807ea3b",
-      "bytes": 1624
-    },
-    {
-      "path": "frontend/src/lib/url-state.ts",
-      "url": "/bookshelf/review-files/frontend/src/lib/url-state.ts.txt",
-      "sha256": "fb6b690642337c972bffeeb769d409d1756ec321508e9f6a6eff793ad6bb28b6",
-      "bytes": 993
-    },
-    {
-      "path": "backend/public_gateway.py",
-      "url": "/bookshelf/review-files/backend/public_gateway.py",
-      "sha256": "3ec27d95161896f87fa62a9169817a52fa677e6cc2a0adbbad0c6370a6f30b8d",
-      "bytes": 6157
-    },
-    {
-      "path": "public-entry/package-lock.json",
-      "url": "/bookshelf/review-files/public-entry/package-lock.json",
-      "sha256": "bac8690970ec726c27fda99cd8ffcb0f18f81a495103552a1c653efc45be029d",
-      "bytes": 53245
-    },
-    {
-      "path": "public-entry/package.json",
-      "url": "/bookshelf/review-files/public-entry/package.json",
-      "sha256": "6d3fd9ee190bf917c54a26aa1c7c503578519cc1a04eebc6755562a010d065c4",
-      "bytes": 386
-    },
-    {
-      "path": "public-entry/policy.test.mjs",
-      "url": "/bookshelf/review-files/public-entry/policy.test.mjs.txt",
-      "sha256": "5fff2ae8b68ba8703cec1da358ae43c527ca6c5280096ca4c26fcd81a0c73932",
-      "bytes": 527
-    },
-    {
-      "path": "public-entry/tsconfig.json",
-      "url": "/bookshelf/review-files/public-entry/tsconfig.json",
-      "sha256": "d77c3fac9d6e1a7934dc4e377dea1b148daa60ef403fd2c53ab618299ca23722",
-      "bytes": 275
-    },
-    {
-      "path": "public-entry/worker-configuration.d.ts",
-      "url": "/bookshelf/review-files/public-entry/worker-configuration.d.ts.txt",
-      "sha256": "5a6b7aca1025ca74a15892e3fa32ec316c1acb8d546705350cecbd1e6a3716a1",
-      "bytes": 1241
-    },
-    {
-      "path": "public-entry/wrangler.jsonc",
-      "url": "/bookshelf/review-files/public-entry/wrangler.jsonc",
-      "sha256": "d20339ccd5a972dc9918bc403829df8a25196d8919f2bab2cdff9133a53e5395",
-      "bytes": 886
-    },
-    {
-      "path": "compose.client.yaml",
-      "url": "/bookshelf/review-files/compose.client.yaml",
-      "sha256": "1eb03ced95b9ddb292687e7854a640a8dfdecf1b72fd58f25827b125896d15d7",
-      "bytes": 285
-    },
-    {
-      "path": "scripts/audit_eval_sources.py",
-      "url": "/bookshelf/review-files/scripts/audit_eval_sources.py",
-      "sha256": "a7aabaf377f67ca070edcfa6cb7181d7ecb33992494dc0370f7bea9ef02b4047",
-      "bytes": 4337
-    },
-    {
-      "path": "scripts/audit_worker_soak.py",
-      "url": "/bookshelf/review-files/scripts/audit_worker_soak.py",
-      "sha256": "86e25de3d4a5fcd45b4790e06e01b50dc7a8c26a547079358788ec99406a4035",
-      "bytes": 3775
-    },
-    {
-      "path": "scripts/backup_docker_primary.py",
-      "url": "/bookshelf/review-files/scripts/backup_docker_primary.py",
-      "sha256": "bba791bf2489aae2146e380ea05de138cc8509495101b849594993329e5972a3",
-      "bytes": 8397
-    },
-    {
-      "path": "scripts/backup_native_database.py",
-      "url": "/bookshelf/review-files/scripts/backup_native_database.py",
-      "sha256": "a780e2d6872b8bc26e5273b155800a8da358e3d7113ec74e7bc698bd458e50e9",
-      "bytes": 7897
-    },
-    {
-      "path": "scripts/browser_smoke.py",
-      "url": "/bookshelf/review-files/scripts/browser_smoke.py",
-      "sha256": "3268e8d5f661171790e10bfc477d889ec3dde6f9ba2dc0f13cf78c2307415ada",
-      "bytes": 5827
-    },
-    {
-      "path": "scripts/build_native_pgvector.ps1",
-      "url": "/bookshelf/review-files/scripts/build_native_pgvector.ps1",
-      "sha256": "c88a089c865d544635249df441915bf3d7c3952d07fd392da2aecf8f2d3d11fe",
-      "bytes": 1173
-    },
-    {
-      "path": "scripts/deploy_public_entry.py",
-      "url": "/bookshelf/review-files/scripts/deploy_public_entry.py",
-      "sha256": "300501e191606b6aaade8e793a15f69f401843b09779e2d47fa727c26dda892b",
-      "bytes": 3328
-    },
-    {
-      "path": "scripts/docker_live.py",
-      "url": "/bookshelf/review-files/scripts/docker_live.py",
-      "sha256": "1d43ae5b9aa3da606b48c21f0c355bea564eb2d4fc9de4852d9baa8261e70b63",
-      "bytes": 1223
-    },
-    {
-      "path": "scripts/fingerprint_database.py",
-      "url": "/bookshelf/review-files/scripts/fingerprint_database.py",
-      "sha256": "97a824c4811fc76a0c44435e2890dad1f0979e8756449ac5805f560b6f3eb2c2",
-      "bytes": 624
-    },
-    {
-      "path": "scripts/import_qinggui_model.py",
-      "url": "/bookshelf/review-files/scripts/import_qinggui_model.py",
-      "sha256": "7928f57a89ed97e2520c0724df2922b2636018f073d5983034a9a4fff0b20d64",
-      "bytes": 3089
-    },
-    {
-      "path": "scripts/isolated_real_eval.py",
-      "url": "/bookshelf/review-files/scripts/isolated_real_eval.py",
-      "sha256": "96cd6c365e5ba75d8f41fac8a4f3a628e35d35932da36d5da8419ba2df8acda6",
-      "bytes": 5427
-    },
-    {
-      "path": "scripts/local_demo.py",
-      "url": "/bookshelf/review-files/scripts/local_demo.py",
-      "sha256": "b03a10db99e4327ba67068f44a0e9a5679a870f85b8b4c4ae757735a2155be3c",
-      "bytes": 1343
-    },
-    {
-      "path": "scripts/native_demo.py",
-      "url": "/bookshelf/review-files/scripts/native_demo.py",
-      "sha256": "eaeb0143bf444da961b187167819b6f9dd4ac6fe77808706bdbd770aad429973",
-      "bytes": 16684
-    },
-    {
-      "path": "scripts/prepare_embedding.py",
-      "url": "/bookshelf/review-files/scripts/prepare_embedding.py",
-      "sha256": "5e7f7d1ed2f5cb27df327fc288bfcf0f557714240d55f1881bfe93ab6fa9701c",
-      "bytes": 4804
-    },
-    {
-      "path": "scripts/prepare_isolated_eval.py",
-      "url": "/bookshelf/review-files/scripts/prepare_isolated_eval.py",
-      "sha256": "51a5936a86ff4c4dd22af42c054eb66c1c01d2148711055a4c356ec53bd009e7",
-      "bytes": 5225
-    },
-    {
-      "path": "scripts/prepare_native_kafka.py",
-      "url": "/bookshelf/review-files/scripts/prepare_native_kafka.py",
-      "sha256": "516425b7f5474735d1869678833ba862b2a841c07eddbf08528203d527e94cfb",
-      "bytes": 2420
-    },
-    {
-      "path": "scripts/prepare_native_postgres.py",
-      "url": "/bookshelf/review-files/scripts/prepare_native_postgres.py",
-      "sha256": "330230e2eef5c6f827145317affd222eb2ccd3db076a53f5759272c935eeeffb",
-      "bytes": 2268
-    },
-    {
-      "path": "scripts/prepare_native_redis.py",
-      "url": "/bookshelf/review-files/scripts/prepare_native_redis.py",
-      "sha256": "1753a0b3aefba4eeecc92587b5a63ad20190caab8b6a393dc9fba5b715ca6b09",
-      "bytes": 2826
-    },
-    {
-      "path": "scripts/prepare_public_service.py",
-      "url": "/bookshelf/review-files/scripts/prepare_public_service.py",
-      "sha256": "75d45715cda832dc4f845103e6060e2708e5980ae127d221481133ca31be647a",
-      "bytes": 1628
-    },
-    {
-      "path": "scripts/public_service.py",
-      "url": "/bookshelf/review-files/scripts/public_service.py",
-      "sha256": "247aa2e3f54c850daba0adb26e4189d45a0e9c936650873f6379f59971c83001",
-      "bytes": 7456
-    },
-    {
-      "path": "scripts/restore_docker_database.py",
-      "url": "/bookshelf/review-files/scripts/restore_docker_database.py",
-      "sha256": "eab6642bcf481ef4622b7a104c0065496de18e801e6494be4d2f83a5bbb4409f",
-      "bytes": 5543
-    },
-    {
-      "path": "scripts/run_rulings.py",
-      "url": "/bookshelf/review-files/scripts/run_rulings.py",
-      "sha256": "6af50cc41dd2d0e192756d9faad1980c725a4f068e7d039fcdbac58dc0d995f9",
-      "bytes": 8824
-    },
-    {
-      "path": "scripts/snapshot_local_git.py",
-      "url": "/bookshelf/review-files/scripts/snapshot_local_git.py",
-      "sha256": "5b242b90261e6006a56a47c985cb3ec3db8a3c2aa4741e3e96c5761b7d8da912",
-      "bytes": 7020
-    },
-    {
-      "path": "scripts/soak_native_worker.py",
-      "url": "/bookshelf/review-files/scripts/soak_native_worker.py",
-      "sha256": "6357f397116571cfeb9c9938f6e3e61c6499889ccf7c6b5d5a005cdb181ebe4a",
-      "bytes": 12028
-    },
-    {
-      "path": "scripts/source_snapshot.py",
-      "url": "/bookshelf/review-files/scripts/source_snapshot.py",
-      "sha256": "2421a8a22ab143ba1587fb4ca3c9f99b052e945eeb80dd738d439a189391a742",
-      "bytes": 15407
-    },
-    {
-      "path": "scripts/start_docker_live.ps1",
-      "url": "/bookshelf/review-files/scripts/start_docker_live.ps1",
-      "sha256": "36010dd68640b4fdb0ea2972057f54b558aff5c13ee189ca071f74e3f1efb7ba",
-      "bytes": 1531
-    },
-    {
-      "path": "scripts/start_local.ps1",
-      "url": "/bookshelf/review-files/scripts/start_local.ps1",
-      "sha256": "8aa0b95b26f1a75914f0545b6802698c34e076505066eb05524f4f1d451b3f37",
-      "bytes": 3326
-    },
-    {
-      "path": "scripts/start_native.ps1",
-      "url": "/bookshelf/review-files/scripts/start_native.ps1",
-      "sha256": "466d5210c3895b1384096a6fb70dc1c97b05bcae28c57438a9db3306294de57d",
-      "bytes": 1723
-    },
-    {
-      "path": "scripts/start_public_service.ps1",
-      "url": "/bookshelf/review-files/scripts/start_public_service.ps1",
-      "sha256": "3cd1960f035bcc519a9bb6ca3fca14a5202910ef32e9d3dd979ed469539e559c",
-      "bytes": 1081
-    },
-    {
-      "path": "scripts/start_v2_local.ps1",
-      "url": "/bookshelf/review-files/scripts/start_v2_local.ps1",
-      "sha256": "fb539d87550513ff4d796696b44974661eb16c940c5db2ddaab9fb055385c789",
-      "bytes": 1471
-    },
-    {
-      "path": "scripts/stop_docker_live.ps1",
-      "url": "/bookshelf/review-files/scripts/stop_docker_live.ps1",
-      "sha256": "96f22578b893074e529fc1db453ed1c85f9c4fbcdd077ef4851e9ad395a013b2",
-      "bytes": 752
-    },
-    {
-      "path": "scripts/stop_native.ps1",
-      "url": "/bookshelf/review-files/scripts/stop_native.ps1",
-      "sha256": "299798932324edfb57ea86b2f2fc0fda87ebac82a8dd4af3f5db656e346b5960",
-      "bytes": 715
-    },
-    {
-      "path": "scripts/stop_public_service.ps1",
-      "url": "/bookshelf/review-files/scripts/stop_public_service.ps1",
-      "sha256": "0889c60af669ddd1fd1d4fa6273c65947405f4f82c72922d462f6aacc7431e4e",
-      "bytes": 306
-    },
-    {
-      "path": "scripts/stop_v2_local.ps1",
-      "url": "/bookshelf/review-files/scripts/stop_v2_local.ps1",
-      "sha256": "acfc21cfc7f5af7413fb66c9d42cc19a53a038dd439d263d0d49d78e822a8b9b",
-      "bytes": 288
-    },
-    {
-      "path": "scripts/verify_bookshelf.py",
-      "url": "/bookshelf/review-files/scripts/verify_bookshelf.py",
-      "sha256": "19a1c4cb34e2bedfefa1785880f8186ac0d02b1e4eb29cf20c8d37538b15b20e",
-      "bytes": 5109
-    },
-    {
-      "path": "scripts/verify_browser_request_recovery.py",
-      "url": "/bookshelf/review-files/scripts/verify_browser_request_recovery.py",
-      "sha256": "e81ed1c4fbdcd78afe2d35a5d9b59539f85dd45b49e6f73e9d64e7a2e21c270d",
-      "bytes": 5300
-    },
-    {
-      "path": "scripts/verify_compose.py",
-      "url": "/bookshelf/review-files/scripts/verify_compose.py",
-      "sha256": "c09a8e9377317013d84f5c206271a0795ee9ed391229b032d7fb931702cc7672",
-      "bytes": 26898
-    },
-    {
-      "path": "scripts/verify_docker_cutover.py",
-      "url": "/bookshelf/review-files/scripts/verify_docker_cutover.py",
-      "sha256": "744067cb096aedbc0162625322e296be1ef9ec9ab229f0626674acb4fcb8ad32",
-      "bytes": 9911
-    },
-    {
-      "path": "scripts/verify_embeddings.py",
-      "url": "/bookshelf/review-files/scripts/verify_embeddings.py",
-      "sha256": "ee4f1b6296b2653d1a1668cd2817db3a03175bf63e3a54d970c982813a4f599f",
-      "bytes": 5891
-    },
-    {
-      "path": "scripts/verify_input_focus.py",
-      "url": "/bookshelf/review-files/scripts/verify_input_focus.py",
-      "sha256": "7bbfccbd73e07e09bdd21e6aa491c58fbfb4e2258390a0f49c250ac5fd775b86",
-      "bytes": 6499
-    },
-    {
-      "path": "scripts/verify_native_kafka.py",
-      "url": "/bookshelf/review-files/scripts/verify_native_kafka.py",
-      "sha256": "0133b0ff230f8e069da39a97cc43067d894c8bb3980d213787bea7000aa47360",
-      "bytes": 13214
-    },
-    {
-      "path": "scripts/verify_native_postgres.py",
-      "url": "/bookshelf/review-files/scripts/verify_native_postgres.py",
-      "sha256": "802f08a813e6f53de65862a975120bfc395acd2d48d9ce5b8712440bb0f16615",
-      "bytes": 12524
-    },
-    {
-      "path": "scripts/verify_native_redis.py",
-      "url": "/bookshelf/review-files/scripts/verify_native_redis.py",
-      "sha256": "d174ab29807f2bd18c42922bf41e03433483f96c538479b46c4b487f5bc446e1",
-      "bytes": 8686
-    },
-    {
-      "path": "scripts/verify_public_recovery.py",
-      "url": "/bookshelf/review-files/scripts/verify_public_recovery.py",
-      "sha256": "a92a748d2e765be6fcefd27bc2a88f535762dadd80cf02a2864bebb437b5883c",
-      "bytes": 4089
-    },
-    {
-      "path": "scripts/verify_public_service.py",
-      "url": "/bookshelf/review-files/scripts/verify_public_service.py",
-      "sha256": "2a1f041bb00c5b99b8aa1229f1bd7733f92fabfba143fa01729c124bbec0c32a",
-      "bytes": 9012
-    },
-    {
-      "path": "scripts/verify_redis_postgres.py",
-      "url": "/bookshelf/review-files/scripts/verify_redis_postgres.py",
-      "sha256": "42490237c4d14c20dff2add10f785fe61c50ffcdbdad878cfcf8fb574d74b7fd",
-      "bytes": 10637
-    },
-    {
-      "path": "scripts/verify_restored_service.py",
-      "url": "/bookshelf/review-files/scripts/verify_restored_service.py",
-      "sha256": "e853e6158e09696965ee1dbb79b370d0b2965e9eb39733bfbf82f4ba7d4e6ab8",
-      "bytes": 4171
-    },
-    {
-      "path": "scripts/verify_runtime_source.py",
-      "url": "/bookshelf/review-files/scripts/verify_runtime_source.py",
-      "sha256": "e953b6e4e19b7a34f2d537d58884fb9d7716f618004ca5e3a763d17035e55e7a",
-      "bytes": 1968
-    },
-    {
-      "path": "scripts/verify_worker_memory_recovery.py",
-      "url": "/bookshelf/review-files/scripts/verify_worker_memory_recovery.py",
-      "sha256": "2acb3a475debb43537d29fea76cf7a6d708c9cea48673ea3a0f3041aa14523cd",
-      "bytes": 4497
-    },
-    {
       "path": "VERSION",
       "url": "/bookshelf/review-files/VERSION",
-      "sha256": "246e7a453c2ea828743895cfddc4c3a4638f78602a1147af1353ac19fe1d8793",
+      "sha256": "2b075b9faf7f116b3186ba68b072f8e07a06d86a6730ecf14f8e171ab6664158",
       "bytes": 15
     },
     {
@@ -1930,13 +1936,13 @@
     {
       "path": "frontend/package.json",
       "url": "/bookshelf/review-files/frontend/package.json",
-      "sha256": "f3d33032d4c4e3816f840e2c6f49ffae263b0293ba57c110bea50bd3da18a3ea",
+      "sha256": "ca9bdb064e3dbffe795deb861c9938dd55bfb736a764540fb2b0357e7d97510f",
       "bytes": 1612
     },
     {
       "path": "frontend/package-lock.json",
       "url": "/bookshelf/review-files/frontend/package-lock.json",
-      "sha256": "bd7c007ba3825e4aa3ded14d74d4ae172c35f2903d3b7b8c2a6654c1b698cf08",
+      "sha256": "114130e3f63370048ca4475b17851a70a7c06a9ed7a89e3a783fbbd5a8e9da77",
       "bytes": 180649
     },
     {
@@ -1954,8 +1960,8 @@
     {
       "path": "compose.live.yaml",
       "url": "/bookshelf/review-files/compose.live.yaml",
-      "sha256": "6fa227bbe7270d4e86c622e0f3888034ec15f51b5ef2c656af50fd941249c7ef",
-      "bytes": 429
+      "sha256": "8ad8b80f2db540bc2b4a1f75ca9cd6a1a7e7b6c295a82d508ad78471744602a2",
+      "bytes": 443
     },
     {
       "path": "compose.v2-local.yaml",
@@ -2024,6 +2030,24 @@
       "bytes": 931
     },
     {
+      "path": "backend/app/models.py",
+      "url": "/bookshelf/review-files/backend/app/models.py",
+      "sha256": "f68eeaf741fbdb7b52f314f29a027108b3f462fe57889291858f8612b3ab26cf",
+      "bytes": 9815
+    },
+    {
+      "path": "migrations/versions/0001_initial.py",
+      "url": "/bookshelf/review-files/migrations/versions/0001_initial.py",
+      "sha256": "4b981890e6383632503b4ba65eb3cfea589c0d361a9ca1ce4df062a9ccfff514",
+      "bytes": 13511
+    },
+    {
+      "path": "migrations/versions/0002_request_recovery.py",
+      "url": "/bookshelf/review-files/migrations/versions/0002_request_recovery.py",
+      "sha256": "6f7f92115d0c66aafc2c48fcd8a455e1ae1646b13ddeb4dedad4f132a8e78b24",
+      "bytes": 931
+    },
+    {
       "path": "alembic.ini",
       "url": "/bookshelf/review-files/alembic.ini",
       "sha256": "ebfad8a9c8f352d2381e48df599dd04dad764ca95b03f0dc9949d0691c6d2517",
@@ -2056,14 +2080,14 @@
     {
       "path": ".env.example",
       "url": "/bookshelf/review-files/.env.example",
-      "sha256": "31323ac2cf3beaae44da527ef84199bc29a800f4600296434b957a8e5a44e9f5",
-      "bytes": 1168
+      "sha256": "c288ab0a50396a2827cb75f13166904143cb3a246905df66d6fcbdbb2c4f8285",
+      "bytes": 1339
     },
     {
       "path": "backend/app/config.py",
       "url": "/bookshelf/review-files/backend/app/config.py",
-      "sha256": "e7954afbf97588c12703327131b53321845f90b7dc41c19c9170946647351fe8",
-      "bytes": 2473
+      "sha256": "0c83a8ada207eae0dd9d50662d53df09c11b21a5e9f463672c9e7bdad69cc267",
+      "bytes": 2511
     },
     {
       "path": "data/snapshots.json",

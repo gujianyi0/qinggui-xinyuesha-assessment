@@ -1,0 +1,63 @@
+
+> qinggui-game-assistant-web@2.0.5-local.1 check
+> npm run lint && npm run architecture && npm run typecheck && npm run knip && npm test -- --maxWorkers=1 && npm run build
+
+
+> qinggui-game-assistant-web@2.0.5-local.1 lint
+> biome check src scripts vite.config.ts --error-on-warnings
+
+Checked 93 files in 56ms. No fixes applied.
+
+> qinggui-game-assistant-web@2.0.5-local.1 architecture
+> node scripts/check-architecture.mjs
+
+Architecture: 87 TypeScript files; Feature boundaries, naming, any and argument counts passed.
+
+> qinggui-game-assistant-web@2.0.5-local.1 typecheck
+> tsc --noEmit
+
+
+> qinggui-game-assistant-web@2.0.5-local.1 knip
+> knip --no-progress
+
+
+> qinggui-game-assistant-web@2.0.5-local.1 test
+> vitest run --maxWorkers=1
+
+
+ RUN  v4.1.12 F:/Work/Biteagle/入职考核/frontend
+
+
+ Test Files  22 passed (22)
+      Tests  61 passed (61)
+   Start at  08:47:30
+   Duration  44.34s (transform 830ms, setup 4.63s, import 3.55s, tests 10.78s, environment 19.81s)
+
+
+> qinggui-game-assistant-web@2.0.5-local.1 build
+> tsc -b && vite build
+
+vite v8.3.7 building client environment for production...
+transforming...
+✓ 2087 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                              0.75 kB │ gzip:  0.49 kB
+dist/assets/shared-records-Bzor8tu7.css      1.29 kB │ gzip:  0.53 kB
+dist/assets/bookshelf-BAtpjWFj.css           4.97 kB │ gzip:  1.47 kB
+dist/assets/index-BaFzdQdY.css              38.64 kB │ gzip:  9.01 kB
+dist/assets/search-CYCrsVV7.js               0.16 kB │ gzip:  0.16 kB
+dist/assets/tab-navigation-5M9ZGyq5.js       0.41 kB │ gzip:  0.29 kB
+dist/assets/source-excerpt-B4Cfq0XB.js       0.66 kB │ gzip:  0.41 kB
+dist/assets/status-tag-BiJqHQSN.js           0.84 kB │ gzip:  0.52 kB
+dist/assets/shared-records-BakXXbxK.js       5.65 kB │ gzip:  2.29 kB
+dist/assets/jobs-KhJnrDbi.js                 8.28 kB │ gzip:  3.40 kB
+dist/assets/library-DKoWxQ29.js              8.66 kB │ gzip:  3.57 kB
+dist/assets/jsx-runtime-Wy9s6hX0.js          8.91 kB │ gzip:  3.39 kB
+dist/assets/feedback-BKsYqa_c.js            12.31 kB │ gzip:  4.44 kB
+dist/assets/bookshelf-DR06Vand.js           17.87 kB │ gzip:  6.55 kB
+dist/assets/workspace-BjdE3rhV.js           47.30 kB │ gzip: 17.04 kB
+dist/assets/markdown-document-DQ15tTcD.js  165.21 kB │ gzip: 49.53 kB
+dist/assets/index-C0j-qHh_.js              249.54 kB │ gzip: 78.73 kB
+
+✓ built in 2.09s

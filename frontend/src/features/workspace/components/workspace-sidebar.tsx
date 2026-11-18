@@ -86,21 +86,21 @@ export default function WorkspaceSidebar({
       </button>
       <div className="nav-label">工作区</div>
       <nav className="primary-nav" aria-label="主要导航">
-        {NAVIGATION.filter((item) => !isPublicMode || item.id !== 'jobs').map(
-          (item) => (
-            <button
-              type="button"
-              key={item.id}
-              className={page === item.id ? 'active' : ''}
-              onClick={() => onNavigate({ page: item.id })}
-              aria-current={page === item.id ? 'page' : undefined}
-            >
-              <item.icon size={18} strokeWidth={1.6} />
-              <span>{item.label}</span>
-              {page === item.id && <ChevronRight size={14} />}
-            </button>
-          ),
-        )}
+        {NAVIGATION.filter((item) =>
+          isPublicMode ? item.id !== 'jobs' : item.id !== 'shared',
+        ).map((item) => (
+          <button
+            type="button"
+            key={item.id}
+            className={page === item.id ? 'active' : ''}
+            onClick={() => onNavigate({ page: item.id })}
+            aria-current={page === item.id ? 'page' : undefined}
+          >
+            <item.icon size={18} strokeWidth={1.6} />
+            <span>{item.label}</span>
+            {page === item.id && <ChevronRight size={14} />}
+          </button>
+        ))}
       </nav>
       <div className="history-heading">
         <span className="nav-label">最近对话</span>

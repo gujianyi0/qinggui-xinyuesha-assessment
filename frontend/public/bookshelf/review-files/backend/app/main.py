@@ -37,6 +37,7 @@ from .models import (
     User,
     now,
 )
+from .public_records import records_router
 from .public_schemas import PublicIdentity, PublicRunInput
 from .runtime import Runtime
 from .schemas import (
@@ -140,6 +141,8 @@ def create_app(settings: Settings | None = None):
     async def public_service_auth(x_public_service: str = Header(default="")):
         if not config.public_service_token or not secrets.compare_digest(x_public_service, config.public_service_token):
             raise HTTPException(401, "公共网关身份无效")
+
+    app.include_router(records_router(database, config, current_user, public_service_auth))
 
     async def owned(model, identifier: str, user_id: str):
         async with database.sessions() as db:
