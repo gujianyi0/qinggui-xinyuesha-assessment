@@ -1,0 +1,39 @@
+{
+  "label": "live-v19-retry-v01",
+  "mode": "live",
+  "backend": {
+    "status": "ok",
+    "cache": "unavailable_fallback",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": true,
+    "budget": {
+      "spent_cny": 1.3072920000000001,
+      "reserved_cny": 0.0,
+      "limit_cny": 30.0,
+      "warning": false
+    }
+  },
+  "started_at": "2026-11-13T02:49:01.419827+00:00",
+  "case_set": "xinyuesha-fixed-32-v1",
+  "cases_sha256": "63d7c970e34124273725c2099e538d012cc715d20050d683ec8f13282a114cb3",
+  "selected_cases": [
+    "V01"
+  ],
+  "concurrency": 1,
+  "checker_version": "lexical-alias-v2",
+  "semantic_status": "awaiting_human_review",
+  "local_implementation_sha256": {
+    "backend/app/runtime.py": "ae53a3c4722e8e94d95c47b295177a2ebf9c2d7492529a81ad971996fe6bca74",
+    "backend/app/catalog.py": "d1761163708f8cfba63daf7666f891bad955e701390d25459662f76416ce2d09",
+    "backend/app/ruling_text.py": "a27e96e10fd9ad167f060f4f237b13be5f492fd725f103f5e702d33070912015",
+    "backend/app/feedback_context.py": "4a49f5bf5b22c1f84a1329c190005b11521129b63d3ba05ed0646860f6898327",
+    "backend/app/ruling_policy.py": "37d8d39d6f84e6957e3c6665b0949d7b84161ff8793664d2f74c00ab5b6bfdd6",
+    "backend/app/main.py": "6282b38ca4fa35199bfa70cf1e54832068ac1461c4af69fbba0bf8db26c105b5"
+  },
+  "implementation_notice": "Local source hashes; verify container hashes separately. Each run records its actual prompt revision."
+}

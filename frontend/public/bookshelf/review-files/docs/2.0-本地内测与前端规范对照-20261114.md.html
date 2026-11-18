@@ -1,0 +1,164 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2.0-本地内测与前端规范对照-20261114.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>v2.0 本地内测与前端规范对照</h1>
+<p>日期：2026-11-14。版本：<code>2.0.0-local.1</code>。范围：本地内测。基线：1.13（<code>92022a0bb20737322b2fb67f684ffd741b5fe9c6</code>）。</p>
+<p>本轮按用户指定的《比特鹰前端开发规范》改造现有 React/Vite 网页。保留浅绿与米白主题、原有业务接口、真实模型服务及账本。没有迁移 Next.js、Tailwind 或包管理器；没有更换模型、修改裁定规则、重新执行32条付费模型评测。QQ与真人试用继续移出范围。</p>
+<h2>入口、运行边界与回退</h2>
+<ul>
+<li>v2内测：<a href="http://127.0.0.1:15180/">http://127.0.0.1:15180/</a>。仅监听本机回环地址。</li>
+<li>1.13对照：<a href="http://127.0.0.1:15174/">http://127.0.0.1:15174/</a>。原容器、镜像与启动时间保持不变。</li>
+<li>v2复用已运行的 <code>127.0.0.1:18081</code> API；两版看到同一主数据库、会话和费用账本。v2使用独立浏览器登录存储键，不会自动继承15174的登录状态。</li>
+<li>v2中实际发送问题仍调用现有真实模型，费用记入原账本；不是另一套免费的模拟业务。密钥保留本机，不进入浏览器和Git。</li>
+<li>本轮未上传GitHub、未合并main/dev、未修改公网客户端或Cloudflare入口。已有公网服务继续使用1.13。</li>
+</ul>
+<p>在项目根目录运行：</p>
+<pre><code class="language-powershell">.\scripts\start_v2_local.ps1
+# 已构建并且只需重新启动容器时：
+.\scripts\start_v2_local.ps1 -SkipBuild
+# 停止v2，不停止15174、API、Worker或数据库：
+.\scripts\stop_v2_local.ps1
+</code></pre>
+<p>启动脚本先检查现有API，再使用npm锁文件构建明确的本地模式，启动独立Compose项目 <code>qinggui-assessment-v2-local</code>。前提是Node满足项目engines且Docker可用、18081服务已运行；此预览覆盖配置不负责迁移或重建主库。首次会下载既有工程同系列的Nginx镜像。停止后直接使用15174即可对照或回退，无需恢复数据库。</p>
+<h2>本轮新增与原有能力</h2>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>实际内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>原有功能</td>
+<td>资料问答、实体查询、8场景裁定、引用原文、反馈草稿与确认、Kafka导入与取消、身份隔离、费用账本及原请求恢复均为既有业务</td>
+</tr>
+<tr>
+<td>本轮代码组织</td>
+<td>拆出auth/chat/library/feedback/jobs/workspace功能模块；跨功能经index.ts；共享UI、业务来源组件、第三方适配、领域请求与类型分别落位；别名导入、kebab-case与具名Props</td>
+</tr>
+<tr>
+<td>本轮数据状态</td>
+<td>TanStack Query管理会话、快照、健康、资料、反馈和任务列表；键含身份，退出/换身份卸载清空；后台刷新保留已有内容；请求携带取消信号；任务只在有活动记录时轮询，隐藏页面不轮询</td>
+</tr>
+<tr>
+<td>本轮导航</td>
+<td>页面、选中会话、快照和资料筛选写入URL；刷新/返回可恢复；历史对话搜索、首批30条及继续展开，避免一次渲染356条历史记录</td>
+</tr>
+<tr>
+<td>本轮交互</td>
+<td>移动端原生dialog导航；反馈确认的焦点进入、Tab边界、Esc/背景关闭与焦点恢复；保存时禁用关闭；资料/反馈页签增加方向键和Home/End；跳转主要内容</td>
+</tr>
+<tr>
+<td>本轮恢复</td>
+<td>离线提示、禁用离线发送、普通HTTP15秒超时、页面异常边界重试；观察轮询隐藏/离线暂停；保留付费请求回执与原ID恢复机制，写请求不自动重发</td>
+</tr>
+<tr>
+<td>本轮修正</td>
+<td>损坏的本地导入回执现在显示可操作错误并恢复提交按钮；丢失响应后重试沿用同一幂等键；来源按需加载；导航布局去重</td>
+</tr>
+<tr>
+<td>本轮样式</td>
+<td>视口与内容区按剩余高度布局，提示栏不会把输入区挤出视口；来源仍由问答区统一纵向滚动；保留按钮行与详情分离，尊重减少动态效果设置</td>
+</tr>
+<tr>
+<td>本轮工程检查</td>
+<td>Biome、Knip、架构静态检查、44项前端测试、构建及CI前端检查脚本；无规则降级或扩大忽略来制造通过</td>
+</tr>
+</tbody></table>
+<h2>第三方组件边界</h2>
+<p>新增直接依赖为 <code>@tanstack/react-query 5.107.1</code>、<code>react-error-boundary 6.1.6</code>；新增开发依赖为 <code>@biomejs/biome 2.6.7</code>、<code>knip 6.45.1</code>，均由npm锁文件记录。缓存与异常捕获来自第三方库，身份键、刷新边界、服务调用、错误文案和恢复流程由本项目实现。原React/Vite、Lucide、react-markdown/remark-gfm继续使用，不计为原创框架。</p>
+<p>适配参考：<a href="https://tanstack.com/query/latest/docs/framework/react/reference/useQuery">TanStack Query useQuery</a>、<a href="https://tanstack.com/query/latest/docs/framework/react/guides/window-focus-refetching">页面焦点刷新</a>、<a href="https://github.com/bvaughn/react-error-boundary">react-error-boundary</a>。这些版本为本次锁定实装版本，不宣称最新版本。</p>
+<h2>规范逐项落地</h2>
+<table>
+<thead>
+<tr>
+<th>要求</th>
+<th>位置或验证</th>
+<th>结论/边界</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>保留既有框架和主题</td>
+<td>frontend/package.json、styles/globals.css</td>
+<td>React19/Vite8/npm保留；Next.js专属服务端组件/路由规则不适用</td>
+</tr>
+<tr>
+<td>功能边界与公共入口</td>
+<td>src/features/*/index.ts、scripts/check-architecture.mjs</td>
+<td>静态检查禁止跨Feature私有导入和共享模块反向依赖</td>
+</tr>
+<tr>
+<td>请求与第三方适配</td>
+<td>src/services、src/lib</td>
+<td>组件不拼API基础地址；流式付费请求的回执编排保留在chat私有服务层</td>
+</tr>
+<tr>
+<td>状态归属</td>
+<td>lib/query、lib/url-state、各Feature</td>
+<td>服务数据用Query；导航/筛选用URL；流式输出和表单是本地编辑状态；无新增Zustand重复状态</td>
+</tr>
+<tr>
+<td>命名/类型</td>
+<td>Biome、tsc、架构检查</td>
+<td>strict保留；无显式any；超过3参数用options；组件具名函数与Props；测试按相邻__tests__解释原文.tsx路径歧义</td>
+</tr>
+<tr>
+<td>PC/手机和长文本</td>
+<td>实际浏览器内测及下文证据</td>
+<td>桌面、短窗口、390px窄屏分别记录；不能以jsdom冒充真实浏览器</td>
+</tr>
+<tr>
+<td>异步/空/错/离线</td>
+<td>UI状态、服务超时和组件测试</td>
+<td>普通HTTP超时与原请求恢复区分；离开页面不会重新创建已接收付费请求</td>
+</tr>
+<tr>
+<td>质量门禁</td>
+<td>npm run check</td>
+<td>Lint、架构、类型、Knip、Vitest和构建；前端CI改为同一命令，但本轮未触发远端CI</td>
+</tr>
+<tr>
+<td>Storybook组件Story/浏览器检查</td>
+<td>当前项目尚未配置Storybook</td>
+<td>未执行，不宣称通过；未为对齐模板擅自引入整套工具链</td>
+</tr>
+<tr>
+<td>Playwright完整E2E</td>
+<td>当前版本未新增Playwright套件执行</td>
+<td>已有真实Ego浏览器读操作内测；写入流程用组件网络替身测试。两者不等同完整E2E通过</td>
+</tr>
+<tr>
+<td>Lighthouse三次中位数预算</td>
+<td>当前项目尚无Lighthouse CI配置</td>
+<td>未执行，不宣称达到0.90/FCP/LCP/CLS/TBT预算；构建分块数据仅是产物观察</td>
+</tr>
+<tr>
+<td>Git与发布</td>
+<td>feat/v2-local-preview</td>
+<td>本地功能分支；main与远端保持1.13；本版本不发布</td>
+</tr>
+</tbody></table>
+<p>此版本是可运行的内测候选版，不是“全部公司前端门禁已验收”。正式推广前应补齐隔离环境的浏览器写入流程、组件Story和性能预算检查，并按验收口径安排评审。</p>
+<h2>测试与问题修复记录</h2>
+<h3>导入回执损坏造成按钮无法恢复</h3>
+<p>触发：浏览器保存的导入回执不是合法JSON，或存储读写失败。旧代码在try/finally之外读取JSON，设置提交中后抛错时无法复位。现将读取、结构校验、幂等键保存与提交包进同一try/finally；损坏回执提示先核对任务，不生成另一任务。测试验证没有POST且按钮恢复；另一测试验证响应丢失后两次提交的幂等键相同。没有清空用户真实任务数据。</p>
+<h3>取消与普通HTTP超时</h3>
+<p>新增15秒HTTP上界后，取消请求也会带独立的有效超时信号。原测试把“不携带已取消信号”写成“完全没有signal”，现修正为检查新signal未取消，仍核对原request ID及取消标记。真实业务语义未改成重复提交。新增测试验证超时不会自动重试POST，以及调用方取消仍保留AbortError。</p>
+<h3>缓存与身份隔离</h3>
+<p>新增测试验证后台刷新期间保留旧内容，以及切换身份时不能看到上一身份缓存。测试等待用户可见的新内容，而不是假设Query通知与Promise在同一时刻完成；没有调整缓存规则来迁就断言。</p>
+<h3>原有交互回归</h3>
+<p>来源按需加载后，引用测试等待正文加载再核对；输入面板测试继续覆盖中文输入、右键、组合输入与焦点；来源测试覆盖正文与按钮分离、阅读时不强制跟随、原始代码与Markdown段落。反馈新测试验证打开核对窗口不提交、Esc返回不提交、最终明确确认只携带展示的草稿修订号并只提交一次。</p>
+<h2>本次实际验证</h2>
+<ul>
+<li><code>npm run check</code>：17个测试文件、44项全部通过；Lint/架构/类型/Knip/生产构建通过。</li>
+<li>最终视口布局样式调整后补跑Lint与<code>npm run build:local</code>，再以该产物做真实浏览器检查。</li>
+<li>初始单个入口JS约249.53kB，gzip约78.72kB；Markdown来源解析约165.42kB拆为按需块。不是Lighthouse结果，也不是全页面总网络字节。</li>
+<li>实际后端读操作：健康、356条会话列表、历史消息、资料查询和任务页；未触发新的付费模型调用。</li>
+<li>移动导航：390×844，drawer宽310，无横向溢出；初始焦点“关闭导航”，Esc后返回“打开导航”。</li>
+<li>地址恢复：资料查询“诸葛亮”写入URL，刷新后搜索框及会话参数保留。</li>
+<li>来源按钮：目标进入可见区后再测量，展开前后x/y相同；内部纵向滚动区数量0。首次测量前按钮尚在可见区外，被自动滚入视口的数据不作为位移回归结论。</li>
+</ul>
+<p>详细命令输出、最终浏览器多视口数据与产物哈希见同目录evidence中的v2记录。浏览器截图接口两次超时，因此本轮只报告实际DOM/输入事件/几何检查，不声称完成截图视觉验收。</p>
+<p>额外模拟后端和测试网页的启动命令被自动审批拒绝，仅返回<code>blocked by policy</code>，没有细分原因；该服务没有启动，没有改动主数据库。额外浏览器写入测试未执行，反馈与任务写入流程的验证为组件网络替身测试。</p>
+<p>本轮记录：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv2-local-quality-20261114.log">完整前端检查</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv2-local-build-20261114.log">本地构建</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv2-local-browser-20261114.json">真实浏览器检查</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv2-local-artifacts-20261114.json">源码与产物SHA256</a>。源码哈希覆盖前端源码、测试、配置和本地构建脚本；Git提交号见本地分支日志，产物自描述文件同时可从15180的<code>/v2-build.json</code>读取。</p>
+<p>构建后HTTP核对：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv2-local-serving-20261114.json">本地服务与12个产物哈希</a>。15180实际读取的字节与构建清单一致，健康接口指向PostgreSQL和live模型；15174仍返回原页面。</p>
+<p>本地检查点使用<code>feat/v2-local-preview</code>分支及<code>v2.0.0-local.1</code>标签，保存于用户指定的<code>F:\Work\Biteagle\入职考核\git</code>，不推送远端。已有1.x标签与main不改写。</p>
+<p>检查工具范围依据用户提供的<a aria-disabled="true" title="该本机资料未随检阅副本导出">前端规范SKILL.md</a>及其<a aria-disabled="true" title="该本机资料未随检阅副本导出">验证与交付规范</a>：原文要求“缺少脚本、依赖、浏览器、服务或环境时报告具体阻碍；未经运行不声称通过，也不为了文档对齐擅自引入整套工具链。”本项目缺少Storybook与Lighthouse现成配置，因此报告为未执行；这不是公司豁免，公开推广前仍须补齐并评审。该本机规范目录不包含在独立Git仓库，远端查看时需另行提供规范副本或授权来源。</p>
+</article></body></html>

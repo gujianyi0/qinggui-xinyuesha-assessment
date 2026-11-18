@@ -1,0 +1,46 @@
+{
+  "verified_public_commit": "f7e94ae9f7a5ab7998f85e93e1f586629ebe673c",
+  "worker_version": "2383fe07-f72a-437f-830e-5009621db040",
+  "method": "Ego browser DOM and native clicks; 390px emulation, not a physical device",
+  "bookshelf": {
+    "knowledge": 49,
+    "progress": "共享进度 · 已掌握 49/49（100%）",
+    "reviewTab": "文档导航QA 11",
+    "alerts": [],
+    "searchFetched": false
+  },
+  "preview": {
+    "search": {
+      "matches": 39,
+      "alerts": []
+    },
+    "file": {
+      "lines": 100,
+      "highlight": "145",
+      "download": true,
+      "viewport": 390,
+      "overflow": false
+    },
+    "networkRetry": "Full search first fetch failed, visible retry succeeded; no model request"
+  },
+  "saved_real_chat": {
+    "answers": 1,
+    "text": "我先查询这张牌的使用时机、目标和效果，以及来源。【闪】是基本牌，在【杀】对你生效时使用，目标是此【杀】，效果是抵消此【杀】的效果。\n\n依据（快照 freekill-local-b9dc701220bc）\n- 中文说明（闪）：基本牌；时机：【杀】对你生效时；目标：此【杀】；效果：抵消此【杀】的效果。\n- 实体定义（闪）：属于基本牌，关联技能为 jink_ski",
+    "citations": 11,
+    "sourceExpanded": true,
+    "badge": "v2.0.4 · 公开试用",
+    "alerts": [],
+    "draftEnabled": true
+  },
+  "initial_failure": "Full catalog and public API used 15s deadlines, both timed out. Split full text into lazy search index; public API 50s, static 45s. Transient full search network failure was visible and recovered through retry.",
+  "ci": [
+    {
+      "run_id": 44089974563,
+      "status": "success"
+    },
+    {
+      "run_id": 44089960265,
+      "status": "success"
+    }
+  ]
+}

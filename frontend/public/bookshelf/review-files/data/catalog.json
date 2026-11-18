@@ -1,0 +1,3389 @@
+[
+  {
+    "id": "standard:general:caocao",
+    "kind": "general",
+    "name": "曹操",
+    "package": "standard",
+    "description": "奸雄：当你受到伤害后，你可以获得对你造成伤害的牌。\n护驾：主公技，当你需要使用或打出【闪】时，你可以令其他魏势力角色选择是否打出一张【闪】（视为由你使用或打出）。",
+    "attributes": {
+      "internal_id": "caocao",
+      "kingdom": "wei",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "jianxiong",
+        "hujia"
+      ]
+    },
+    "source": {
+      "id": "79e971341655b73203f6",
+      "title": "曹操",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 12,
+      "line_end": 12,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"caocao\", \"wei\", 4):addSkills { \"jianxiong\", \"hujia\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:simayi",
+    "kind": "general",
+    "name": "司马懿",
+    "package": "standard",
+    "description": "鬼才：当一名角色的判定牌生效前，你可以打出一张手牌代替之。\n反馈：当你受到伤害后，你可以获得伤害来源的一张牌。",
+    "attributes": {
+      "internal_id": "simayi",
+      "kingdom": "wei",
+      "hp": 3,
+      "max_hp": 3,
+      "gender": "male",
+      "skills": [
+        "guicai",
+        "fankui"
+      ]
+    },
+    "source": {
+      "id": "ed038af244810a8f7db7",
+      "title": "司马懿",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 13,
+      "line_end": 13,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"simayi\", \"wei\", 3):addSkills { \"guicai\", \"fankui\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:xiahoudun",
+    "kind": "general",
+    "name": "夏侯惇",
+    "package": "standard",
+    "description": "刚烈：当你受到伤害后，你可以进行判定：若结果不为♥，则伤害来源选择一项：弃置两张手牌，或受到1点伤害。",
+    "attributes": {
+      "internal_id": "xiahoudun",
+      "kingdom": "wei",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "ganglie"
+      ]
+    },
+    "source": {
+      "id": "4a303544858f8ffa028d",
+      "title": "夏侯惇",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 14,
+      "line_end": 14,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"xiahoudun\", \"wei\", 4):addSkills { \"ganglie\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:zhangliao",
+    "kind": "general",
+    "name": "张辽",
+    "package": "standard",
+    "description": "突袭：摸牌阶段，你可以改为获得至多两名其他角色的各一张手牌。",
+    "attributes": {
+      "internal_id": "zhangliao",
+      "kingdom": "wei",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "tuxi"
+      ]
+    },
+    "source": {
+      "id": "e3ccf61ee2fe4d324bb7",
+      "title": "张辽",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 15,
+      "line_end": 15,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"zhangliao\", \"wei\", 4):addSkills { \"tuxi\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:xuchu",
+    "kind": "general",
+    "name": "许褚",
+    "package": "standard",
+    "description": "裸衣：摸牌阶段，你可以少摸一张牌，然后本回合你使用【杀】或【决斗】对目标角色造成伤害时，此伤害+1。",
+    "attributes": {
+      "internal_id": "xuchu",
+      "kingdom": "wei",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "luoyi"
+      ]
+    },
+    "source": {
+      "id": "3167de7c10297e9deb14",
+      "title": "许褚",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 16,
+      "line_end": 16,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"xuchu\", \"wei\", 4):addSkills { \"luoyi\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:guojia",
+    "kind": "general",
+    "name": "郭嘉",
+    "package": "standard",
+    "description": "天妒：当你的判定牌生效后，你可以获得之。\n遗计：当你受到1点伤害后，你可以观看牌堆顶的两张牌并任意分配它们。",
+    "attributes": {
+      "internal_id": "guojia",
+      "kingdom": "wei",
+      "hp": 3,
+      "max_hp": 3,
+      "gender": "male",
+      "skills": [
+        "tiandu",
+        "yiji"
+      ]
+    },
+    "source": {
+      "id": "325655cdd2e8bfc7c54a",
+      "title": "郭嘉",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 17,
+      "line_end": 17,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"guojia\", \"wei\", 3):addSkills { \"tiandu\", \"yiji\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:zhenji",
+    "kind": "general",
+    "name": "甄姬",
+    "package": "standard",
+    "description": "洛神：准备阶段开始时，你可以进行判定：若结果为黑色，判定牌生效后你获得之，然后你可以重复此流程。\n倾国：你可以将一张黑色手牌当【闪】使用或打出。",
+    "attributes": {
+      "internal_id": "zhenji",
+      "kingdom": "wei",
+      "hp": 3,
+      "max_hp": 3,
+      "gender": "female",
+      "skills": [
+        "luoshen",
+        "qingguo"
+      ]
+    },
+    "source": {
+      "id": "fe16da3d8fa32bd89902",
+      "title": "甄姬",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 18,
+      "line_end": 18,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"zhenji\", \"wei\", 3, 3, General.Female):addSkills { \"luoshen\", \"qingguo\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:liubei",
+    "kind": "general",
+    "name": "刘备",
+    "package": "standard",
+    "description": "仁德：出牌阶段，你可以将至少一张手牌任意分配给其他角色。你于本阶段内以此法给出的手牌首次达到两张或更多后，你回复1点体力。\n激将：主公技，当你需要使用或打出【杀】时，你可以令其他蜀势力角色选择是否打出一张【杀】（视为由你使用或打出）。",
+    "attributes": {
+      "internal_id": "liubei",
+      "kingdom": "shu",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "rende",
+        "jijiang"
+      ]
+    },
+    "source": {
+      "id": "2602e4f1c8a9a379a95b",
+      "title": "刘备",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 20,
+      "line_end": 20,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"liubei\", \"shu\", 4):addSkills { \"rende\", \"jijiang\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:guanyu",
+    "kind": "general",
+    "name": "关羽",
+    "package": "standard",
+    "description": "武圣：你可以将一张红色牌当【杀】使用或打出。",
+    "attributes": {
+      "internal_id": "guanyu",
+      "kingdom": "shu",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "wusheng"
+      ]
+    },
+    "source": {
+      "id": "8203dd3ec73d586982ba",
+      "title": "关羽",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 21,
+      "line_end": 21,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"guanyu\", \"shu\", 4):addSkills { \"wusheng\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:zhangfei",
+    "kind": "general",
+    "name": "张飞",
+    "package": "standard",
+    "description": "咆哮：锁定技，出牌阶段，你使用【杀】无次数限制。",
+    "attributes": {
+      "internal_id": "zhangfei",
+      "kingdom": "shu",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "paoxiao"
+      ]
+    },
+    "source": {
+      "id": "01fc3e30984ce626da51",
+      "title": "张飞",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 22,
+      "line_end": 22,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"zhangfei\", \"shu\", 4):addSkills { \"paoxiao\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:zhugeliang",
+    "kind": "general",
+    "name": "诸葛亮",
+    "package": "standard",
+    "description": "观星：准备阶段开始时，你可以观看牌堆顶的X张牌，然后将任意数量的牌置于牌堆顶，将其余的牌置于牌堆底。（X为存活角色数且至多为5）\n空城：锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。",
+    "attributes": {
+      "internal_id": "zhugeliang",
+      "kingdom": "shu",
+      "hp": 3,
+      "max_hp": 3,
+      "gender": "male",
+      "skills": [
+        "guanxing",
+        "kongcheng"
+      ]
+    },
+    "source": {
+      "id": "db68818c5b1399b87a00",
+      "title": "诸葛亮",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 23,
+      "line_end": 23,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"zhugeliang\", \"shu\", 3):addSkills { \"guanxing\", \"kongcheng\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:zhaoyun",
+    "kind": "general",
+    "name": "赵云",
+    "package": "standard",
+    "description": "龙胆：你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+    "attributes": {
+      "internal_id": "zhaoyun",
+      "kingdom": "shu",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "longdan"
+      ]
+    },
+    "source": {
+      "id": "a42244cddfc3cf910552",
+      "title": "赵云",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 24,
+      "line_end": 24,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"zhaoyun\", \"shu\", 4):addSkills { \"longdan\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:machao",
+    "kind": "general",
+    "name": "马超",
+    "package": "standard",
+    "description": "马术：锁定技，你与其他角色的距离-1。\n铁骑：当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。",
+    "attributes": {
+      "internal_id": "machao",
+      "kingdom": "shu",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "mashu",
+        "tieqi"
+      ]
+    },
+    "source": {
+      "id": "522c3540bfbe19c63de8",
+      "title": "马超",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 25,
+      "line_end": 25,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"machao\", \"shu\", 4):addSkills { \"mashu\", \"tieqi\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:huangyueying",
+    "kind": "general",
+    "name": "黄月英",
+    "package": "standard",
+    "description": "集智：当你使用非转化的普通锦囊牌时，你可摸一张牌。\n奇才：锁定技，你使用锦囊牌无距离限制。",
+    "attributes": {
+      "internal_id": "huangyueying",
+      "kingdom": "shu",
+      "hp": 3,
+      "max_hp": 3,
+      "gender": "female",
+      "skills": [
+        "jizhi",
+        "qicai"
+      ]
+    },
+    "source": {
+      "id": "12a29bc5581addb2ba2f",
+      "title": "黄月英",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 26,
+      "line_end": 26,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"huangyueying\", \"shu\", 3, 3, General.Female):addSkills { \"jizhi\", \"qicai\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:sunquan",
+    "kind": "general",
+    "name": "孙权",
+    "package": "standard",
+    "description": "制衡：出牌阶段限一次，你可以弃置任意张牌，然后摸等量的牌。\n救援：主公技，其他吴势力角色使用【桃】令你回复体力时，回复值+1。",
+    "attributes": {
+      "internal_id": "sunquan",
+      "kingdom": "wu",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "zhiheng",
+        "jiuyuan"
+      ]
+    },
+    "source": {
+      "id": "ffee5a739c14d257877c",
+      "title": "孙权",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 28,
+      "line_end": 28,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"sunquan\", \"wu\", 4):addSkills { \"zhiheng\", \"jiuyuan\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:ganning",
+    "kind": "general",
+    "name": "甘宁",
+    "package": "standard",
+    "description": "奇袭：你可以将一张黑色牌当【过河拆桥】使用。",
+    "attributes": {
+      "internal_id": "ganning",
+      "kingdom": "wu",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "qixi"
+      ]
+    },
+    "source": {
+      "id": "dd4dac6b23d77c7545b9",
+      "title": "甘宁",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 29,
+      "line_end": 29,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"ganning\", \"wu\", 4):addSkills { \"qixi\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:lvmeng",
+    "kind": "general",
+    "name": "吕蒙",
+    "package": "standard",
+    "description": "克己：若你未于出牌阶段内使用或打出【杀】，你可以跳过弃牌阶段。",
+    "attributes": {
+      "internal_id": "lvmeng",
+      "kingdom": "wu",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "keji"
+      ]
+    },
+    "source": {
+      "id": "82b61607c62ecca87673",
+      "title": "吕蒙",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 30,
+      "line_end": 30,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"lvmeng\", \"wu\", 4):addSkills { \"keji\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:huanggai",
+    "kind": "general",
+    "name": "黄盖",
+    "package": "standard",
+    "description": "苦肉：出牌阶段，你可以失去1点体力，然后摸两张牌。",
+    "attributes": {
+      "internal_id": "huanggai",
+      "kingdom": "wu",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "kurou"
+      ]
+    },
+    "source": {
+      "id": "7204161f9e3492ddb535",
+      "title": "黄盖",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 31,
+      "line_end": 31,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"huanggai\", \"wu\", 4):addSkills { \"kurou\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:zhouyu",
+    "kind": "general",
+    "name": "周瑜",
+    "package": "standard",
+    "description": "英姿：摸牌阶段，你可以多摸一张牌。\n反间：出牌阶段限一次，你可以令一名其他角色选择一种花色，然后正面朝上获得你的一张手牌。若此牌花色与其所选花色不同，你对其造成1点伤害。",
+    "attributes": {
+      "internal_id": "zhouyu",
+      "kingdom": "wu",
+      "hp": 3,
+      "max_hp": 3,
+      "gender": "male",
+      "skills": [
+        "yingzi",
+        "fanjian"
+      ]
+    },
+    "source": {
+      "id": "37b39649bceac97c7115",
+      "title": "周瑜",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 32,
+      "line_end": 32,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"zhouyu\", \"wu\", 3):addSkills { \"yingzi\", \"fanjian\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:daqiao",
+    "kind": "general",
+    "name": "大乔",
+    "package": "standard",
+    "description": "国色：你可以将一张♦牌当【乐不思蜀】使用。\n流离：当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。",
+    "attributes": {
+      "internal_id": "daqiao",
+      "kingdom": "wu",
+      "hp": 3,
+      "max_hp": 3,
+      "gender": "female",
+      "skills": [
+        "guose",
+        "liuli"
+      ]
+    },
+    "source": {
+      "id": "9cf5f00e04a19aafb7b6",
+      "title": "大乔",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 33,
+      "line_end": 33,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"daqiao\", \"wu\", 3, 3, General.Female):addSkills { \"guose\", \"liuli\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:luxun",
+    "kind": "general",
+    "name": "陆逊",
+    "package": "standard",
+    "description": "谦逊：锁定技，你不能被选择为【顺手牵羊】与【乐不思蜀】的目标。\n连营：当你失去手牌后，若你没有手牌，你可以摸一张牌。",
+    "attributes": {
+      "internal_id": "luxun",
+      "kingdom": "wu",
+      "hp": 3,
+      "max_hp": 3,
+      "gender": "male",
+      "skills": [
+        "qianxun",
+        "lianying"
+      ]
+    },
+    "source": {
+      "id": "afa04620ca83fa8747f7",
+      "title": "陆逊",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 34,
+      "line_end": 34,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"luxun\", \"wu\", 3):addSkills { \"qianxun\", \"lianying\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:sunshangxiang",
+    "kind": "general",
+    "name": "孙尚香",
+    "package": "standard",
+    "description": "枭姬：当你失去一张装备区的装备牌后，你可以摸两张牌。\n结姻：出牌阶段限一次，你可以弃置两张手牌并选择一名已受伤的男性角色，然后你与其各回复1点体力。",
+    "attributes": {
+      "internal_id": "sunshangxiang",
+      "kingdom": "wu",
+      "hp": 3,
+      "max_hp": 3,
+      "gender": "female",
+      "skills": [
+        "xiaoji",
+        "jieyin"
+      ]
+    },
+    "source": {
+      "id": "37c24d7544823f25d8be",
+      "title": "孙尚香",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 35,
+      "line_end": 35,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"sunshangxiang\", \"wu\", 3, 3, General.Female):addSkills { \"xiaoji\", \"jieyin\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:huatuo",
+    "kind": "general",
+    "name": "华佗",
+    "package": "standard",
+    "description": "青囊：出牌阶段限一次，你可以弃置一张手牌并选择一名已受伤的角色，然后其回复1点体力。\n急救：你的回合外，你可以将一张红色牌当【桃】使用。",
+    "attributes": {
+      "internal_id": "huatuo",
+      "kingdom": "qun",
+      "hp": 3,
+      "max_hp": 3,
+      "gender": "male",
+      "skills": [
+        "qingnang",
+        "jijiu"
+      ]
+    },
+    "source": {
+      "id": "f82f910d491c9f530428",
+      "title": "华佗",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 37,
+      "line_end": 37,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"huatuo\", \"qun\", 3):addSkills { \"qingnang\", \"jijiu\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:lvbu",
+    "kind": "general",
+    "name": "吕布",
+    "package": "standard",
+    "description": "无双：锁定技，当你使用【杀】指定目标后，其使用【闪】抵消此【杀】的方式改为需连续使用两张【闪】；当你使用【决斗】指定目标后，或当你成为【决斗】的目标后，你令其打出【杀】响应此【决斗】的方式改为需连续打出两张【杀】。",
+    "attributes": {
+      "internal_id": "lvbu",
+      "kingdom": "qun",
+      "hp": 4,
+      "max_hp": 4,
+      "gender": "male",
+      "skills": [
+        "wushuang"
+      ]
+    },
+    "source": {
+      "id": "88fe2f5340f62fb95073",
+      "title": "吕布",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 38,
+      "line_end": 38,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"lvbu\", \"qun\", 4):addSkills { \"wushuang\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:general:diaochan",
+    "kind": "general",
+    "name": "貂蝉",
+    "package": "standard",
+    "description": "离间：出牌阶段限一次，你可以弃置一张牌并选择两名其他男性角色，后选择的角色视为对先选择的角色使用了一张不能被【无懈可击】的【决斗】。\n闭月：结束阶段开始时，你可以摸一张牌。",
+    "attributes": {
+      "internal_id": "diaochan",
+      "kingdom": "qun",
+      "hp": 3,
+      "max_hp": 3,
+      "gender": "female",
+      "skills": [
+        "lijian",
+        "biyue"
+      ]
+    },
+    "source": {
+      "id": "df773dc2c82b4352b69a",
+      "title": "貂蝉",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 39,
+      "line_end": 39,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "General:new(extension, \"diaochan\", \"qun\", 3, 3, General.Female):addSkills { \"lijian\", \"biyue\" }",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:skill:WangzhanBattleRoyal",
+    "kind": "skill",
+    "name": "鏖战",
+    "package": "standard",
+    "description": "每回合所有行动结束后，当前回合角色须选择一项：1.将两张牌置入弃牌堆；2.失去1点体力。结算中当前回合角色不触发任何武将技能。",
+    "attributes": {
+      "internal_id": "WangzhanBattleRoyal",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "648052042c2bfc50392e",
+      "title": "鏖战",
+      "path": "runtime/packages/standard/pkg/init.lua",
+      "line_start": 415,
+      "line_end": 415,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "每回合所有行动结束后，当前回合角色须选择一项：1.将两张牌置入弃牌堆；2.失去1点体力。结算中当前回合角色不触发任何武将技能。",
+      "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+    }
+  },
+  {
+    "id": "standard:skill:jianxiong",
+    "kind": "skill",
+    "name": "奸雄",
+    "package": "standard",
+    "description": "当你受到伤害后，你可以获得对你造成伤害的牌。",
+    "attributes": {
+      "internal_id": "jianxiong",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "96bba9031035d3b9b12e",
+      "title": "奸雄",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 17,
+      "line_end": 17,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "当你受到伤害后，你可以获得对你造成伤害的牌。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:hujia",
+    "kind": "skill",
+    "name": "护驾",
+    "package": "standard",
+    "description": "主公技，当你需要使用或打出【闪】时，你可以令其他魏势力角色选择是否打出一张【闪】（视为由你使用或打出）。",
+    "attributes": {
+      "internal_id": "hujia",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "a183bcd191b6c83b6a6c",
+      "title": "护驾",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 21,
+      "line_end": 21,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "主公技，当你需要使用或打出【闪】时，你可以令其他魏势力角色选择是否打出一张【闪】（视为由你使用或打出）。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:guicai",
+    "kind": "skill",
+    "name": "鬼才",
+    "package": "standard",
+    "description": "当一名角色的判定牌生效前，你可以打出一张手牌代替之。",
+    "attributes": {
+      "internal_id": "guicai",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "fd0afc68026f5e4b0f2a",
+      "title": "鬼才",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 31,
+      "line_end": 31,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "当一名角色的判定牌生效前，你可以打出一张手牌代替之。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:fankui",
+    "kind": "skill",
+    "name": "反馈",
+    "package": "standard",
+    "description": "当你受到伤害后，你可以获得伤害来源的一张牌。",
+    "attributes": {
+      "internal_id": "fankui",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "ecde7c06ee678135e8ef",
+      "title": "反馈",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 36,
+      "line_end": 36,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "当你受到伤害后，你可以获得伤害来源的一张牌。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:ganglie",
+    "kind": "skill",
+    "name": "刚烈",
+    "package": "standard",
+    "description": "当你受到伤害后，你可以进行判定：若结果不为♥，则伤害来源选择一项：弃置两张手牌，或受到1点伤害。",
+    "attributes": {
+      "internal_id": "ganglie",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "fc5737e3424ea1227bc6",
+      "title": "刚烈",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 45,
+      "line_end": 45,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "当你受到伤害后，你可以进行判定：若结果不为<font color='red'>♥</font>，则伤害来源选择一项：弃置两张手牌，或受到1点伤害。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:tuxi",
+    "kind": "skill",
+    "name": "突袭",
+    "package": "standard",
+    "description": "摸牌阶段，你可以改为获得至多两名其他角色的各一张手牌。",
+    "attributes": {
+      "internal_id": "tuxi",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "ebab58c494ff19121c4c",
+      "title": "突袭",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 54,
+      "line_end": 54,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "摸牌阶段，你可以改为获得至多两名其他角色的各一张手牌。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:luoyi",
+    "kind": "skill",
+    "name": "裸衣",
+    "package": "standard",
+    "description": "摸牌阶段，你可以少摸一张牌，然后本回合你使用【杀】或【决斗】对目标角色造成伤害时，此伤害+1。",
+    "attributes": {
+      "internal_id": "luoyi",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "fff5d95ab9a811274daa",
+      "title": "裸衣",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 64,
+      "line_end": 64,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "摸牌阶段，你可以少摸一张牌，然后本回合你使用【杀】或【决斗】对目标角色造成伤害时，此伤害+1。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:tiandu",
+    "kind": "skill",
+    "name": "天妒",
+    "package": "standard",
+    "description": "当你的判定牌生效后，你可以获得之。",
+    "attributes": {
+      "internal_id": "tiandu",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "a9d54d7d699bc459448e",
+      "title": "天妒",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 73,
+      "line_end": 73,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "当你的判定牌生效后，你可以获得之。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:yiji",
+    "kind": "skill",
+    "name": "遗计",
+    "package": "standard",
+    "description": "当你受到1点伤害后，你可以观看牌堆顶的两张牌并任意分配它们。",
+    "attributes": {
+      "internal_id": "yiji",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "6096b448eaeb437f250c",
+      "title": "遗计",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 77,
+      "line_end": 77,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "当你受到1点伤害后，你可以观看牌堆顶的两张牌并任意分配它们。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:luoshen",
+    "kind": "skill",
+    "name": "洛神",
+    "package": "standard",
+    "description": "准备阶段开始时，你可以进行判定：若结果为黑色，判定牌生效后你获得之，然后你可以重复此流程。",
+    "attributes": {
+      "internal_id": "luoshen",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "641d952b9565dde0ab57",
+      "title": "洛神",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 88,
+      "line_end": 88,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "准备阶段开始时，你可以进行判定：若结果为黑色，判定牌生效后你获得之，然后你可以重复此流程。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:qingguo",
+    "kind": "skill",
+    "name": "倾国",
+    "package": "standard",
+    "description": "你可以将一张黑色手牌当【闪】使用或打出。",
+    "attributes": {
+      "internal_id": "qingguo",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "311d43d17b74a571b386",
+      "title": "倾国",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 94,
+      "line_end": 94,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "你可以将一张黑色手牌当【闪】使用或打出。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:rende",
+    "kind": "skill",
+    "name": "仁德",
+    "package": "standard",
+    "description": "出牌阶段，你可以将至少一张手牌任意分配给其他角色。你于本阶段内以此法给出的手牌首次达到两张或更多后，你回复1点体力。",
+    "attributes": {
+      "internal_id": "rende",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "15c9aa0928cdfaf7b074",
+      "title": "仁德",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 103,
+      "line_end": 103,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "出牌阶段，你可以将至少一张手牌任意分配给其他角色。你于本阶段内以此法给出的手牌首次达到两张或更多后，你回复1点体力。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:jijiang",
+    "kind": "skill",
+    "name": "激将",
+    "package": "standard",
+    "description": "主公技，当你需要使用或打出【杀】时，你可以令其他蜀势力角色选择是否打出一张【杀】（视为由你使用或打出）。",
+    "attributes": {
+      "internal_id": "jijiang",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "2ad1b74478e23e5cdc33",
+      "title": "激将",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 108,
+      "line_end": 108,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "主公技，当你需要使用或打出【杀】时，你可以令其他蜀势力角色选择是否打出一张【杀】（视为由你使用或打出）。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:wusheng",
+    "kind": "skill",
+    "name": "武圣",
+    "package": "standard",
+    "description": "你可以将一张红色牌当【杀】使用或打出。",
+    "attributes": {
+      "internal_id": "wusheng",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "3851bfa9fc6406a295a9",
+      "title": "武圣",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 118,
+      "line_end": 118,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "你可以将一张红色牌当【杀】使用或打出。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:paoxiao",
+    "kind": "skill",
+    "name": "咆哮",
+    "package": "standard",
+    "description": "锁定技，出牌阶段，你使用【杀】无次数限制。",
+    "attributes": {
+      "internal_id": "paoxiao",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "14d2f742973285f1cf46",
+      "title": "咆哮",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 128,
+      "line_end": 128,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "锁定技，出牌阶段，你使用【杀】无次数限制。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:guanxing",
+    "kind": "skill",
+    "name": "观星",
+    "package": "standard",
+    "description": "准备阶段开始时，你可以观看牌堆顶的X张牌，然后将任意数量的牌置于牌堆顶，将其余的牌置于牌堆底。（X为存活角色数且至多为5）",
+    "attributes": {
+      "internal_id": "guanxing",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "e8cfb0406a9f4c8071cc",
+      "title": "观星",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 137,
+      "line_end": 137,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "准备阶段开始时，你可以观看牌堆顶的X张牌，然后将任意数量的牌置于牌堆顶，将其余的牌置于牌堆底。（X为存活角色数且至多为5）",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:kongcheng",
+    "kind": "skill",
+    "name": "空城",
+    "package": "standard",
+    "description": "锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。",
+    "attributes": {
+      "internal_id": "kongcheng",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "9937b633d1dd2e694755",
+      "title": "空城",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 141,
+      "line_end": 141,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:longdan",
+    "kind": "skill",
+    "name": "龙胆",
+    "package": "standard",
+    "description": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+    "attributes": {
+      "internal_id": "longdan",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "f69a9a532f88173b0c2f",
+      "title": "龙胆",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 150,
+      "line_end": 150,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:mashu",
+    "kind": "skill",
+    "name": "马术",
+    "package": "standard",
+    "description": "锁定技，你与其他角色的距离-1。",
+    "attributes": {
+      "internal_id": "mashu",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "035a190e666c9578875a",
+      "title": "马术",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 158,
+      "line_end": 158,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "锁定技，你与其他角色的距离-1。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:tieqi",
+    "kind": "skill",
+    "name": "铁骑",
+    "package": "standard",
+    "description": "当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。",
+    "attributes": {
+      "internal_id": "tieqi",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "fe3fbf39ca9a626bf08a",
+      "title": "铁骑",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 162,
+      "line_end": 162,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:jizhi",
+    "kind": "skill",
+    "name": "集智",
+    "package": "standard",
+    "description": "当你使用非转化的普通锦囊牌时，你可摸一张牌。",
+    "attributes": {
+      "internal_id": "jizhi",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "3a83a4d6b6a7125b0702",
+      "title": "集智",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 171,
+      "line_end": 171,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "当你使用非转化的普通锦囊牌时，你可摸一张牌。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:qicai",
+    "kind": "skill",
+    "name": "奇才",
+    "package": "standard",
+    "description": "锁定技，你使用锦囊牌无距离限制。",
+    "attributes": {
+      "internal_id": "qicai",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "6b598dcefc92749458ca",
+      "title": "奇才",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 173,
+      "line_end": 173,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "锁定技，你使用锦囊牌无距离限制。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:zhiheng",
+    "kind": "skill",
+    "name": "制衡",
+    "package": "standard",
+    "description": "出牌阶段限一次，你可以弃置任意张牌，然后摸等量的牌。",
+    "attributes": {
+      "internal_id": "zhiheng",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "28ea29addea89cf0b809",
+      "title": "制衡",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 182,
+      "line_end": 182,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "出牌阶段限一次，你可以弃置任意张牌，然后摸等量的牌。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:jiuyuan",
+    "kind": "skill",
+    "name": "救援",
+    "package": "standard",
+    "description": "主公技，其他吴势力角色使用【桃】令你回复体力时，回复值+1。",
+    "attributes": {
+      "internal_id": "jiuyuan",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "6ccdd6212289632e9261",
+      "title": "救援",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 187,
+      "line_end": 187,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "主公技，其他吴势力角色使用【桃】令你回复体力时，回复值+1。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:qixi",
+    "kind": "skill",
+    "name": "奇袭",
+    "package": "standard",
+    "description": "你可以将一张黑色牌当【过河拆桥】使用。",
+    "attributes": {
+      "internal_id": "qixi",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "72aece6ab65dfe4085e1",
+      "title": "奇袭",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 196,
+      "line_end": 196,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "你可以将一张黑色牌当【过河拆桥】使用。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:keji",
+    "kind": "skill",
+    "name": "克己",
+    "package": "standard",
+    "description": "若你未于出牌阶段内使用或打出【杀】，你可以跳过弃牌阶段。",
+    "attributes": {
+      "internal_id": "keji",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "bbbaf9223c2fa84db9da",
+      "title": "克己",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 206,
+      "line_end": 206,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "若你未于出牌阶段内使用或打出【杀】，你可以跳过弃牌阶段。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:kurou",
+    "kind": "skill",
+    "name": "苦肉",
+    "package": "standard",
+    "description": "出牌阶段，你可以失去1点体力，然后摸两张牌。",
+    "attributes": {
+      "internal_id": "kurou",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "65bb485bf79804134ec5",
+      "title": "苦肉",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 215,
+      "line_end": 215,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "出牌阶段，你可以失去1点体力，然后摸两张牌。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:yingzi",
+    "kind": "skill",
+    "name": "英姿",
+    "package": "standard",
+    "description": "摸牌阶段，你可以多摸一张牌。",
+    "attributes": {
+      "internal_id": "yingzi",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "17e55c3c916b221939e0",
+      "title": "英姿",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 225,
+      "line_end": 225,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "摸牌阶段，你可以多摸一张牌。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:fanjian",
+    "kind": "skill",
+    "name": "反间",
+    "package": "standard",
+    "description": "出牌阶段限一次，你可以令一名其他角色选择一种花色，然后正面朝上获得你的一张手牌。若此牌花色与其所选花色不同，你对其造成1点伤害。",
+    "attributes": {
+      "internal_id": "fanjian",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "f0d4cc973a46a2411745",
+      "title": "反间",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 229,
+      "line_end": 229,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "出牌阶段限一次，你可以令一名其他角色选择一种花色，然后正面朝上获得你的一张手牌。若此牌花色与其所选花色不同，你对其造成1点伤害。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:guose",
+    "kind": "skill",
+    "name": "国色",
+    "package": "standard",
+    "description": "你可以将一张♦牌当【乐不思蜀】使用。",
+    "attributes": {
+      "internal_id": "guose",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "de74457317bac8eda7ae",
+      "title": "国色",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 239,
+      "line_end": 239,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "你可以将一张<font color='red'>♦</font>牌当【乐不思蜀】使用。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:liuli",
+    "kind": "skill",
+    "name": "流离",
+    "package": "standard",
+    "description": "当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。",
+    "attributes": {
+      "internal_id": "liuli",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "19c317c0215d757be97c",
+      "title": "流离",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 244,
+      "line_end": 244,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:qianxun",
+    "kind": "skill",
+    "name": "谦逊",
+    "package": "standard",
+    "description": "锁定技，你不能被选择为【顺手牵羊】与【乐不思蜀】的目标。",
+    "attributes": {
+      "internal_id": "qianxun",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "acd7ce3a88ecba20f6fb",
+      "title": "谦逊",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 254,
+      "line_end": 254,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "锁定技，你不能被选择为【顺手牵羊】与【乐不思蜀】的目标。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:lianying",
+    "kind": "skill",
+    "name": "连营",
+    "package": "standard",
+    "description": "当你失去手牌后，若你没有手牌，你可以摸一张牌。",
+    "attributes": {
+      "internal_id": "lianying",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "d6ace0dfa5c36de80dd8",
+      "title": "连营",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 258,
+      "line_end": 258,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "当你失去手牌后，若你没有手牌，你可以摸一张牌。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:xiaoji",
+    "kind": "skill",
+    "name": "枭姬",
+    "package": "standard",
+    "description": "当你失去一张装备区的装备牌后，你可以摸两张牌。",
+    "attributes": {
+      "internal_id": "xiaoji",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "26ffb469478e832785a6",
+      "title": "枭姬",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 267,
+      "line_end": 267,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "当你失去一张装备区的装备牌后，你可以摸两张牌。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:jieyin",
+    "kind": "skill",
+    "name": "结姻",
+    "package": "standard",
+    "description": "出牌阶段限一次，你可以弃置两张手牌并选择一名已受伤的男性角色，然后你与其各回复1点体力。",
+    "attributes": {
+      "internal_id": "jieyin",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "5a88864711e35e515547",
+      "title": "结姻",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 271,
+      "line_end": 271,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "出牌阶段限一次，你可以弃置两张手牌并选择一名已受伤的男性角色，然后你与其各回复1点体力。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:qingnang",
+    "kind": "skill",
+    "name": "青囊",
+    "package": "standard",
+    "description": "出牌阶段限一次，你可以弃置一张手牌并选择一名已受伤的角色，然后其回复1点体力。",
+    "attributes": {
+      "internal_id": "qingnang",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "ee93d3615e1fe080ee90",
+      "title": "青囊",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 281,
+      "line_end": 281,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "出牌阶段限一次，你可以弃置一张手牌并选择一名已受伤的角色，然后其回复1点体力。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:jijiu",
+    "kind": "skill",
+    "name": "急救",
+    "package": "standard",
+    "description": "你的回合外，你可以将一张红色牌当【桃】使用。",
+    "attributes": {
+      "internal_id": "jijiu",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "69682fcaca16ee3d61ea",
+      "title": "急救",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 286,
+      "line_end": 286,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "你的回合外，你可以将一张红色牌当【桃】使用。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:wushuang",
+    "kind": "skill",
+    "name": "无双",
+    "package": "standard",
+    "description": "锁定技，当你使用【杀】指定目标后，其使用【闪】抵消此【杀】的方式改为需连续使用两张【闪】；当你使用【决斗】指定目标后，或当你成为【决斗】的目标后，你令其打出【杀】响应此【决斗】的方式改为需连续打出两张【杀】。",
+    "attributes": {
+      "internal_id": "wushuang",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "6202a17afab3d2c9fd58",
+      "title": "无双",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 296,
+      "line_end": 296,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "锁定技，当你使用【杀】指定目标后，其使用【闪】抵消此【杀】的方式改为需连续使用两张【闪】；当你使用【决斗】指定目标后，或当你成为【决斗】的目标后，你令其打出【杀】响应此【决斗】的方式改为需连续打出两张【杀】。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:lijian",
+    "kind": "skill",
+    "name": "离间",
+    "package": "standard",
+    "description": "出牌阶段限一次，你可以弃置一张牌并选择两名其他男性角色，后选择的角色视为对先选择的角色使用了一张不能被【无懈可击】的【决斗】。",
+    "attributes": {
+      "internal_id": "lijian",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "253c454d3d356ac1549e",
+      "title": "离间",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 305,
+      "line_end": 305,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "出牌阶段限一次，你可以弃置一张牌并选择两名其他男性角色，后选择的角色视为对先选择的角色使用了一张不能被【无懈可击】的【决斗】。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:biyue",
+    "kind": "skill",
+    "name": "闭月",
+    "package": "standard",
+    "description": "结束阶段开始时，你可以摸一张牌。",
+    "attributes": {
+      "internal_id": "biyue",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "a3eaa85f1f3efc9eae52",
+      "title": "闭月",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 312,
+      "line_end": 312,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "结束阶段开始时，你可以摸一张牌。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard:skill:reveal_skill&",
+    "kind": "skill",
+    "name": "亮将",
+    "package": "standard",
+    "description": "出牌阶段，你可明置一张有锁定技的武将。",
+    "attributes": {
+      "internal_id": "reveal_skill&",
+      "implementation_available": false
+    },
+    "source": {
+      "id": "f2081604a68797e4e4cf",
+      "title": "亮将",
+      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+      "line_start": 555,
+      "line_end": 555,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "出牌阶段，你可明置一张有锁定技的武将。",
+      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+    }
+  },
+  {
+    "id": "standard_cards:card:slash",
+    "kind": "card",
+    "name": "杀",
+    "package": "standard_cards",
+    "description": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点伤害。",
+    "attributes": {
+      "internal_id": "slash",
+      "type": "Card.TypeBasic",
+      "damage_type": "fk.NormalDamage",
+      "skill": "slash_skill",
+      "is_damage_card": true,
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 7
+        },
+        {
+          "suit": "Spade",
+          "number": 8
+        },
+        {
+          "suit": "Spade",
+          "number": 8
+        },
+        {
+          "suit": "Spade",
+          "number": 9
+        },
+        {
+          "suit": "Spade",
+          "number": 9
+        },
+        {
+          "suit": "Spade",
+          "number": 10
+        },
+        {
+          "suit": "Spade",
+          "number": 10
+        },
+        {
+          "suit": "Club",
+          "number": 2
+        },
+        {
+          "suit": "Club",
+          "number": 3
+        },
+        {
+          "suit": "Club",
+          "number": 4
+        },
+        {
+          "suit": "Club",
+          "number": 5
+        },
+        {
+          "suit": "Club",
+          "number": 6
+        },
+        {
+          "suit": "Club",
+          "number": 7
+        },
+        {
+          "suit": "Club",
+          "number": 8
+        },
+        {
+          "suit": "Club",
+          "number": 8
+        },
+        {
+          "suit": "Club",
+          "number": 9
+        },
+        {
+          "suit": "Club",
+          "number": 9
+        },
+        {
+          "suit": "Club",
+          "number": 10
+        },
+        {
+          "suit": "Club",
+          "number": 10
+        },
+        {
+          "suit": "Club",
+          "number": 11
+        },
+        {
+          "suit": "Club",
+          "number": 11
+        },
+        {
+          "suit": "Heart",
+          "number": 10
+        },
+        {
+          "suit": "Heart",
+          "number": 10
+        },
+        {
+          "suit": "Heart",
+          "number": 11
+        },
+        {
+          "suit": "Diamond",
+          "number": 6
+        },
+        {
+          "suit": "Diamond",
+          "number": 7
+        },
+        {
+          "suit": "Diamond",
+          "number": 8
+        },
+        {
+          "suit": "Diamond",
+          "number": 9
+        },
+        {
+          "suit": "Diamond",
+          "number": 10
+        },
+        {
+          "suit": "Diamond",
+          "number": 13
+        }
+      ]
+    },
+    "source": {
+      "id": "909046b2af81ec7ef6ad",
+      "title": "杀",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 10,
+      "line_end": 16,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"slash\",\n  type = Card.TypeBasic,\n  is_damage_card = true,\n  damage_type = fk.NormalDamage,\n  skill = \"slash_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:jink",
+    "kind": "card",
+    "name": "闪",
+    "package": "standard_cards",
+    "description": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+    "attributes": {
+      "internal_id": "jink",
+      "type": "Card.TypeBasic",
+      "skill": "jink_skill",
+      "is_passive": true,
+      "deck_specs": [
+        {
+          "suit": "Heart",
+          "number": 2
+        },
+        {
+          "suit": "Heart",
+          "number": 2
+        },
+        {
+          "suit": "Heart",
+          "number": 13
+        },
+        {
+          "suit": "Diamond",
+          "number": 2
+        },
+        {
+          "suit": "Diamond",
+          "number": 2
+        },
+        {
+          "suit": "Diamond",
+          "number": 3
+        },
+        {
+          "suit": "Diamond",
+          "number": 4
+        },
+        {
+          "suit": "Diamond",
+          "number": 5
+        },
+        {
+          "suit": "Diamond",
+          "number": 6
+        },
+        {
+          "suit": "Diamond",
+          "number": 7
+        },
+        {
+          "suit": "Diamond",
+          "number": 8
+        },
+        {
+          "suit": "Diamond",
+          "number": 9
+        },
+        {
+          "suit": "Diamond",
+          "number": 10
+        },
+        {
+          "suit": "Diamond",
+          "number": 11
+        },
+        {
+          "suit": "Diamond",
+          "number": 11
+        }
+      ]
+    },
+    "source": {
+      "id": "473a28e92b12d98fe363",
+      "title": "闪",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 18,
+      "line_end": 23,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  type = Card.TypeBasic,\n  name = \"jink\",\n  skill = \"jink_skill\",\n  is_passive = true,\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:peach",
+    "kind": "card",
+    "name": "桃",
+    "package": "standard_cards",
+    "description": "基本牌\n时机：出牌阶段/一名角色处于濒死状态时\n目标：已受伤的你/处于濒死状态的角色\n效果：目标角色回复1点体力。",
+    "attributes": {
+      "internal_id": "peach",
+      "type": "Card.TypeBasic",
+      "skill": "peach_skill",
+      "deck_specs": [
+        {
+          "suit": "Heart",
+          "number": 3
+        },
+        {
+          "suit": "Heart",
+          "number": 4
+        },
+        {
+          "suit": "Heart",
+          "number": 6
+        },
+        {
+          "suit": "Heart",
+          "number": 7
+        },
+        {
+          "suit": "Heart",
+          "number": 8
+        },
+        {
+          "suit": "Heart",
+          "number": 9
+        },
+        {
+          "suit": "Heart",
+          "number": 12
+        },
+        {
+          "suit": "Diamond",
+          "number": 12
+        }
+      ]
+    },
+    "source": {
+      "id": "b8fbecdebbbf2474d800",
+      "title": "桃",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 25,
+      "line_end": 29,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"peach\",\n  type = Card.TypeBasic,\n  skill = \"peach_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:dismantlement",
+    "kind": "card",
+    "name": "过河拆桥",
+    "package": "standard_cards",
+    "description": "锦囊牌\n时机：出牌阶段\n目标：一名区域内有牌的其他角色。\n效果：你弃置目标角色区域内的一张牌。",
+    "attributes": {
+      "internal_id": "dismantlement",
+      "type": "Card.TypeTrick",
+      "skill": "dismantlement_skill",
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 3
+        },
+        {
+          "suit": "Spade",
+          "number": 4
+        },
+        {
+          "suit": "Spade",
+          "number": 12
+        },
+        {
+          "suit": "Club",
+          "number": 3
+        },
+        {
+          "suit": "Club",
+          "number": 4
+        },
+        {
+          "suit": "Heart",
+          "number": 12
+        }
+      ]
+    },
+    "source": {
+      "id": "2b943c8cd38b9c174ac4",
+      "title": "过河拆桥",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 31,
+      "line_end": 35,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"dismantlement\",\n  type = Card.TypeTrick,\n  skill = \"dismantlement_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:snatch",
+    "kind": "card",
+    "name": "顺手牵羊",
+    "package": "standard_cards",
+    "description": "锦囊牌\n时机：出牌阶段\n目标：距离1的一名区域内有牌的角色\n效果：你获得目标角色区域内的一张牌。",
+    "attributes": {
+      "internal_id": "snatch",
+      "type": "Card.TypeTrick",
+      "skill": "snatch_skill",
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 3
+        },
+        {
+          "suit": "Spade",
+          "number": 4
+        },
+        {
+          "suit": "Spade",
+          "number": 11
+        },
+        {
+          "suit": "Diamond",
+          "number": 3
+        },
+        {
+          "suit": "Diamond",
+          "number": 4
+        }
+      ]
+    },
+    "source": {
+      "id": "8f7da330ebdcd70e9696",
+      "title": "顺手牵羊",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 37,
+      "line_end": 41,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"snatch\",\n  type = Card.TypeTrick,\n  skill = \"snatch_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:duel",
+    "kind": "card",
+    "name": "决斗",
+    "package": "standard_cards",
+    "description": "锦囊牌\n时机：出牌阶段\n目标：一名其他角色\n效果：由目标角色开始，其与你轮流打出一张【杀】，直到其与你中的一名角色未打出【杀】。未打出【杀】的角色受到其与你中的另一名角色造成的1点伤害。",
+    "attributes": {
+      "internal_id": "duel",
+      "type": "Card.TypeTrick",
+      "damage_type": "fk.NormalDamage",
+      "skill": "duel_skill",
+      "is_damage_card": true,
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 1
+        },
+        {
+          "suit": "Club",
+          "number": 1
+        },
+        {
+          "suit": "Diamond",
+          "number": 1
+        }
+      ]
+    },
+    "source": {
+      "id": "18a9d08256d404382041",
+      "title": "决斗",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 43,
+      "line_end": 49,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"duel\",\n  type = Card.TypeTrick,\n  skill = \"duel_skill\",\n  is_damage_card = true,\n  damage_type = fk.NormalDamage,\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:collateral",
+    "kind": "card",
+    "name": "借刀杀人",
+    "package": "standard_cards",
+    "description": "锦囊牌\n时机：出牌阶段\n目标：装备区里有武器牌且攻击范围内有【杀】的合法目标的一名其他角色A（你需要选择一名A攻击范围内的【杀】的合法目标B）\n效果：A需对B使用一张【杀】，否则将装备区里的武器牌交给你。",
+    "attributes": {
+      "internal_id": "collateral",
+      "type": "Card.TypeTrick",
+      "skill": "collateral_skill",
+      "deck_specs": [
+        {
+          "suit": "Club",
+          "number": 12
+        },
+        {
+          "suit": "Club",
+          "number": 13
+        }
+      ]
+    },
+    "source": {
+      "id": "67c0cc5bedd662e0274f",
+      "title": "借刀杀人",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 51,
+      "line_end": 55,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"collateral\",\n  type = Card.TypeTrick,\n  skill = \"collateral_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:ex_nihilo",
+    "kind": "card",
+    "name": "无中生有",
+    "package": "standard_cards",
+    "description": "锦囊牌\n时机：出牌阶段\n目标：你\n效果：目标角色摸两张牌。",
+    "attributes": {
+      "internal_id": "ex_nihilo",
+      "type": "Card.TypeTrick",
+      "skill": "ex_nihilo_skill",
+      "deck_specs": [
+        {
+          "suit": "Heart",
+          "number": 7
+        },
+        {
+          "suit": "Heart",
+          "number": 8
+        },
+        {
+          "suit": "Heart",
+          "number": 9
+        },
+        {
+          "suit": "Heart",
+          "number": 11
+        }
+      ]
+    },
+    "source": {
+      "id": "bdaf945e329a508b0263",
+      "title": "无中生有",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 57,
+      "line_end": 61,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"ex_nihilo\",\n  type = Card.TypeTrick,\n  skill = \"ex_nihilo_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:nullification",
+    "kind": "card",
+    "name": "无懈可击",
+    "package": "standard_cards",
+    "description": "锦囊牌\n时机：锦囊牌对目标角色生效前，或一张【无懈可击】生效前\n目标：该锦囊牌\n效果：抵消该锦囊牌对该角色产生的效果，或抵消另一张【无懈可击】产生的效果。",
+    "attributes": {
+      "internal_id": "nullification",
+      "type": "Card.TypeTrick",
+      "skill": "nullification_skill",
+      "is_passive": true,
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 11
+        },
+        {
+          "suit": "Club",
+          "number": 12
+        },
+        {
+          "suit": "Club",
+          "number": 13
+        },
+        {
+          "suit": "Diamond",
+          "number": 12
+        }
+      ]
+    },
+    "source": {
+      "id": "19023bd4dd6b83da34bb",
+      "title": "无懈可击",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 63,
+      "line_end": 68,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"nullification\",\n  type = Card.TypeTrick,\n  skill = \"nullification_skill\",\n  is_passive = true,\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:savage_assault",
+    "kind": "card",
+    "name": "南蛮入侵",
+    "package": "standard_cards",
+    "description": "锦囊牌\n时机：出牌阶段\n目标：所有其他角色\n效果：每名目标角色需打出一张【杀】，否则受到1点伤害。",
+    "attributes": {
+      "internal_id": "savage_assault",
+      "type": "Card.TypeTrick",
+      "damage_type": "fk.NormalDamage",
+      "skill": "savage_assault_skill",
+      "is_damage_card": true,
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 7
+        },
+        {
+          "suit": "Spade",
+          "number": 13
+        },
+        {
+          "suit": "Club",
+          "number": 7
+        }
+      ]
+    },
+    "source": {
+      "id": "5d9836f9a9058b9dda77",
+      "title": "南蛮入侵",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 70,
+      "line_end": 77,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"savage_assault\",\n  type = Card.TypeTrick,\n  skill = \"savage_assault_skill\",\n  is_damage_card = true,\n  damage_type = fk.NormalDamage,\n  multiple_targets = true,\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:archery_attack",
+    "kind": "card",
+    "name": "万箭齐发",
+    "package": "standard_cards",
+    "description": "锦囊牌\n时机：出牌阶段\n目标：所有其他角色\n效果：每名目标角色需打出一张【闪】，否则受到1点伤害。",
+    "attributes": {
+      "internal_id": "archery_attack",
+      "type": "Card.TypeTrick",
+      "damage_type": "fk.NormalDamage",
+      "skill": "archery_attack_skill",
+      "is_damage_card": true,
+      "deck_specs": [
+        {
+          "suit": "Heart",
+          "number": 1
+        }
+      ]
+    },
+    "source": {
+      "id": "5deaf16deeaf2a24e82d",
+      "title": "万箭齐发",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 79,
+      "line_end": 86,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"archery_attack\",\n  type = Card.TypeTrick,\n  skill = \"archery_attack_skill\",\n  is_damage_card = true,\n  damage_type = fk.NormalDamage,\n  multiple_targets = true,\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:god_salvation",
+    "kind": "card",
+    "name": "桃园结义",
+    "package": "standard_cards",
+    "description": "锦囊牌\n时机：出牌阶段\n目标：所有角色\n效果：每名目标角色回复1点体力。",
+    "attributes": {
+      "internal_id": "god_salvation",
+      "type": "Card.TypeTrick",
+      "skill": "god_salvation_skill",
+      "deck_specs": [
+        {
+          "suit": "Heart",
+          "number": 1
+        }
+      ]
+    },
+    "source": {
+      "id": "a9a4cc82c22f223bcbef",
+      "title": "桃园结义",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 88,
+      "line_end": 93,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"god_salvation\",\n  type = Card.TypeTrick,\n  skill = \"god_salvation_skill\",\n  multiple_targets = true,\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:amazing_grace",
+    "kind": "card",
+    "name": "五谷丰登",
+    "package": "standard_cards",
+    "description": "锦囊牌\n时机：出牌阶段\n目标：所有角色\n效果：亮出牌堆顶等于目标角色数的牌，每名目标角色获得其中一张牌，结算结束后将其余的牌置入弃牌堆。",
+    "attributes": {
+      "internal_id": "amazing_grace",
+      "type": "Card.TypeTrick",
+      "skill": "amazing_grace_skill",
+      "deck_specs": [
+        {
+          "suit": "Heart",
+          "number": 3
+        },
+        {
+          "suit": "Heart",
+          "number": 4
+        }
+      ]
+    },
+    "source": {
+      "id": "bf46f8d3ae33d861ece8",
+      "title": "五谷丰登",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 95,
+      "line_end": 100,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"amazing_grace\",\n  type = Card.TypeTrick,\n  skill = \"amazing_grace_skill\",\n  multiple_targets = true,\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:lightning",
+    "kind": "card",
+    "name": "闪电",
+    "package": "standard_cards",
+    "description": "延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+    "attributes": {
+      "internal_id": "lightning",
+      "type": "Card.TypeTrick",
+      "sub_type": "Card.SubtypeDelayedTrick",
+      "damage_type": "fk.ThunderDamage",
+      "skill": "lightning_skill",
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 1
+        },
+        {
+          "suit": "Heart",
+          "number": 12
+        }
+      ]
+    },
+    "source": {
+      "id": "f5bab80055ed9c6e9aee",
+      "title": "闪电",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 102,
+      "line_end": 108,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"lightning\",\n  type = Card.TypeTrick,\n  sub_type = Card.SubtypeDelayedTrick,\n  damage_type = fk.ThunderDamage,\n  skill = \"lightning_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:indulgence",
+    "kind": "card",
+    "name": "乐不思蜀",
+    "package": "standard_cards",
+    "description": "延时锦囊牌\n时机：出牌阶段\n目标：一名其他角色\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果不为♥，其跳过出牌阶段。然后将【乐不思蜀】置入弃牌堆。",
+    "attributes": {
+      "internal_id": "indulgence",
+      "type": "Card.TypeTrick",
+      "sub_type": "Card.SubtypeDelayedTrick",
+      "skill": "indulgence_skill",
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 6
+        },
+        {
+          "suit": "Club",
+          "number": 6
+        },
+        {
+          "suit": "Heart",
+          "number": 6
+        }
+      ]
+    },
+    "source": {
+      "id": "6263d0f708aa42a63d08",
+      "title": "乐不思蜀",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 110,
+      "line_end": 115,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"indulgence\",\n  type = Card.TypeTrick,\n  sub_type = Card.SubtypeDelayedTrick,\n  skill = \"indulgence_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:crossbow",
+    "kind": "card",
+    "name": "诸葛连弩",
+    "package": "standard_cards",
+    "description": "装备牌·武器\n攻击范围：1\n武器技能：锁定技，你于出牌阶段内使用【杀】无次数限制。",
+    "attributes": {
+      "internal_id": "crossbow",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeWeapon",
+      "equip_skill": "#crossbow_skill",
+      "attack_range": 1,
+      "deck_specs": [
+        {
+          "suit": "Club",
+          "number": 1
+        },
+        {
+          "suit": "Diamond",
+          "number": 1
+        }
+      ]
+    },
+    "source": {
+      "id": "6a1d10cc3e7882f474f0",
+      "title": "诸葛连弩",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 117,
+      "line_end": 123,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"crossbow\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeWeapon,\n  attack_range = 1,\n  equip_skill = \"#crossbow_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:qinggang_sword",
+    "kind": "card",
+    "name": "青釭剑",
+    "package": "standard_cards",
+    "description": "装备牌·武器\n攻击范围：2\n武器技能：锁定技，你的【杀】无视目标角色的防具。",
+    "attributes": {
+      "internal_id": "qinggang_sword",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeWeapon",
+      "equip_skill": "#qinggang_sword_skill",
+      "attack_range": 2,
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 6
+        }
+      ]
+    },
+    "source": {
+      "id": "5ff70fe8b2d7e69741aa",
+      "title": "青釭剑",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 125,
+      "line_end": 131,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"qinggang_sword\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeWeapon,\n  attack_range = 2,\n  equip_skill = \"#qinggang_sword_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:ice_sword",
+    "kind": "card",
+    "name": "寒冰剑",
+    "package": "standard_cards",
+    "description": "装备牌·武器\n攻击范围：2\n武器技能：当你使用【杀】对目标角色造成伤害时，若该角色有牌，你可以防止此伤害，然后依次弃置其两张牌。",
+    "attributes": {
+      "internal_id": "ice_sword",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeWeapon",
+      "equip_skill": "#ice_sword_skill",
+      "attack_range": 2,
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 2
+        }
+      ]
+    },
+    "source": {
+      "id": "1be6270f96ffae744d2f",
+      "title": "寒冰剑",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 133,
+      "line_end": 139,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"ice_sword\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeWeapon,\n  attack_range = 2,\n  equip_skill = \"#ice_sword_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:double_swords",
+    "kind": "card",
+    "name": "雌雄双股剑",
+    "package": "standard_cards",
+    "description": "装备牌·武器\n攻击范围：2\n武器技能：当你指定异性角色为【杀】的目标后，你可以令其选择一项：弃置一张手牌，或令你摸一张牌。",
+    "attributes": {
+      "internal_id": "double_swords",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeWeapon",
+      "equip_skill": "#double_swords_skill",
+      "attack_range": 2,
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 2
+        }
+      ]
+    },
+    "source": {
+      "id": "4d25a953557435316096",
+      "title": "雌雄双股剑",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 141,
+      "line_end": 147,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"double_swords\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeWeapon,\n  attack_range = 2,\n  equip_skill = \"#double_swords_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:blade",
+    "kind": "card",
+    "name": "青龙偃月刀",
+    "package": "standard_cards",
+    "description": "装备牌·武器\n攻击范围：3\n武器技能：当你使用的【杀】被【闪】抵消后，你可以对该角色再使用一张【杀】（不能选择额外目标）。",
+    "attributes": {
+      "internal_id": "blade",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeWeapon",
+      "equip_skill": "#blade_skill",
+      "attack_range": 3,
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 5
+        }
+      ]
+    },
+    "source": {
+      "id": "284ba6b24eefdd5b2d4b",
+      "title": "青龙偃月刀",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 149,
+      "line_end": 155,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"blade\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeWeapon,\n  attack_range = 3,\n  equip_skill = \"#blade_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:spear",
+    "kind": "card",
+    "name": "丈八蛇矛",
+    "package": "standard_cards",
+    "description": "装备牌·武器\n攻击范围：3\n武器技能：你可以将两张手牌当【杀】使用或打出。",
+    "attributes": {
+      "internal_id": "spear",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeWeapon",
+      "equip_skill": "spear_skill&",
+      "attack_range": 3,
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 12
+        }
+      ]
+    },
+    "source": {
+      "id": "841496bc0f1ff8c30e57",
+      "title": "丈八蛇矛",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 157,
+      "line_end": 163,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"spear\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeWeapon,\n  attack_range = 3,\n  equip_skill = \"spear_skill&\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:axe",
+    "kind": "card",
+    "name": "贯石斧",
+    "package": "standard_cards",
+    "description": "装备牌·武器\n攻击范围：3\n武器技能：当你使用的【杀】被【闪】抵消后，你可以弃置两张牌，则此【杀】继续造成伤害。",
+    "attributes": {
+      "internal_id": "axe",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeWeapon",
+      "equip_skill": "#axe_skill",
+      "attack_range": 3,
+      "deck_specs": [
+        {
+          "suit": "Diamond",
+          "number": 5
+        }
+      ]
+    },
+    "source": {
+      "id": "3bdce9d29368c4ea9c50",
+      "title": "贯石斧",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 165,
+      "line_end": 171,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"axe\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeWeapon,\n  attack_range = 3,\n  equip_skill = \"#axe_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:halberd",
+    "kind": "card",
+    "name": "方天画戟",
+    "package": "standard_cards",
+    "description": "装备牌·武器\n攻击范围：4\n武器技能：锁定技，你使用最后的手牌【杀】可以额外选择至多两名目标。",
+    "attributes": {
+      "internal_id": "halberd",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeWeapon",
+      "equip_skill": "#halberd_skill",
+      "attack_range": 4,
+      "deck_specs": [
+        {
+          "suit": "Diamond",
+          "number": 12
+        }
+      ]
+    },
+    "source": {
+      "id": "4c9477c75a282c1995c7",
+      "title": "方天画戟",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 173,
+      "line_end": 179,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"halberd\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeWeapon,\n  attack_range = 4,\n  equip_skill = \"#halberd_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:kylin_bow",
+    "kind": "card",
+    "name": "麒麟弓",
+    "package": "standard_cards",
+    "description": "装备牌·武器\n攻击范围：5\n武器技能：当你使用【杀】对目标角色造成伤害时，你可以弃置其装备区里的一张坐骑牌。",
+    "attributes": {
+      "internal_id": "kylin_bow",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeWeapon",
+      "equip_skill": "#kylin_bow_skill",
+      "attack_range": 5,
+      "deck_specs": [
+        {
+          "suit": "Heart",
+          "number": 5
+        }
+      ]
+    },
+    "source": {
+      "id": "b183a5ed8cb317293a4e",
+      "title": "麒麟弓",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 181,
+      "line_end": 187,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"kylin_bow\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeWeapon,\n  attack_range = 5,\n  equip_skill = \"#kylin_bow_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:eight_diagram",
+    "kind": "card",
+    "name": "八卦阵",
+    "package": "standard_cards",
+    "description": "装备牌·防具\n防具技能：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+    "attributes": {
+      "internal_id": "eight_diagram",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeArmor",
+      "equip_skill": "#eight_diagram_skill",
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 2
+        },
+        {
+          "suit": "Club",
+          "number": 2
+        }
+      ]
+    },
+    "source": {
+      "id": "1cdbdfa89a404207f9fb",
+      "title": "八卦阵",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 189,
+      "line_end": 194,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"eight_diagram\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeArmor,\n  equip_skill = \"#eight_diagram_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:nioh_shield",
+    "kind": "card",
+    "name": "仁王盾",
+    "package": "standard_cards",
+    "description": "装备牌·防具\n防具技能：锁定技，黑色【杀】对你无效。",
+    "attributes": {
+      "internal_id": "nioh_shield",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeArmor",
+      "equip_skill": "#nioh_shield_skill",
+      "deck_specs": [
+        {
+          "suit": "Club",
+          "number": 2
+        }
+      ]
+    },
+    "source": {
+      "id": "1f08aa9ce7f2c68ae815",
+      "title": "仁王盾",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 196,
+      "line_end": 201,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"nioh_shield\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeArmor,\n  equip_skill = \"#nioh_shield_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:dilu",
+    "kind": "card",
+    "name": "的卢",
+    "package": "standard_cards",
+    "description": "装备牌·坐骑\n坐骑技能：其他角色与你的距离+1。",
+    "attributes": {
+      "internal_id": "dilu",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeDefensiveRide",
+      "equip_skill": "#dilu_skill",
+      "deck_specs": [
+        {
+          "suit": "Club",
+          "number": 5
+        }
+      ]
+    },
+    "source": {
+      "id": "1b31693866fcd92982f9",
+      "title": "的卢",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 203,
+      "line_end": 208,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"dilu\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeDefensiveRide,\n  equip_skill = \"#dilu_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:jueying",
+    "kind": "card",
+    "name": "绝影",
+    "package": "standard_cards",
+    "description": "装备牌·坐骑\n坐骑技能：其他角色与你的距离+1。",
+    "attributes": {
+      "internal_id": "jueying",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeDefensiveRide",
+      "equip_skill": "#jueying_skill",
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 5
+        }
+      ]
+    },
+    "source": {
+      "id": "29f6f1ff62d9d83b5d2b",
+      "title": "绝影",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 210,
+      "line_end": 215,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"jueying\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeDefensiveRide,\n  equip_skill = \"#jueying_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:zhuahuangfeidian",
+    "kind": "card",
+    "name": "爪黄飞电",
+    "package": "standard_cards",
+    "description": "装备牌·坐骑\n坐骑技能：其他角色与你的距离+1。",
+    "attributes": {
+      "internal_id": "zhuahuangfeidian",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeDefensiveRide",
+      "equip_skill": "#zhuahuangfeidian_skill",
+      "deck_specs": [
+        {
+          "suit": "Heart",
+          "number": 13
+        }
+      ]
+    },
+    "source": {
+      "id": "28b3ee05b6eec15eacf0",
+      "title": "爪黄飞电",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 217,
+      "line_end": 222,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"zhuahuangfeidian\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeDefensiveRide,\n  equip_skill = \"#zhuahuangfeidian_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:chitu",
+    "kind": "card",
+    "name": "赤兔",
+    "package": "standard_cards",
+    "description": "装备牌·坐骑\n坐骑技能：你与其他角色的距离-1。",
+    "attributes": {
+      "internal_id": "chitu",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeOffensiveRide",
+      "equip_skill": "#chitu_skill",
+      "deck_specs": [
+        {
+          "suit": "Heart",
+          "number": 5
+        }
+      ]
+    },
+    "source": {
+      "id": "9cc72a0a1f90ef949de2",
+      "title": "赤兔",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 224,
+      "line_end": 229,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"chitu\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeOffensiveRide,\n  equip_skill = \"#chitu_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:dayuan",
+    "kind": "card",
+    "name": "大宛",
+    "package": "standard_cards",
+    "description": "装备牌·坐骑\n坐骑技能：你与其他角色的距离-1。",
+    "attributes": {
+      "internal_id": "dayuan",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeOffensiveRide",
+      "equip_skill": "#dayuan_skill",
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 13
+        }
+      ]
+    },
+    "source": {
+      "id": "6d3e611179a874677ce3",
+      "title": "大宛",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 231,
+      "line_end": 236,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"dayuan\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeOffensiveRide,\n  equip_skill = \"#dayuan_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:card:zixing",
+    "kind": "card",
+    "name": "紫骍",
+    "package": "standard_cards",
+    "description": "装备牌·坐骑\n坐骑技能：你与其他角色的距离-1。",
+    "attributes": {
+      "internal_id": "zixing",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeOffensiveRide",
+      "equip_skill": "#zixing_skill",
+      "deck_specs": [
+        {
+          "suit": "Diamond",
+          "number": 13
+        }
+      ]
+    },
+    "source": {
+      "id": "f82cad4ce5c9f54c13ed",
+      "title": "紫骍",
+      "path": "runtime/packages/standard_cards/pkg/init.lua",
+      "line_start": 238,
+      "line_end": 243,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"zixing\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeOffensiveRide,\n  equip_skill = \"#zixing_skill\",\n}",
+      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+    }
+  },
+  {
+    "id": "standard_cards:skill:spear_skill&",
+    "kind": "skill",
+    "name": "丈八矛",
+    "package": "standard_cards",
+    "description": "你可以将两张手牌当【杀】使用或打出。",
+    "attributes": {
+      "internal_id": "spear_skill&",
+      "implementation_available": false
+    },
+    "source": {
+      "id": "48ca63121fb8885c769f",
+      "title": "丈八矛",
+      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+      "line_start": 181,
+      "line_end": 181,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "你可以将两张手牌当【杀】使用或打出。",
+      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+    }
+  },
+  {
+    "id": "maneuvering:card:thunder__slash",
+    "kind": "card",
+    "name": "雷杀",
+    "package": "maneuvering",
+    "description": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点雷电伤害。",
+    "attributes": {
+      "internal_id": "thunder__slash",
+      "type": "Card.TypeBasic",
+      "damage_type": "fk.ThunderDamage",
+      "skill": "thunder__slash_skill",
+      "is_damage_card": true,
+      "deck_specs": [
+        {
+          "suit": "Club",
+          "number": 5
+        },
+        {
+          "suit": "Club",
+          "number": 6
+        },
+        {
+          "suit": "Club",
+          "number": 7
+        },
+        {
+          "suit": "Club",
+          "number": 8
+        },
+        {
+          "suit": "Spade",
+          "number": 4
+        },
+        {
+          "suit": "Spade",
+          "number": 5
+        },
+        {
+          "suit": "Spade",
+          "number": 6
+        },
+        {
+          "suit": "Spade",
+          "number": 7
+        },
+        {
+          "suit": "Spade",
+          "number": 8
+        }
+      ]
+    },
+    "source": {
+      "id": "3fdd6a546188888d7c90",
+      "title": "雷杀",
+      "path": "runtime/packages/maneuvering/pkg/init.lua",
+      "line_start": 12,
+      "line_end": 18,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"thunder__slash\",\n  type = Card.TypeBasic,\n  is_damage_card = true,\n  damage_type = fk.ThunderDamage,\n  skill = \"thunder__slash_skill\",\n}",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+    }
+  },
+  {
+    "id": "maneuvering:card:fire__slash",
+    "kind": "card",
+    "name": "火杀",
+    "package": "maneuvering",
+    "description": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点火焰伤害。",
+    "attributes": {
+      "internal_id": "fire__slash",
+      "type": "Card.TypeBasic",
+      "damage_type": "fk.FireDamage",
+      "skill": "fire__slash_skill",
+      "is_damage_card": true,
+      "deck_specs": [
+        {
+          "suit": "Heart",
+          "number": 4
+        },
+        {
+          "suit": "Heart",
+          "number": 7
+        },
+        {
+          "suit": "Heart",
+          "number": 10
+        },
+        {
+          "suit": "Diamond",
+          "number": 4
+        },
+        {
+          "suit": "Diamond",
+          "number": 5
+        }
+      ]
+    },
+    "source": {
+      "id": "7a0fd44bb9be47112f31",
+      "title": "火杀",
+      "path": "runtime/packages/maneuvering/pkg/init.lua",
+      "line_start": 20,
+      "line_end": 26,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"fire__slash\",\n  type = Card.TypeBasic,\n  is_damage_card = true,\n  damage_type = fk.FireDamage,\n  skill = \"fire__slash_skill\",\n}",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+    }
+  },
+  {
+    "id": "maneuvering:card:analeptic",
+    "kind": "card",
+    "name": "酒",
+    "package": "maneuvering",
+    "description": "基本牌\n时机：出牌阶段/你处于濒死状态时\n目标：你\n效果：目标角色本回合使用的下一张【杀】将要造成的伤害+1/目标角色回复1点体力。",
+    "attributes": {
+      "internal_id": "analeptic",
+      "type": "Card.TypeBasic",
+      "skill": "analeptic_skill",
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 3
+        },
+        {
+          "suit": "Spade",
+          "number": 9
+        },
+        {
+          "suit": "Club",
+          "number": 3
+        },
+        {
+          "suit": "Club",
+          "number": 9
+        },
+        {
+          "suit": "Diamond",
+          "number": 9
+        }
+      ]
+    },
+    "source": {
+      "id": "4152ba3ce6bfc1753823",
+      "title": "酒",
+      "path": "runtime/packages/maneuvering/pkg/init.lua",
+      "line_start": 28,
+      "line_end": 32,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"analeptic\",\n  type = Card.TypeBasic,\n  skill = \"analeptic_skill\",\n}",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+    }
+  },
+  {
+    "id": "maneuvering:card:iron_chain",
+    "kind": "card",
+    "name": "铁索连环",
+    "package": "maneuvering",
+    "description": "锦囊牌\n时机：出牌阶段\n目标：一至两名角色\n效果：横置或重置目标角色的武将牌。",
+    "attributes": {
+      "internal_id": "iron_chain",
+      "type": "Card.TypeTrick",
+      "skill": "iron_chain_skill",
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 11
+        },
+        {
+          "suit": "Spade",
+          "number": 12
+        },
+        {
+          "suit": "Club",
+          "number": 10
+        },
+        {
+          "suit": "Club",
+          "number": 11
+        },
+        {
+          "suit": "Club",
+          "number": 12
+        },
+        {
+          "suit": "Club",
+          "number": 13
+        }
+      ]
+    },
+    "source": {
+      "id": "377b53c894f5daec220b",
+      "title": "铁索连环",
+      "path": "runtime/packages/maneuvering/pkg/init.lua",
+      "line_start": 34,
+      "line_end": 40,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"iron_chain\",\n  type = Card.TypeTrick,\n  skill = \"iron_chain_skill\",\n  special_skills = { \"recast\" },\n  multiple_targets = true,\n}",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+    }
+  },
+  {
+    "id": "maneuvering:card:fire_attack",
+    "kind": "card",
+    "name": "火攻",
+    "package": "maneuvering",
+    "description": "锦囊牌\n时机：出牌阶段\n目标：一名有手牌的角色\n效果：目标角色展示一张手牌，然后你可以弃置一张与此牌花色相同的手牌对其造成1点火焰伤害。",
+    "attributes": {
+      "internal_id": "fire_attack",
+      "type": "Card.TypeTrick",
+      "damage_type": "fk.FireDamage",
+      "skill": "fire_attack_skill",
+      "is_damage_card": true,
+      "deck_specs": [
+        {
+          "suit": "Heart",
+          "number": 2
+        },
+        {
+          "suit": "Heart",
+          "number": 3
+        },
+        {
+          "suit": "Diamond",
+          "number": 12
+        }
+      ]
+    },
+    "source": {
+      "id": "eb8650c9af4ddac2b714",
+      "title": "火攻",
+      "path": "runtime/packages/maneuvering/pkg/init.lua",
+      "line_start": 42,
+      "line_end": 48,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"fire_attack\",\n  type = Card.TypeTrick,\n  skill = \"fire_attack_skill\",\n  is_damage_card = true,\n  damage_type = fk.FireDamage,\n}",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+    }
+  },
+  {
+    "id": "maneuvering:card:supply_shortage",
+    "kind": "card",
+    "name": "兵粮寸断",
+    "package": "maneuvering",
+    "description": "延时锦囊牌\n时机：出牌阶段\n目标：距离1的一名其他角色\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果不为♣，其跳过摸牌阶段。然后将【兵粮寸断】置入弃牌堆。",
+    "attributes": {
+      "internal_id": "supply_shortage",
+      "type": "Card.TypeTrick",
+      "sub_type": "Card.SubtypeDelayedTrick",
+      "skill": "supply_shortage_skill",
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 10
+        },
+        {
+          "suit": "Club",
+          "number": 4
+        }
+      ]
+    },
+    "source": {
+      "id": "c5a678b8c3e5b1a7f46e",
+      "title": "兵粮寸断",
+      "path": "runtime/packages/maneuvering/pkg/init.lua",
+      "line_start": 50,
+      "line_end": 55,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"supply_shortage\",\n  type = Card.TypeTrick,\n  sub_type = Card.SubtypeDelayedTrick,\n  skill = \"supply_shortage_skill\",\n}",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+    }
+  },
+  {
+    "id": "maneuvering:card:guding_blade",
+    "kind": "card",
+    "name": "古锭刀",
+    "package": "maneuvering",
+    "description": "装备牌·武器\n攻击范围：2\n武器技能：锁定技。每当你使用【杀】对目标角色造成伤害时，若该角色没有手牌，此伤害+1。",
+    "attributes": {
+      "internal_id": "guding_blade",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeWeapon",
+      "equip_skill": "#guding_blade_skill",
+      "attack_range": 2,
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 1
+        }
+      ]
+    },
+    "source": {
+      "id": "2185a72bec558315b118",
+      "title": "古锭刀",
+      "path": "runtime/packages/maneuvering/pkg/init.lua",
+      "line_start": 57,
+      "line_end": 63,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"guding_blade\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeWeapon,\n  attack_range = 2,\n  equip_skill = \"#guding_blade_skill\",\n}",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+    }
+  },
+  {
+    "id": "maneuvering:card:fan",
+    "kind": "card",
+    "name": "朱雀羽扇",
+    "package": "maneuvering",
+    "description": "装备牌·武器\n攻击范围：4\n武器技能：当你声明使用普【杀】后，你可以将此【杀】改为火【杀】。",
+    "attributes": {
+      "internal_id": "fan",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeWeapon",
+      "equip_skill": "#fan_skill",
+      "attack_range": 4,
+      "deck_specs": [
+        {
+          "suit": "Diamond",
+          "number": 1
+        }
+      ]
+    },
+    "source": {
+      "id": "7cecfdda6084cc051229",
+      "title": "朱雀羽扇",
+      "path": "runtime/packages/maneuvering/pkg/init.lua",
+      "line_start": 65,
+      "line_end": 71,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"fan\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeWeapon,\n  attack_range = 4,\n  equip_skill = \"#fan_skill\",\n}",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+    }
+  },
+  {
+    "id": "maneuvering:card:vine",
+    "kind": "card",
+    "name": "藤甲",
+    "package": "maneuvering",
+    "description": "装备牌·防具\n防具技能：锁定技。【南蛮入侵】、【万箭齐发】和普通【杀】对你无效。每当你受到火焰伤害时，此伤害+1。",
+    "attributes": {
+      "internal_id": "vine",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeArmor",
+      "equip_skill": "#vine_skill",
+      "deck_specs": [
+        {
+          "suit": "Spade",
+          "number": 2
+        },
+        {
+          "suit": "Club",
+          "number": 2
+        }
+      ]
+    },
+    "source": {
+      "id": "8d202f7b2e28bee36be1",
+      "title": "藤甲",
+      "path": "runtime/packages/maneuvering/pkg/init.lua",
+      "line_start": 73,
+      "line_end": 78,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"vine\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeArmor,\n  equip_skill = \"#vine_skill\",\n}",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+    }
+  },
+  {
+    "id": "maneuvering:card:silver_lion",
+    "kind": "card",
+    "name": "白银狮子",
+    "package": "maneuvering",
+    "description": "装备牌·防具\n防具技能：锁定技。每当你受到伤害时，若此伤害大于1点，防止多余的伤害。每当你失去装备区里的【白银狮子】后，你回复1点体力。",
+    "attributes": {
+      "internal_id": "silver_lion",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeArmor",
+      "equip_skill": "#silver_lion_skill",
+      "deck_specs": [
+        {
+          "suit": "Club",
+          "number": 1
+        }
+      ]
+    },
+    "source": {
+      "id": "44f93f300d7d14622d3e",
+      "title": "白银狮子",
+      "path": "runtime/packages/maneuvering/pkg/init.lua",
+      "line_start": 80,
+      "line_end": 85,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"silver_lion\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeArmor,\n  equip_skill = \"#silver_lion_skill\",\n}",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+    }
+  },
+  {
+    "id": "maneuvering:card:hualiu",
+    "kind": "card",
+    "name": "骅骝",
+    "package": "maneuvering",
+    "description": "装备牌·坐骑\n坐骑技能：其他角色与你的距离+1。",
+    "attributes": {
+      "internal_id": "hualiu",
+      "type": "Card.TypeEquip",
+      "sub_type": "Card.SubtypeDefensiveRide",
+      "equip_skill": "#hualiu_skill",
+      "deck_specs": [
+        {
+          "suit": "Diamond",
+          "number": 13
+        }
+      ]
+    },
+    "source": {
+      "id": "337cf46b065418c4d976",
+      "title": "骅骝",
+      "path": "runtime/packages/maneuvering/pkg/init.lua",
+      "line_start": 87,
+      "line_end": 92,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "implementation",
+      "excerpt": "fk.CreateCard{\n  name = \"hualiu\",\n  type = Card.TypeEquip,\n  sub_type = Card.SubtypeDefensiveRide,\n  equip_skill = \"#hualiu_skill\",\n}",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+    }
+  },
+  {
+    "id": "maneuvering:skill:recast",
+    "kind": "skill",
+    "name": "重铸",
+    "package": "maneuvering",
+    "description": "你可以将此牌置入弃牌堆，然后摸一张牌。",
+    "attributes": {
+      "internal_id": "recast",
+      "implementation_available": true
+    },
+    "source": {
+      "id": "b4f71ecbb57ce80bf8e5",
+      "title": "重铸",
+      "path": "runtime/packages/maneuvering/pkg/init.lua",
+      "line_start": 187,
+      "line_end": 187,
+      "snapshot_id": "freekill-local-b9dc701220bc",
+      "evidence_type": "skill_description",
+      "excerpt": "你可以将此牌置入弃牌堆，然后摸一张牌。",
+      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+    }
+  }
+]

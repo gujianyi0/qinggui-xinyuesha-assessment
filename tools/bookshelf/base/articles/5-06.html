@@ -1,0 +1,796 @@
+<h1 id="section-1">HTTP 服务、SQL、数据库与缓存（六）</h1>
+<h1 id="section-2">缓存过期、资料更新、Redis 故障降级与锁、约束、事务的一致性边界</h1>
+<blockquote>
+<p><strong>对应学习目标</strong>：缓存过期、资料更新和 Redis 不可用时的行为；弄清 Redis 锁能解决什么，哪些问题还需要数据库约束和事务处理。</p>
+<p><strong>定位</strong>：纯知识性技术手册。以 Python / FastAPI / Redis / PostgreSQL / SQLAlchemy 组成的应用为背景，区分“缓存可用性”“资料版本一致性”“跨进程协调”“数据库业务正确性”四种不同的问题。文中的 Redis/PostgreSQL 代码标明示意或实际验证边界。</p>
+</blockquote>
+<h2 id="section-3">目录</h2>
+<ol>
+<li>为什么 Redis 缓存与 PostgreSQL 持久化数据必须分工</li>
+<li>缓存失效：TTL、主动删除、内存淘汰与故障丢失</li>
+<li>缓存过期后的常见读取路径和一致性语义</li>
+<li>资料更新引发的并发竞态：先更新再删缓存仍不充分</li>
+<li>缓存更新策略：Cache-Aside、Write-Through、Write-Behind、版本化缓存</li>
+<li>文档资料与 RAG 索引更新的版本协调</li>
+<li>Redis 不可用时的服务降级与正确性策略</li>
+<li>缓存穿透、击穿、雪崩和限流/背压</li>
+<li>Redis 锁：互斥的含义、获取与安全释放</li>
+<li>锁过期、客户端暂停与 Fencing Token</li>
+<li>单实例锁、Redlock、锁服务高可用与限制</li>
+<li>为什么 Redis 锁不能代替数据库唯一约束</li>
+<li>为什么 Redis 锁不能代替数据库事务</li>
+<li>数据库行锁、乐观锁、唯一约束与幂等请求的职责</li>
+<li>两个系统之间的原子性：事务外盒与重复消费</li>
+<li>典型故障场景与后果对照表</li>
+<li>Redis、PostgreSQL、FastAPI 的代码示意</li>
+<li>数据库模型与 SQL 参考</li>
+<li>可观测性、实验方法和生产级验证边界</li>
+<li>常见认识错误与结论</li>
+<li>可运行的离线教学实现与验证</li>
+<li>参考资料</li>
+</ol>
+<hr />
+<h2 id="section-4">1. 为什么 Redis 缓存与 PostgreSQL 持久化数据必须分工</h2>
+<p>在常见的 <strong>Cache-Aside（旁路缓存）</strong> 模式中，PostgreSQL 是业务记录的权威存储（source of truth），Redis 是一份可丢弃、可重建的加速副本。典型读取路径：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">客户端请求
+   │
+   ▼
+FastAPI → Redis GET(cache:key)
+             ├─ 命中 → 返回缓存副本
+             └─ 未命中 / 过期 / 故障 → PostgreSQL SELECT
+                                      │
+                                      ├─ 读取成功 → 可尝试回填 Redis
+                                      └─ 读取失败 → 依业务策略返回错误</code></pre></div><p>“可丢弃”是<strong>架构设计选择</strong>，不是 Redis 的固有属性。Redis 也支持 AOF、RDB 持久化、Streams 等用途，能够承载有持久化要求的特定场景；但如果一个系统明确将 PostgreSQL 作为权威业务数据库，则不能因为 Redis 支持持久化而把缓存里的一次临时写入视为业务正式提交。</p>
+<p>必须区分以下三个目标：</p>
+<table>
+<thead>
+<tr>
+<th>目标</th>
+<th>典型要求</th>
+<th>主要承担机制</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>可用性</td>
+<td>Redis 异常时，核心查询仍可用</td>
+<td>数据库回源、超时、熔断、限流</td>
+</tr>
+<tr>
+<td>一致性</td>
+<td>规则更新后不能混淆新旧版本</td>
+<td>版本标识、事务、缓存失效、读写契约</td>
+</tr>
+<tr>
+<td>正确性</td>
+<td>不重复提交反馈、不产生半成品记录</td>
+<td>PostgreSQL UNIQUE、事务、幂等键</td>
+</tr>
+</tbody></table>
+<p>Redis 锁一般用于<strong>减少重复执行或协调竞争</strong>，而不是最终证明业务唯一性与正确性。</p>
+<h2 id="section-5">2. 缓存失效的四种不同原因</h2>
+<h3 id="section-6">2.1 TTL 到期（Expiration）</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">SET doc:001:v3 '{"text":"..."}' EX 60
+TTL doc:001:v3
+GET doc:001:v3</code></pre></div><p>TTL 表示键被允许继续存在的剩余时限。Redis 的 <code>TTL</code> 返回正的剩余秒数时，表示设置了过期时间；<code>-1</code> 代表键存在但没有到期设置；<code>-2</code> 代表键不存在。Redis 采用访问时的惰性过期检查和后台主动清理结合的方式。</p>
+<p>**重要差别：**键在逻辑上已过期后，不应继续作为正常缓存命中返回；但是 Redis 的 <code>expired</code> 发布通知不保证恰好在到期瞬间发出。因此，不应把过期通知当作精确的业务定时器，也不能依赖它确保定时执行某项不可丢失的操作。</p>
+<h3 id="section-7">2.2 主动失效（Invalidation）</h3>
+<p>业务写入后执行 <code>DEL key</code> 或切换版本键，可以使后续访问重新读取数据库。它用于“资料更新后的缓存刷新”，与 TTL 的自然到期是两个不同机制。</p>
+<h3 id="section-8">2.3 内存淘汰（Eviction）</h3>
+<p>Redis <code>maxmemory-policy</code> 可能根据 LRU、LFU、TTL 等策略提前删除仍未过期的 Key。<strong>TTL 未到不代表键一定仍在缓存。</strong> 当缓存数据丢失后应能够从权威存储重新构建。</p>
+<h3 id="section-9">2.4 故障导致的数据不可访问或丢失</h3>
+<p>网络中断、Redis 重启、主从切换、连接池耗尽等情况下，应用可能无法读取缓存。Redis 故障与缓存未命中不同：前者是依赖异常，后者是正常运行中的无数据状态。日志和监控必须区分。</p>
+<p>还有一个容易忽略的细节：普通 <code>SET key value</code> 覆写旧值时通常会清除旧 TTL，除非使用合适的保留/重新设置 TTL 参数。无意中丢失 TTL，可能导致缓存长期陈旧。</p>
+<h2 id="section-10">3. 缓存过期后应如何处理</h2>
+<h3 id="section-11">3.1 Cache-Aside 基本流程</h3>
+<ol>
+<li>读取 Redis；命中则快速返回。</li>
+<li>未命中时访问 PostgreSQL。</li>
+<li>取回权威数据并返回。</li>
+<li>尝试写入缓存及新 TTL。缓存回填失败通常不应该导致已经成功的只读请求失败。</li>
+</ol>
+<p>这个流程可以降低数据库读负载，但它提供的通常是<strong>有界陈旧或最终一致性</strong>，而不是强一致性。缓存读取速度和数据新鲜度需要权衡。</p>
+<h3 id="section-12">3.2 缓存空值与“没有找到”</h3>
+<p>假设数据库没有 <code>document_id=foo</code> 的记录，简单的 <code>cache.get(key) is None</code> 无法判断 Redis 里是“没有 Key”还是“缓存里恰好存放了 None”。一般应使用明确的空值哨兵，例如 <code>{"status":"NOT_FOUND"}</code>，并设置较短 TTL。</p>
+<p>空值缓存可以抑制重复无效查询，但记录新创建后应清除对应负缓存，否则会继续返回“找不到”。还须做好租户边界，不能让无权限查询得到的结果被无区分地复用于其他用户。</p>
+<h3 id="section-13">3.3 不能盲信旧缓存</h3>
+<p>对于身份权限、余额、资金交易、写入确认等高正确性场景，不应把缓存是否存在作为唯一裁决依据。缓存的失效窗口通常无法提供业务级强一致保证。</p>
+<h2 id="section-14">4. 资料更新的并发竞态：数据库提交后删除缓存仍可能返回旧值</h2>
+<h3 id="section-15">4.1 典型时间线</h3>
+<p>设数据库规则值原来是 A，更新后是 B：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">时刻    请求 R1（读取）                 请求 W（写入）
+ t1    Redis 未命中
+ t2    从数据库读到旧值 A
+ t3                                      数据库事务提交新值 B
+ t4                                      删除 Redis 缓存 key
+ t5    将旧值 A 写回 Redis ← 竞争窗口
+ t6    另一个读请求命中旧值 A</code></pre></div><p>即使严格遵守“<strong>先提交数据库，后删除缓存</strong>”，仍存在在途旧读将旧数据写回的竞态。反过来先删缓存再更新数据库，还可能让并发请求在数据库更新前把旧值重新填回，因此通常更不理想。</p>
+<h3 id="section-16">4.2 应对手段有不同强度</h3>
+<ul>
+<li>**设置短 TTL：**限制陈旧数据可能存在的时长；不保证实时一致性。</li>
+<li>**缓存失效事件 + 重试：**缩短旧值窗口；需要可靠的事件发布与消费。</li>
+<li>**写入/读取版本标识：**让缓存内容附带资料版本；读取时验证版本是否与所需版本一致。</li>
+<li>**版本化 Key：**使用 <code>rule:001:v12</code>、<code>rule:001:v13</code>，旧读回填只能写旧版本 Key，不能覆盖新版本 Key。</li>
+<li>**从权威数据库读取当前版本：**严格版本要求下，读取对应版本前必须从可靠来源确认版本，或者使用能证明版本的新鲜度协议；只靠 Redis 中的“当前版本指针”仍可能陈旧。</li>
+</ul>
+<p>例：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">PostgreSQL: (doc_id=001, version=13, content=B)
+Redis:      rule:001:v12 = A   # 旧资料仍可能存在
+            rule:001:v13 = B   # 新资料</code></pre></div><p>若当前业务版本由 PostgreSQL 确认是 13，系统只会查询 <code>v13</code>，即使旧请求晚到，也无法把 <code>v12</code> 覆盖到 <code>v13</code>。这只解决“旧值覆盖新版本 Key”的问题，<strong>不自动保证读到的是最新数据库版本</strong>；如果版本判断本身陈旧，仍然可能读旧资料。</p>
+<h3 id="section-17">4.3 版本化读取的取舍</h3>
+<p>每次先查 PostgreSQL 当前版本可实现较清晰的正确性边界，但会增加数据库请求，削弱缓存的性能收益。另一种方式是维护版本指针、发布更新事件或给指针很短的 TTL；这些方案性能更好，但一致性承诺必须弱化，并验证故障时的行为。不能同时宣称“完全不查数据库”和“缓存总是严格最新”，除非另外建立了可证明的协调机制。</p>
+<h2 id="section-18">5. 四种缓存写入模式</h2>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>谁先被修改</th>
+<th>优点</th>
+<th>风险与限制</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Cache-Aside</td>
+<td>应用写 DB，后删/更新缓存</td>
+<td>常用、简单</td>
+<td>写入与失效之间存在竞争</td>
+</tr>
+<tr>
+<td>Write-Through</td>
+<td>写入经过缓存层并同步持久化</td>
+<td>读缓存更容易保持更新</td>
+<td>需要明确失败的原子性，跨存储无法天然事务化</td>
+</tr>
+<tr>
+<td>Write-Behind</td>
+<td>先写缓存，异步落 DB</td>
+<td>写入快</td>
+<td>Redis 丢失、异步失败可能丢业务数据</td>
+</tr>
+<tr>
+<td>Versioned Cache</td>
+<td>Key 包含业务版本</td>
+<td>旧回填无法覆盖新版本 Key</td>
+<td>版本发现与旧 Key 清理仍需设计</td>
+</tr>
+</tbody></table>
+<p>特别是 Write-Behind，不适合未经可靠性设计就用于资金、订单确认或最终反馈记录。如果 Redis 写成功但数据尚未入 PostgreSQL，不能直接视为最终持久化成功。</p>
+<h2 id="section-19">6. 资料更新与 RAG 索引的不同生命周期</h2>
+<p>对 RAG 系统，“更新数据库规则”和“新版本向量索引可用”不一定同时发生。一个可靠的版本发布流程：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">创建文档版本 v13（DRAFT）
+    ↓
+解析、分块、Embedding、构建 v13 索引
+    ↓
+核对分块数量、来源与检索评测
+    ↓
+将 v13 标记 READY
+    ↓
+数据库事务中切换当前可用版本指针 → v13
+    ↓
+让请求按明确版本检索；旧 v12 保留一段时间
+    ↓
+根据保留策略清理旧缓存与旧索引</code></pre></div><p><strong>只有资料版本已发布且相应索引就绪，才应把新版本用于当前问答。</strong> 否则可能出现“文本资料是 v13、向量索引却仍是 v12”的混合回答。</p>
+<p>相关字段可设计为 <code>document_id</code>、<code>version</code>、<code>source_hash</code>、<code>index_status</code>、<code>published_at</code>、<code>effective_at</code>。它们应来自权威记录，而不是只保存在具有 TTL 的 Redis Key 中。</p>
+<h2 id="section-20">7. Redis 不可用时如何降级</h2>
+<h3 id="section-21">7.1 缓存只读业务：优先回源</h3>
+<p>对普通公开文档查询，如果 Redis 不可用，可以从 PostgreSQL 直接读取；但应限制回源并发，避免 Redis 故障使数据库瞬间承受所有流量。</p>
+<h3 id="section-22">7.2 需要 Redis 实现限流/锁的场景：按风险分级</h3>
+<p>Redis 不可用时，对高风险写入不应通过“默认允许”绕过锁与权限校验。这种场景往往需要 <strong>fail closed</strong>：拒绝执行或使用独立、可证明正确的数据库控制路径。</p>
+<p>对于普通页面内容缓存，则可能选择 <strong>fail open</strong>：直接读数据库，允许性能下降但继续服务。Fail open 和 fail closed 是业务容错策略，不是 Redis 自动提供的功能。</p>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>Redis 故障时的推荐语义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>展示公开规则</td>
+<td>数据库回源，设置并发上限</td>
+</tr>
+<tr>
+<td>查询自己的反馈状态</td>
+<td>直接从数据库查询，仍执行权限校验</td>
+</tr>
+<tr>
+<td>创建唯一反馈</td>
+<td>PostgreSQL 事务 + UNIQUE + 幂等，不能只依赖 Redis 锁</td>
+</tr>
+<tr>
+<td>用户登录风控/限流</td>
+<td>按风险策略拒绝、切换可靠备用机制或降低权限</td>
+</tr>
+<tr>
+<td>发起付款/转账</td>
+<td>不可绕过业务一致性和授权校验</td>
+</tr>
+<tr>
+<td>启动批量索引 Worker</td>
+<td>若锁用于防重复，应以持久化任务状态、租约/DB 约束作为最后一道防线</td>
+</tr>
+</tbody></table>
+<h3 id="section-23">7.3 故障类型与响应原则</h3>
+<ol>
+<li><strong>连接建立失败</strong>：可能网络、DNS、服务停机；短超时并有界重试。</li>
+<li><strong>读超时</strong>：结果可能未知；缓存 GET 可安全回源，但写命令尤其要关注“操作可能已经发生”。</li>
+<li><strong>连接池耗尽</strong>：应限制并发，排查未关闭连接和峰值。</li>
+<li><strong>内存不足</strong>：确认 <code>maxmemory</code> 与淘汰策略，不要把它误判为 Redis 完全停机。</li>
+<li><strong>缓存 Key 不存在</strong>：正常 miss，不是依赖故障。</li>
+</ol>
+<p>需要隔离缓存依赖的错误，避免异常冒泡成整个应用的 500；但是数据库本身不可用时不能伪造业务成功。</p>
+<h3 id="section-24">7.4 熔断、重试和回退</h3>
+<ul>
+<li>设置较短 Redis 网络超时（依据服务 SLO，不是固定数值）。</li>
+<li>限制 Redis 重试次数，指数退避与 Jitter，避免所有请求同步重试。</li>
+<li>熔断 Redis 探测，停止持续向故障实例发起大量请求。</li>
+<li>数据库回源增加并发上限和队列限制，防止流量转移引发级联故障。</li>
+<li>监控回源成功率与数据库连接池占用，必要时对非关键功能返回 503 或显示受限状态。</li>
+</ul>
+<h2 id="section-25">8. 缓存穿透、击穿、雪崩</h2>
+<p><strong>穿透（Penetration）</strong>：大量查询不存在的记录，缓存长期 miss，数据库反复处理。可用短期负缓存、入参校验、布隆过滤器（有误判特性）、限流。</p>
+<p><strong>击穿（Stampede / Hot-key expiration）</strong>：一个热门 Key 到期，大批请求同时回源。可用请求合并（Singleflight）、短租约、提前刷新、Stale-While-Revalidate（前提是允许陈旧数据）。</p>
+<p><strong>雪崩（Avalanche）</strong>：大量 Key 同时到期或整个 Redis 不可用，大量请求一起回源。可为非强一致 Key 的 TTL 增加随机扰动，控制并发，预热缓存，并建立降级策略。</p>
+<p><strong>重要：</strong> 使用 Redis 锁减少热门 Key 的重复计算，并不能替代负载保护；锁竞争也可能导致所有请求排队。缓存刷新和业务写入要使用不同风险级别的锁策略。</p>
+<h2 id="section-26">9. Redis 锁的基本语义：竞争协调，不是最终数据证明</h2>
+<p>单实例 Redis 中的经典获取方式：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">SET lock:document:001 &lt;random-token&gt; NX PX 30000</code></pre></div><p><code>NX</code> 要求 Key 不存在，<code>PX</code> 设置租约过期时间，随机 Token 证明本客户端是当前锁的持有者。<strong>这只能在锁有效期间协调访问，不保证相关数据库数据永远不会被其他进程修改。</strong></p>
+<p>错误的释放方式：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">DEL lock:document:001</code></pre></div><p>如果旧客户端暂停到锁过期，新的客户端已经重新取得锁，旧客户端再执行普通 <code>DEL</code> 可能删除新客户端的锁。</p>
+<p>正确的释放方式是<strong>原子比较持有者 Token 并删除</strong>。Redis 8.4 起可使用 <code>DELEX key IFEQ token</code>；需兼容较早版本时可使用如下 Lua 脚本：</p>
+<div class="code-wrap"><div class="code-label"><span>lua</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">if</span> redis.call(<span class="hljs-string">'GET'</span>, KEYS[<span class="hljs-number">1</span>]) == ARGV[<span class="hljs-number">1</span>] <span class="hljs-keyword">then</span>
+    <span class="hljs-keyword">return</span> redis.call(<span class="hljs-string">'DEL'</span>, KEYS[<span class="hljs-number">1</span>])
+<span class="hljs-keyword">else</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>
+<span class="hljs-keyword">end</span></code></pre></div><p>这里的原子性仅限 Redis 单次脚本执行及对应 Redis 数据，不自动扩展到 PostgreSQL 和外部 API。</p>
+<h3 id="section-27">9.1 锁应该加在哪里</h3>
+<p>用于<strong>缓存刷新互斥</strong>时：阻止上百个请求同时重复计算相同缓存，错过锁的请求可以等待短时间或直接采用允许的回退路径。</p>
+<p>用于<strong>业务唯一性</strong>时：即使已经取得 Redis 锁，仍要在数据库中使用 UNIQUE / 事务 / 版本约束来兜底，保证竞争与故障情况下业务正确。</p>
+<h2 id="section-28">10. 锁过期与 Fencing Token</h2>
+<h3 id="section-29">10.1 一个典型的锁失效竞态</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">A 取得锁（TTL 10 秒）
+A 卡顿 / 暂停 20 秒
+Redis 中 A 的锁过期
+B 取得同一资源的新锁
+B 更新数据库为版本 12
+A 恢复并继续执行陈旧任务，尝试写版本 11 的结果</code></pre></div><p>即使 A 发现自己无法再释放锁，A 之前或之后的副作用仍可能损害数据。这意味着“释放时检查 Token”只防止误删新锁，<strong>不等于防止过期持有者继续写入</strong>。</p>
+<h3 id="section-30">10.2 Fencing Token 是什么</h3>
+<p>为每次取得写入资格分配单调递增的序号，例如 41、42、43。受保护的资源（通常是数据库或受控存储服务）必须记录已接受的最高序号，并拒绝低于已接受序号的陈旧写入。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">A: fence=41 ─── 延迟 ────────────────── 写入（拒绝：41 &lt; 42）
+B: fence=42 ─── 写入成功（资源已接受 42）</code></pre></div><p><strong>关键前提：</strong> Token 必须来自能为本资源保证单调性的可信协调源，且<strong>真正执行写操作的资源方必须执行 Token 检查</strong>。仅生成一个递增数但数据库忽略它，没有任何保护作用。以 Redis 单实例 <code>INCR</code> 生成 fencing 序号也必须评估其故障恢复和持久化语义，不能默认重启/切主后仍保持全局单调。</p>
+<p>对数据库行更新，使用 <code>UPDATE ... WHERE version = expected</code> 这样的乐观锁往往比另建复杂分布式锁系统更直接。</p>
+<h2 id="section-31">11. 单实例锁与 Redlock 的限制</h2>
+<p>Redis 官方讨论了单实例锁的限制、主从异步复制导致的锁丢失风险，以及 Redlock 方案。Redlock 试图在多个相对独立节点上取得多数锁，以减少单节点故障的影响，但其正确性假设和极端时钟/故障条件存在争议。对于强一致业务数据，不能因为“使用了 Redlock”就省去数据库约束、事务与 fencing 检查。</p>
+<p>若锁仅用于降低重复缓存刷新开销，允许偶发重复计算，单实例短租约可能已经足够；若用于防止资金重复划扣、订单重复落库等正确性要求极高的操作，应让数据库或具备清晰一致性承诺的协调服务承担最终裁决。</p>
+<h2 id="section-32">12. Redis 锁不能代替 UNIQUE 约束</h2>
+<p>设同一用户同一次确认只能生成一条反馈：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE TABLE</span> feedback (
+    id <span class="hljs-type">BIGINT</span> GENERATED ALWAYS <span class="hljs-keyword">AS</span> <span class="hljs-keyword">IDENTITY</span> <span class="hljs-keyword">PRIMARY KEY</span>,
+    tenant_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    confirmation_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    content TEXT <span class="hljs-keyword">NOT NULL</span>,
+    <span class="hljs-keyword">CONSTRAINT</span> feedback_confirmation_unique
+        <span class="hljs-keyword">UNIQUE</span> (tenant_id, confirmation_id)
+);</code></pre></div><p>即使两个 Worker 同时执行 <code>INSERT</code>，数据库唯一约束仍会阻止出现同一 <code>(tenant_id, confirmation_id)</code> 的重复行。Redis 锁则可能因为 TTL 过期、连接失败、切主或程序没有正确遵守锁协议而失效。</p>
+<p>数据库 <code>UNIQUE</code> 表达的是<strong>持久化不变量（Invariant）</strong>；Redis 锁表达的是<strong>协作式互斥意图（Coordination）</strong>。两者职责不同。</p>
+<p><code>ON CONFLICT</code> 可以处理唯一冲突：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">INSERT INTO</span> feedback (tenant_id, confirmation_id, content)
+<span class="hljs-keyword">VALUES</span> (:tenant_id, :confirmation_id, :content)
+<span class="hljs-keyword">ON</span> CONFLICT (tenant_id, confirmation_id) DO NOTHING;</code></pre></div><p>但“冲突就忽略”还不够：必须核对同一幂等键对应的旧记录是否与此次请求内容一致，否则用户用相同确认 ID 发送不同内容，可能被错误地当作同一操作。</p>
+<h2 id="section-33">13. Redis 锁不能代替数据库事务</h2>
+<p>假设一次确认操作需要：写入反馈、更新草稿状态、生成审计记录。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">BEGIN
+  INSERT INTO feedback ...
+  UPDATE feedback_drafts SET status='CONFIRMED' ...
+  INSERT INTO audit_log ...
+COMMIT</code></pre></div><p>如果第三步失败，而这些修改属于同一个 PostgreSQL 事务，那么整个事务可以 <code>ROLLBACK</code>。只有 Redis 锁不能让已完成的第一、第二次 SQL 自动撤销。</p>
+<h3 id="section-34">13.1 原子性覆盖范围</h3>
+<table>
+<thead>
+<tr>
+<th>机制</th>
+<th>能原子保护什么</th>
+<th>不能保护什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Redis <code>SET NX PX</code></td>
+<td>获取一个键的竞争租约</td>
+<td>PostgreSQL 多表提交</td>
+</tr>
+<tr>
+<td>Redis Lua / 原子命令</td>
+<td>Redis 上该操作的原子执行</td>
+<td>与外部数据库的联合事务</td>
+</tr>
+<tr>
+<td>PostgreSQL UNIQUE</td>
+<td>被约束的唯一性不变量</td>
+<td>未定义在该约束里的业务正确性</td>
+</tr>
+<tr>
+<td>PostgreSQL 事务</td>
+<td>同一事务内的数据库修改</td>
+<td>事务外发送的邮件和 HTTP 调用</td>
+</tr>
+<tr>
+<td>乐观锁 <code>WHERE version = ?</code></td>
+<td>防止同版本的并发覆盖</td>
+<td>未执行检查的其他写入路径</td>
+</tr>
+<tr>
+<td>Transactional Outbox</td>
+<td>业务变更与待发布事件同库原子写入</td>
+<td>下游 exactly-once 执行（需去重）</td>
+</tr>
+</tbody></table>
+<h3 id="section-35">13.2 为什么锁不能保证完整业务结果</h3>
+<p>即使进程完全独占某个 Redis 锁，它也可能在写完一张数据库表后崩溃。Redis 不知道 SQL 事务是否完成，也不能对 PostgreSQL 下达跨库回滚。</p>
+<h2 id="section-36">14. PostgreSQL 并发控制的几种工具</h2>
+<h3 id="section-37">14.1 唯一约束</h3>
+<p>适合“同一用户 + 确认 ID 只能有一条记录”或“业务单号不可重复”的不变量。</p>
+<h3 id="section-38">14.2 事务</h3>
+<p>适合需要全成功或全失败的多次数据库操作。注意避免在事务中等待用户审批或进行长时间网络调用，否则可能长时间占用行锁和连接。</p>
+<h3 id="section-39">14.3 乐观锁</h3>
+<p>对于对象更新时的冲突检测：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">UPDATE</span> documents
+<span class="hljs-keyword">SET</span> body <span class="hljs-operator">=</span> :new_body, version <span class="hljs-operator">=</span> version <span class="hljs-operator">+</span> <span class="hljs-number">1</span>
+<span class="hljs-keyword">WHERE</span> id <span class="hljs-operator">=</span> :id <span class="hljs-keyword">AND</span> version <span class="hljs-operator">=</span> :expected_version;</code></pre></div><p>检查受影响行数：更新到 1 行代表版本仍匹配；0 行代表对象不存在或版本发生变化，需进一步查询并按业务规则处理。</p>
+<h3 id="section-40">14.4 行级锁</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">BEGIN</span>;
+<span class="hljs-keyword">SELECT</span> id, status <span class="hljs-keyword">FROM</span> tasks <span class="hljs-keyword">WHERE</span> id <span class="hljs-operator">=</span> :id <span class="hljs-keyword">FOR</span> <span class="hljs-keyword">UPDATE</span>;
+<span class="hljs-comment">-- 验证业务状态，再进行相关写入</span>
+<span class="hljs-keyword">COMMIT</span>;</code></pre></div><p><code>SELECT ... FOR UPDATE</code> 让其他更新/锁定同一行的事务按数据库规则等待，但应尽量保持事务短小。PostgreSQL 默认隔离级别和较高级别的事务隔离语义不同，出现序列化失败时需要正确重试<strong>整个事务</strong>，而不是只重试最后一条 SQL。</p>
+<h3 id="section-41">14.5 Advisory Lock</h3>
+<p>PostgreSQL 还提供由应用定义含义的 Advisory Lock，可用于某些不方便由行锁表达的协调，但它同样依赖调用方正确使用，不能取代唯一约束和事务。</p>
+<h2 id="section-42">15. 跨系统原子性：不能假设数据库与 Redis 同时成功</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">PostgreSQL COMMIT 完成
+    ↓
+Redis DEL cache:key 失败</code></pre></div><p>这里 DB 已是新值，但缓存可能仍然有旧值。直接回滚 PostgreSQL 已提交事务通常不可能。需要事先选择一致性方案：TTL 容忍、版本化读、可靠事件失效、或强一致时直接查权威数据。</p>
+<p>若业务还要发送 Kafka 事件或调用外部服务，Transactional Outbox 的基本思想是：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">同一个 PostgreSQL 事务：
+  更新业务记录
+  INSERT outbox_event(...)
+COMMIT
+
+独立发布器：读取 outbox → 发布事件 → 标记已发送</code></pre></div><p>这样可以降低“业务提交成功而发布事件永久丢失”的风险；但发布器崩溃后可能重复发布，因此接收方仍要使用幂等键和唯一约束。Outbox 不能直接使 Redis、Kafka 和 PostgreSQL 组成一个原子事务。</p>
+<h2 id="section-43">16. 典型故障场景矩阵</h2>
+<table>
+<thead>
+<tr>
+<th>故障场景</th>
+<th>可观察现象</th>
+<th>业务风险</th>
+<th>主要措施</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Key TTL 到期</td>
+<td>Redis miss</td>
+<td>DB 读量增加</td>
+<td>回源、回填、限流</td>
+</tr>
+<tr>
+<td>大量热点 Key 同时过期</td>
+<td>DB 峰值激增</td>
+<td>超时、雪崩</td>
+<td>TTL 抖动、Singleflight、背压</td>
+</tr>
+<tr>
+<td>Redis 整体不可用</td>
+<td>连接错误/超时</td>
+<td>缓存与锁不可用</td>
+<td>读降级、关键写入 fail closed 或走 DB 正确性路径</td>
+</tr>
+<tr>
+<td>数据库更新成功但 DEL 失败</td>
+<td>旧 Key 未删除</td>
+<td>读到旧值</td>
+<td>版本键、异步补偿、短 TTL</td>
+</tr>
+<tr>
+<td>旧读在 DEL 后回填</td>
+<td>旧值重新出现</td>
+<td>不一致窗口延长</td>
+<td>版本化 Key、版本校验</td>
+</tr>
+<tr>
+<td>A 的 Redis 锁过期、B 获锁</td>
+<td>两个 Worker 可能继续执行</td>
+<td>双写、旧结果覆盖</td>
+<td>业务版本控制、fencing、事务</td>
+</tr>
+<tr>
+<td>Worker 取得锁后进程崩溃</td>
+<td>锁最终过期</td>
+<td>长任务中断</td>
+<td>持久任务状态、租约恢复、幂等</td>
+</tr>
+<tr>
+<td>重复 HTTP 请求</td>
+<td>同一确认重复</td>
+<td>重复业务记录</td>
+<td>幂等键 + UNIQUE + 事务</td>
+</tr>
+<tr>
+<td>Redis 重启失去锁</td>
+<td>两个进程以为独占</td>
+<td>互斥失效</td>
+<td>不以 Redis 锁作为唯一正确性保证</td>
+</tr>
+<tr>
+<td>DB 事务提交后外部事件发送失败</td>
+<td>业务成功，通知缺失</td>
+<td>系统状态不一致</td>
+<td>Outbox + 重试 + 消费幂等</td>
+</tr>
+<tr>
+<td>PostgreSQL 失败</td>
+<td>权威资料不可读</td>
+<td>无法确认正确结果</td>
+<td>失败显式告知，不能用任意旧缓存伪造成功</td>
+</tr>
+</tbody></table>
+<h2 id="section-44">17. FastAPI + Redis 异步读缓存的代码示意</h2>
+<p>下面展示运行时设计，不声称单独粘贴即可形成完整生产服务。示例假设依赖 <code>redis</code>（redis-py）、<code>sqlalchemy</code>、<code>asyncpg</code>、<code>fastapi</code>，并已定义 ORM 模型及认证机制。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> logging
+<span class="hljs-keyword">import</span> redis.asyncio <span class="hljs-keyword">as</span> redis
+<span class="hljs-keyword">from</span> redis.exceptions <span class="hljs-keyword">import</span> RedisError
+<span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> select
+<span class="hljs-keyword">from</span> sqlalchemy.ext.asyncio <span class="hljs-keyword">import</span> AsyncSession
+
+logger = logging.getLogger(__name__)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_public_rule</span>(<span class="hljs-params">
+    rule_id: <span class="hljs-built_in">str</span>,
+    cache: redis.Redis,
+    db: AsyncSession,
+</span>):
+    cache_key = <span class="hljs-string">f"public-rule:<span class="hljs-subst">{rule_id}</span>"</span>
+    <span class="hljs-keyword">try</span>:
+        cached = <span class="hljs-keyword">await</span> cache.get(cache_key)
+        <span class="hljs-keyword">if</span> cached <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">return</span> json.loads(cached)
+    <span class="hljs-keyword">except</span> (RedisError, TimeoutError) <span class="hljs-keyword">as</span> exc:
+        logger.warning(<span class="hljs-string">"redis_cache_read_unavailable: %s"</span>, <span class="hljs-built_in">type</span>(exc).__name__)
+
+    <span class="hljs-comment"># Rule 是示意 ORM 类型，需由实际项目定义。</span>
+    row = (<span class="hljs-keyword">await</span> db.execute(
+        select(Rule).where(Rule.<span class="hljs-built_in">id</span> == rule_id)
+    )).scalar_one_or_none()
+    <span class="hljs-keyword">if</span> row <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span>
+    result = {<span class="hljs-string">"rule_id"</span>: row.<span class="hljs-built_in">id</span>, <span class="hljs-string">"version"</span>: row.version, <span class="hljs-string">"text"</span>: row.text}
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">await</span> cache.<span class="hljs-built_in">set</span>(cache_key, json.dumps(result, ensure_ascii=<span class="hljs-literal">False</span>), ex=<span class="hljs-number">30</span>)
+    <span class="hljs-keyword">except</span> (RedisError, TimeoutError) <span class="hljs-keyword">as</span> exc:
+        logger.warning(<span class="hljs-string">"redis_cache_write_unavailable: %s"</span>, <span class="hljs-built_in">type</span>(exc).__name__)
+    <span class="hljs-keyword">return</span> result</code></pre></div><p><strong>这个 Cache-Aside 示例只能视为基础最终一致方案。</strong> 写入后删除缓存仍有第 4 章所述竞态。如果业务必须看到指定资料版本，应在数据库中查询权威版本，并使用版本化 Key 或其他明确的一致性协议。</p>
+<h3 id="section-45">17.1 正确管理连接池</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> contextlib <span class="hljs-keyword">import</span> asynccontextmanager
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI
+<span class="hljs-keyword">import</span> redis.asyncio <span class="hljs-keyword">as</span> redis
+
+<span class="hljs-meta">@asynccontextmanager</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">lifespan</span>(<span class="hljs-params">app: FastAPI</span>):
+    app.state.redis = redis.Redis.from_url(
+        <span class="hljs-string">"redis://localhost:6379/0"</span>,
+        decode_responses=<span class="hljs-literal">True</span>,
+        socket_connect_timeout=<span class="hljs-number">0.3</span>,
+        socket_timeout=<span class="hljs-number">0.3</span>,
+    )
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">yield</span>
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> app.state.redis.aclose()
+
+app = FastAPI(lifespan=lifespan)</code></pre></div><p>Redis 客户端与连接池可以在应用生命周期内复用；Redis Pipeline / PubSub 等具有独立状态的对象不应无条件跨任务共享。数据库 Engine 可复用，但并发任务应使用独立的 SQLAlchemy Session。</p>
+<h3 id="section-46">17.2 Redis 单实例锁的安全释放</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> secrets
+
+UNLOCK_SCRIPT = <span class="hljs-string">"""
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+    return redis.call('DEL', KEYS[1])
+else
+    return 0
+end
+"""</span>
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">try_acquire</span>(<span class="hljs-params">redis_client, name: <span class="hljs-built_in">str</span>, ttl_ms: <span class="hljs-built_in">int</span> = <span class="hljs-number">15000</span></span>):
+    token = secrets.token_hex(<span class="hljs-number">16</span>)
+    acquired = <span class="hljs-keyword">await</span> redis_client.<span class="hljs-built_in">set</span>(name, token, nx=<span class="hljs-literal">True</span>, px=ttl_ms)
+    <span class="hljs-keyword">return</span> token <span class="hljs-keyword">if</span> acquired <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">release_if_owner</span>(<span class="hljs-params">redis_client, name: <span class="hljs-built_in">str</span>, token: <span class="hljs-built_in">str</span></span>):
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">bool</span>(<span class="hljs-keyword">await</span> redis_client.<span class="hljs-built_in">eval</span>(UNLOCK_SCRIPT, <span class="hljs-number">1</span>, name, token))</code></pre></div><p><strong>限制：</strong> 获取锁后并不是“安全执行任何数据库操作”的证明。应给操作设置独立截止时间，并使用 DB 事务、版本或 fencing 检查作为最终正确性边界。对于 Redis 8.4+ 也可评估 <code>DELEX key IFEQ token</code>。锁释放期间 Redis 失联，租约可能持续到自然到期；不能靠本地 <code>finally</code> 保证 Redis 一定收到释放操作。</p>
+<h2 id="section-47">18. 数据库模型和 SQL 示例</h2>
+<h3 id="section-48">18.1 版本记录和当前指针</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE TABLE</span> document_versions (
+    document_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    version <span class="hljs-type">BIGINT</span> <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">CHECK</span> (version <span class="hljs-operator">&gt;</span> <span class="hljs-number">0</span>),
+    content TEXT <span class="hljs-keyword">NOT NULL</span>,
+    source_hash TEXT <span class="hljs-keyword">NOT NULL</span>,
+    index_status TEXT <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">CHECK</span> (index_status <span class="hljs-keyword">IN</span> (<span class="hljs-string">'DRAFT'</span>,<span class="hljs-string">'BUILDING'</span>,<span class="hljs-string">'READY'</span>,<span class="hljs-string">'FAILED'</span>)),
+    <span class="hljs-keyword">PRIMARY KEY</span> (document_id, version)
+);
+
+<span class="hljs-keyword">CREATE TABLE</span> document_heads (
+    document_id TEXT <span class="hljs-keyword">PRIMARY KEY</span>,
+    published_version <span class="hljs-type">BIGINT</span> <span class="hljs-keyword">NOT NULL</span>,
+    <span class="hljs-keyword">FOREIGN KEY</span> (document_id, published_version)
+        <span class="hljs-keyword">REFERENCES</span> document_versions(document_id, version)
+);</code></pre></div><p>数据库外键能保证 <code>published_version</code> 指向现存版本，但“该版本是否 READY”需要发布事务中的业务校验、状态转换规则或进一步数据库机制约束；不能误以为上述外键自动保证索引就绪。</p>
+<h3 id="section-49">18.2 CAS 更新版本指针</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">UPDATE</span> document_heads
+<span class="hljs-keyword">SET</span> published_version <span class="hljs-operator">=</span> :new_version
+<span class="hljs-keyword">WHERE</span> document_id <span class="hljs-operator">=</span> :doc_id <span class="hljs-keyword">AND</span> published_version <span class="hljs-operator">=</span> :expected_version;</code></pre></div><p>若更新行数为 0，说明版本不匹配或目标不存在，需要重新读取或返回冲突。实际发布事务还要在同一事务中检查新版本的准备状态。</p>
+<h3 id="section-50">18.3 写入与幂等</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE TABLE</span> feedbacks (
+    id <span class="hljs-type">BIGINT</span> GENERATED ALWAYS <span class="hljs-keyword">AS</span> <span class="hljs-keyword">IDENTITY</span> <span class="hljs-keyword">PRIMARY KEY</span>,
+    tenant_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    confirmation_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    body TEXT <span class="hljs-keyword">NOT NULL</span>,
+    <span class="hljs-keyword">CONSTRAINT</span> uq_feedback_confirmation <span class="hljs-keyword">UNIQUE</span>(tenant_id, confirmation_id)
+);</code></pre></div><p>仅有 Redis 锁时无法覆盖“持锁进程崩溃、锁过期、新 Worker 接管、旧请求重试”的全部场景；数据库约束则可以在每一次写入时实际检查唯一性。</p>
+<h2 id="section-51">19. 可观测性和验证方法</h2>
+<p>建议把 Redis、数据库和业务状态分别记录，避免把“性能下降”误判为“业务错误”：</p>
+<table>
+<thead>
+<tr>
+<th>监控指标</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Redis hit / miss</td>
+<td>命中率及其变化</td>
+</tr>
+<tr>
+<td>Redis timeout / connection error</td>
+<td>依赖是否健康</td>
+</tr>
+<tr>
+<td>PostgreSQL QPS / p95 / pool wait</td>
+<td>故障回源是否压垮数据库</td>
+</tr>
+<tr>
+<td>Cache fallback count</td>
+<td>缓存失败时有多少请求回源</td>
+</tr>
+<tr>
+<td>Cache stale-version count</td>
+<td>缓存版本与权威版本不匹配次数</td>
+</tr>
+<tr>
+<td>Lock contention / lease expired</td>
+<td>协调性能及过期风险</td>
+</tr>
+<tr>
+<td>Unique conflict / idempotent replay</td>
+<td>业务重复提交情况</td>
+</tr>
+<tr>
+<td>Retry count / breaker state</td>
+<td>降级是否变成重试风暴</td>
+</tr>
+<tr>
+<td>Document index version mismatch</td>
+<td>RAG 资料与索引是否混用版本</td>
+</tr>
+</tbody></table>
+<h3 id="section-52">19.1 正式环境的测试矩阵</h3>
+<ol>
+<li>Redis 关闭后普通规则查询能否正确从 PostgreSQL 返回。</li>
+<li>Redis 关闭后业务确认是否仍由数据库唯一约束保护。</li>
+<li>资料发布 v13 后，旧 v12 的长尾读取能否覆盖新版本缓存。</li>
+<li>在 DB 提交后、缓存 DEL 前强制进程退出会怎样。</li>
+<li>Redis 锁过期后，旧 Worker 继续执行会不会覆盖新结果。</li>
+<li>人为制造大量热点 Key 失效，数据库负载是否被限流控制。</li>
+<li>Redis 返回超时，但 <code>SET</code> 操作实际可能已执行时，重试是否安全。</li>
+<li>数据库事务第三步失败后，前面两个数据库修改是否全部回滚。</li>
+<li>两个重复反馈请求并发进入，最终是否只有一条业务记录。</li>
+<li>RAG 新版本索引尚未 READY 时，是否仍使用已发布旧版本。</li>
+</ol>
+<p>可以使用 Docker Compose 启动真实 PostgreSQL/Redis，并配合 Toxiproxy、网络限流和进程终止进行故障注入。<strong>离线模拟器的通过结果不能取代真实 Redis 的 TTL、复制、主从切换、多连接并发测试。</strong></p>
+<h2 id="section-53">20. 常见认识错误</h2>
+<ul>
+<li><strong>“设置 TTL 就不会读到旧数据”——错误。</strong> TTL 未到时旧值仍可能被读到，更新失效也有并发窗口。</li>
+<li><strong>“缓存 miss 就是 Redis 故障”——错误。</strong> miss 是正常结果，网络或服务器错误是异常。</li>
+<li><strong>“写数据库后 DEL 缓存就保证强一致”——错误。</strong> 在途旧读取可能晚回填旧值。</li>
+<li><strong>“Redis 原子命令保证整个业务原子性”——错误。</strong> 原子性范围仅是对应 Redis 操作。</li>
+<li><strong>“Redis 锁没有过期就一定只有一个 Worker 写数据库”——不能保证。</strong> 复制、暂停、长请求与故障模型必须纳入分析。</li>
+<li><strong>“使用 Redlock 就不需要唯一约束”——错误。</strong> 锁协调与业务不变量是不同层面的保证。</li>
+<li><strong>“数据库事务能撤销邮件/外部 API”——错误。</strong> 它只能管理相应数据库事务覆盖的修改。</li>
+<li><strong>“Redis 不可用时放开所有限制最能保证可用性”——危险。</strong> 不同业务应采用不同 fail-open/fail-closed 策略。</li>
+<li><strong>“版本化 Key 必然实现最新读”——错误。</strong> 仍要证明当前版本发现过程的可靠性。</li>
+<li><strong>“Redis 故障就可以忽略测试”——错误。</strong> 正常状态与故障状态都应验证。</li>
+</ul>
+<h2 id="section-54">21. 可运行的离线教学实现与验证</h2>
+<p>为了将本节的抽象原理变成可验证的行为，附录中的单文件 Python 示例使用：</p>
+<ul>
+<li><code>FakeRedis</code> 模拟 Key、TTL、<code>SET NX</code>、原子 token 条件释放及 Redis 不可用；</li>
+<li><code>sqlite3</code> 模拟权威数据库、版本号、唯一约束与事务；</li>
+<li><code>read_versioned()</code> 先获取权威资料版本，只缓存对应版本 Key；</li>
+<li><code>unittest</code> 覆盖 TTL 到期、旧版本缓存、Redis 故障回源、CAS 更新、幂等重复请求、锁过期和错误释放。</li>
+</ul>
+<p>**测试性质：**它验证教学代码在单进程、模拟时钟与 SQLite 条件下的预期结果，不宣称已验证真实 Redis 的集群锁、网络分区、主从切换，也不宣称已验证 PostgreSQL 的行锁与隔离等级。特别注意 <code>read_versioned()</code> 每次读取数据库版本与内容，不用于演示缓存加速效果，其设计意图只是展示“旧版本 Key 不会被误认为新版本”的一个较容易推理的边界。</p>
+<p>以下为完整可运行源码；保存为 <code>redis_failure_demo.py</code> 并执行 <code>python redis_failure_demo.py</code> 即可运行离线测试。无需第三方依赖。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""离线教学模拟：TTL、缓存失效、数据库事务与租约 token。
+不连接真正 Redis / PostgreSQL，不是生产级分布式锁。
+"""</span>
+<span class="hljs-keyword">import</span> sqlite3
+<span class="hljs-keyword">import</span> unittest
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">CacheUnavailable</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">VersionConflict</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+<span class="hljs-meta">@dataclass</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">FakeClock</span>:
+    now: <span class="hljs-built_in">float</span> = <span class="hljs-number">100.0</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">advance</span>(<span class="hljs-params">self, seconds: <span class="hljs-built_in">float</span></span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.now += seconds
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">FakeRedis</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, clock: FakeClock</span>):
+        <span class="hljs-variable language_">self</span>.clock, <span class="hljs-variable language_">self</span>.available, <span class="hljs-variable language_">self</span>.data = clock, <span class="hljs-literal">True</span>, {}
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_check</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-variable language_">self</span>.available:
+            <span class="hljs-keyword">raise</span> CacheUnavailable(<span class="hljs-string">'Redis unavailable'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_current</span>(<span class="hljs-params">self, key</span>):
+        row = <span class="hljs-variable language_">self</span>.data.get(key)
+        <span class="hljs-keyword">if</span> row <span class="hljs-keyword">and</span> row[<span class="hljs-number">1</span>] <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">and</span> row[<span class="hljs-number">1</span>] &lt;= <span class="hljs-variable language_">self</span>.clock.now:
+            <span class="hljs-variable language_">self</span>.data.pop(key, <span class="hljs-literal">None</span>)
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.data.get(key)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get</span>(<span class="hljs-params">self, key</span>):
+        <span class="hljs-variable language_">self</span>._check()
+        row = <span class="hljs-variable language_">self</span>._current(key)
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">if</span> row <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> row[<span class="hljs-number">0</span>]
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">set</span>(<span class="hljs-params">self, key, value, ex=<span class="hljs-literal">None</span>, nx=<span class="hljs-literal">False</span></span>):
+        <span class="hljs-variable language_">self</span>._check()
+        <span class="hljs-keyword">if</span> nx <span class="hljs-keyword">and</span> <span class="hljs-variable language_">self</span>._current(key) <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+        <span class="hljs-variable language_">self</span>.data[key] = (value, <span class="hljs-variable language_">self</span>.clock.now + ex <span class="hljs-keyword">if</span> ex <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>)
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">True</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">delete</span>(<span class="hljs-params">self, key</span>):
+        <span class="hljs-variable language_">self</span>._check()
+        <span class="hljs-variable language_">self</span>.data.pop(key, <span class="hljs-literal">None</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">release_if_owner</span>(<span class="hljs-params">self, key, token</span>):
+        <span class="hljs-variable language_">self</span>._check()
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.get(key) == token:
+            <span class="hljs-variable language_">self</span>.delete(key)
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">True</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">DocStore</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.db = sqlite3.connect(<span class="hljs-string">':memory:'</span>, isolation_level=<span class="hljs-string">'DEFERRED'</span>)
+        <span class="hljs-variable language_">self</span>.db.executescript(<span class="hljs-string">'''
+            CREATE TABLE docs (id TEXT PRIMARY KEY, version INTEGER NOT NULL CHECK(version&gt;0), content TEXT NOT NULL);
+            CREATE TABLE feedback (id INTEGER PRIMARY KEY, tenant_id TEXT NOT NULL, confirm_id TEXT NOT NULL, body TEXT NOT NULL, UNIQUE(tenant_id, confirm_id));
+            INSERT INTO docs VALUES ('rule', 1, '生命值为4');
+        '''</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">read</span>(<span class="hljs-params">self, document_id</span>):
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.db.execute(<span class="hljs-string">'SELECT version,content FROM docs WHERE id=?'</span>, (document_id,)).fetchone()
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">update</span>(<span class="hljs-params">self, document_id, expected_version, content</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.db:
+            cur = <span class="hljs-variable language_">self</span>.db.execute(<span class="hljs-string">'UPDATE docs SET version=version+1,content=? WHERE id=? AND version=?'</span>, (content, document_id, expected_version))
+            <span class="hljs-keyword">if</span> cur.rowcount != <span class="hljs-number">1</span>:
+                <span class="hljs-keyword">raise</span> VersionConflict(<span class="hljs-string">'Version changed'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">submit_feedback</span>(<span class="hljs-params">self, tenant_id, confirm_id, body</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.db:
+            <span class="hljs-keyword">try</span>:
+                <span class="hljs-variable language_">self</span>.db.execute(<span class="hljs-string">'INSERT INTO feedback(tenant_id,confirm_id,body) VALUES(?,?,?)'</span>,(tenant_id,confirm_id,body))
+            <span class="hljs-keyword">except</span> sqlite3.IntegrityError:
+                old = <span class="hljs-variable language_">self</span>.db.execute(<span class="hljs-string">'SELECT body FROM feedback WHERE tenant_id=? AND confirm_id=?'</span>,(tenant_id,confirm_id)).fetchone()
+                <span class="hljs-keyword">if</span> old <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">or</span> old[<span class="hljs-number">0</span>] != body:
+                    <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'Same idempotency key with different payload'</span>)
+            <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.db.execute(<span class="hljs-string">'SELECT id FROM feedback WHERE tenant_id=? AND confirm_id=?'</span>,(tenant_id,confirm_id)).fetchone()[<span class="hljs-number">0</span>]
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">count_feedback</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.db.execute(<span class="hljs-string">'SELECT COUNT(*) FROM feedback'</span>).fetchone()[<span class="hljs-number">0</span>]
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">close</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.db.close()
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">read_versioned</span>(<span class="hljs-params">store: DocStore, cache: FakeRedis, doc_id: <span class="hljs-built_in">str</span>, ttl=<span class="hljs-number">60</span></span>):
+    <span class="hljs-string">"""每次先读数据库版本与内容，保证缓存键匹配此版本；不减少 DB 读取。"""</span>
+    row = store.read(doc_id)
+    <span class="hljs-keyword">if</span> row <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span>
+    version, actual_content = row
+    key = <span class="hljs-string">f'doc:<span class="hljs-subst">{doc_id}</span>:v<span class="hljs-subst">{version}</span>'</span>
+    <span class="hljs-keyword">try</span>:
+        cached = cache.get(key)
+        <span class="hljs-keyword">if</span> cached <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">return</span> version, cached
+        cache.<span class="hljs-built_in">set</span>(key, actual_content, ex=ttl)
+    <span class="hljs-keyword">except</span> CacheUnavailable:
+        <span class="hljs-keyword">pass</span>
+    <span class="hljs-keyword">return</span> version, actual_content
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Tests</span>(unittest.TestCase):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">setUp</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.clock = FakeClock()
+        <span class="hljs-variable language_">self</span>.cache = FakeRedis(<span class="hljs-variable language_">self</span>.clock)
+        <span class="hljs-variable language_">self</span>.store = DocStore()
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">tearDown</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.close()
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cache_ttl</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.cache.<span class="hljs-built_in">set</span>(<span class="hljs-string">'a'</span>, <span class="hljs-number">1</span>, ex=<span class="hljs-number">2</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.cache.get(<span class="hljs-string">'a'</span>), <span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.clock.advance(<span class="hljs-number">2</span>)
+        <span class="hljs-variable language_">self</span>.assertIsNone(<span class="hljs-variable language_">self</span>.cache.get(<span class="hljs-string">'a'</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_overwrite_replaces_ttl_in_simulation</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.cache.<span class="hljs-built_in">set</span>(<span class="hljs-string">'a'</span>, <span class="hljs-number">1</span>, ex=<span class="hljs-number">2</span>)
+        <span class="hljs-variable language_">self</span>.cache.<span class="hljs-built_in">set</span>(<span class="hljs-string">'a'</span>, <span class="hljs-number">2</span>)
+        <span class="hljs-variable language_">self</span>.clock.advance(<span class="hljs-number">3</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.cache.get(<span class="hljs-string">'a'</span>),<span class="hljs-number">2</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cache_miss_rehydrates</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(read_versioned(<span class="hljs-variable language_">self</span>.store,<span class="hljs-variable language_">self</span>.cache,<span class="hljs-string">'rule'</span>),(<span class="hljs-number">1</span>,<span class="hljs-string">'生命值为4'</span>))
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.cache.get(<span class="hljs-string">'doc:rule:v1'</span>),<span class="hljs-string">'生命值为4'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_version_update_never_reads_old_key</span>(<span class="hljs-params">self</span>):
+        read_versioned(<span class="hljs-variable language_">self</span>.store,<span class="hljs-variable language_">self</span>.cache,<span class="hljs-string">'rule'</span>)
+        <span class="hljs-variable language_">self</span>.store.update(<span class="hljs-string">'rule'</span>,<span class="hljs-number">1</span>,<span class="hljs-string">'生命值为5'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(read_versioned(<span class="hljs-variable language_">self</span>.store,<span class="hljs-variable language_">self</span>.cache,<span class="hljs-string">'rule'</span>),(<span class="hljs-number">2</span>,<span class="hljs-string">'生命值为5'</span>))
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.cache.get(<span class="hljs-string">'doc:rule:v1'</span>),<span class="hljs-string">'生命值为4'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cache_unavailable_database_fallback</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.cache.available=<span class="hljs-literal">False</span>
+        <span class="hljs-variable language_">self</span>.assertEqual(read_versioned(<span class="hljs-variable language_">self</span>.store,<span class="hljs-variable language_">self</span>.cache,<span class="hljs-string">'rule'</span>),(<span class="hljs-number">1</span>,<span class="hljs-string">'生命值为4'</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_document</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertIsNone(read_versioned(<span class="hljs-variable language_">self</span>.store,<span class="hljs-variable language_">self</span>.cache,<span class="hljs-string">'missing'</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_version_conflict</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.update(<span class="hljs-string">'rule'</span>,<span class="hljs-number">1</span>,<span class="hljs-string">'新内容'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(VersionConflict):
+            <span class="hljs-variable language_">self</span>.store.update(<span class="hljs-string">'rule'</span>,<span class="hljs-number">1</span>,<span class="hljs-string">'覆写'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_idempotent_same_key</span>(<span class="hljs-params">self</span>):
+        a=<span class="hljs-variable language_">self</span>.store.submit_feedback(<span class="hljs-string">'u1'</span>,<span class="hljs-string">'k1'</span>,<span class="hljs-string">'正文'</span>)
+        b=<span class="hljs-variable language_">self</span>.store.submit_feedback(<span class="hljs-string">'u1'</span>,<span class="hljs-string">'k1'</span>,<span class="hljs-string">'正文'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(a,b)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_feedback(),<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_idempotency_key_payload_conflict</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.submit_feedback(<span class="hljs-string">'u1'</span>,<span class="hljs-string">'k1'</span>,<span class="hljs-string">'正文'</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            <span class="hljs-variable language_">self</span>.store.submit_feedback(<span class="hljs-string">'u1'</span>,<span class="hljs-string">'k1'</span>,<span class="hljs-string">'改写'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_feedback(),<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_tenant_scoped_unique</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.submit_feedback(<span class="hljs-string">'u1'</span>,<span class="hljs-string">'k1'</span>,<span class="hljs-string">'正文'</span>)
+        <span class="hljs-variable language_">self</span>.store.submit_feedback(<span class="hljs-string">'u2'</span>,<span class="hljs-string">'k1'</span>,<span class="hljs-string">'正文'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_feedback(),<span class="hljs-number">2</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_lock_mutual_exclusion_during_lease</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertTrue(<span class="hljs-variable language_">self</span>.cache.<span class="hljs-built_in">set</span>(<span class="hljs-string">'lock:rule'</span>,<span class="hljs-string">'A'</span>,nx=<span class="hljs-literal">True</span>,ex=<span class="hljs-number">3</span>))
+        <span class="hljs-variable language_">self</span>.assertFalse(<span class="hljs-variable language_">self</span>.cache.<span class="hljs-built_in">set</span>(<span class="hljs-string">'lock:rule'</span>,<span class="hljs-string">'B'</span>,nx=<span class="hljs-literal">True</span>,ex=<span class="hljs-number">3</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_expired_owner_cannot_unlock_new_owner</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.cache.<span class="hljs-built_in">set</span>(<span class="hljs-string">'lock:rule'</span>,<span class="hljs-string">'A'</span>,nx=<span class="hljs-literal">True</span>,ex=<span class="hljs-number">3</span>)
+        <span class="hljs-variable language_">self</span>.clock.advance(<span class="hljs-number">4</span>)
+        <span class="hljs-variable language_">self</span>.assertTrue(<span class="hljs-variable language_">self</span>.cache.<span class="hljs-built_in">set</span>(<span class="hljs-string">'lock:rule'</span>,<span class="hljs-string">'B'</span>,nx=<span class="hljs-literal">True</span>,ex=<span class="hljs-number">3</span>))
+        <span class="hljs-variable language_">self</span>.assertFalse(<span class="hljs-variable language_">self</span>.cache.release_if_owner(<span class="hljs-string">'lock:rule'</span>,<span class="hljs-string">'A'</span>))
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.cache.get(<span class="hljs-string">'lock:rule'</span>),<span class="hljs-string">'B'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_lock_is_not_database_uniqueness</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.cache.available=<span class="hljs-literal">False</span>
+        <span class="hljs-variable language_">self</span>.store.submit_feedback(<span class="hljs-string">'u1'</span>,<span class="hljs-string">'k1'</span>,<span class="hljs-string">'正文'</span>)
+        <span class="hljs-variable language_">self</span>.store.submit_feedback(<span class="hljs-string">'u1'</span>,<span class="hljs-string">'k1'</span>,<span class="hljs-string">'正文'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.store.count_feedback(),<span class="hljs-number">1</span>)
+
+<span class="hljs-keyword">if</span> __name__==<span class="hljs-string">'__main__'</span>:
+    unittest.main(verbosity=<span class="hljs-number">2</span>)
+</code></pre></div><h2 id="section-55">22. 参考资料（官方文档）</h2>
+<ol>
+<li>Redis — <a href="https://redis.io/docs/latest/commands/expire/">EXPIRE：过期时间、行为与精度</a></li>
+<li>Redis — <a href="https://redis.io/docs/latest/commands/ttl/">TTL 返回值</a></li>
+<li>Redis — <a href="https://redis.io/docs/latest/develop/pubsub/keyspace-notifications/">Keyspace notifications：过期事件时机</a></li>
+<li>Redis — <a href="https://redis.io/docs/latest/reference/eviction/">Key eviction：内存淘汰策略</a></li>
+<li>Redis — <a href="https://redis.io/docs/latest/commands/set/">SET：NX、PX 与相关条件参数</a></li>
+<li>Redis — <a href="https://redis.io/docs/latest/develop/use/patterns/distributed-locks/">Distributed Locks with Redis：租约、Redlock 与 fencing 的限制</a></li>
+<li>Redis — <a href="https://redis.io/docs/latest/commands/delex/">DELEX：Redis 8.4+ 条件删除</a></li>
+<li>Redis — <a href="https://redis.io/docs/latest/develop/interact/programmability/eval-intro/">Lua scripting 的原子执行</a></li>
+<li>Redis — <a href="https://redis.io/docs/latest/develop/clients/redis-py/async/">redis-py asyncio：客户端复用、关闭和超时</a></li>
+<li>Redis — <a href="https://redis.io/docs/latest/develop/clients/redis-py/error-handling/">redis-py error handling：故障降级</a></li>
+<li>PostgreSQL — <a href="https://www.postgresql.org/docs/current/ddl-constraints.html">Constraints：UNIQUE 与其他约束</a></li>
+<li>PostgreSQL — <a href="https://www.postgresql.org/docs/current/sql-insert.html">INSERT ... ON CONFLICT</a></li>
+<li>PostgreSQL — <a href="https://www.postgresql.org/docs/current/explicit-locking.html">Explicit Locking：行锁与 Advisory Locks</a></li>
+<li>PostgreSQL — <a href="https://www.postgresql.org/docs/current/transaction-iso.html">Transaction Isolation：事务隔离与重试</a></li>
+</ol>
+<hr />
+<p><strong>全文结论</strong>：Redis 缓存主要提升性能，TTL 与主动失效控制副本新鲜度，Redis 锁主要协调竞争；PostgreSQL 的约束、事务和版本检查承担持久业务正确性。Redis 失联后，允许降级的读请求可以数据库回源；关键写入必须通过数据库正确性机制或显式停止。真实一致性由系统完整协议提供，而不是某一个 Redis 命令单独保证。</p>

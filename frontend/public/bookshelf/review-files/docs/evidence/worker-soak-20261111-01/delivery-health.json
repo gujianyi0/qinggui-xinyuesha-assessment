@@ -1,0 +1,65 @@
+{
+  "at": "2026-11-11T04:38:11.816470+00:00",
+  "web_status": 200,
+  "health": {
+    "status": "ok",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 5.624106,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "native_status": {
+    "owner": "qinggui-assessment-native-demo",
+    "project": "F:\\Work\\Biteagle\\入职考核",
+    "supervisor_pid": 3376,
+    "started_at": "2026-11-11T03:37:27.952528+00:00",
+    "ports": {
+      "web": 15174,
+      "api": 18081,
+      "postgres": 15433,
+      "kafka": 19094,
+      "controller": 19095
+    },
+    "url": "http://127.0.0.1:15174",
+    "stage": "running",
+    "model_mode": "live",
+    "embedding_mode": "local",
+    "database": "postgresql",
+    "redis": "unavailable_fallback",
+    "evaluation_faults": false,
+    "updated_at": "2026-11-11T04:38:10.396767+00:00",
+    "temporary_dos_drive": "R:",
+    "postgres_pid": 10920,
+    "kafka_pid": 33516,
+    "api_pid": 38212,
+    "worker_pid": 35392,
+    "web_pid": 38216,
+    "worker": {
+      "state": "running",
+      "pid": 35392,
+      "restart_count": 2,
+      "last_exit": {
+        "pid": 34268,
+        "code": 1
+      }
+    },
+    "kafka": {
+      "state": "running",
+      "pid": 33516,
+      "restart_count": 1,
+      "last_exit": {
+        "pid": 43984,
+        "code": 1
+      }
+    }
+  }
+}

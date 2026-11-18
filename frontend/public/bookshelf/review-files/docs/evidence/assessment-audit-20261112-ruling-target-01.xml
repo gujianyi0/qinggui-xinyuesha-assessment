@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="4.372" timestamp="2026-11-12T15:41:02.876553+08:00" hostname="gujianyi"><testcase classname="tests.test_agno_protocol" name="test_unverified_ruling_cannot_stream_or_store_model_speculation" time="3.747" /></testsuite></testsuites>

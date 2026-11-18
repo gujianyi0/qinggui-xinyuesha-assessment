@@ -1,0 +1,27 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>P01-使用者与具体场景.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>P01 使用者与具体场景</h1>
+<p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
+<p>状态：<strong>场景链路已有验证，使用效果待验收</strong>。</p>
+<h2>对应要求（原段要点，转述）</h2>
+<p>明确服务对象、实际困难，并选一个具体情境验证助手是否有帮助。</p>
+<p>来源：<a href="https://biteagle.yuque.com/mw0520/rzyee0/ay7550zlq5vyq27t#u000032ff">故剑遗学习目标 · 功能要求 · 本段</a>。
+对应编号：P01。原段SHA256：<code>efc8c70dbb3b255333a55422bfa4bd873113b806f439a1106884305982d67ae4</code>。</p>
+<p>这是原文一个段落的对应回答。要点使用转述；原段定位和哈希用于复核边界，不把此处概括当作公司新要求。</p>
+<h2>回答</h2>
+<p>服务对象是普通新月杀玩家。项目集中解决三件事：规则散在说明和Lua源码中不好找；复杂结算缺少可核对的前提与依据；玩家报告“技能没生效”却没有武将、时机和复现步骤。选择这一范围，能让资料查询、裁定和反馈形成同一个使用流程。</p>
+<h2>本项目如何实现</h2>
+<p>规则查询例子是“标准诸葛亮有哪些技能”，再追问“没有手牌时限制哪些牌”。裁定例子是SC03酒火杀、连环和防具：显示固定记录的前提与轨迹，不直接保证玩家当前局面已匹配。反馈例子是I01“技能没生效，帮我反馈”：先列缺项，再由玩家在网页核对并保存。</p>
+<p>这些页面和业务流程由本考核项目编写；游戏资料、规则引擎、框架及模型服务分别属于复用基础或第三方组件，归属在<a href="/?page=bookshelf&amp;shelf=review&amp;document=8-12">README</a>中列明。</p>
+<h2>已有验证与证据</h2>
+<ul>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fcases.json">固定样例</a>：M01、J03、I01分别覆盖上述情境。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md">1.9逐条核对</a>：有实际回答、工具和来源核对结论。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=frontend%2Fsrc%2Ffeatures%2Fchat%2Fcomponents%2Fchat-screen.tsx">React页面</a>：问答、引用和反馈入口。</li>
+</ul>
+<p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
+<h2>怎样核对或演示</h2>
+<p>从已保存的M01两回合看主体是否仍为诸葛亮，再核对空城仅禁止杀/决斗；查看I01是否明确询问武将、技能、时机和局面。需要现场演示时使用本项目网页，不将演示操作者当成独立试用者。</p>
+<h2>结论与边界</h2>
+<p>现有证据说明选定场景的功能链路能工作，不足以证明所有玩家都觉得有帮助。真人试用已按用户决定移出；独立使用效果与公司正式验收未完成，不能用自动化截图代替。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%9E%E6%88%98QA%2F00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md">返回目录与维护说明</a></p>
+<p>v2本地重构说明：源码链接已迁至新功能目录；此处原有真实模型/公网证据仍按原版本及日期解读，不视作v2新增付费评测。参见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F2.0-%E6%9C%AC%E5%9C%B0%E5%86%85%E6%B5%8B%E4%B8%8E%E5%89%8D%E7%AB%AF%E8%A7%84%E8%8C%83%E5%AF%B9%E7%85%A7-20261114.md">2.0本地内测报告</a>。</p>
+</article></body></html>

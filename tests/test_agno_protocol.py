@@ -170,6 +170,9 @@ async def test_unverified_ruling_cannot_stream_or_store_model_speculation(client
         nonlocal calls
         calls += 1
         if calls == 1:
+            body = json.loads(request.content)
+            tool = next(t for t in body["tools"] if t["function"]["name"] == "get_verified_ruling")
+            assert tool["function"]["parameters"]["properties"]["scene_id"]["enum"] == [f"SC{i:02}" for i in range(1, 9)]
             return sse_response(tool="get_verified_ruling", arguments={"scene_id":"SC01", "conditions":{}})
         return sse_response(answer="未经验证也可以确定造成999点伤害。")
 
@@ -314,8 +317,9 @@ async def test_invalid_ruling_id_cannot_override_grounded_basic_rule(client, pro
         assert "暂不能判断" not in stream
         assert run["citations"]
         assert all(call["name"] != "get_verified_ruling" for call in run["tool_calls"])
-        tool = next(t for t in requests[0]["tools"] if t["function"]["name"] == "get_verified_ruling")
-        assert tool["function"]["parameters"]["properties"]["scene_id"]["enum"] == [f"SC{i:02}" for i in range(1, 9)]
+        # Basic rule questions do not expose a scene tool, even when the model
+        # hallucinates its old name. The valid search must still produce sources.
+        assert all(t["function"]["name"] != "get_verified_ruling" for t in requests[0]["tools"])
     finally:
         await sdk.close()
 

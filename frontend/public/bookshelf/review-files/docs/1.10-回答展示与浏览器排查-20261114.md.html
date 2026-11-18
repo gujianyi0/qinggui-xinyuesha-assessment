@@ -1,0 +1,63 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1.10-回答展示与浏览器排查-20261114.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>1.10 回答展示与浏览器排查</h1>
+<p>日期：2026-11-14。本轮由用户要求更新回答呈现：正文不显示源码路径和字面<code>**</code>，详细引用通过回答末尾的按钮查看。没有提供额外DeepSeek示例图，按这项明确要求实施，不假称逐像素复刻其界面。</p>
+<h2>具体改动</h2>
+<ul>
+<li>普通问答及反馈提示词使用自然、清晰分段的中文，不主动抄写源码路径/行号或工具调用过程；Agno不再追加Markdown格式要求。必要条件、版本冲突、待核验信息仍须说明。</li>
+<li>前端对助手正文做显示转换：旧回答中的加粗/标题/反引号标记不再裸露；已知资料路径显示为资料标题，尚无来源标题时显示“来源资料”。用户消息不做此转换。</li>
+<li>引用在每条回答末尾以紧凑来源按钮排列，点击展开路径、行号、资料快照和原始片段，支持关闭与键盘访问。侧栏保留查看指引，不重复铺开同一批来源卡片。</li>
+<li>原始消息、Run、ToolCall及引用记录不改写，显示转换不删除数据库中的来源；复制回答使用当前可读正文。没有新增Markdown/HTML执行器或远程渲染依赖。</li>
+<li>版本号更新为1.10／包版本1.10.0；未新增数据迁移、模型单价或限额规则。</li>
+</ul>
+<h2>测试记录</h2>
+<table>
+<thead>
+<tr>
+<th>检查</th>
+<th>本轮实际结果</th>
+<th>范围</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>前端行为</td>
+<td>7文件、22项通过，24.41秒</td>
+<td>包含新旧助手正文、保留用户原话、源按钮展开/关闭、原焦点/IME/断线提交恢复</td>
+</tr>
+<tr>
+<td>TypeScript及Vite</td>
+<td>生产构建通过</td>
+<td>不是浏览器运行结果或真实模型正确率</td>
+</tr>
+<tr>
+<td>后端相关回归</td>
+<td>最终49项通过，106.47秒（初轮47项也保留）</td>
+<td>Agno协议、裁定守卫、版本/手牌来源、反馈与多轮；使用受控供应商HTTP夹具，不付费</td>
+</tr>
+<tr>
+<td>Ruff</td>
+<td>修改的runtime.py通过</td>
+<td>静态检查</td>
+</tr>
+<tr>
+<td>全32条真实回归</td>
+<td>本轮未重跑</td>
+<td>1.9记录保留；不能改日期冒充新提示词全组通过</td>
+</tr>
+</tbody></table>
+<p>证据：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv110-frontend-summary.json">前端汇总</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv110-answer-style-backend-final.xml">后端47项XML</a>。</p>
+<h2>浏览器挂起排查</h2>
+<p>用户明确为整个浏览器无响应。截图所示请求已完成，当前服务正常；Windows存在虚拟内存不足事件和早先Edge崩溃记录，主机物理内存及提交额度明显紧张。Worker当前约62MiB，未观察到本次Worker失控。</p>
+<p>见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E6%B5%8F%E8%A7%88%E5%99%A8%E6%97%A0%E5%93%8D%E5%BA%94%E6%8E%92%E6%9F%A5-20261114.md">专项排查</a>。排查时实际网页滚轮和输入可响应，但未捕获用户当时的挂起转储。因此保留结论边界：内存压力有证据，确切瞬时根因尚未完全证明；回答呈现改版不等于解决整机内存耗尽。</p>
+<h2>部署与现场核对</h2>
+<p>部署结果和现场验证以本节后续记录及对应原始证据为准。既有主库与费用账本保持使用，不向旧原生副本切换，不重置会话。</p>
+<p>首次构建API镜像超过240秒而退出，未影响仍运行的旧服务；顺序重试后API、Worker、网页镜像构建成功。实际部署前确认没有运行中的付费请求。初次重建前后358个会话、800条消息、404个Run、5份草稿、5份正式反馈、21个任务、401条用量记录及账本15.234288元完全一致。后续新评测会按实际新增会话和费用，不要求它们与部署前数量相同。</p>
+<p>实际网页的旧回答与新模型曹操回答均已核对：正文不含源码路径或字面加粗符号，来源按钮展开完整路径、行号、快照与摘录，输入可编辑。证据：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv110-browser-answer-display.json">旧回答现场</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv110-browser-answer-display-final.json">新回答现场</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv110-deployment.json">部署前后</a>。截图抓取曾超时，随后同页DOM读取和输入状态正常；未将截图超时说成已生成截图或页面已崩溃，未提供该PNG。</p>
+<p>最终后端修正已部署：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv110-deployment-final.json">最终部署前后核对</a>。API和Worker的runtime、裁定策略、pyproject及锁文件与工作区逐字节匹配，安装版本均1.10.0；15174/18081健康检查200，真实模型与已发布索引可用。证据：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv110-final-runtime.json">最终运行字节与健康</a>。</p>
+<p>本轮更新的是本机完整部署及本地仓库版本。公网Worker静态页面和独立下载客户端没有在本轮重新发布，不能把本机前端验证说成所有入口都已经更新。</p>
+<h2>真实问答核对与修正</h2>
+<p>本轮另跑三条新真实问答，不与固定32条混合计数：STYLE01曹操定义及技能、STYLE02当前3/上限4/手牌5的弃牌数、STYLE03固定SC03记录。前两条符合预期，正文简洁且有实际引用；STYLE03虽completed但误触实际局面守卫，没有满足查看固定记录的请求，语义不通过。原始结果：<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-v110-style%2Fresults.jsonl">三条初测</a>，6处引用的文件/哈希/工具绑定审计无问题；引用完整性不能抵消语义失败。</p>
+<p>定位为“实际局面”关键字没有区分句末“不代表我的实际局面”的否定适用说明。仅排除这一窄范围免责声明，其余当前局面/禁止固定记录/变更条件限制保留；补两项守卫测试，最终相关49项通过。追问列表同时改为可读条目。修正与同题复测分别留档，不删除原失败。</p>
+<p>同题复测STYLE03-R1通过：9.544秒完成，get_verified_ruling返回reference，明确固定记录边界；首目标3点火焰伤害、白银狮子目标1点，解除连环时序与记录一致，保留1条执行证据。复测：<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-v110-style-sc03-retry%2Fresults.jsonl">原始结果</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-v110-style-sc03-retry%2Fcitation-audit.json">引用完整性审计</a>。最终针对性核对为3个题目通过，其中1题经历失败后修正，不说成首次3/3通过。</p>
+<p>共4次真实请求，初测费用0.028500元、同题复测0.003610元，合计0.032110元；不重发已完成的原用户问题。账本按实际结算，不将这些请求混入1.9固定32条。证据：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv110-live-style-summary.json">初测费用</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv110-live-style-sc03-retry-summary.json">复测费用</a>。</p>
+<h2>验收边界</h2>
+<p>没有将资料路径隐藏解释为可以不留来源。卡牌定义、牌堆属性与中文说明仍须从各自真实字段引用；复杂裁定应用层硬约束保持。QQ和真人试用继续按原决定移出。公司正式验收由验收人确认。</p>
+</article></body></html>

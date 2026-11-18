@@ -1,0 +1,11 @@
+{
+  "date": "2026-11-14",
+  "scope": "Final frontend tests after shared-file title disambiguation",
+  "command": "npm test -- --maxWorkers=1",
+  "passed": true,
+  "files": 7,
+  "tests": 22,
+  "duration_seconds": 24.41,
+  "model_calls": 0,
+  "source": "Observed Vitest terminal output"
+}

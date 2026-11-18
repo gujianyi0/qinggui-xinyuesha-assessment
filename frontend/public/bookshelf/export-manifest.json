@@ -1,0 +1,2920 @@
+{
+  "updated": "2026-11-18",
+  "sourceShelf": "tools/bookshelf/base",
+  "sourceOrigin": "工作区知识浏览网页，2026-11-17本地快照",
+  "learningGoals": 49,
+  "learningDocuments": 49,
+  "reviewDocuments": 12,
+  "cloudModified": false,
+  "files": [
+    {
+      "path": "docs/2.0.5-README导航与公开历史反馈-20261118.md",
+      "url": "/bookshelf/review-files/docs/2.0.5-README%E5%AF%BC%E8%88%AA%E4%B8%8E%E5%85%AC%E5%BC%80%E5%8E%86%E5%8F%B2%E5%8F%8D%E9%A6%88-20261118.md",
+      "sha256": "77b8208c5bc7a4f4b6ddeb76d86642512ea0325193d31423c7c4d6e50de9d74e",
+      "bytes": 4442
+    },
+    {
+      "path": "docs/evidence/v205-public-records-tests-20261118.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v205-public-records-tests-20261118.xml",
+      "sha256": "24a5c8be2ea3ca537b2224300c848396b8acccf11b7870bd651201817eb86471",
+      "bytes": 2532
+    },
+    {
+      "path": "docs/evidence/v205-pytest-20261118.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v205-pytest-20261118.xml",
+      "sha256": "df65b0014e1f90125c506136cbde6ea3a693ff8c4b323cb33257e346e2edcdd2",
+      "bytes": 33722
+    },
+    {
+      "path": "docs/evidence/v205-frontend-check-20261118.log",
+      "url": "/bookshelf/review-files/docs/evidence/v205-frontend-check-20261118.log.txt",
+      "sha256": "409c63cfab221ce5f941083be6d33fdf07e5b55fabf1f186f58b047391d4f15c",
+      "bytes": 2501
+    },
+    {
+      "path": "docs/evidence/v205-public-live-20261118.json",
+      "url": "/bookshelf/review-files/docs/evidence/v205-public-live-20261118.json",
+      "sha256": "e4af359ef5d981bd9b85b433dbd1c1205005ab77413eeaa45b97cdf5076611af",
+      "bytes": 608
+    },
+    {
+      "path": "docs/evidence/v205-public-browser-20261118.json",
+      "url": "/bookshelf/review-files/docs/evidence/v205-public-browser-20261118.json",
+      "sha256": "c94260083dea9c46420f0d4d7e876c4ee56c8cd120dbfb45960cbc885ec4b9ef",
+      "bytes": 965
+    },
+    {
+      "path": "docs/2.0.4-公网发布与GitHub同步-20261117.md",
+      "url": "/bookshelf/review-files/docs/2.0.4-%E5%85%AC%E7%BD%91%E5%8F%91%E5%B8%83%E4%B8%8EGitHub%E5%90%8C%E6%AD%A5-20261117.md",
+      "sha256": "00194c679feb6c01e9120d1c1c337f26c6e1e1b8ab98a2cc74a63a2209f74c15",
+      "bytes": 5395
+    },
+    {
+      "path": "docs/evidence/v204-public-gateway-20261117.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v204-public-gateway-20261117.xml",
+      "sha256": "4647c1b9c0f3925c9061cf65ceff537867c9dcc1cb216f1dd455537fdcb84aed",
+      "bytes": 2279
+    },
+    {
+      "path": "docs/evidence/v204-public-live-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v204-public-live-20261117.json",
+      "sha256": "5cc6260085373beb5d5b2b10c16a3d56d850dfc11f58735123e84c3879c80eff",
+      "bytes": 30914
+    },
+    {
+      "path": "docs/evidence/v204-public-browser-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v204-public-browser-20261117.json",
+      "sha256": "1c80124d1e83cede0053c53c9294d64b47d0d97285aec92ec1d8da3f812dc5e7",
+      "bytes": 1806
+    },
+    {
+      "path": "docs/evidence/v204-public-frontend-final-check-20261117.log",
+      "url": "/bookshelf/review-files/docs/evidence/v204-public-frontend-final-check-20261117.log.txt",
+      "sha256": "d46ad93c984f9ccf250087ee24f05630eaf2a2e29fe392298c33c1ae3711272f",
+      "bytes": 2355
+    },
+    {
+      "path": "docs/evidence/v204-public-frontend-check-20261117.log",
+      "url": "/bookshelf/review-files/docs/evidence/v204-public-frontend-check-20261117.log.txt",
+      "sha256": "14e7e16115fc07217786e5f2553d67f7bd9dc64bc850345693d6ea0ea9da2300",
+      "bytes": 3744
+    },
+    {
+      "path": "docs/evidence/v204-bookshelf-verification-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v204-bookshelf-verification-20261117.json",
+      "sha256": "18396a0c99d4535b9b0220a4f9c09beb117133b94aabb32b96d1ddeb6b942d70",
+      "bytes": 349
+    },
+    {
+      "path": "docs/进度同步-20261117-v204.md",
+      "url": "/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261117-v204.md",
+      "sha256": "73458a2697e855f669ebd2503898e3928fc30bf388ea207fd3f2038fe6585c2e",
+      "bytes": 1395
+    },
+    {
+      "path": "docs/2.0.4-位置预览与共享进度恢复-20261117.md",
+      "url": "/bookshelf/review-files/docs/2.0.4-%E4%BD%8D%E7%BD%AE%E9%A2%84%E8%A7%88%E4%B8%8E%E5%85%B1%E4%BA%AB%E8%BF%9B%E5%BA%A6%E6%81%A2%E5%A4%8D-20261117.md",
+      "sha256": "cfbcdfbbe713ec02966631c9f241ab7fd7fe39a57ba6f9e071f820d25842192e",
+      "bytes": 5030
+    },
+    {
+      "path": "docs/evidence/v204-original-shelf-sync-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v204-original-shelf-sync-20261117.json",
+      "sha256": "b62ef6a3006d292901e5f4c656124273deb937e98b7c473003e6fec9c0e9ff18",
+      "bytes": 318
+    },
+    {
+      "path": "docs/evidence/v204-live-shared-progress-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v204-live-shared-progress-20261117.json",
+      "sha256": "9022e3e258a869cd445c6f5418b927f09feba597581a8b591b80d4149ca93f18",
+      "bytes": 2312
+    },
+    {
+      "path": "docs/evidence/v204-pytest-20261117.log",
+      "url": "/bookshelf/review-files/docs/evidence/v204-pytest-20261117.log.txt",
+      "sha256": "2dcc6a24d4f2df61fb59fc72b16c2d51f6b5a8a55bcd01879e1d927896d29677",
+      "bytes": 357
+    },
+    {
+      "path": "docs/evidence/v204-pytest-20261117.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v204-pytest-20261117.xml",
+      "sha256": "bbe0dd605ecd97f3fd2030562ac3d921a4d847cd8713f884284b206063936dcf",
+      "bytes": 33361
+    },
+    {
+      "path": "docs/evidence/v204-frontend-check-20261117.log",
+      "url": "/bookshelf/review-files/docs/evidence/v204-frontend-check-20261117.log.txt",
+      "sha256": "8a5877fb1a76fbb4ddac4a83c717f77a5a7ccbd4c4de01827c0262ecfc18e0cd",
+      "bytes": 2836
+    },
+    {
+      "path": "docs/evidence/v204-api-deployment-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v204-api-deployment-20261117.json",
+      "sha256": "baf799979acd54eb673fee86ae7b4e9ee674cda8a53aaeaadec06d2ea22c8f67",
+      "bytes": 2153
+    },
+    {
+      "path": "docs/evidence/v204-read-retry-deployment-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v204-read-retry-deployment-20261117.json",
+      "sha256": "bb71e10c6b1ca45cd9804746cab6ba5c6afa702919144b50412c69824ca43ab1",
+      "bytes": 1826
+    },
+    {
+      "path": "docs/evidence/v204-browser-links-progress-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v204-browser-links-progress-20261117.json",
+      "sha256": "edcbfd9e66a9fdd56bff3a069504293bd617387a8f4419fd19418cffb89dfdca",
+      "bytes": 2483
+    },
+    {
+      "path": "backend/app/bookshelf_progress.py",
+      "url": "/bookshelf/review-files/backend/app/bookshelf_progress.py",
+      "sha256": "623471ba3cebaffc20847c043f8d456c6a350eb480715652eae759050736e53b",
+      "bytes": 3762
+    },
+    {
+      "path": "frontend/src/features/bookshelf/components/evidence-preview.tsx",
+      "url": "/bookshelf/review-files/frontend/src/features/bookshelf/components/evidence-preview.tsx.txt",
+      "sha256": "b291c4ef3929b199ef28690039bdc451ad4bfebaf1c83c359a97dd995c3774ca",
+      "bytes": 9378
+    },
+    {
+      "path": "frontend/src/features/bookshelf/utils/shelf-href.ts",
+      "url": "/bookshelf/review-files/frontend/src/features/bookshelf/utils/shelf-href.ts.txt",
+      "sha256": "c207cc030262b7e0e1fca16841bd332f7900aebacee3817c56fc6c59dcde6aa0",
+      "bytes": 1667
+    },
+    {
+      "path": "frontend/src/features/bookshelf/components/bookshelf-screen.tsx",
+      "url": "/bookshelf/review-files/frontend/src/features/bookshelf/components/bookshelf-screen.tsx.txt",
+      "sha256": "19bb025fa1437e381be1d00c578e2c44241d106c0e9a7e86b0500b1f1d0a8cf8",
+      "bytes": 10897
+    },
+    {
+      "path": "docs/进度同步-20261117-v203.md",
+      "url": "/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261117-v203.md",
+      "sha256": "88bd4e0c29a912063892d38671badbbc28743950652f6337e5b505ed7d6a0717",
+      "bytes": 753
+    },
+    {
+      "path": "docs/2.0.3-书架原生整合与文档分类-20261117.md",
+      "url": "/bookshelf/review-files/docs/2.0.3-%E4%B9%A6%E6%9E%B6%E5%8E%9F%E7%94%9F%E6%95%B4%E5%90%88%E4%B8%8E%E6%96%87%E6%A1%A3%E5%88%86%E7%B1%BB-20261117.md",
+      "sha256": "d6495e3f1c6a34dcc3abc7c93823cbb7e5b66347fba02048758cda4f53882036",
+      "bytes": 3495
+    },
+    {
+      "path": "docs/evidence/v203-frontend-check-20261117.log",
+      "url": "/bookshelf/review-files/docs/evidence/v203-frontend-check-20261117.log.txt",
+      "sha256": "9dbeeee0b47c0c7d416c400a26873e0fb63b1a50cb87393cd65e0bfe2172bb34",
+      "bytes": 2354
+    },
+    {
+      "path": "docs/evidence/v203-native-bookshelf-browser-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v203-native-bookshelf-browser-20261117.json",
+      "sha256": "a625197ef2dbb6de5312a8fb95765e7916022bc1415ecd1ad13588c2469c7299",
+      "bytes": 1232
+    },
+    {
+      "path": "docs/evidence/v203-bookshelf-verification-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v203-bookshelf-verification-20261117.json",
+      "sha256": "97c484c4aab93f8b1f3c8df45e2786aba4e27334bc586f5df2df19f7b1d3aef9",
+      "bytes": 339
+    },
+    {
+      "path": "docs/进度同步-20261117-v202.md",
+      "url": "/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261117-v202.md",
+      "sha256": "01c6d3490339582cc4083d0e16a3726c4371d7d87aa975c7bfbe294e1e686d35",
+      "bytes": 1986
+    },
+    {
+      "path": "docs/2.0.2-性能优化与考核书架-20261117.md",
+      "url": "/bookshelf/review-files/docs/2.0.2-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E4%B8%8E%E8%80%83%E6%A0%B8%E4%B9%A6%E6%9E%B6-20261117.md",
+      "sha256": "3d3a4e9426f4c173302a543cdcf1ae9d47019f2969f8613f05800078031f3f10",
+      "bytes": 6499
+    },
+    {
+      "path": "docs/试用与改进记录.md",
+      "url": "/bookshelf/review-files/docs/%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md",
+      "sha256": "772853f99f9840f7fed191c6158445fff2ff6b43865cb49e17f23339177d14d4",
+      "bytes": 3962
+    },
+    {
+      "path": "docs/1.7-I01追问与输入焦点修复-20261112.md",
+      "url": "/bookshelf/review-files/docs/1.7-I01%E8%BF%BD%E9%97%AE%E4%B8%8E%E8%BE%93%E5%85%A5%E7%84%A6%E7%82%B9%E4%BF%AE%E5%A4%8D-20261112.md",
+      "sha256": "b64c5aa0b17935e707bcc6ba3d003b5f7c7ac92850ae5a69f9a4c6408a3a31cb",
+      "bytes": 10190
+    },
+    {
+      "path": "docs/evidence/v17-i01-protocol-before.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v17-i01-protocol-before.xml",
+      "sha256": "934e90f443ec5736c58b3fde0e2e2863b453d85dff0cfb7b7f2e3227182e58bb",
+      "bytes": 1041
+    },
+    {
+      "path": "backend/app/feedback_context.py",
+      "url": "/bookshelf/review-files/backend/app/feedback_context.py",
+      "sha256": "4a49f5bf5b22c1f84a1329c190005b11521129b63d3ba05ed0646860f6898327",
+      "bytes": 1787
+    },
+    {
+      "path": "backend/app/runtime.py",
+      "url": "/bookshelf/review-files/backend/app/runtime.py",
+      "sha256": "5b3f641f80f97521c96f4b66f0a8ffd3275e5ec52225c029bbd403d687911164",
+      "bytes": 34514
+    },
+    {
+      "path": "tests/test_agno_protocol.py",
+      "url": "/bookshelf/review-files/tests/test_agno_protocol.py",
+      "sha256": "1cfc784ff078b80b89e61d2daa5839104b06b89724e2d6e67faaca0d7b812f91",
+      "bytes": 19124
+    },
+    {
+      "path": "tests/test_full_regression_fixes.py",
+      "url": "/bookshelf/review-files/tests/test_full_regression_fixes.py",
+      "sha256": "65ec128ee4481ddebf5434379645bfb7bfb2078176609087fb2a39ee167102c9",
+      "bytes": 4210
+    },
+    {
+      "path": "docs/evidence/v17-input-focus-before.json",
+      "url": "/bookshelf/review-files/docs/evidence/v17-input-focus-before.json",
+      "sha256": "d342d8c6ccbc1c9fa4b930759b08f93809d6d5893f0379e6a5cedf492ac2addf",
+      "bytes": 3915
+    },
+    {
+      "path": "docs/evidence/v17-frontend-final.json",
+      "url": "/bookshelf/review-files/docs/evidence/v17-frontend-final.json",
+      "sha256": "db6b7f0adfa3fa807240a868917b9380bd8cd271d21e5369c5c95f7b2e774e5a",
+      "bytes": 3068
+    },
+    {
+      "path": "docs/evidence/v17-input-focus/browser-final/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/v17-input-focus/browser-final/summary.json",
+      "sha256": "943f2337f3bd700dc1497cc863efe880a93f32e0bf8d538c55971b8372231132",
+      "bytes": 858
+    },
+    {
+      "path": "evaluations/feedback-followup-v17.json",
+      "url": "/bookshelf/review-files/evaluations/feedback-followup-v17.json",
+      "sha256": "b5328e445e89c5b604c9a63dc1ac6cd8f01d714db98066124b2139eb5af1db2c",
+      "bytes": 1169
+    },
+    {
+      "path": "evaluations/results/live-feedback-v17-20261112-01/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-feedback-v17-20261112-01/results.jsonl",
+      "sha256": "d591dc7b443dca27d0eed790b13b2fe3ff2f096fa1f6461019db648c13d2a5ea",
+      "bytes": 223028
+    },
+    {
+      "path": "evaluations/results/live-feedback-v17-20261112-01/citation-audit.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-feedback-v17-20261112-01/citation-audit.json",
+      "sha256": "3b85f7954cb0f49ab8323c20ef66ab53a29a6dedc37973b45f64ec272e6dbf9f",
+      "bytes": 8152
+    },
+    {
+      "path": "evaluations/results/live-feedback-v17-20261112-01/codex-review.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-feedback-v17-20261112-01/codex-review.json",
+      "sha256": "c005424adc599fb5de530bb40a35364146b671844480cfaf93f63b1ec27226af",
+      "bytes": 1095
+    },
+    {
+      "path": "evaluations/results/live-feedback-followup-v17-20261112-01/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-feedback-followup-v17-20261112-01/results.jsonl",
+      "sha256": "4b1c92c36e177ce6b074831aed09d94fe786278e8707526445d96949c1d4a59d",
+      "bytes": 55745
+    },
+    {
+      "path": "evaluations/results/live-feedback-followup-v17-20261112-01/citation-audit.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-feedback-followup-v17-20261112-01/citation-audit.json",
+      "sha256": "36612976d9ac2ec3c1d8cf36223d718201376a2e3ada158fb87799df7d0f67d5",
+      "bytes": 1367
+    },
+    {
+      "path": "evaluations/results/live-feedback-followup-v17-20261112-01/codex-review.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-feedback-followup-v17-20261112-01/codex-review.json",
+      "sha256": "6aaed2851961bc783da56b6fb49fb6414858452f2a67802100719f37c0f8bb88",
+      "bytes": 362
+    },
+    {
+      "path": "docs/evidence/v17-pytest-final.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v17-pytest-final.xml",
+      "sha256": "8e1b7e559805af534d21d51cb540387727dfc08e7834ca1f7d2a6baf1a34aa52",
+      "bytes": 21015
+    },
+    {
+      "path": "docs/evidence/v17-frontend-build-final.log",
+      "url": "/bookshelf/review-files/docs/evidence/v17-frontend-build-final.log.txt",
+      "sha256": "c8a62d59155605d7ce21479eca3b7b33af04bfed6f0b6c44eb786f0c44664e3c",
+      "bytes": 430
+    },
+    {
+      "path": "docs/evidence/v17-feedback/runtime-final.json",
+      "url": "/bookshelf/review-files/docs/evidence/v17-feedback/runtime-final.json",
+      "sha256": "916f35e8b41adcd01433e1ab22bec615ec14e9f5a9e02d67efc120271f71a468",
+      "bytes": 2761
+    },
+    {
+      "path": "docs/evidence/v17-feedback/final-state.json",
+      "url": "/bookshelf/review-files/docs/evidence/v17-feedback/final-state.json",
+      "sha256": "348564754d049d829fc1fd62b5cbe5662948c5938a69b021780b839dbe277d86",
+      "bytes": 669
+    },
+    {
+      "path": "docs/evidence/v17-feedback/runtime-check.json",
+      "url": "/bookshelf/review-files/docs/evidence/v17-feedback/runtime-check.json",
+      "sha256": "79a3da254f2cf56401decc057454e6d5335d9371818ef39613eb54d5f00a9df7",
+      "bytes": 2775
+    },
+    {
+      "path": "docs/evidence/v17-input-focus/browser/attempt-error.json",
+      "url": "/bookshelf/review-files/docs/evidence/v17-input-focus/browser/attempt-error.json",
+      "sha256": "433a1bc5af242d4583fc03b0edcc5d94ecc8c619bea8e19387ffb941caa8d501",
+      "bytes": 360
+    },
+    {
+      "path": "docs/evidence/v17-input-focus/browser-final/composer-after.png",
+      "url": "/bookshelf/review-files/docs/evidence/v17-input-focus/browser-final/composer-after.png",
+      "sha256": "cea3f6a3831d08757e5da59cb8a41b15be96c7426de17ea846ef142b34349308",
+      "bytes": 8498
+    },
+    {
+      "path": "docs/1.11-来源按钮跳动修复-20261114.md",
+      "url": "/bookshelf/review-files/docs/1.11-%E6%9D%A5%E6%BA%90%E6%8C%89%E9%92%AE%E8%B7%B3%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md",
+      "sha256": "494e6035aec095fd71316d1d3db224e65a79d353ef2e71974ee5dca2cf59594b",
+      "bytes": 3358
+    },
+    {
+      "path": "docs/evidence/v111-source-buttons-before.json",
+      "url": "/bookshelf/review-files/docs/evidence/v111-source-buttons-before.json",
+      "sha256": "d513c961606dafb20e020a5dc7c3db572cf66fef2ac380b5c8580ae938df3151",
+      "bytes": 1273
+    },
+    {
+      "path": "docs/evidence/v111-frontend-tests.json",
+      "url": "/bookshelf/review-files/docs/evidence/v111-frontend-tests.json",
+      "sha256": "dac80fa70eda23a49b298f9e8c4638eef55610a6c157f08367e15f78221094bc",
+      "bytes": 8915
+    },
+    {
+      "path": "docs/evidence/v111-source-buttons-after.json",
+      "url": "/bookshelf/review-files/docs/evidence/v111-source-buttons-after.json",
+      "sha256": "855d99f97e897237189d6c185dc7c96b767870cef05478824b28c8b2e5663ffa",
+      "bytes": 2561
+    },
+    {
+      "path": "docs/1.12-参考来源阅读排版-20261114.md",
+      "url": "/bookshelf/review-files/docs/1.12-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E9%98%85%E8%AF%BB%E6%8E%92%E7%89%88-20261114.md",
+      "sha256": "1ac8d1fbed926f37dd5a03f0ec682b751b237ebd1ae349d3a1507dafdf183386",
+      "bytes": 3007
+    },
+    {
+      "path": "docs/evidence/v112-frontend-tests.json",
+      "url": "/bookshelf/review-files/docs/evidence/v112-frontend-tests.json",
+      "sha256": "7bd9578abab569106d9c94a25b0548bb02e96b50adbe2eb8114b36915d5d99c3",
+      "bytes": 10243
+    },
+    {
+      "path": "docs/evidence/v112-source-reading-browser.json",
+      "url": "/bookshelf/review-files/docs/evidence/v112-source-reading-browser.json",
+      "sha256": "38303f9442a56e66a77b290fb7f6f66e63b9d40db96884559b6657282ee3765d",
+      "bytes": 1769
+    },
+    {
+      "path": "docs/1.13-参考来源滚动修复-20261114.md",
+      "url": "/bookshelf/review-files/docs/1.13-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E6%BB%9A%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md",
+      "sha256": "47f501b875bc52b7ee8e812cf878fc22de6e07678d37c6df7505081cdd58558c",
+      "bytes": 3234
+    },
+    {
+      "path": "docs/evidence/v113-scroll-before.json",
+      "url": "/bookshelf/review-files/docs/evidence/v113-scroll-before.json",
+      "sha256": "064e8f03158aac930f761c252ccc30c9786058bc4434d4d6b1095d13976c5704",
+      "bytes": 409
+    },
+    {
+      "path": "docs/evidence/v113-frontend-tests.json",
+      "url": "/bookshelf/review-files/docs/evidence/v113-frontend-tests.json",
+      "sha256": "822d90433453eba4006f9c0e35c60e0aedf319de63dc6b451aea8dd59600b858",
+      "bytes": 10243
+    },
+    {
+      "path": "docs/evidence/v113-scroll-after.json",
+      "url": "/bookshelf/review-files/docs/evidence/v113-scroll-after.json",
+      "sha256": "8a01d9e3180bc2d024f496f4f209a50e2b21dea1a706c46c91c4ee18e644b615",
+      "bytes": 2450
+    },
+    {
+      "path": "docs/evidence/v113-short-window-reading.json",
+      "url": "/bookshelf/review-files/docs/evidence/v113-short-window-reading.json",
+      "sha256": "fd0bb67b2b61ffeb7b678db57944866356a39fc0d11a305e0f5f4d837e52a8d9",
+      "bytes": 751
+    },
+    {
+      "path": "docs/2.0.1-裁定话题与输入草稿修复-20261117.md",
+      "url": "/bookshelf/review-files/docs/2.0.1-%E8%A3%81%E5%AE%9A%E8%AF%9D%E9%A2%98%E4%B8%8E%E8%BE%93%E5%85%A5%E8%8D%89%E7%A8%BF%E4%BF%AE%E5%A4%8D-20261117.md",
+      "sha256": "a192e1790c8ab5d50047c5ffc69f5e3360bf7c990eea7ddf02b990b30de2e877",
+      "bytes": 7788
+    },
+    {
+      "path": "backend/app/ruling_policy.py",
+      "url": "/bookshelf/review-files/backend/app/ruling_policy.py",
+      "sha256": "1357e70f4670949d0d918eab2e8150cc13aa5ffe7c9f037e963f68ba53250ad8",
+      "bytes": 6322
+    },
+    {
+      "path": "frontend/src/features/chat/components/chat-screen.tsx",
+      "url": "/bookshelf/review-files/frontend/src/features/chat/components/chat-screen.tsx.txt",
+      "sha256": "c75eea4fd4dfcaadc1a5c4809810f949d6e8a86d1c1895e06efa32a49587fb13",
+      "bytes": 23375
+    },
+    {
+      "path": "docs/evidence/v201-pytest-20261117.log",
+      "url": "/bookshelf/review-files/docs/evidence/v201-pytest-20261117.log.txt",
+      "sha256": "19023a51d5b19d7f116defdb658bb9aee4da3e809aa1ac843b21ae3c498b1f42",
+      "bytes": 357
+    },
+    {
+      "path": "docs/evidence/v201-pytest-20261117.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v201-pytest-20261117.xml",
+      "sha256": "ef0ab42aea7e13015329d899d5bad6f3cd964ba9dff8cb1633b8c14f92dba31a",
+      "bytes": 30949
+    },
+    {
+      "path": "docs/evidence/v201-frontend-check-20261117.log",
+      "url": "/bookshelf/review-files/docs/evidence/v201-frontend-check-20261117.log.txt",
+      "sha256": "0ed21abe0a775681c168acce52b3677879823f8ca5921b44f59e57cb848d643d",
+      "bytes": 2029
+    },
+    {
+      "path": "docs/evidence/v201-live-regression-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v201-live-regression-20261117.json",
+      "sha256": "20c3449bc728df80275ff74f25192a907e02ce8a63275bcd95c5ecf594667e74",
+      "bytes": 21956
+    },
+    {
+      "path": "docs/evidence/v201-api-deployment-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v201-api-deployment-20261117.json",
+      "sha256": "642f21dffe4dc2f356b627195a5e260223c0fd59074c728feb8406fc7eb6b63e",
+      "bytes": 2145
+    },
+    {
+      "path": "docs/evidence/v201-local-artifacts-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v201-local-artifacts-20261117.json",
+      "sha256": "a07101b49544f0578c1312758085c79b96e1a58182c2c5fc8ef63b40a21e2a05",
+      "bytes": 1474
+    },
+    {
+      "path": "evaluations/latency-cases-v202.json",
+      "url": "/bookshelf/review-files/evaluations/latency-cases-v202.json",
+      "sha256": "1431fbfceaffba094adaa56def2c773bf4f02ee9037b3db2ad555fabd6dc8f2f",
+      "bytes": 567
+    },
+    {
+      "path": "docs/evidence/v202-latency-regression-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v202-latency-regression-20261117.json",
+      "sha256": "5b0b2ec1a9c14fd7a78cfdcdf1c8e94f805e9afbce93bc25ab0a8e798232bfce",
+      "bytes": 231406
+    },
+    {
+      "path": "docs/evidence/v202-pytest-20261117.log",
+      "url": "/bookshelf/review-files/docs/evidence/v202-pytest-20261117.log.txt",
+      "sha256": "ae11ef6d4050393af800b1b0cbf0ab547e28819432efab84bab4767812041b08",
+      "bytes": 357
+    },
+    {
+      "path": "docs/evidence/v202-pytest-20261117.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v202-pytest-20261117.xml",
+      "sha256": "f44d89797cd730fbea276207c714c2e362ac0b80f6e5b38fea2cbc6f290199e7",
+      "bytes": 32748
+    },
+    {
+      "path": "docs/evidence/v202-frontend-check-20261117.log",
+      "url": "/bookshelf/review-files/docs/evidence/v202-frontend-check-20261117.log.txt",
+      "sha256": "378264b1db10d1e45564a71a4338af0cabc42c2bfd3120d54a19c9d24ec30910",
+      "bytes": 2100
+    },
+    {
+      "path": "docs/evidence/v202-api-deployment-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v202-api-deployment-20261117.json",
+      "sha256": "185dd73e0ed2ee4a5c86c355c8faa3262b6bf413b5f3c5f928de5de68c653282",
+      "bytes": 2143
+    },
+    {
+      "path": "docs/evidence/v202-browser-review-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v202-browser-review-20261117.json",
+      "sha256": "c80c9dea4c16f8f33be4885a70aa1b592f63a50f3fb382516c4d2eb423730331",
+      "bytes": 44424
+    },
+    {
+      "path": "docs/进度同步-20261117-v201.md",
+      "url": "/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261117-v201.md",
+      "sha256": "a9b8599234b7dcca11ccd265f7b32596224697cff11811ffa283fbb94cabfe0a",
+      "bytes": 1254
+    },
+    {
+      "path": "docs/evidence/doc-navigation-password-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/doc-navigation-password-20261117.json",
+      "sha256": "094a875c0db4ddb09fcccf0f5d8a456aa33c0e74023224d683d0dd7c638a30e7",
+      "bytes": 492
+    },
+    {
+      "path": "docs/GitHub内测版本同步-20261117.md",
+      "url": "/bookshelf/review-files/docs/GitHub%E5%86%85%E6%B5%8B%E7%89%88%E6%9C%AC%E5%90%8C%E6%AD%A5-20261117.md",
+      "sha256": "5c2e4da4bd6a20d5d1de92365f1c6b1852410c94780f27fb897d83974ac9e02a",
+      "bytes": 2348
+    },
+    {
+      "path": "tools/bookshelf/README.md",
+      "url": "/bookshelf/review-files/tools/bookshelf/README.md",
+      "sha256": "359bab941b85d884031126f4c3c4b9728decbca1fe28fca0fcc815b04e610951",
+      "bytes": 1817
+    },
+    {
+      "path": "backend/app/main.py",
+      "url": "/bookshelf/review-files/backend/app/main.py",
+      "sha256": "798de012e15acdf2c063035ba9affb5331ad37dca3aa208433b58c6403313db7",
+      "bytes": 29961
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "url": "/bookshelf/review-files/backend/app/schemas.py",
+      "sha256": "4a0c8f43385606cb5e934f127bee36257400d3ffdf5110f0ab5a65b8597385ee",
+      "bytes": 2497
+    },
+    {
+      "path": "backend/app/catalog.py",
+      "url": "/bookshelf/review-files/backend/app/catalog.py",
+      "sha256": "db2d935edfbf9eae05d5f913c905a0c5c079d29403a5779c9b5e5ae1110cea51",
+      "bytes": 16079
+    },
+    {
+      "path": "backend/app/jobs.py",
+      "url": "/bookshelf/review-files/backend/app/jobs.py",
+      "sha256": "7052fed6accdb0c7321b5327ec0c53f34c56a2e21bb2b708ee73e630d593b0f1",
+      "bytes": 9830
+    },
+    {
+      "path": "backend/app/worker.py",
+      "url": "/bookshelf/review-files/backend/app/worker.py",
+      "sha256": "bd4a49ce93e886c0e450a233144bfc33399aa5a2979799c3780eab99e67fee93",
+      "bytes": 8552
+    },
+    {
+      "path": "frontend/src/main.tsx",
+      "url": "/bookshelf/review-files/frontend/src/main.tsx.txt",
+      "sha256": "a388f1941bc1bb3fe340f1acdf9c995cf70d3b6fcb8751bd05e645ca03aee5d8",
+      "bytes": 314
+    },
+    {
+      "path": "frontend/src/services/api.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/api.ts.txt",
+      "sha256": "bda184d5fe73ff42b078464488fb2348ca81ba62ef1abad4f4cfcd032810eecb",
+      "bytes": 2277
+    },
+    {
+      "path": "frontend/src/services/auth.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/auth.ts.txt",
+      "sha256": "499cf7e0fa97501033e1e35fd9c5c07320851b2bf00a611126c4d5da9d3703bc",
+      "bytes": 490
+    },
+    {
+      "path": "frontend/src/services/bookshelf.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/bookshelf.ts.txt",
+      "sha256": "ccb0b39beb30a321795caa9df3ff8cb631fa95496cc1e7258db6b76444c51aae",
+      "bytes": 1864
+    },
+    {
+      "path": "frontend/src/services/feedback.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/feedback.ts.txt",
+      "sha256": "aaec6d83f53004f47eb6e68426e5ae3f822d215d311f91063f50617dc2e604b4",
+      "bytes": 1419
+    },
+    {
+      "path": "frontend/src/services/jobs.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/jobs.ts.txt",
+      "sha256": "7c04c3e545edcdf0065e6fa23b393e7cc3e02bb319259d60f0e638ebcb449538",
+      "bytes": 784
+    },
+    {
+      "path": "frontend/src/services/knowledge.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/knowledge.ts.txt",
+      "sha256": "ca64225f7c1270ae23d11920326b634cb08bff08a6dcd5e81f6296ae30ec12aa",
+      "bytes": 1255
+    },
+    {
+      "path": "frontend/src/services/sessions.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/sessions.ts.txt",
+      "sha256": "75eade6e978b66f2cab551a4a48ca9e75803d13dd035962822cce6115c9215d2",
+      "bytes": 1051
+    },
+    {
+      "path": "frontend/src/services/shared-records.ts",
+      "url": "/bookshelf/review-files/frontend/src/services/shared-records.ts.txt",
+      "sha256": "e563e65036c8f3b728ba3347061fef518235226b750dc9af4873c55b184baf7c",
+      "bytes": 974
+    },
+    {
+      "path": "frontend/src/lib/browser-lifecycle.ts",
+      "url": "/bookshelf/review-files/frontend/src/lib/browser-lifecycle.ts.txt",
+      "sha256": "e97f896a85aa9f1b0341506e544dc2a77fa78c19f544df83c4811cdafbf85c29",
+      "bytes": 1053
+    },
+    {
+      "path": "frontend/src/lib/date-time.ts",
+      "url": "/bookshelf/review-files/frontend/src/lib/date-time.ts.txt",
+      "sha256": "233381c8fa4a1051c749c43def6192221f70b9b8a7b175f38697a7e65bde4e11",
+      "bytes": 490
+    },
+    {
+      "path": "frontend/src/lib/runtime-config.ts",
+      "url": "/bookshelf/review-files/frontend/src/lib/runtime-config.ts.txt",
+      "sha256": "b68a858a21c875aed6e73f57e8e6b6143b4197f4483352dbba083a058c3052d6",
+      "bytes": 278
+    },
+    {
+      "path": "frontend/src/lib/screen-boundary.ts",
+      "url": "/bookshelf/review-files/frontend/src/lib/screen-boundary.ts.txt",
+      "sha256": "be2accc6a2b42e676b998caa7a2e4f8fd6b3edf5e4c79e7fdc54e76ae61ce1d7",
+      "bytes": 580
+    },
+    {
+      "path": "frontend/src/lib/sse.ts",
+      "url": "/bookshelf/review-files/frontend/src/lib/sse.ts.txt",
+      "sha256": "527e185d8a5651055b0e51ec3c8357b080c9013930716cfc00e99092a807ea3b",
+      "bytes": 1624
+    },
+    {
+      "path": "frontend/src/lib/url-state.ts",
+      "url": "/bookshelf/review-files/frontend/src/lib/url-state.ts.txt",
+      "sha256": "fb6b690642337c972bffeeb769d409d1756ec321508e9f6a6eff793ad6bb28b6",
+      "bytes": 993
+    },
+    {
+      "path": "backend/public_gateway.py",
+      "url": "/bookshelf/review-files/backend/public_gateway.py",
+      "sha256": "4cd6e1e9dd6b30a85127caf4c14b0823a4088b23181a5df22e0a585af58bab18",
+      "bytes": 6397
+    },
+    {
+      "path": "public-entry/package-lock.json",
+      "url": "/bookshelf/review-files/public-entry/package-lock.json",
+      "sha256": "bac8690970ec726c27fda99cd8ffcb0f18f81a495103552a1c653efc45be029d",
+      "bytes": 53245
+    },
+    {
+      "path": "public-entry/package.json",
+      "url": "/bookshelf/review-files/public-entry/package.json",
+      "sha256": "6d3fd9ee190bf917c54a26aa1c7c503578519cc1a04eebc6755562a010d065c4",
+      "bytes": 386
+    },
+    {
+      "path": "public-entry/policy.test.mjs",
+      "url": "/bookshelf/review-files/public-entry/policy.test.mjs.txt",
+      "sha256": "5fff2ae8b68ba8703cec1da358ae43c527ca6c5280096ca4c26fcd81a0c73932",
+      "bytes": 527
+    },
+    {
+      "path": "public-entry/tsconfig.json",
+      "url": "/bookshelf/review-files/public-entry/tsconfig.json",
+      "sha256": "d77c3fac9d6e1a7934dc4e377dea1b148daa60ef403fd2c53ab618299ca23722",
+      "bytes": 275
+    },
+    {
+      "path": "public-entry/worker-configuration.d.ts",
+      "url": "/bookshelf/review-files/public-entry/worker-configuration.d.ts.txt",
+      "sha256": "5a6b7aca1025ca74a15892e3fa32ec316c1acb8d546705350cecbd1e6a3716a1",
+      "bytes": 1241
+    },
+    {
+      "path": "public-entry/wrangler.jsonc",
+      "url": "/bookshelf/review-files/public-entry/wrangler.jsonc",
+      "sha256": "d20339ccd5a972dc9918bc403829df8a25196d8919f2bab2cdff9133a53e5395",
+      "bytes": 886
+    },
+    {
+      "path": "compose.client.yaml",
+      "url": "/bookshelf/review-files/compose.client.yaml",
+      "sha256": "1eb03ced95b9ddb292687e7854a640a8dfdecf1b72fd58f25827b125896d15d7",
+      "bytes": 285
+    },
+    {
+      "path": "scripts/audit_eval_sources.py",
+      "url": "/bookshelf/review-files/scripts/audit_eval_sources.py",
+      "sha256": "a7aabaf377f67ca070edcfa6cb7181d7ecb33992494dc0370f7bea9ef02b4047",
+      "bytes": 4337
+    },
+    {
+      "path": "scripts/audit_worker_soak.py",
+      "url": "/bookshelf/review-files/scripts/audit_worker_soak.py",
+      "sha256": "86e25de3d4a5fcd45b4790e06e01b50dc7a8c26a547079358788ec99406a4035",
+      "bytes": 3775
+    },
+    {
+      "path": "scripts/backup_docker_primary.py",
+      "url": "/bookshelf/review-files/scripts/backup_docker_primary.py",
+      "sha256": "bba791bf2489aae2146e380ea05de138cc8509495101b849594993329e5972a3",
+      "bytes": 8397
+    },
+    {
+      "path": "scripts/backup_native_database.py",
+      "url": "/bookshelf/review-files/scripts/backup_native_database.py",
+      "sha256": "a780e2d6872b8bc26e5273b155800a8da358e3d7113ec74e7bc698bd458e50e9",
+      "bytes": 7897
+    },
+    {
+      "path": "scripts/browser_smoke.py",
+      "url": "/bookshelf/review-files/scripts/browser_smoke.py",
+      "sha256": "3268e8d5f661171790e10bfc477d889ec3dde6f9ba2dc0f13cf78c2307415ada",
+      "bytes": 5827
+    },
+    {
+      "path": "scripts/build_native_pgvector.ps1",
+      "url": "/bookshelf/review-files/scripts/build_native_pgvector.ps1",
+      "sha256": "c88a089c865d544635249df441915bf3d7c3952d07fd392da2aecf8f2d3d11fe",
+      "bytes": 1173
+    },
+    {
+      "path": "scripts/deploy_public_entry.py",
+      "url": "/bookshelf/review-files/scripts/deploy_public_entry.py",
+      "sha256": "300501e191606b6aaade8e793a15f69f401843b09779e2d47fa727c26dda892b",
+      "bytes": 3328
+    },
+    {
+      "path": "scripts/docker_live.py",
+      "url": "/bookshelf/review-files/scripts/docker_live.py",
+      "sha256": "1d43ae5b9aa3da606b48c21f0c355bea564eb2d4fc9de4852d9baa8261e70b63",
+      "bytes": 1223
+    },
+    {
+      "path": "scripts/fingerprint_database.py",
+      "url": "/bookshelf/review-files/scripts/fingerprint_database.py",
+      "sha256": "97a824c4811fc76a0c44435e2890dad1f0979e8756449ac5805f560b6f3eb2c2",
+      "bytes": 624
+    },
+    {
+      "path": "scripts/import_qinggui_model.py",
+      "url": "/bookshelf/review-files/scripts/import_qinggui_model.py",
+      "sha256": "7928f57a89ed97e2520c0724df2922b2636018f073d5983034a9a4fff0b20d64",
+      "bytes": 3089
+    },
+    {
+      "path": "scripts/isolated_real_eval.py",
+      "url": "/bookshelf/review-files/scripts/isolated_real_eval.py",
+      "sha256": "96cd6c365e5ba75d8f41fac8a4f3a628e35d35932da36d5da8419ba2df8acda6",
+      "bytes": 5427
+    },
+    {
+      "path": "scripts/local_demo.py",
+      "url": "/bookshelf/review-files/scripts/local_demo.py",
+      "sha256": "b03a10db99e4327ba67068f44a0e9a5679a870f85b8b4c4ae757735a2155be3c",
+      "bytes": 1343
+    },
+    {
+      "path": "scripts/native_demo.py",
+      "url": "/bookshelf/review-files/scripts/native_demo.py",
+      "sha256": "eaeb0143bf444da961b187167819b6f9dd4ac6fe77808706bdbd770aad429973",
+      "bytes": 16684
+    },
+    {
+      "path": "scripts/prepare_embedding.py",
+      "url": "/bookshelf/review-files/scripts/prepare_embedding.py",
+      "sha256": "5e7f7d1ed2f5cb27df327fc288bfcf0f557714240d55f1881bfe93ab6fa9701c",
+      "bytes": 4804
+    },
+    {
+      "path": "scripts/prepare_isolated_eval.py",
+      "url": "/bookshelf/review-files/scripts/prepare_isolated_eval.py",
+      "sha256": "51a5936a86ff4c4dd22af42c054eb66c1c01d2148711055a4c356ec53bd009e7",
+      "bytes": 5225
+    },
+    {
+      "path": "scripts/prepare_native_kafka.py",
+      "url": "/bookshelf/review-files/scripts/prepare_native_kafka.py",
+      "sha256": "516425b7f5474735d1869678833ba862b2a841c07eddbf08528203d527e94cfb",
+      "bytes": 2420
+    },
+    {
+      "path": "scripts/prepare_native_postgres.py",
+      "url": "/bookshelf/review-files/scripts/prepare_native_postgres.py",
+      "sha256": "330230e2eef5c6f827145317affd222eb2ccd3db076a53f5759272c935eeeffb",
+      "bytes": 2268
+    },
+    {
+      "path": "scripts/prepare_native_redis.py",
+      "url": "/bookshelf/review-files/scripts/prepare_native_redis.py",
+      "sha256": "1753a0b3aefba4eeecc92587b5a63ad20190caab8b6a393dc9fba5b715ca6b09",
+      "bytes": 2826
+    },
+    {
+      "path": "scripts/prepare_public_service.py",
+      "url": "/bookshelf/review-files/scripts/prepare_public_service.py",
+      "sha256": "75d45715cda832dc4f845103e6060e2708e5980ae127d221481133ca31be647a",
+      "bytes": 1628
+    },
+    {
+      "path": "scripts/public_service.py",
+      "url": "/bookshelf/review-files/scripts/public_service.py",
+      "sha256": "247aa2e3f54c850daba0adb26e4189d45a0e9c936650873f6379f59971c83001",
+      "bytes": 7456
+    },
+    {
+      "path": "scripts/restore_docker_database.py",
+      "url": "/bookshelf/review-files/scripts/restore_docker_database.py",
+      "sha256": "eab6642bcf481ef4622b7a104c0065496de18e801e6494be4d2f83a5bbb4409f",
+      "bytes": 5543
+    },
+    {
+      "path": "scripts/run_rulings.py",
+      "url": "/bookshelf/review-files/scripts/run_rulings.py",
+      "sha256": "6af50cc41dd2d0e192756d9faad1980c725a4f068e7d039fcdbac58dc0d995f9",
+      "bytes": 8824
+    },
+    {
+      "path": "scripts/snapshot_local_git.py",
+      "url": "/bookshelf/review-files/scripts/snapshot_local_git.py",
+      "sha256": "5b242b90261e6006a56a47c985cb3ec3db8a3c2aa4741e3e96c5761b7d8da912",
+      "bytes": 7020
+    },
+    {
+      "path": "scripts/soak_native_worker.py",
+      "url": "/bookshelf/review-files/scripts/soak_native_worker.py",
+      "sha256": "6357f397116571cfeb9c9938f6e3e61c6499889ccf7c6b5d5a005cdb181ebe4a",
+      "bytes": 12028
+    },
+    {
+      "path": "scripts/source_snapshot.py",
+      "url": "/bookshelf/review-files/scripts/source_snapshot.py",
+      "sha256": "2421a8a22ab143ba1587fb4ca3c9f99b052e945eeb80dd738d439a189391a742",
+      "bytes": 15407
+    },
+    {
+      "path": "scripts/start_docker_live.ps1",
+      "url": "/bookshelf/review-files/scripts/start_docker_live.ps1",
+      "sha256": "36010dd68640b4fdb0ea2972057f54b558aff5c13ee189ca071f74e3f1efb7ba",
+      "bytes": 1531
+    },
+    {
+      "path": "scripts/start_local.ps1",
+      "url": "/bookshelf/review-files/scripts/start_local.ps1",
+      "sha256": "8aa0b95b26f1a75914f0545b6802698c34e076505066eb05524f4f1d451b3f37",
+      "bytes": 3326
+    },
+    {
+      "path": "scripts/start_native.ps1",
+      "url": "/bookshelf/review-files/scripts/start_native.ps1",
+      "sha256": "466d5210c3895b1384096a6fb70dc1c97b05bcae28c57438a9db3306294de57d",
+      "bytes": 1723
+    },
+    {
+      "path": "scripts/start_public_service.ps1",
+      "url": "/bookshelf/review-files/scripts/start_public_service.ps1",
+      "sha256": "3cd1960f035bcc519a9bb6ca3fca14a5202910ef32e9d3dd979ed469539e559c",
+      "bytes": 1081
+    },
+    {
+      "path": "scripts/start_v2_local.ps1",
+      "url": "/bookshelf/review-files/scripts/start_v2_local.ps1",
+      "sha256": "fb539d87550513ff4d796696b44974661eb16c940c5db2ddaab9fb055385c789",
+      "bytes": 1471
+    },
+    {
+      "path": "scripts/stop_docker_live.ps1",
+      "url": "/bookshelf/review-files/scripts/stop_docker_live.ps1",
+      "sha256": "96f22578b893074e529fc1db453ed1c85f9c4fbcdd077ef4851e9ad395a013b2",
+      "bytes": 752
+    },
+    {
+      "path": "scripts/stop_native.ps1",
+      "url": "/bookshelf/review-files/scripts/stop_native.ps1",
+      "sha256": "299798932324edfb57ea86b2f2fc0fda87ebac82a8dd4af3f5db656e346b5960",
+      "bytes": 715
+    },
+    {
+      "path": "scripts/stop_public_service.ps1",
+      "url": "/bookshelf/review-files/scripts/stop_public_service.ps1",
+      "sha256": "0889c60af669ddd1fd1d4fa6273c65947405f4f82c72922d462f6aacc7431e4e",
+      "bytes": 306
+    },
+    {
+      "path": "scripts/stop_v2_local.ps1",
+      "url": "/bookshelf/review-files/scripts/stop_v2_local.ps1",
+      "sha256": "acfc21cfc7f5af7413fb66c9d42cc19a53a038dd439d263d0d49d78e822a8b9b",
+      "bytes": 288
+    },
+    {
+      "path": "scripts/verify_bookshelf.py",
+      "url": "/bookshelf/review-files/scripts/verify_bookshelf.py",
+      "sha256": "b77a3bd6cbc7a703c4d99b19998becfa62c10669e4c9eb8616c76993629479fe",
+      "bytes": 5341
+    },
+    {
+      "path": "scripts/verify_browser_request_recovery.py",
+      "url": "/bookshelf/review-files/scripts/verify_browser_request_recovery.py",
+      "sha256": "e81ed1c4fbdcd78afe2d35a5d9b59539f85dd45b49e6f73e9d64e7a2e21c270d",
+      "bytes": 5300
+    },
+    {
+      "path": "scripts/verify_compose.py",
+      "url": "/bookshelf/review-files/scripts/verify_compose.py",
+      "sha256": "c09a8e9377317013d84f5c206271a0795ee9ed391229b032d7fb931702cc7672",
+      "bytes": 26898
+    },
+    {
+      "path": "scripts/verify_docker_cutover.py",
+      "url": "/bookshelf/review-files/scripts/verify_docker_cutover.py",
+      "sha256": "744067cb096aedbc0162625322e296be1ef9ec9ab229f0626674acb4fcb8ad32",
+      "bytes": 9911
+    },
+    {
+      "path": "scripts/verify_embeddings.py",
+      "url": "/bookshelf/review-files/scripts/verify_embeddings.py",
+      "sha256": "ee4f1b6296b2653d1a1668cd2817db3a03175bf63e3a54d970c982813a4f599f",
+      "bytes": 5891
+    },
+    {
+      "path": "scripts/verify_input_focus.py",
+      "url": "/bookshelf/review-files/scripts/verify_input_focus.py",
+      "sha256": "7bbfccbd73e07e09bdd21e6aa491c58fbfb4e2258390a0f49c250ac5fd775b86",
+      "bytes": 6499
+    },
+    {
+      "path": "scripts/verify_native_kafka.py",
+      "url": "/bookshelf/review-files/scripts/verify_native_kafka.py",
+      "sha256": "0133b0ff230f8e069da39a97cc43067d894c8bb3980d213787bea7000aa47360",
+      "bytes": 13214
+    },
+    {
+      "path": "scripts/verify_native_postgres.py",
+      "url": "/bookshelf/review-files/scripts/verify_native_postgres.py",
+      "sha256": "802f08a813e6f53de65862a975120bfc395acd2d48d9ce5b8712440bb0f16615",
+      "bytes": 12524
+    },
+    {
+      "path": "scripts/verify_native_redis.py",
+      "url": "/bookshelf/review-files/scripts/verify_native_redis.py",
+      "sha256": "d174ab29807f2bd18c42922bf41e03433483f96c538479b46c4b487f5bc446e1",
+      "bytes": 8686
+    },
+    {
+      "path": "scripts/verify_public_recovery.py",
+      "url": "/bookshelf/review-files/scripts/verify_public_recovery.py",
+      "sha256": "a92a748d2e765be6fcefd27bc2a88f535762dadd80cf02a2864bebb437b5883c",
+      "bytes": 4089
+    },
+    {
+      "path": "scripts/verify_public_service.py",
+      "url": "/bookshelf/review-files/scripts/verify_public_service.py",
+      "sha256": "2a1f041bb00c5b99b8aa1229f1bd7733f92fabfba143fa01729c124bbec0c32a",
+      "bytes": 9012
+    },
+    {
+      "path": "scripts/verify_redis_postgres.py",
+      "url": "/bookshelf/review-files/scripts/verify_redis_postgres.py",
+      "sha256": "42490237c4d14c20dff2add10f785fe61c50ffcdbdad878cfcf8fb574d74b7fd",
+      "bytes": 10637
+    },
+    {
+      "path": "scripts/verify_restored_service.py",
+      "url": "/bookshelf/review-files/scripts/verify_restored_service.py",
+      "sha256": "e853e6158e09696965ee1dbb79b370d0b2965e9eb39733bfbf82f4ba7d4e6ab8",
+      "bytes": 4171
+    },
+    {
+      "path": "scripts/verify_runtime_source.py",
+      "url": "/bookshelf/review-files/scripts/verify_runtime_source.py",
+      "sha256": "e953b6e4e19b7a34f2d537d58884fb9d7716f618004ca5e3a763d17035e55e7a",
+      "bytes": 1968
+    },
+    {
+      "path": "scripts/verify_worker_memory_recovery.py",
+      "url": "/bookshelf/review-files/scripts/verify_worker_memory_recovery.py",
+      "sha256": "2acb3a475debb43537d29fea76cf7a6d708c9cea48673ea3a0f3041aa14523cd",
+      "bytes": 4497
+    },
+    {
+      "path": "docs/架构与接口说明.md",
+      "url": "/bookshelf/review-files/docs/%E6%9E%B6%E6%9E%84%E4%B8%8E%E6%8E%A5%E5%8F%A3%E8%AF%B4%E6%98%8E.md",
+      "sha256": "8ba1fd807bd77eebff4db09246560ba5c30fd22dd8e580260e743be6c49be060",
+      "bytes": 9193
+    },
+    {
+      "path": "docs/1.10-回答展示与浏览器排查-20261114.md",
+      "url": "/bookshelf/review-files/docs/1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md",
+      "sha256": "3ffba6d747968d2d5c8c03bd2fc5d7558d6483fb6fe1c8a04067dfc88c1628f0",
+      "bytes": 6511
+    },
+    {
+      "path": "docs/evidence/v110-frontend-summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-frontend-summary.json",
+      "sha256": "978b9a0548a104380ba61e768bbe7f387a94b5a84d05234d2a3eb61a3c807ef4",
+      "bytes": 296
+    },
+    {
+      "path": "docs/evidence/v110-answer-style-backend-final.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v110-answer-style-backend-final.xml",
+      "sha256": "7e9689b348152d2659c4dc2f0b7a19bff5a5ccb781302e143d80d07250cb3f6f",
+      "bytes": 7085
+    },
+    {
+      "path": "docs/浏览器无响应排查-20261114.md",
+      "url": "/bookshelf/review-files/docs/%E6%B5%8F%E8%A7%88%E5%99%A8%E6%97%A0%E5%93%8D%E5%BA%94%E6%8E%92%E6%9F%A5-20261114.md",
+      "sha256": "98af1d897545b4085fcc637343d4a788c0b831b0f310a9bf6355b3c3abf2a3e1",
+      "bytes": 2441
+    },
+    {
+      "path": "docs/evidence/v110-browser-memory-investigation.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-browser-memory-investigation.json",
+      "sha256": "12dc3a75ecc9468d76a4c4bf906139879f851e735fe5b4f09242f37e481d7dc3",
+      "bytes": 2731
+    },
+    {
+      "path": "docs/evidence/v110-browser-answer-display.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-browser-answer-display.json",
+      "sha256": "7904485f02283790b069133b753ba1c33397c29ddceca67f8ebb46ba5d9f3d43",
+      "bytes": 1397
+    },
+    {
+      "path": "docs/evidence/v110-browser-answer-display-final.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-browser-answer-display-final.json",
+      "sha256": "0a2697319d35529ae521a4b2eb0f94ee3cf36bd46b9e8fde0c658c9cb435a817",
+      "bytes": 962
+    },
+    {
+      "path": "docs/evidence/v110-deployment.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-deployment.json",
+      "sha256": "e29e1aef2437a48f572d3d90890e189129fb17263632fe9bbc8f659c1121df8d",
+      "bytes": 1070
+    },
+    {
+      "path": "docs/evidence/v110-deployment-final.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-deployment-final.json",
+      "sha256": "f76b2eb4b88eff4d2238fe45db002f3d9ff6158288d1994ea10030e50c0fb3a2",
+      "bytes": 1071
+    },
+    {
+      "path": "docs/evidence/v110-final-runtime.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-final-runtime.json",
+      "sha256": "07ff8947e5ddaf1f0bea7106754eb4584595ce02105826189105484cd9400b1a",
+      "bytes": 1225
+    },
+    {
+      "path": "evaluations/results/live-v110-style/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-v110-style/results.jsonl",
+      "sha256": "f6213891f4d5b93536c35757bbdfdfe84363cc896fc9ae0181ad991c395aa73c",
+      "bytes": 39988
+    },
+    {
+      "path": "evaluations/results/live-v110-style-sc03-retry/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-v110-style-sc03-retry/results.jsonl",
+      "sha256": "40736f1ef8cd438afc61b9d9cc0f4e6893902dfbea8aa5a19a3734d8c1701f57",
+      "bytes": 11266
+    },
+    {
+      "path": "evaluations/results/live-v110-style-sc03-retry/citation-audit.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v110-style-sc03-retry/citation-audit.json",
+      "sha256": "c9a860c12f321d734b1679ea7b46ddfb0d508e18b2a88029a3bc53dae03cc85f",
+      "bytes": 629
+    },
+    {
+      "path": "docs/evidence/v110-live-style-summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-live-style-summary.json",
+      "sha256": "a1bb3368e5a5c3715b93c19e54dc2cfbbeb2c280f0284aa243dc359d03b4cb14",
+      "bytes": 163
+    },
+    {
+      "path": "docs/evidence/v110-live-style-sc03-retry-summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/v110-live-style-sc03-retry-summary.json",
+      "sha256": "f43636fc9bb47b7cdcf299eac1b0a3cad9f123ba070491881f802f2ebea5bab9",
+      "bytes": 187
+    },
+    {
+      "path": "docs/1.9-裁定约束断线恢复与完整回归-20261113.md",
+      "url": "/bookshelf/review-files/docs/1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md",
+      "sha256": "b40803078ed7654133d6bcb2d8fbfcafdf9f517c518853b6f6f32add20347e39",
+      "bytes": 13503
+    },
+    {
+      "path": "docs/evidence/v19-release-final-209.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v19-release-final-209.xml",
+      "sha256": "6b4e0c1071bad17657e39b607a675ea2dcc21ee8313ea6c79db815799924716c",
+      "bytes": 27380
+    },
+    {
+      "path": "docs/evidence/v19-final-r4-runtime-source.json",
+      "url": "/bookshelf/review-files/docs/evidence/v19-final-r4-runtime-source.json",
+      "sha256": "1039a0ed718334c1a800936c7b62f26748ec0c8c393e9758b2c275b2bdb9c25f",
+      "bytes": 3766
+    },
+    {
+      "path": "evaluations/results/live-v19-supplemental-final/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-supplemental-final/results.jsonl",
+      "sha256": "093b05f8f82f1b7b98ca7359e1f19d398f93fe528c62dd50dd3d35410604d668",
+      "bytes": 44050
+    },
+    {
+      "path": "docs/evidence/v19-browser-recovery-05/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/v19-browser-recovery-05/summary.json",
+      "sha256": "ca05f50ad5d18fdb75fd9e100d370428c3668263dea16b086a1b1978b3fdf9f7",
+      "bytes": 2094
+    },
+    {
+      "path": "docs/evidence/v19-guard-before-corrected.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v19-guard-before-corrected.xml",
+      "sha256": "73e823c3ef4d454b8cebb7aeba17b6bac9fb809f1ae4be28894e25821c18bd33",
+      "bytes": 2083
+    },
+    {
+      "path": "data/knowledge-boundaries.md",
+      "url": "/bookshelf/review-files/data/knowledge-boundaries.md",
+      "sha256": "728a26d6bed0e73f618ee6d0213149ba8fb39524efc12f27f4cd7cd86272ab69",
+      "bytes": 920
+    },
+    {
+      "path": "docs/完整32条真实回归-1.9-20261113.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md",
+      "sha256": "2ce67494f36da2e60488dbbcc059abfbe5f923fde4f7cf59adb9a8b35b1d1752",
+      "bytes": 7170
+    },
+    {
+      "path": "evaluations/results/live-v19-full-04/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-04/results.jsonl",
+      "sha256": "f9e4731eda46472e65fb4fb18d09d2897eec3633574a8869bd15050b7163d57d",
+      "bytes": 809313
+    },
+    {
+      "path": "evaluations/results/live-v19-retry-v01/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-retry-v01/results.jsonl",
+      "sha256": "08aebf917e98d522fe2e8e5c3e71ce2ad7af4cd28fa241bc99277a96dce57755",
+      "bytes": 66482
+    },
+    {
+      "path": "evaluations/results/v19-final-review.json",
+      "url": "/bookshelf/review-files/evaluations/results/v19-final-review.json",
+      "sha256": "11c5b4d145ba1230f99f0f8bf28c7143346fa2f207f379f8ae49f1365abb0446",
+      "bytes": 21073
+    },
+    {
+      "path": "evaluations/results/live-v19-full-04/citation-audit.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-04/citation-audit.json",
+      "sha256": "a11b830c9e671826effa6dafede6e169f25586047d813e9248d9037ca20e044a",
+      "bytes": 29179
+    },
+    {
+      "path": "evaluations/results/live-v19-retry-v01/citation-audit.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-retry-v01/citation-audit.json",
+      "sha256": "7e8d8ac5710f4da30e3392a56ece3e14a6fed02fa2aaa60562d5f94ce08fb82a",
+      "bytes": 1933
+    },
+    {
+      "path": "docs/evidence/v19-evaluation-settlement.json",
+      "url": "/bookshelf/review-files/docs/evidence/v19-evaluation-settlement.json",
+      "sha256": "11e9f9ce032a0fd755acae69a91630e1e428b89528cf1dde532ca6a3c798906d",
+      "bytes": 171
+    },
+    {
+      "path": "docs/evidence/assessment_eval_v19_r4-settlement.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment_eval_v19_r4-settlement.json",
+      "sha256": "4808808f2ccf97e2d656821e2edec5b7951ae52d3433973b426c0a0db0d2dd0e",
+      "bytes": 163
+    },
+    {
+      "path": "docs/evidence/v19-final-primary-restore.json",
+      "url": "/bookshelf/review-files/docs/evidence/v19-final-primary-restore.json",
+      "sha256": "c0cf58f2a44614f9aac380a94ca1ff464f3d562a6f1116fd6bb7121b58276c37",
+      "bytes": 3038
+    },
+    {
+      "path": "docs/evidence/v19-final-primary-api-restore.json",
+      "url": "/bookshelf/review-files/docs/evidence/v19-final-primary-api-restore.json",
+      "sha256": "93898629800b332be110786cd7d05d2d7087c98e554db47ad3127dbd5c75435b",
+      "bytes": 329
+    },
+    {
+      "path": "docs/Docker主库备份与恢复.md",
+      "url": "/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E5%A4%87%E4%BB%BD%E4%B8%8E%E6%81%A2%E5%A4%8D.md",
+      "sha256": "6906871c940b6d2d0453df7c695f2567ef3f576f8460e1d0c891b5da4cfb8e2e",
+      "bytes": 4307
+    },
+    {
+      "path": "docs/evidence/v19-final-overview.json",
+      "url": "/bookshelf/review-files/docs/evidence/v19-final-overview.json",
+      "sha256": "3248f7a65d2d1c05f6122e7308e13a4bdd6861cdd0edd29d145e2b729dc26797",
+      "bytes": 1534
+    },
+    {
+      "path": "docs/验收矩阵.md",
+      "url": "/bookshelf/review-files/docs/%E9%AA%8C%E6%94%B6%E7%9F%A9%E9%98%B5.md",
+      "sha256": "a6936ca7f9225d89754dae8faf5aea89d7812d9539457f472911f7853480f18a",
+      "bytes": 9595
+    },
+    {
+      "path": "docs/进度同步-20261113.md",
+      "url": "/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261113.md",
+      "sha256": "5052eaa0dd494644357e6b4ad3a1759f1049478f6dc3965eb9226b54794e2256",
+      "bytes": 1400
+    },
+    {
+      "path": "docs/1.8-本机共享真实问答与验证-20261112.md",
+      "url": "/bookshelf/review-files/docs/1.8-%E6%9C%AC%E6%9C%BA%E5%85%B1%E4%BA%AB%E7%9C%9F%E5%AE%9E%E9%97%AE%E7%AD%94%E4%B8%8E%E9%AA%8C%E8%AF%81-20261112.md",
+      "sha256": "24c82539219f07fb95cf3a462641cc7f60c10f6ad1d899c27c7791be81a09de2",
+      "bytes": 12506
+    },
+    {
+      "path": "docs/本机对外服务.md",
+      "url": "/bookshelf/review-files/docs/%E6%9C%AC%E6%9C%BA%E5%AF%B9%E5%A4%96%E6%9C%8D%E5%8A%A1.md",
+      "sha256": "6cc7be24643b1df9bbe148ea5cdc569bb896aedfff44aee8643cd089246b2046",
+      "bytes": 6019
+    },
+    {
+      "path": "docs/evidence/v18-public-service/pytest-delivery.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/pytest-delivery.xml",
+      "sha256": "450e88e433125a552e96997f1caa6eddadc30cc86871948f65249ad5161a53a4",
+      "bytes": 24169
+    },
+    {
+      "path": "docs/evidence/v18-public-service/frontend-test-final.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/frontend-test-final.json",
+      "sha256": "119eb30f495506e4c0cea29acbcf1ab79a858cc8180629584a75dec64cea9546",
+      "bytes": 6652
+    },
+    {
+      "path": "docs/evidence/v18-public-service/backend-build.log",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/backend-build.log.txt",
+      "sha256": "9f3183fcd78b5d76c423a8ddefd4cf7186987faf9e6f5478113c36773447d7f1",
+      "bytes": 7953
+    },
+    {
+      "path": "docs/evidence/v18-public-service/backend-rollout.log",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/backend-rollout.log.txt",
+      "sha256": "2f107704ab3f30223e17a3a427b6ed092f5ed55bcb04c2c0221cd93a31625426",
+      "bytes": 726
+    },
+    {
+      "path": "docs/evidence/v18-public-service/download-client-final-build.log",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/download-client-final-build.log.txt",
+      "sha256": "27177ae30682465841de4fcf656ab5de6f0e25f7cdcb7247915713b49e461a00",
+      "bytes": 3449
+    },
+    {
+      "path": "docs/evidence/v18-public-service/real-runs-final.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/real-runs-final.json",
+      "sha256": "1e90d22e80a9202915ccb5ba324340baff0b3c54142bd9392e9d4f3d1feb6ce7",
+      "bytes": 25204
+    },
+    {
+      "path": "docs/evidence/v18-public-service/initial-run-failed.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/initial-run-failed.json",
+      "sha256": "c0d1f59f68887a23690aea0e0585ca117a7a7c8cc3d67b767d93efccdafb76b6",
+      "bytes": 837
+    },
+    {
+      "path": "docs/evidence/v18-public-service/browser-followup-timeout.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/browser-followup-timeout.json",
+      "sha256": "16a39ec1c79bb2994291482b354e848a21e45cfd86f5292fc6a4c547bb6aeb72",
+      "bytes": 4513
+    },
+    {
+      "path": "docs/evidence/v18-public-service/real-browser-retry.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/real-browser-retry.json",
+      "sha256": "753d0fee59d434cf949e6899fb3ac0ae7360cb57b985a7f80a74eed635b2a464",
+      "bytes": 6105
+    },
+    {
+      "path": "docs/evidence/v18-public-service/download-client-real-answer.png",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/download-client-real-answer.png",
+      "sha256": "52cdc6cc9870296abd73427b8a517ca9299dffeacbbb2af3577147ab4015053f",
+      "bytes": 125309
+    },
+    {
+      "path": "docs/evidence/v18-public-service/citation-audit-final.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/citation-audit-final.json",
+      "sha256": "e878cb09440d6f608a4cdb27ed13de2c34bce094673199939e48a6a796bd3913",
+      "bytes": 543
+    },
+    {
+      "path": "docs/evidence/v18-public-service/tunnel-precheck-failed.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/tunnel-precheck-failed.json",
+      "sha256": "e7414b4e2ccf5e14679a576c918e58046c12a5498ff480572c99eb9a8b2e0ff2",
+      "bytes": 1685
+    },
+    {
+      "path": "docs/evidence/v18-public-service/recovery-first-failed.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/recovery-first-failed.json",
+      "sha256": "0f4e8419e2db0a3aae7a016a1ba5529b7714e9df853d33b26ad6bc13192446ac",
+      "bytes": 3178
+    },
+    {
+      "path": "docs/evidence/v18-public-service/recovery-second-failed.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/recovery-second-failed.json",
+      "sha256": "568115e94a270833fe76389ba29870abc67f23b801c61d7fd06bcc76fde3a9b5",
+      "bytes": 2767
+    },
+    {
+      "path": "docs/evidence/v18-public-service/relay-diagnostics-first.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/relay-diagnostics-first.json",
+      "sha256": "ce7f3595cea796635a159f1920b56a18b7faf7a0f04f998933fe7662331e7005",
+      "bytes": 30571
+    },
+    {
+      "path": "docs/evidence/v18-public-service/recovery.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/recovery.json",
+      "sha256": "ba457f03dacc8bc0597bfdf14cf8fed6491694544bcdbb2220ce7d94d7e1034d",
+      "bytes": 3883
+    },
+    {
+      "path": "docs/evidence/v18-public-service/browser-history-citation-gap.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/browser-history-citation-gap.json",
+      "sha256": "438d7a91de7b67519c4c891bc6e6940e409a7aa357996955bedc9a79b72ccd05",
+      "bytes": 1644
+    },
+    {
+      "path": "docs/evidence/v18-public-service/history-source-before.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/history-source-before.xml",
+      "sha256": "f2eded0599e313c3e001edd2a98114a9164728bcdbce21bf9fde2cef1c154dc2",
+      "bytes": 901
+    },
+    {
+      "path": "docs/evidence/v18-public-service/final-layer-build.log",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/final-layer-build.log.txt",
+      "sha256": "bfcd29752347c27d4a3b318adb3c00a46cd9cd1d81a38d279b6fb6518dcc6502",
+      "bytes": 1860
+    },
+    {
+      "path": "docs/evidence/v18-public-service/application-fingerprint-final.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/application-fingerprint-final.json",
+      "sha256": "907d1dc26fb158fba62188623bd1c361f4e9651c65ba0333dbbbd1bac73a44b2",
+      "bytes": 1216
+    },
+    {
+      "path": "docs/evidence/v18-public-service/final-database-state.json",
+      "url": "/bookshelf/review-files/docs/evidence/v18-public-service/final-database-state.json",
+      "sha256": "4d60bc01fa4a61d0f54f80228b375fcb1c24596e9001398edfbb99c99dc71471",
+      "bytes": 200
+    },
+    {
+      "path": "docs/项目实战测试反馈-20261112.md",
+      "url": "/bookshelf/review-files/docs/%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%88%98%E6%B5%8B%E8%AF%95%E5%8F%8D%E9%A6%88-20261112.md",
+      "sha256": "6cf967d111b56d2e573278160b3568f7157bd1fc7f5cb6fd16d5a2c53bc688b3",
+      "bytes": 46242
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-pytest.xml",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-pytest.xml",
+      "sha256": "4820ce7bc744c7263666fa7f1c83720f6972cadf0ab810519bddfdfc2da4b76a",
+      "bytes": 19217
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-ruling-target-01.xml",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-ruling-target-01.xml",
+      "sha256": "37e617b7d6d0784a1c484c12163f282c13410906ac8388f2fa000397ecefb417",
+      "bytes": 377
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-pytest-final-04.xml",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-pytest-final-04.xml",
+      "sha256": "4331d51eeb1ff3080d59af0e14a08e2caf9347d00c5f4ad443fcd829bb7b8090",
+      "bytes": 19518
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-invalid-scene-before.xml",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-invalid-scene-before.xml",
+      "sha256": "fd1fdfddb35917fc737fbdb990de85d761326cee87ed52b0821c377080c76f80",
+      "bytes": 941
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-protocol-final.xml",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-protocol-final.xml",
+      "sha256": "86b4b81720698e56b1c6177ad78a168b91571e4b4cadd19d90a33cf0afa93c08",
+      "bytes": 1978
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-frontend-final.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-frontend-final.json",
+      "sha256": "e555ac35b6dc41310d8f800361dfddefcf1353f7006510fa81868346a38a164d",
+      "bytes": 2076
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-frontend-build.log",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-frontend-build.log.txt",
+      "sha256": "1c0577f509328583aa549973debfa266252eb41486a26a473f9c4224aa8ac51c",
+      "bytes": 430
+    },
+    {
+      "path": "docs/evidence/assessment-audit-compose-20261112-01/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-compose-20261112-01/summary.json",
+      "sha256": "9185f5536bb6865d63a4170fd80e117f80425003689fb2f085267219d3336921",
+      "bytes": 52904
+    },
+    {
+      "path": "evaluations/results/live-assessment-audit-20261112-01/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-assessment-audit-20261112-01/results.jsonl",
+      "sha256": "6fe2f9167282dc35a46f082015501720c3e746622649b1add15855bc7321b80b",
+      "bytes": 752989
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-primary/before-maintenance.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-primary/before-maintenance.json",
+      "sha256": "0c6a46fc09b786875dd4d675d9dfc30014bcc712fa86a207d1ad26adb5747cd1",
+      "bytes": 2681
+    },
+    {
+      "path": "evaluations/results/live-assessment-audit-20261112-02/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-assessment-audit-20261112-02/results.jsonl",
+      "sha256": "c50c5817ce382e98835bb31aa12cdd197ee4fc88536283a3159f8e7921a3e5c3",
+      "bytes": 783599
+    },
+    {
+      "path": "evaluations/results/live-assessment-audit-20261112-03/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-assessment-audit-20261112-03/results.jsonl",
+      "sha256": "323d268e46a0bfbf71309d40774971393ecb1b04693ad0d3534ec7bf5c6b4758",
+      "bytes": 764597
+    },
+    {
+      "path": "evaluations/results/live-assessment-audit-20261112-03/codex-review.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-assessment-audit-20261112-03/codex-review.json",
+      "sha256": "45f38dc5c9d4396d18a35fd1234bcf5698a68cd9b7ebcc662615b1616264c905",
+      "bytes": 32505
+    },
+    {
+      "path": "evaluations/results/live-assessment-audit-20261112-03/citation-audit.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-assessment-audit-20261112-03/citation-audit.json",
+      "sha256": "6423df5a53a204380b31ae3d893753af707ae52d93a74a913e09c36dc5348f27",
+      "bytes": 31077
+    },
+    {
+      "path": "evaluations/results/mock-assessment-failure-20261112-01/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/mock-assessment-failure-20261112-01/results.jsonl",
+      "sha256": "fcb1debdb4a5117cf40e0cd3f503c3b9e16f7d96fcf58684ff732b12cc5cbaf5",
+      "bytes": 2737
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-ruling-stop-before.xml",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-ruling-stop-before.xml",
+      "sha256": "0d2c6352e233f93ede7335bb99e8439ea56bcc73267d8016b5922abc9d27e0e8",
+      "bytes": 613
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-ruling-stop-after.xml",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-ruling-stop-after.xml",
+      "sha256": "e06a8bebc9aac9bc907716edadab908e49a1566a0555fc76c61e3378c8c1c4ce",
+      "bytes": 513
+    },
+    {
+      "path": "docs/evidence/agno-protocol-before.txt",
+      "url": "/bookshelf/review-files/docs/evidence/agno-protocol-before.txt",
+      "sha256": "b6fd0d29259ac8996b3bd51d4713d8b223b7f7fcc9c22eef72d2da712385700b",
+      "bytes": 772
+    },
+    {
+      "path": "docs/evidence/redis-cache-shape-before-20261111.json",
+      "url": "/bookshelf/review-files/docs/evidence/redis-cache-shape-before-20261111.json",
+      "sha256": "5dfd7dbade5ca7315fb582fecf7225273430023b2aab3da5ddd1584713981439",
+      "bytes": 165
+    },
+    {
+      "path": "tests/test_database_unavailable.py",
+      "url": "/bookshelf/review-files/tests/test_database_unavailable.py",
+      "sha256": "cba67a6b100cdfd43edd9e36711c91cad25728190b2ac4161e7544a10e7f2d8b",
+      "bytes": 2319
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-tool-failure-protocol.xml",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-tool-failure-protocol.xml",
+      "sha256": "52cb20bfecfeae0ad3ddf7090fe1cad3570e194909fc60828b042af078f3926d",
+      "bytes": 993
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-tool-failure-protocol-after.xml",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-tool-failure-protocol-after.xml",
+      "sha256": "778b8639c7744d51abe6feb50b83fa378e5b31e9dd583ad76d429c45b56ab050",
+      "bytes": 383
+    },
+    {
+      "path": "docs/问题修正记录.md",
+      "url": "/bookshelf/review-files/docs/%E9%97%AE%E9%A2%98%E4%BF%AE%E6%AD%A3%E8%AE%B0%E5%BD%95.md",
+      "sha256": "74fc5e8b296b3f429b5da4916695f3cdd6acc207b5e60a3f9316fa1c1fdbaf17",
+      "bytes": 38198
+    },
+    {
+      "path": "docs/验证与差距.md",
+      "url": "/bookshelf/review-files/docs/%E9%AA%8C%E8%AF%81%E4%B8%8E%E5%B7%AE%E8%B7%9D.md",
+      "sha256": "b5a4dfb98d57901703e0dc299d9ff8a45d7d06d9c9834c1f64e9ca49bb375a88",
+      "bytes": 3218
+    },
+    {
+      "path": "docs/完整32条真实回归核对-20261110.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92%E6%A0%B8%E5%AF%B9-20261110.md",
+      "sha256": "fb2de119b3c9fb13ec3bb37ad9063adcec4c1d0b7331cc10051460b8f1b5bcdf",
+      "bytes": 9672
+    },
+    {
+      "path": "docs/evidence/full-regression-source-review-20261110.json",
+      "url": "/bookshelf/review-files/docs/evidence/full-regression-source-review-20261110.json",
+      "sha256": "54740116746e26667aa59b099be1890e4422dcc87c34776fb718d2d94abb3e46",
+      "bytes": 456902
+    },
+    {
+      "path": "evaluations/results/live-full-regression-20261110-05/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-full-regression-20261110-05/results.jsonl",
+      "sha256": "e0d9d88b608598b0d722e3ac6dffa9ff9d0bb90a3386fd6e13d963bc99d0a209",
+      "bytes": 836620
+    },
+    {
+      "path": "evaluations/results/live-full-regression-20261110-05/metadata.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-full-regression-20261110-05/metadata.json",
+      "sha256": "37a8c366044f26145391781c80c565e4c1514ebf513521131f0d4a78d82dce06",
+      "bytes": 1190
+    },
+    {
+      "path": "evaluations/results/live-full-regression-20261110-05/citation-audit.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-full-regression-20261110-05/citation-audit.json",
+      "sha256": "d03622fec9b7bde68880cd9fe8236a8d2d9f10abd4cc29572051744eed9746ca",
+      "bytes": 34379
+    },
+    {
+      "path": "docs/evidence/pytest-full-regression-final.xml",
+      "url": "/bookshelf/review-files/docs/evidence/pytest-full-regression-final.xml",
+      "sha256": "c63b33526bf0ff2002fe46134d3cba289f573bdadc91fc9da32f1df25d53a5d6",
+      "bytes": 12452
+    },
+    {
+      "path": "docs/evidence/full-regression-reindex-20261110.json",
+      "url": "/bookshelf/review-files/docs/evidence/full-regression-reindex-20261110.json",
+      "sha256": "64ef3a5ebbff3c6137ca3e454ee5541632711451cb7938017fbcd0294ceb317b",
+      "bytes": 1013
+    },
+    {
+      "path": "docs/evidence/native-preview-outage-20261110.json",
+      "url": "/bookshelf/review-files/docs/evidence/native-preview-outage-20261110.json",
+      "sha256": "f98d62dc77cbc548010374eab2e5bccd5cdad8b7986c1182354638a8715a122e",
+      "bytes": 934
+    },
+    {
+      "path": "docs/evidence/full-regression-normal-health-20261110.json",
+      "url": "/bookshelf/review-files/docs/evidence/full-regression-normal-health-20261110.json",
+      "sha256": "e910e07e7e981c3cf8022b5255d5bc22b0d3be90881198d9f241bbc57c59b560",
+      "bytes": 1333
+    },
+    {
+      "path": "docs/Worker一小时稳定性验证与1.0交付-20261111.md",
+      "url": "/bookshelf/review-files/docs/Worker%E4%B8%80%E5%B0%8F%E6%97%B6%E7%A8%B3%E5%AE%9A%E6%80%A7%E9%AA%8C%E8%AF%81%E4%B8%8E1.0%E4%BA%A4%E4%BB%98-20261111.md",
+      "sha256": "6d44a18b9e22bbe24991c474ba35525a7678a6f39ded76ad6f8af80626a534b8",
+      "bytes": 4826
+    },
+    {
+      "path": "docs/evidence/worker-soak-20261111-01/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/worker-soak-20261111-01/summary.json",
+      "sha256": "1de45ba9afb7e13da448f240e80b4532f6941fe0f929ebbd1d26eb1bb4fd598b",
+      "bytes": 10003
+    },
+    {
+      "path": "docs/evidence/worker-soak-20261111-01/samples.jsonl",
+      "url": "/bookshelf/review-files/docs/evidence/worker-soak-20261111-01/samples.jsonl",
+      "sha256": "86a980c12f3d681529e2ebb5666f88763cc5c0e5025cf2b7fdadc5f17b2d7035",
+      "bytes": 1572271
+    },
+    {
+      "path": "docs/evidence/worker-soak-20261111-01/audit.json",
+      "url": "/bookshelf/review-files/docs/evidence/worker-soak-20261111-01/audit.json",
+      "sha256": "16a2d3189aa3e57fbcdb8237e8a239465e6272de866a483d65f430da75c06cb8",
+      "bytes": 2727
+    },
+    {
+      "path": "docs/evidence/worker-soak-20261111-01/implementation.json",
+      "url": "/bookshelf/review-files/docs/evidence/worker-soak-20261111-01/implementation.json",
+      "sha256": "9ac7038db2b828795f5b01d96bed9e4ba3e5d8a0e5c53191302301ff89128dde",
+      "bytes": 903
+    },
+    {
+      "path": "docs/evidence/worker-soak-20261111-01/delivery-health.json",
+      "url": "/bookshelf/review-files/docs/evidence/worker-soak-20261111-01/delivery-health.json",
+      "sha256": "d92a791eb5220a620da02ea85de4221f58ffc58f124495cf346690036ad0c3dd",
+      "bytes": 1628
+    },
+    {
+      "path": "docs/evidence/pytest-release-complete-20261111.xml",
+      "url": "/bookshelf/review-files/docs/evidence/pytest-release-complete-20261111.xml",
+      "sha256": "5ae8717c531bf3cc45784faab771ddbfe384bd05c3d30f7b9a6fedd15c98a49e",
+      "bytes": 14621
+    },
+    {
+      "path": "docs/evidence/worker-memory-fatal-a854e36a/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/worker-memory-fatal-a854e36a/summary.json",
+      "sha256": "731ebab7adfef3450e8f58a193c3d3e40d6ef8410cd7a534f2276057b313ed24",
+      "bytes": 403
+    },
+    {
+      "path": "docs/evidence/worker-memory-20261110/embedding-owner-exit.json",
+      "url": "/bookshelf/review-files/docs/evidence/worker-memory-20261110/embedding-owner-exit.json",
+      "sha256": "d58239040e167d3d98df667eaff6ebe756acc56d98d555b22faaf8b1a7c384d2",
+      "bytes": 275
+    },
+    {
+      "path": "docs/1.1-Redis缓存验证与进度-20261111.md",
+      "url": "/bookshelf/review-files/docs/1.1-Redis%E7%BC%93%E5%AD%98%E9%AA%8C%E8%AF%81%E4%B8%8E%E8%BF%9B%E5%BA%A6-20261111.md",
+      "sha256": "770de9a6ec1d3d3a21e582936860a05ac91fa33398573a30fe78e68c89976382",
+      "bytes": 5732
+    },
+    {
+      "path": "docs/evidence/redis-v1.1-live-source-review-20261111.json",
+      "url": "/bookshelf/review-files/docs/evidence/redis-v1.1-live-source-review-20261111.json",
+      "sha256": "2875c19627bb96c1a6eb27138a2fe3694668326aaba28ce09a03041dfed599f2",
+      "bytes": 23084
+    },
+    {
+      "path": "docs/evidence/redis-v1.1-delivery-health-20261111.json",
+      "url": "/bookshelf/review-files/docs/evidence/redis-v1.1-delivery-health-20261111.json",
+      "sha256": "3092f3c08f635d7ce51fe2e4fdadda15792a3ddee1437c21743358a62b6254d8",
+      "bytes": 2028
+    },
+    {
+      "path": "docs/evidence/compose-startup-failures-20261111/kafka-permission-before.log",
+      "url": "/bookshelf/review-files/docs/evidence/compose-startup-failures-20261111/kafka-permission-before.log.txt",
+      "sha256": "6fff35cb2c4368420538349d37383eacc50a0c334286df032771aeb0d2d98f14",
+      "bytes": 4062
+    },
+    {
+      "path": "docs/evidence/compose-startup-failures-20261111/up-before.log",
+      "url": "/bookshelf/review-files/docs/evidence/compose-startup-failures-20261111/up-before.log.txt",
+      "sha256": "991d19c0e40cfff9705e28d86a5905c2b420eabd5fbedd5e89867c5aad7d782d",
+      "bytes": 2508
+    },
+    {
+      "path": "docs/evidence/compose-startup-failures-20261111/windows-excluded-ports.txt",
+      "url": "/bookshelf/review-files/docs/evidence/compose-startup-failures-20261111/windows-excluded-ports.txt",
+      "sha256": "16e2f7040178f5a2e4a9e554c43c778b7299da8299f27d84c78225f20eb82bf8",
+      "bytes": 379
+    },
+    {
+      "path": "docs/evidence/compose-startup-failures-20261111/up-port-before.log",
+      "url": "/bookshelf/review-files/docs/evidence/compose-startup-failures-20261111/up-port-before.log.txt",
+      "sha256": "ed0c9641d2622b5e7e0d42c39292aad192801ed88174af72001a699446e5c738",
+      "bytes": 1659
+    },
+    {
+      "path": "docs/evidence/compose-startup-failures-20261111/api-pid1-signal-noeffect.json",
+      "url": "/bookshelf/review-files/docs/evidence/compose-startup-failures-20261111/api-pid1-signal-noeffect.json",
+      "sha256": "6a808ae4ab8caf81656b4018b8c4bad6002cfe8deb633e6bdc7bff19d0dc3188",
+      "bytes": 1547
+    },
+    {
+      "path": "docs/evidence/compose-linux-20261111-01/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/compose-linux-20261111-01/summary.json",
+      "sha256": "5e13ed685e45802fdbf808c869e0ead5e2aad9c29b7ed32d94a3d29688041247",
+      "bytes": 2782
+    },
+    {
+      "path": "docs/evidence/compose-linux-20261111-02/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/compose-linux-20261111-02/summary.json",
+      "sha256": "3543d8b69602e44f7f108c1210cc25195f53f16d776fe2886bfc06e8a95e6a1d",
+      "bytes": 15872
+    },
+    {
+      "path": "docs/evidence/compose-helper-signal-20261111-02/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/compose-helper-signal-20261111-02/summary.json",
+      "sha256": "81d5360b39838f964f65f5e81abe82eecfd9069917675a10be94e80a332e8696",
+      "bytes": 2704
+    },
+    {
+      "path": "docs/evidence/compose-linux-20261111-04/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/compose-linux-20261111-04/summary.json",
+      "sha256": "5462ccc5de48b53d5b4c709dcb578b5bdc0b202aaa65eb04f13d66e0fc558ce8",
+      "bytes": 52268
+    },
+    {
+      "path": "docs/evidence/compose-linux-20261111-03/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/compose-linux-20261111-03/summary.json",
+      "sha256": "607f12fa11bea6e2d60f767d07bf3da26542a6480ce576623349d5fde8d01d40",
+      "bytes": 41592
+    },
+    {
+      "path": "docs/evidence/compose-postgres-outage-before-20261111.json",
+      "url": "/bookshelf/review-files/docs/evidence/compose-postgres-outage-before-20261111.json",
+      "sha256": "7176591c73034542770a1b6f368fa60674b9a3a755bd968e9976f378aab34c9b",
+      "bytes": 262
+    },
+    {
+      "path": "docs/evidence/compose-startup-failures-20261111/postgres-dns-before.log",
+      "url": "/bookshelf/review-files/docs/evidence/compose-startup-failures-20261111/postgres-dns-before.log.txt",
+      "sha256": "6434430b64e66dd1d69878f83d3c7be29b88a389f8a72fe654aa80e3908f9024",
+      "bytes": 10005
+    },
+    {
+      "path": "docs/evidence/pytest-v1.4-final-20261111.xml",
+      "url": "/bookshelf/review-files/docs/evidence/pytest-v1.4-final-20261111.xml",
+      "sha256": "104df3d1669cd7fe12cba06a276d4b720b5d0b371aa7d2911e9760993cb9712b",
+      "bytes": 17522
+    },
+    {
+      "path": "docs/evidence/compose-postgres-outage-fixed-20261111.json",
+      "url": "/bookshelf/review-files/docs/evidence/compose-postgres-outage-fixed-20261111.json",
+      "sha256": "35689ed2c6d540056d0e79adf19c69f1fd9ef4e1fdace7fd8af5e11201bd8f23",
+      "bytes": 419
+    },
+    {
+      "path": "docs/evidence/compose-app-source-scope-final-20261111.json",
+      "url": "/bookshelf/review-files/docs/evidence/compose-app-source-scope-final-20261111.json",
+      "sha256": "bf8cf9b7ce873880cf652b674cab563bf837d42888875eb058a654206df9837f",
+      "bytes": 3603
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-pytest-final.xml",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-pytest-final.xml",
+      "sha256": "dda0f47df0429fb3f08c8dfdd9c4396905464a97af91b7f650c2c70ec6d0dd0c",
+      "bytes": 19505
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-pytest-final-02.xml",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-pytest-final-02.xml",
+      "sha256": "dc554e74b87cc3b891d7beee699c7c87d60ab80daa77c06c1f737d7ff08f0454",
+      "bytes": 19110
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-overlay.Dockerfile",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-overlay.Dockerfile",
+      "sha256": "36cac9e486e5797f6a736ade93b83dfcce8a2ea6921b02f6fb0f51dffc066daf",
+      "bytes": 120
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-build-final.log",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-build-final.log.txt",
+      "sha256": "c69c2dd3e14f8609e4367bb515cb59d53d9305243991e7eddfce70142e428dd0",
+      "bytes": 1731
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-build-offline.log",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-build-offline.log.txt",
+      "sha256": "631a1d528e98b538988b9725bb58ff0b739c220bdb76f904f809efabaff6a6a9",
+      "bytes": 2177
+    },
+    {
+      "path": "docs/evidence/browser-assessment-audit-20261112/chat.png",
+      "url": "/bookshelf/review-files/docs/evidence/browser-assessment-audit-20261112/chat.png",
+      "sha256": "b017187463daa6a61e2e1606167930c3fb2e251c154bf1d205f4ea4a92d7b3ee",
+      "bytes": 126221
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-overview.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-overview.json",
+      "sha256": "207ebc0486b4282d494f7336e97c55ec18ca611d30314e56d15d31e14cc94628",
+      "bytes": 3211
+    },
+    {
+      "path": "docs/进度同步-20261112.md",
+      "url": "/bookshelf/review-files/docs/%E8%BF%9B%E5%BA%A6%E5%90%8C%E6%AD%A5-20261112.md",
+      "sha256": "e087252933caa67e9cbf709bc57cdadfbca49b1df601f7d543e3e43f5358da48",
+      "bytes": 7221
+    },
+    {
+      "path": "docs/evidence/v17-feedback/evaluation-review.json",
+      "url": "/bookshelf/review-files/docs/evidence/v17-feedback/evaluation-review.json",
+      "sha256": "20a3b6166f078f4dc96a0a95479edee29b44f8841b8be3310ad32f7d1e4bedd7",
+      "bytes": 1405
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-runtime-final.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-runtime-final.json",
+      "sha256": "137cb6fffe8446bbfe5bad913f965178e9c521962141cb99f386345b65f0f8ca",
+      "bytes": 3698
+    },
+    {
+      "path": "docs/evidence/assessment-audit-20261112-final-database.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-20261112-final-database.json",
+      "sha256": "4efc8faa44673b42461751be49a91f23118041cdf8c47cc8377ecbd83b0baf12",
+      "bytes": 2681
+    },
+    {
+      "path": "docs/1.5-Docker真实问答与主库迁移-20261112.md",
+      "url": "/bookshelf/review-files/docs/1.5-Docker%E7%9C%9F%E5%AE%9E%E9%97%AE%E7%AD%94%E4%B8%8E%E4%B8%BB%E5%BA%93%E8%BF%81%E7%A7%BB-20261112.md",
+      "sha256": "38890c89fc0031d8135913c683e3f6eef259af0b752fb1b3e03af5a4697432b3",
+      "bytes": 5351
+    },
+    {
+      "path": "docs/evidence/native-to-docker-v15-20261112-source/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/native-to-docker-v15-20261112-source/summary.json",
+      "sha256": "381c9a95d13b6dc3c059cd8038ba2d25e04ef1b3a7d31e51afa0756ee4f15a85",
+      "bytes": 3287
+    },
+    {
+      "path": "docs/evidence/native-to-docker-v15-20261112-restore/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/native-to-docker-v15-20261112-restore/summary.json",
+      "sha256": "3143f3463e80a9ef883ea1a06c593246c9726636bf8b54ba6eaeaeba1d2d5aac",
+      "bytes": 5743
+    },
+    {
+      "path": "evaluations/results/live-docker-v1.5-20261112-01/summary.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-docker-v1.5-20261112-01/summary.json",
+      "sha256": "6c1b29cec777e2123bcf0c6eca307320b20ac32c01da3d945c16c2604c0045d4",
+      "bytes": 344
+    },
+    {
+      "path": "docs/evidence/docker-live-source-review-20261112.json",
+      "url": "/bookshelf/review-files/docs/evidence/docker-live-source-review-20261112.json",
+      "sha256": "3601aba6bfbc1473f945715fca7770ab3ad52f20223d6e2f2c53242f1cedbf80",
+      "bytes": 1567
+    },
+    {
+      "path": "docs/evidence/docker-live-browser-answer-20261112.json",
+      "url": "/bookshelf/review-files/docs/evidence/docker-live-browser-answer-20261112.json",
+      "sha256": "38854afcf61194a8a0ba788d079db492b1a7d59117307e349e0621355c432c42",
+      "bytes": 6396
+    },
+    {
+      "path": "docs/evidence/docker-cutover-v15-20261112-01/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/docker-cutover-v15-20261112-01/summary.json",
+      "sha256": "8fb9759fde3d683b016fbe4090e56f608684eebee0fbe269fd6a0d4343deeb45",
+      "bytes": 2868
+    },
+    {
+      "path": "docs/evidence/pytest-v1.5-20261112.xml",
+      "url": "/bookshelf/review-files/docs/evidence/pytest-v1.5-20261112.xml",
+      "sha256": "708b0aae5f57d5bf5a405b0590893194e4a77d4d0800f50c3fe1fec6372d4491",
+      "bytes": 18855
+    },
+    {
+      "path": "docs/evidence/frontend-v1.5-20261112.json",
+      "url": "/bookshelf/review-files/docs/evidence/frontend-v1.5-20261112.json",
+      "sha256": "5abad1f83da2134347e0a8204e02c0386fd6d0c3ed588705ec02f903911b8446",
+      "bytes": 2077
+    },
+    {
+      "path": "docs/evidence/browser-docker-live-v15-20261112/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/browser-docker-live-v15-20261112/summary.json",
+      "sha256": "3d32777e895c95a9e2a9805d9d6a5d295893fc517122b0b95c9eed2fb6ef1459",
+      "bytes": 985
+    },
+    {
+      "path": "docs/Docker主库迁移与运行手册.md",
+      "url": "/bookshelf/review-files/docs/Docker%E4%B8%BB%E5%BA%93%E8%BF%81%E7%A7%BB%E4%B8%8E%E8%BF%90%E8%A1%8C%E6%89%8B%E5%86%8C.md",
+      "sha256": "69115a85ba612739fce3ae62b73cf2838bd4ff91e66dffc1837789901887d71f",
+      "bytes": 3984
+    },
+    {
+      "path": "docs/evidence/docker-live-final-state-20261112.json",
+      "url": "/bookshelf/review-files/docs/evidence/docker-live-final-state-20261112.json",
+      "sha256": "fe1fcc6d3f19ac69d83ddbbe8193c19b38ffd75919ecad1ead079a5d01c4faf9",
+      "bytes": 1588
+    },
+    {
+      "path": "docs/来源与复用说明.md",
+      "url": "/bookshelf/review-files/docs/%E6%9D%A5%E6%BA%90%E4%B8%8E%E5%A4%8D%E7%94%A8%E8%AF%B4%E6%98%8E.md",
+      "sha256": "cd8d7d9c99c4eed9d3bdcb2cf0ca3dfb5290c3e6465ef7f600ddbad3d0ea3a08",
+      "bytes": 3873
+    },
+    {
+      "path": "data/manifest.json",
+      "url": "/bookshelf/review-files/data/manifest.json",
+      "sha256": "5760e7bb55356afec92f9dcc0adff2d0826f7f9595e519c0eee9fd4adaf38a7e",
+      "bytes": 26645
+    },
+    {
+      "path": "rulings/engine-manifest.json",
+      "url": "/bookshelf/review-files/rulings/engine-manifest.json",
+      "sha256": "fbbfb1d24c6a52c25f583b894b14c95e7586474979adbe8fb92ea709db8e4f45",
+      "bytes": 49668
+    },
+    {
+      "path": "docs/2.0-本地内测与前端规范对照-20261114.md",
+      "url": "/bookshelf/review-files/docs/2.0-%E6%9C%AC%E5%9C%B0%E5%86%85%E6%B5%8B%E4%B8%8E%E5%89%8D%E7%AB%AF%E8%A7%84%E8%8C%83%E5%AF%B9%E7%85%A7-20261114.md",
+      "sha256": "12e801cf182fe48dda8182b382a257dd672f7322ae988c546de6d6f5ca6ae1a7",
+      "bytes": 11637
+    },
+    {
+      "path": "docs/evidence/v2-local-quality-20261114.log",
+      "url": "/bookshelf/review-files/docs/evidence/v2-local-quality-20261114.log.txt",
+      "sha256": "de09032ec9f5cc22a7f4bb3c4e3f3cfba760be9ffc8c7133ff9e3240317cc40a",
+      "bytes": 2029
+    },
+    {
+      "path": "docs/evidence/v2-local-build-20261114.log",
+      "url": "/bookshelf/review-files/docs/evidence/v2-local-build-20261114.log.txt",
+      "sha256": "c366116841014315b5ad4a5d0ca207b5df02dd476b7b0987a897f4fba4b91b9b",
+      "bytes": 1107
+    },
+    {
+      "path": "docs/evidence/v2-local-browser-20261114.json",
+      "url": "/bookshelf/review-files/docs/evidence/v2-local-browser-20261114.json",
+      "sha256": "5192919265ba42958721c8d95516d8f42a06dd7120369c345b7363d032c45e53",
+      "bytes": 3889
+    },
+    {
+      "path": "docs/evidence/v2-local-artifacts-20261114.json",
+      "url": "/bookshelf/review-files/docs/evidence/v2-local-artifacts-20261114.json",
+      "sha256": "4bd4040a6ab4f7f802f6416154438f57459f0caadfed54accad09ba976b53632",
+      "bytes": 1474
+    },
+    {
+      "path": "docs/evidence/v2-local-serving-20261114.json",
+      "url": "/bookshelf/review-files/docs/evidence/v2-local-serving-20261114.json",
+      "sha256": "dae641d219efa23373735807d27d4800846807ddbb96f2cba71b0d6c5a9cd8fc",
+      "bytes": 1628
+    },
+    {
+      "path": "VERSION",
+      "url": "/bookshelf/review-files/VERSION",
+      "sha256": "2b075b9faf7f116b3186ba68b072f8e07a06d86a6730ecf14f8e171ab6664158",
+      "bytes": 15
+    },
+    {
+      "path": "pyproject.toml",
+      "url": "/bookshelf/review-files/pyproject.toml",
+      "sha256": "fe0bcd0e33bfaaf3b6a02fc64309d815c65b571d16141e5b26b0d51876415643",
+      "bytes": 1351
+    },
+    {
+      "path": "uv.lock",
+      "url": "/bookshelf/review-files/uv.lock",
+      "sha256": "15a18a252752467307f4bdfd92256adb840d3ce1dee2bffb342b780e2dc3d114",
+      "bytes": 151895
+    },
+    {
+      "path": "frontend/package.json",
+      "url": "/bookshelf/review-files/frontend/package.json",
+      "sha256": "ca9bdb064e3dbffe795deb861c9938dd55bfb736a764540fb2b0357e7d97510f",
+      "bytes": 1612
+    },
+    {
+      "path": "frontend/package-lock.json",
+      "url": "/bookshelf/review-files/frontend/package-lock.json",
+      "sha256": "114130e3f63370048ca4475b17851a70a7c06a9ed7a89e3a783fbbd5a8e9da77",
+      "bytes": 180649
+    },
+    {
+      "path": "Dockerfile",
+      "url": "/bookshelf/review-files/Dockerfile",
+      "sha256": "dfbbe5b1569a3e6ca79e04ca1262e4f20d0b4d1ac82b41e091931ab62278bb18",
+      "bytes": 564
+    },
+    {
+      "path": "compose.yaml",
+      "url": "/bookshelf/review-files/compose.yaml",
+      "sha256": "83d3c722e663d62b2865e1ffc70cb4bec55af76e855a322682c6be573092e181",
+      "bytes": 2994
+    },
+    {
+      "path": "compose.live.yaml",
+      "url": "/bookshelf/review-files/compose.live.yaml",
+      "sha256": "8ad8b80f2db540bc2b4a1f75ca9cd6a1a7e7b6c295a82d508ad78471744602a2",
+      "bytes": 443
+    },
+    {
+      "path": "compose.v2-local.yaml",
+      "url": "/bookshelf/review-files/compose.v2-local.yaml",
+      "sha256": "05a30d6f78435a90c6c3843fd5b4f4d4837d877d403a835c19bf3f7f00f59dfe",
+      "bytes": 544
+    },
+    {
+      "path": "docs/版本记录.md",
+      "url": "/bookshelf/review-files/docs/%E7%89%88%E6%9C%AC%E8%AE%B0%E5%BD%95.md",
+      "sha256": "f72fdf7259bdd8933bb66c6536c5644e55bd4b54c60ff01e3d94c2de62ae8041",
+      "bytes": 6195
+    },
+    {
+      "path": "docs/1.4-Compose集成与故障恢复验证-20261111.md",
+      "url": "/bookshelf/review-files/docs/1.4-Compose%E9%9B%86%E6%88%90%E4%B8%8E%E6%95%85%E9%9A%9C%E6%81%A2%E5%A4%8D%E9%AA%8C%E8%AF%81-20261111.md",
+      "sha256": "dd98697b1fd97bc019bddeb4bc448deff723f6b7c74db8d0ea1b923f74221b25",
+      "bytes": 5828
+    },
+    {
+      "path": "docs/evidence/compose-postrestart-isolation-20261111.json",
+      "url": "/bookshelf/review-files/docs/evidence/compose-postrestart-isolation-20261111.json",
+      "sha256": "15ed03187ff53de0e0d6a0b82924f465c6753440d1aeb1b5f23ced9b51b699e2",
+      "bytes": 653
+    },
+    {
+      "path": "docs/evidence/browser-compose-v1.4-20261111/native-import-completed.png",
+      "url": "/bookshelf/review-files/docs/evidence/browser-compose-v1.4-20261111/native-import-completed.png",
+      "sha256": "d6a85cc18e0494f7c15127c5c4db01b9033023db06696b1559a95520720ecffd",
+      "bytes": 156797
+    },
+    {
+      "path": "docs/evidence/browser-compose-v1.4-20261111/mobile.png",
+      "url": "/bookshelf/review-files/docs/evidence/browser-compose-v1.4-20261111/mobile.png",
+      "sha256": "b39f34969b9dd8af3eef3d80017464ce6b9a8393c1686f3fa68abfbf2c29a65d",
+      "bytes": 47663
+    },
+    {
+      "path": "docs/evidence/browser-compose-v1.4-20261111/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/browser-compose-v1.4-20261111/summary.json",
+      "sha256": "3ae8cdcc11d837f16833beabd841da7d0201ec57375be52502f03d8daee2347e",
+      "bytes": 957
+    },
+    {
+      "path": "docs/evidence/compose-final-build-inputs-20261111.json",
+      "url": "/bookshelf/review-files/docs/evidence/compose-final-build-inputs-20261111.json",
+      "sha256": "eda75fcfec933002391ded48a252f3bc1221f48708484240fab1c4e316878620",
+      "bytes": 44286
+    },
+    {
+      "path": "docs/evidence/frontend-v1.4-20261111.json",
+      "url": "/bookshelf/review-files/docs/evidence/frontend-v1.4-20261111.json",
+      "sha256": "12021834769aa52e2b33f058e8fc46648dc970f9849edb28aba2a0a32273bdf8",
+      "bytes": 2067
+    },
+    {
+      "path": "docs/evidence/compose-final-state-20261111.json",
+      "url": "/bookshelf/review-files/docs/evidence/compose-final-state-20261111.json",
+      "sha256": "14a8f6199add466f307cb1ef6d399353b28cfc6d20168bd00adf84da4b3b31dc",
+      "bytes": 3977
+    },
+    {
+      "path": "docs/evidence/compose-native-restored-20261111.json",
+      "url": "/bookshelf/review-files/docs/evidence/compose-native-restored-20261111.json",
+      "sha256": "192a32bfc01f5a822ed7fd32337ed0fadb0e67777f4d7ae5b8baf122b92ded93",
+      "bytes": 931
+    },
+    {
+      "path": "backend/app/models.py",
+      "url": "/bookshelf/review-files/backend/app/models.py",
+      "sha256": "f68eeaf741fbdb7b52f314f29a027108b3f462fe57889291858f8612b3ab26cf",
+      "bytes": 9815
+    },
+    {
+      "path": "migrations/versions/0001_initial.py",
+      "url": "/bookshelf/review-files/migrations/versions/0001_initial.py",
+      "sha256": "4b981890e6383632503b4ba65eb3cfea589c0d361a9ca1ce4df062a9ccfff514",
+      "bytes": 13511
+    },
+    {
+      "path": "migrations/versions/0002_request_recovery.py",
+      "url": "/bookshelf/review-files/migrations/versions/0002_request_recovery.py",
+      "sha256": "6f7f92115d0c66aafc2c48fcd8a455e1ae1646b13ddeb4dedad4f132a8e78b24",
+      "bytes": 931
+    },
+    {
+      "path": "alembic.ini",
+      "url": "/bookshelf/review-files/alembic.ini",
+      "sha256": "ebfad8a9c8f352d2381e48df599dd04dad764ca95b03f0dc9949d0691c6d2517",
+      "bytes": 60
+    },
+    {
+      "path": "migrations/env.py",
+      "url": "/bookshelf/review-files/migrations/env.py",
+      "sha256": "13568dbfd42ba0c9e25c1306c439b0d94b35174feec4a66362ac5b1c15ba0e38",
+      "bytes": 854
+    },
+    {
+      "path": "tests/test_migrations.py",
+      "url": "/bookshelf/review-files/tests/test_migrations.py",
+      "sha256": "b6799ba2c168aa2f6426d984a22bde08c9926d3787dcded0b1c376a74bb72d0a",
+      "bytes": 801
+    },
+    {
+      "path": "tests/test_database_transfer.py",
+      "url": "/bookshelf/review-files/tests/test_database_transfer.py",
+      "sha256": "949e970a0755c2a69535393668599e49a52960f9e11e2435fb8c5454f15ffcca",
+      "bytes": 2376
+    },
+    {
+      "path": "tests/test_backup_boundaries.py",
+      "url": "/bookshelf/review-files/tests/test_backup_boundaries.py",
+      "sha256": "db2164fe531648237ba7146125c74214efd6c2657fadc3f628b0b016f9695949",
+      "bytes": 1137
+    },
+    {
+      "path": ".env.example",
+      "url": "/bookshelf/review-files/.env.example",
+      "sha256": "c288ab0a50396a2827cb75f13166904143cb3a246905df66d6fcbdbb2c4f8285",
+      "bytes": 1339
+    },
+    {
+      "path": "backend/app/config.py",
+      "url": "/bookshelf/review-files/backend/app/config.py",
+      "sha256": "0c83a8ada207eae0dd9d50662d53df09c11b21a5e9f463672c9e7bdad69cc267",
+      "bytes": 2511
+    },
+    {
+      "path": "data/snapshots.json",
+      "url": "/bookshelf/review-files/data/snapshots.json",
+      "sha256": "8801a5c54a901a00c056706833513a85ff0a61b31567fc4be4c3ac4c5ad98909",
+      "bytes": 296
+    },
+    {
+      "path": "data/catalog.json",
+      "url": "/bookshelf/review-files/data/catalog.json",
+      "sha256": "6b892d451a75351f763918c141a11f5c6cb1a01eb797cd9371e79de9a951b8c8",
+      "bytes": 119386
+    },
+    {
+      "path": "data/documents.json",
+      "url": "/bookshelf/review-files/data/documents.json",
+      "sha256": "30e318ad81a36f3949421b8fde50684c303167698ac399ae1fe6062d6f7869ee",
+      "bytes": 475866
+    },
+    {
+      "path": "data/sources/freekill-local-b9dc701220bc/LICENSE",
+      "url": "/bookshelf/review-files/data/sources/freekill-local-b9dc701220bc/LICENSE",
+      "sha256": "0b383d5a63da644f628d99c33976ea6487ed89aaa59f0b3257992deac1171e6b",
+      "bytes": 35821
+    },
+    {
+      "path": "data/embedding-model.json",
+      "url": "/bookshelf/review-files/data/embedding-model.json",
+      "sha256": "d18430c3c89c3a987af363a5a911969e8f354e9e932a2b3781d47ce8d63ec876",
+      "bytes": 200
+    },
+    {
+      "path": "backend/app/chunking.py",
+      "url": "/bookshelf/review-files/backend/app/chunking.py",
+      "sha256": "8d5cc40114c9600d628a5bc520ee9a73033ac0f6152e599fbc94d76a9e08ec45",
+      "bytes": 1153
+    },
+    {
+      "path": "rulings/specifications.json",
+      "url": "/bookshelf/review-files/rulings/specifications.json",
+      "sha256": "46dce661b8cbda2db471a980e95b1f00a3a30dbcec13e6f528644fffc34c100b",
+      "bytes": 3557
+    },
+    {
+      "path": "rulings/scenes/common.lua",
+      "url": "/bookshelf/review-files/rulings/scenes/common.lua",
+      "sha256": "36798d608cfcf75ac91db1e372ac99e9abbf178f8487be4bd9f5b4b73edee96e",
+      "bytes": 3402
+    },
+    {
+      "path": "rulings/scenes/SC01.lua",
+      "url": "/bookshelf/review-files/rulings/scenes/SC01.lua",
+      "sha256": "0cd11e8425887b8856c96175853c38765d63dbe37d899bb2a894c9d35c5a2e16",
+      "bytes": 1336
+    },
+    {
+      "path": "rulings/scenes/SC02.lua",
+      "url": "/bookshelf/review-files/rulings/scenes/SC02.lua",
+      "sha256": "ded266f7eaebb7cf34f7cfe9eca311fda0ebcd75e6a119593b56a2c89d522a96",
+      "bytes": 1177
+    },
+    {
+      "path": "rulings/scenes/SC03.lua",
+      "url": "/bookshelf/review-files/rulings/scenes/SC03.lua",
+      "sha256": "0ae71c8d4ee2141176559ef8fc4c26541a63be1821e498799af5fe2117b705da",
+      "bytes": 784
+    },
+    {
+      "path": "rulings/scenes/SC04.lua",
+      "url": "/bookshelf/review-files/rulings/scenes/SC04.lua",
+      "sha256": "506779536f7d39623a5c241947090b4e88af81d5c8abf8ed2b764e9fc6e2b796",
+      "bytes": 889
+    },
+    {
+      "path": "rulings/scenes/SC04V.lua",
+      "url": "/bookshelf/review-files/rulings/scenes/SC04V.lua",
+      "sha256": "f31cfb4b241069ff45e78c29c97f5de20cd8866e333034f83bfa4cc7a85475fb",
+      "bytes": 812
+    },
+    {
+      "path": "rulings/scenes/SC05.lua",
+      "url": "/bookshelf/review-files/rulings/scenes/SC05.lua",
+      "sha256": "64744588a0949565bb180782035881a68b4346a049ebafbea169997c577bea52",
+      "bytes": 921
+    },
+    {
+      "path": "rulings/scenes/SC06.lua",
+      "url": "/bookshelf/review-files/rulings/scenes/SC06.lua",
+      "sha256": "2370ee427595e1438a7bbdc37960bbbcc304e0cb47e0e12b5a09ccfab5cabde5",
+      "bytes": 1131
+    },
+    {
+      "path": "rulings/scenes/SC07.lua",
+      "url": "/bookshelf/review-files/rulings/scenes/SC07.lua",
+      "sha256": "e6e883fccc29f3081d28cf2e61e52b5dcca74bde48fc6cd0102b574b3a67288b",
+      "bytes": 948
+    },
+    {
+      "path": "rulings/scenes/SC08.lua",
+      "url": "/bookshelf/review-files/rulings/scenes/SC08.lua",
+      "sha256": "0a0a0e4887c9921413c8c7da165a9c841b427fcd289c031337318428f8b856c4",
+      "bytes": 1102
+    },
+    {
+      "path": "rulings/evidence/baseline.json",
+      "url": "/bookshelf/review-files/rulings/evidence/baseline.json",
+      "sha256": "3ecb5825ff899334526c8d63d98212e26515734b96f9c6946019f037b1ceddb4",
+      "bytes": 2562
+    },
+    {
+      "path": "rulings/evidence/SC01.json",
+      "url": "/bookshelf/review-files/rulings/evidence/SC01.json",
+      "sha256": "07ecd7a408ce989d8646fb37585536661b353583d0c39772cdbf77e29cd1dbeb",
+      "bytes": 14859
+    },
+    {
+      "path": "rulings/evidence/SC02.json",
+      "url": "/bookshelf/review-files/rulings/evidence/SC02.json",
+      "sha256": "1e9373b57bbc84e66f25b8fc8e8988821138fb410df845c4e6c42a95f514b839",
+      "bytes": 18937
+    },
+    {
+      "path": "rulings/evidence/SC03.json",
+      "url": "/bookshelf/review-files/rulings/evidence/SC03.json",
+      "sha256": "fc6846098e19023e1650e0c3d6c5bb6ad3f802fa6841139257c8a46513830ed5",
+      "bytes": 22385
+    },
+    {
+      "path": "rulings/evidence/SC04.json",
+      "url": "/bookshelf/review-files/rulings/evidence/SC04.json",
+      "sha256": "1bd4f953543228baca0be3ece21af64be624e6e33bba6f1fe7c98b859eb3a38c",
+      "bytes": 24382
+    },
+    {
+      "path": "rulings/evidence/SC04V.json",
+      "url": "/bookshelf/review-files/rulings/evidence/SC04V.json",
+      "sha256": "8cd8f35779e3566463ea8ca786ef6960e90cc6103aa06523f014b99f6f49fadb",
+      "bytes": 21498
+    },
+    {
+      "path": "rulings/evidence/SC05.json",
+      "url": "/bookshelf/review-files/rulings/evidence/SC05.json",
+      "sha256": "cada96e1552a3c433c0bf9663731815205df6d0968d515b485b2435da9846986",
+      "bytes": 17308
+    },
+    {
+      "path": "rulings/evidence/SC06.json",
+      "url": "/bookshelf/review-files/rulings/evidence/SC06.json",
+      "sha256": "b3406de640613ccabb0e927c6ddef6a91dc03e0010408bab91740a1aab27e309",
+      "bytes": 18058
+    },
+    {
+      "path": "rulings/evidence/SC07.json",
+      "url": "/bookshelf/review-files/rulings/evidence/SC07.json",
+      "sha256": "edb8491b2fc27884298e19622d975499928287d40907a8f34556034eade8f878",
+      "bytes": 16579
+    },
+    {
+      "path": "rulings/evidence/SC08.json",
+      "url": "/bookshelf/review-files/rulings/evidence/SC08.json",
+      "sha256": "2b06c1a2f834a753621a4d779bf26e537d54b2eec15bcfc42d8af5b2021cfb79",
+      "bytes": 9118
+    },
+    {
+      "path": "evaluations/cases.json",
+      "url": "/bookshelf/review-files/evaluations/cases.json",
+      "sha256": "63d7c970e34124273725c2099e538d012cc715d20050d683ec8f13282a114cb3",
+      "bytes": 34588
+    },
+    {
+      "path": "evaluations/README.md",
+      "url": "/bookshelf/review-files/evaluations/README.md",
+      "sha256": "0ffa4c32870d98dcf2113c3362053ec0e8968535cc666f6bc7bf68d5a1a8f2b8",
+      "bytes": 2202
+    },
+    {
+      "path": "evaluations/build_cases.py",
+      "url": "/bookshelf/review-files/evaluations/build_cases.py",
+      "sha256": "d807bdd5f28ef2136ac458be2d8f87082f9adb6fa0e2389f940e7bd8dc749c63",
+      "bytes": 12739
+    },
+    {
+      "path": "evaluations/run.py",
+      "url": "/bookshelf/review-files/evaluations/run.py",
+      "sha256": "502991e9fca90c7157ac63e72aba5a2d459628c1264d9c94237a0422b4569840",
+      "bytes": 11354
+    },
+    {
+      "path": "evaluations/v19-supplemental.json",
+      "url": "/bookshelf/review-files/evaluations/v19-supplemental.json",
+      "sha256": "5b87f4048ab2f53da9e2c1287ed1b116fae881ed24d7dd26b3bfd78caf34d05d",
+      "bytes": 1169
+    },
+    {
+      "path": "tests/test_api.py",
+      "url": "/bookshelf/review-files/tests/test_api.py",
+      "sha256": "ca999e4829d05d62cc31d31228cdc749513fafa83442de25a92b3a4a8a857624",
+      "bytes": 6044
+    },
+    {
+      "path": "tests/test_v19_ruling_guard.py",
+      "url": "/bookshelf/review-files/tests/test_v19_ruling_guard.py",
+      "sha256": "99a7d8273b7d76025871bc1a8b51978048ff4513f4681482574a75a2eeef2d5c",
+      "bytes": 4468
+    },
+    {
+      "path": "tests/test_ruling_topic_scope.py",
+      "url": "/bookshelf/review-files/tests/test_ruling_topic_scope.py",
+      "sha256": "77356f524be9a1920cc1ae622e82ddf08685816f0dc5a41f5812caaf338dc16c",
+      "bytes": 1346
+    },
+    {
+      "path": "tests/test_ruling_topic_protocol.py",
+      "url": "/bookshelf/review-files/tests/test_ruling_topic_protocol.py",
+      "sha256": "23909e107826f2c23f5d71bd1fd23bdc95bc58816965b25b1ffa5beb8f4dbffc",
+      "bytes": 2113
+    },
+    {
+      "path": "tests/test_jobs.py",
+      "url": "/bookshelf/review-files/tests/test_jobs.py",
+      "sha256": "5267dca7d43328040e6f11be95571f96bf85f8942d2090e62693bb69d9d0427b",
+      "bytes": 6109
+    },
+    {
+      "path": "tests/test_worker.py",
+      "url": "/bookshelf/review-files/tests/test_worker.py",
+      "sha256": "5a2bc48ff1b7e7617f717341dbef70597ef315b5534e694afd49d80a2e8710b6",
+      "bytes": 1889
+    },
+    {
+      "path": "tests/test_worker_resilience.py",
+      "url": "/bookshelf/review-files/tests/test_worker_resilience.py",
+      "sha256": "e6609d13d0d977dec98899322a36158bc75e249bcf978e9a41f33840376d2395",
+      "bytes": 5289
+    },
+    {
+      "path": "tests/test_request_recovery.py",
+      "url": "/bookshelf/review-files/tests/test_request_recovery.py",
+      "sha256": "176c58eaac4b71da7ba3ae0180f215483978088bc9f83cfe92cf7cc3468360e1",
+      "bytes": 3619
+    },
+    {
+      "path": "frontend/src/features/chat/components/__tests__/chat-screen.test.tsx",
+      "url": "/bookshelf/review-files/frontend/src/features/chat/components/__tests__/chat-screen.test.tsx.txt",
+      "sha256": "7af6e84aca69af4d713e3906625229ce9e736f5a5c7d171b521da9d70b452977",
+      "bytes": 15874
+    },
+    {
+      "path": "frontend/src/features/feedback/components/__tests__/feedback-screen.test.tsx",
+      "url": "/bookshelf/review-files/frontend/src/features/feedback/components/__tests__/feedback-screen.test.tsx.txt",
+      "sha256": "49b0fb45571623797b67a9f074f48cbd72723042ece09062a2d80600957f594e",
+      "bytes": 4462
+    },
+    {
+      "path": "frontend/src/components/shared/__tests__/source-excerpt.test.tsx",
+      "url": "/bookshelf/review-files/frontend/src/components/shared/__tests__/source-excerpt.test.tsx.txt",
+      "sha256": "dc7e86737aff0da883932215c5bac41075811ce055b9a24c824b47f8dcfce54b",
+      "bytes": 2488
+    },
+    {
+      "path": "frontend/src/components/ui/__tests__/dialog.test.tsx",
+      "url": "/bookshelf/review-files/frontend/src/components/ui/__tests__/dialog.test.tsx.txt",
+      "sha256": "385c320f5220b8b47a142952520c0e24404d56e01ecb9c2baa7d47c366376f76",
+      "bytes": 1841
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/use-media-query.test.ts",
+      "url": "/bookshelf/review-files/frontend/src/hooks/__tests__/use-media-query.test.ts.txt",
+      "sha256": "d304dd0a14ec0a7d2dbf0936d8b7b24c5a6dc1f1e27679cec2bda38356658393",
+      "bytes": 947
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/use-online-status.test.ts",
+      "url": "/bookshelf/review-files/frontend/src/hooks/__tests__/use-online-status.test.ts.txt",
+      "sha256": "c8a760e520013541d1ab02d6092b128f5bd2fba77311fc075911f81a0306aeef",
+      "bytes": 830
+    },
+    {
+      "path": ".github/workflows/checks.yml",
+      "url": "/bookshelf/review-files/.github/workflows/checks.yml",
+      "sha256": "5b3899faa518dc2e237a9a911cf8913471d4d550ffb6b6e639e3aed789d4e7c6",
+      "bytes": 2268
+    },
+    {
+      "path": "docs/真实模型对照记录.md",
+      "url": "/bookshelf/review-files/docs/%E7%9C%9F%E5%AE%9E%E6%A8%A1%E5%9E%8B%E5%AF%B9%E7%85%A7%E8%AE%B0%E5%BD%95.md",
+      "sha256": "5ee21e424cf44a4f62f65cf31b1c8240c85d735cfba76e562ac240fe83adfb70",
+      "bytes": 3719
+    },
+    {
+      "path": "docs/裁定与多轮问题核对-20261110.md",
+      "url": "/bookshelf/review-files/docs/%E8%A3%81%E5%AE%9A%E4%B8%8E%E5%A4%9A%E8%BD%AE%E9%97%AE%E9%A2%98%E6%A0%B8%E5%AF%B9-20261110.md",
+      "sha256": "a58c0d90f1032813869abbe97cf51933b0152589b02a66bc851ac137b2bb226a",
+      "bytes": 3315
+    },
+    {
+      "path": "evaluations/results/live-v19-full-01/citation-audit.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-01/citation-audit.json",
+      "sha256": "0d2cf8013f7e8b8f76076dcbaf21c501e587c9c29d27b0cf06c4db7ff920d423",
+      "bytes": 28910
+    },
+    {
+      "path": "evaluations/results/live-v19-full-01/metadata.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-01/metadata.json",
+      "sha256": "93341520c4146eec00f2ca17f4909fd4bcddc9aa4853500e0a6cb375c23a557a",
+      "bytes": 1992
+    },
+    {
+      "path": "evaluations/results/live-v19-full-01/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-01/results.jsonl",
+      "sha256": "16a5bbd8c3ff61752d5399f0a8b1fdad2dd15f14dd01d00151bf6fc2c978b9d4",
+      "bytes": 767737
+    },
+    {
+      "path": "evaluations/results/live-v19-full-01/summary.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-01/summary.json",
+      "sha256": "e307cce503799b6ae8a219f784405bccfd2d3848efb19e4e5582daad258036a2",
+      "bytes": 346
+    },
+    {
+      "path": "evaluations/results/live-v19-full-02/citation-audit.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-02/citation-audit.json",
+      "sha256": "bc0e99fa0c4dbf25f65306df6da17566e214f1905d8ffeb2bf2f881d9eeb26dc",
+      "bytes": 31053
+    },
+    {
+      "path": "evaluations/results/live-v19-full-02/metadata.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-02/metadata.json",
+      "sha256": "d196010032ded79f7bf3e183a20c56ea7695546ebc7f89b4268f2aa74848394d",
+      "bytes": 2007
+    },
+    {
+      "path": "evaluations/results/live-v19-full-02/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-02/results.jsonl",
+      "sha256": "8d5fe849da071a61036882b1e7d33fb3a1c379690c74aed98c9b3df72110613f",
+      "bytes": 815683
+    },
+    {
+      "path": "evaluations/results/live-v19-full-02/summary.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-02/summary.json",
+      "sha256": "e307cce503799b6ae8a219f784405bccfd2d3848efb19e4e5582daad258036a2",
+      "bytes": 346
+    },
+    {
+      "path": "evaluations/results/live-v19-full-03/citation-audit.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-03/citation-audit.json",
+      "sha256": "da42130df3b35f816a510450b0eadf5a5326158359430a4e20da214b64bee384",
+      "bytes": 32518
+    },
+    {
+      "path": "evaluations/results/live-v19-full-03/metadata.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-03/metadata.json",
+      "sha256": "b95b9a0a05d7190d1cedf1c11fda56faced9f6c91703731c446e070ecaa02e04",
+      "bytes": 2006
+    },
+    {
+      "path": "evaluations/results/live-v19-full-03/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-03/results.jsonl",
+      "sha256": "2346a5157101b4eb42bc518dfad28cb1396896ccb3ef63c8f285157fc017d858",
+      "bytes": 855982
+    },
+    {
+      "path": "evaluations/results/live-v19-full-03/summary.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-03/summary.json",
+      "sha256": "e307cce503799b6ae8a219f784405bccfd2d3848efb19e4e5582daad258036a2",
+      "bytes": 346
+    },
+    {
+      "path": "evaluations/results/live-v19-full-04/metadata.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-04/metadata.json",
+      "sha256": "fa02852f013663a22dd739238d38f3e9859a1ba92c17f7b713dbfca2ca31790b",
+      "bytes": 1992
+    },
+    {
+      "path": "evaluations/results/live-v19-full-04/summary.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-full-04/summary.json",
+      "sha256": "e307cce503799b6ae8a219f784405bccfd2d3848efb19e4e5582daad258036a2",
+      "bytes": 346
+    },
+    {
+      "path": "evaluations/results/live-v19-retry-v01/metadata.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-retry-v01/metadata.json",
+      "sha256": "7c16b6f04a11f65ecc7bf70fb8e9ab5db98c19fa0fa3ca8dda7e399ef0b79c11",
+      "bytes": 1637
+    },
+    {
+      "path": "evaluations/results/live-v19-retry-v01/summary.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-retry-v01/summary.json",
+      "sha256": "6945bd97acc3730712aeb28ed1e2af040c26733fe2ee155950e7e9d50884c6e1",
+      "bytes": 344
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC01.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC01.json",
+      "sha256": "05219aa1795cdeb40c78e15276fb9f05a21a1eb2a82da858beee597a51e96f3b",
+      "bytes": 14859
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC01.log",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC01.log.txt",
+      "sha256": "79aea2bc100e237ac6472e171955d8426b6b2b22a77403131566cc4fea18b250",
+      "bytes": 79
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC02.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC02.json",
+      "sha256": "3f7a0a3f29a9c6ad3fcd6721efa3d167fa390f9f971088a3ff6e80ae283327e4",
+      "bytes": 18937
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC02.log",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC02.log.txt",
+      "sha256": "6fcba26af4fb1de2a5f2e51b2c6f0ca8b83c98fecbc2dfcdbba1935fb01145a5",
+      "bytes": 79
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC03.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC03.json",
+      "sha256": "b4cc2d590e665b4c741636fdbd9923766d23dba5b6f118d41618dbefc7f41612",
+      "bytes": 22385
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC03.log",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC03.log.txt",
+      "sha256": "7250fa007564472d0b245d2a34503c9687df4d50933738cae4e8108769e48dfd",
+      "bytes": 79
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC04.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC04.json",
+      "sha256": "56f18b4522777667cf0929b2878500b2ddf4508b5ba16c465f44f2183e1548ca",
+      "bytes": 24382
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC04.log",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC04.log.txt",
+      "sha256": "3372547b57803212e10af24ae3c6eb18c0bd06b2fe1ecb5e18fc5d4d8c38a9d1",
+      "bytes": 79
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC04V.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC04V.json",
+      "sha256": "b071029145ebd17a97df21baab4d0e3c2c9e6047ee3f51673f961d634bb9f24d",
+      "bytes": 21498
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC04V.log",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC04V.log.txt",
+      "sha256": "f54373a27f87340467d2b11e4a9555b0ef95e971714dbaf06c27b41c4015abd4",
+      "bytes": 80
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC05.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC05.json",
+      "sha256": "b8dd1b61dd3af6be9e0a8256425be00a01e93d52b58667bbeededd1682c75d00",
+      "bytes": 17308
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC05.log",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC05.log.txt",
+      "sha256": "f622de1aa1a019ea1eaf971c0f6a0ae13f0ac5550c888576ed6604d524c16108",
+      "bytes": 79
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC06.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC06.json",
+      "sha256": "92d8d56a579ddfe188fc4099dc2a4fae3a9f250e8614dac6ec81e1d5dd3209ca",
+      "bytes": 18058
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC06.log",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC06.log.txt",
+      "sha256": "3ebbccc985f4551a0116572886c376a9475e02995c1c2a5df86f6740527b52af",
+      "bytes": 79
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC07.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC07.json",
+      "sha256": "be8d0b0435ad3c1db4db7408b426db5cb694fa3b04d6b2149fd5d7c8aef02629",
+      "bytes": 16579
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC07.log",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC07.log.txt",
+      "sha256": "85c2c3d8c790559400ece1a43813521f9e4778582b98234ca88a4d300ceb3427",
+      "bytes": 79
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC08.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC08.json",
+      "sha256": "409517f41464919a5b074e9a4aa0a59713510337c3d8d3a6b3b588102a288ef8",
+      "bytes": 9118
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/SC08.log",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/SC08.log.txt",
+      "sha256": "655f95b9611664734a1e95105fb84704a1b49427a278fc6d09e15efff577c079",
+      "bytes": 79
+    },
+    {
+      "path": "docs/evidence/assessment-audit-rulings-20261112/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/assessment-audit-rulings-20261112/summary.json",
+      "sha256": "e320cca0bad716acb2562375fae378968f2ed8fc98718a90dc70d697a6730762",
+      "bytes": 2140
+    },
+    {
+      "path": "docs/evidence/browser/summary.json",
+      "url": "/bookshelf/review-files/docs/evidence/browser/summary.json",
+      "sha256": "f839651170e933f7c62613123b2b3cc1d7392ba2f457f6af27b49e88dc75abb0",
+      "bytes": 421
+    },
+    {
+      "path": "docs/evidence/v17-feedback-protocol-after.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v17-feedback-protocol-after.xml",
+      "sha256": "292b07ce355bfa382cc0777a0d01a9a5addefb4478c77a013039f1b050956d49",
+      "bytes": 5053
+    },
+    {
+      "path": "evaluations/results/live-feedback-v17-20261112-01/metadata.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-feedback-v17-20261112-01/metadata.json",
+      "sha256": "0a258bfc620ab6dc265fa8cc9332e1e60aed848db86451cd8b5e48bb1254a846",
+      "bytes": 1485
+    },
+    {
+      "path": "evaluations/results/live-feedback-v17-20261112-01/summary.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-feedback-v17-20261112-01/summary.json",
+      "sha256": "4ca1dcf31139c0026e2cc9872830801ecd106c38c676cf52cfad1d8f613b7feb",
+      "bytes": 344
+    },
+    {
+      "path": "evaluations/results/live-feedback-followup-v17-20261112-01/metadata.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-feedback-followup-v17-20261112-01/metadata.json",
+      "sha256": "700061fcc6c445a8794764d98c98af2d6ff70a2bdbf611b025b835a60c094383",
+      "bytes": 1460
+    },
+    {
+      "path": "evaluations/results/live-feedback-followup-v17-20261112-01/summary.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-feedback-followup-v17-20261112-01/summary.json",
+      "sha256": "c4555427abb87d2bf3e089523e990cbca6432e920779f14212bb93460b88b1d9",
+      "bytes": 357
+    },
+    {
+      "path": "docs/实战QA/00-目录与持续维护.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md",
+      "sha256": "52faa6f9420d262452abaef257175cecb404f01d1bea9c27b1c87190090091f6",
+      "bytes": 11050
+    },
+    {
+      "path": "docs/实战QA/P01-使用者与具体场景.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/P01-%E4%BD%BF%E7%94%A8%E8%80%85%E4%B8%8E%E5%85%B7%E4%BD%93%E5%9C%BA%E6%99%AF.md",
+      "sha256": "99e776eab15589ca1a3d29b6403f6a2a690cd63b5effe8d7ba466ff2b5531985",
+      "bytes": 3039
+    },
+    {
+      "path": "docs/实战QA/P02-Python-FastAPI-PostgreSQL-Agno调用链.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/P02-Python-FastAPI-PostgreSQL-Agno%E8%B0%83%E7%94%A8%E9%93%BE.md",
+      "sha256": "1e6760ca90056f63752dd662a2c37399e91433236393c462b5f7365477008e2d",
+      "bytes": 3299
+    },
+    {
+      "path": "docs/evidence/v19-browser-recovery-05/saved-run.json",
+      "url": "/bookshelf/review-files/docs/evidence/v19-browser-recovery-05/saved-run.json",
+      "sha256": "fc2c065f5ca306449356e563e66c114380574ba327d2c578351b645919717600",
+      "bytes": 9659
+    },
+    {
+      "path": "docs/实战QA/P03-资料导入分块向量检索与引用.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/P03-%E8%B5%84%E6%96%99%E5%AF%BC%E5%85%A5%E5%88%86%E5%9D%97%E5%90%91%E9%87%8F%E6%A3%80%E7%B4%A2%E4%B8%8E%E5%BC%95%E7%94%A8.md",
+      "sha256": "3e1757616b83a43297874d6047e396c08a07bddee41a37d1ed857175c45488c1",
+      "bytes": 4190
+    },
+    {
+      "path": "tests/test_chunking.py",
+      "url": "/bookshelf/review-files/tests/test_chunking.py",
+      "sha256": "ce3209b0c0b604238bb8c88ca94cdf5b66fd19fe4c65f59afa218f6931abcbc7",
+      "bytes": 1394
+    },
+    {
+      "path": "docs/实战QA/P04-知识检索与结构化数据工具.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/P04-%E7%9F%A5%E8%AF%86%E6%A3%80%E7%B4%A2%E4%B8%8E%E7%BB%93%E6%9E%84%E5%8C%96%E6%95%B0%E6%8D%AE%E5%B7%A5%E5%85%B7.md",
+      "sha256": "8d03dbf5668865a0d489c9fb57ff651d18010b7aeba50b20849e76e67f52468f",
+      "bytes": 2811
+    },
+    {
+      "path": "docs/实战QA/P05-多轮流式与缺失冲突说明.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/P05-%E5%A4%9A%E8%BD%AE%E6%B5%81%E5%BC%8F%E4%B8%8E%E7%BC%BA%E5%A4%B1%E5%86%B2%E7%AA%81%E8%AF%B4%E6%98%8E.md",
+      "sha256": "1c5473b28bd56da2a64018260383141ae02b406f2ee2688b0014979287726429",
+      "bytes": 4048
+    },
+    {
+      "path": "frontend/src/features/chat/services/run-transport.ts",
+      "url": "/bookshelf/review-files/frontend/src/features/chat/services/run-transport.ts.txt",
+      "sha256": "b2716a514748237a37f5657b99f48be614879cb5609190a96a012351670c13ab",
+      "bytes": 8992
+    },
+    {
+      "path": "backend/app/history_sources.py",
+      "url": "/bookshelf/review-files/backend/app/history_sources.py",
+      "sha256": "1177b846761358c11ffdae9b9c6a38eeb29c3b6c8dc15e2ff06a736ee00c9584",
+      "bytes": 1640
+    },
+    {
+      "path": "tests/test_history_sources.py",
+      "url": "/bookshelf/review-files/tests/test_history_sources.py",
+      "sha256": "1a22fb412df6e0294e98f8938520ca24438b2525bfab7255d4b168eedea20117",
+      "bytes": 1761
+    },
+    {
+      "path": "docs/实战QA/P06-反馈草稿与缺项追问.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/P06-%E5%8F%8D%E9%A6%88%E8%8D%89%E7%A8%BF%E4%B8%8E%E7%BC%BA%E9%A1%B9%E8%BF%BD%E9%97%AE.md",
+      "sha256": "570c9396c42d2594e74b31821d148e27abdd54b7cf86e8b69cda5479ce9c49bc",
+      "bytes": 2959
+    },
+    {
+      "path": "docs/实战QA/P07-明确确认与反馈幂等保存.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/P07-%E6%98%8E%E7%A1%AE%E7%A1%AE%E8%AE%A4%E4%B8%8E%E5%8F%8D%E9%A6%88%E5%B9%82%E7%AD%89%E4%BF%9D%E5%AD%98.md",
+      "sha256": "bdafcb1944633e7acc5f8c312318b00ee01e732000192216f3d2e5d45ad31002",
+      "bytes": 2801
+    },
+    {
+      "path": "docs/实战QA/P08-持久化重启查询与身份隔离.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/P08-%E6%8C%81%E4%B9%85%E5%8C%96%E9%87%8D%E5%90%AF%E6%9F%A5%E8%AF%A2%E4%B8%8E%E8%BA%AB%E4%BB%BD%E9%9A%94%E7%A6%BB.md",
+      "sha256": "98babda9651fe876c4156d285687b50300840b58dad4bbb7cec3af915da93f14",
+      "bytes": 2852
+    },
+    {
+      "path": "docs/实战QA/P09-校验超时并发与失败提示.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/P09-%E6%A0%A1%E9%AA%8C%E8%B6%85%E6%97%B6%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%A4%B1%E8%B4%A5%E6%8F%90%E7%A4%BA.md",
+      "sha256": "00208f82dc6ebbe54255d84131f26d1b684594ce0da572adbbaecc5a617bcf1a",
+      "bytes": 2977
+    },
+    {
+      "path": "tests/test_runtime.py",
+      "url": "/bookshelf/review-files/tests/test_runtime.py",
+      "sha256": "4f7b04fdc7177505a722da74714c8c20cf19372f0876270722300a66e4a21f33",
+      "bytes": 2992
+    },
+    {
+      "path": "docs/实战QA/P10-可复现启动迁移测试与Compose.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/P10-%E5%8F%AF%E5%A4%8D%E7%8E%B0%E5%90%AF%E5%8A%A8%E8%BF%81%E7%A7%BB%E6%B5%8B%E8%AF%95%E4%B8%8ECompose.md",
+      "sha256": "deee32e7033ecc6f07c04c8736db946c07b74f2fb6c53311bfa22d5a312a9c99",
+      "bytes": 2972
+    },
+    {
+      "path": "migrations/script.py.mako",
+      "url": "/bookshelf/review-files/migrations/script.py.mako",
+      "sha256": "ee5dd9a388ee59fd3d089670c2f60db5f5904da6f21cfe3bfc44d7f567ee1546",
+      "bytes": 355
+    },
+    {
+      "path": "docs/实战QA/B00-耗时任务的选择与范围.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/B00-%E8%80%97%E6%97%B6%E4%BB%BB%E5%8A%A1%E7%9A%84%E9%80%89%E6%8B%A9%E4%B8%8E%E8%8C%83%E5%9B%B4.md",
+      "sha256": "a880fdc04dd29f0d8d2a9f190cf5eff90150b80e3c3cbe3b10b73f99eb518ad6",
+      "bytes": 2628
+    },
+    {
+      "path": "docs/实战QA/B01-Kafka独立Worker与任务追踪.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/B01-Kafka%E7%8B%AC%E7%AB%8BWorker%E4%B8%8E%E4%BB%BB%E5%8A%A1%E8%BF%BD%E8%B8%AA.md",
+      "sha256": "b680bb72c00e87d5e142fdf9b6fd856fd1a3b5bfd6d1bfb1409b460928b62c94",
+      "bytes": 2737
+    },
+    {
+      "path": "docs/实战QA/B02-Redis缓存边界与失效.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/B02-Redis%E7%BC%93%E5%AD%98%E8%BE%B9%E7%95%8C%E4%B8%8E%E5%A4%B1%E6%95%88.md",
+      "sha256": "465b9a1f1d59288bec2733c83ab7eedf1f84169a389c10e0e4f9f8267fff6cb4",
+      "bytes": 2858
+    },
+    {
+      "path": "backend/app/retrieval_cache.py",
+      "url": "/bookshelf/review-files/backend/app/retrieval_cache.py",
+      "sha256": "3591c977ebd352961c798bc3abfca75161865c9ad26541035a6438365689ce27",
+      "bytes": 1292
+    },
+    {
+      "path": "tests/test_retrieval_cache.py",
+      "url": "/bookshelf/review-files/tests/test_retrieval_cache.py",
+      "sha256": "9798ecd8ecebf8e842ba5560f48d7815e799d94a897ef911eb0fe7e73812a18f",
+      "bytes": 3553
+    },
+    {
+      "path": "docs/实战QA/B03-重复提交消费与并发幂等.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/B03-%E9%87%8D%E5%A4%8D%E6%8F%90%E4%BA%A4%E6%B6%88%E8%B4%B9%E4%B8%8E%E5%B9%B6%E5%8F%91%E5%B9%82%E7%AD%89.md",
+      "sha256": "0d2a25c88c20406df90e82c68a5b47f91043fbed7ee7cbcbb6b2d49a9d8500df",
+      "bytes": 2886
+    },
+    {
+      "path": "docs/实战QA/B04-业务提交与位点之间崩溃的恢复.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/B04-%E4%B8%9A%E5%8A%A1%E6%8F%90%E4%BA%A4%E4%B8%8E%E4%BD%8D%E7%82%B9%E4%B9%8B%E9%97%B4%E5%B4%A9%E6%BA%83%E7%9A%84%E6%81%A2%E5%A4%8D.md",
+      "sha256": "f9e6ad6545cde66adb5c11c49110c201cbd27046e8f229e609589416d5cf914c",
+      "bytes": 3012
+    },
+    {
+      "path": "docs/实战QA/B05-有限重试坏输入与后续任务.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/B05-%E6%9C%89%E9%99%90%E9%87%8D%E8%AF%95%E5%9D%8F%E8%BE%93%E5%85%A5%E4%B8%8E%E5%90%8E%E7%BB%AD%E4%BB%BB%E5%8A%A1.md",
+      "sha256": "d1b508575eeecec5d717d617c20835e8fe20c92973477a7776a734777704ff48",
+      "bytes": 2985
+    },
+    {
+      "path": "docs/实战QA/B06-查询取消终态与副作用.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/B06-%E6%9F%A5%E8%AF%A2%E5%8F%96%E6%B6%88%E7%BB%88%E6%80%81%E4%B8%8E%E5%89%AF%E4%BD%9C%E7%94%A8.md",
+      "sha256": "3b42ab67828ec1430e828409a1e625402d36175f8eeb5061989eb51ffe7aec7b",
+      "bytes": 2916
+    },
+    {
+      "path": "docs/演示与故障恢复手册.md",
+      "url": "/bookshelf/review-files/docs/%E6%BC%94%E7%A4%BA%E4%B8%8E%E6%95%85%E9%9A%9C%E6%81%A2%E5%A4%8D%E6%89%8B%E5%86%8C.md",
+      "sha256": "ac86358c72fa22040e357edac0147dc18467744d7742724d1732e85705b56044",
+      "bytes": 6789
+    },
+    {
+      "path": "docs/实战QA/B07-停机缓存过期及依赖故障.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/B07-%E5%81%9C%E6%9C%BA%E7%BC%93%E5%AD%98%E8%BF%87%E6%9C%9F%E5%8F%8A%E4%BE%9D%E8%B5%96%E6%95%85%E9%9A%9C.md",
+      "sha256": "13aeb242fc1d3fb652214834bdd56fff9e323b663aef2c0413b238d9e9a43176",
+      "bytes": 2915
+    },
+    {
+      "path": "backend/app/db.py",
+      "url": "/bookshelf/review-files/backend/app/db.py",
+      "sha256": "836b0a47447f36f9c641eae056072c14c3be017ca52a5280ed13fb6a4eecc699",
+      "bytes": 2351
+    },
+    {
+      "path": "docs/实战QA/B08-单项目状态重复与恢复总答.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/B08-%E5%8D%95%E9%A1%B9%E7%9B%AE%E7%8A%B6%E6%80%81%E9%87%8D%E5%A4%8D%E4%B8%8E%E6%81%A2%E5%A4%8D%E6%80%BB%E7%AD%94.md",
+      "sha256": "34a2c618b5b818d1fa3293a64dc2e0e4d960a77d4b152fa188edadd0fecfafce",
+      "bytes": 2908
+    },
+    {
+      "path": "docs/实战QA/T01-固定样例覆盖预期及答案核对.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/T01-%E5%9B%BA%E5%AE%9A%E6%A0%B7%E4%BE%8B%E8%A6%86%E7%9B%96%E9%A2%84%E6%9C%9F%E5%8F%8A%E7%AD%94%E6%A1%88%E6%A0%B8%E5%AF%B9.md",
+      "sha256": "07d9b55264c81533249b17100033431ab55df402b8afdd410bc903c15359af6e",
+      "bytes": 3296
+    },
+    {
+      "path": "docs/实战QA/T02-真实模型前后对照与用量.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/T02-%E7%9C%9F%E5%AE%9E%E6%A8%A1%E5%9E%8B%E5%89%8D%E5%90%8E%E5%AF%B9%E7%85%A7%E4%B8%8E%E7%94%A8%E9%87%8F.md",
+      "sha256": "104fb2b7c9ff67dd972436b667262250e2410b7a24f581d0d3ba7f065f2bb1a5",
+      "bytes": 3783
+    },
+    {
+      "path": "docs/实战QA/T03-三个具体问题的修正全过程.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/T03-%E4%B8%89%E4%B8%AA%E5%85%B7%E4%BD%93%E9%97%AE%E9%A2%98%E7%9A%84%E4%BF%AE%E6%AD%A3%E5%85%A8%E8%BF%87%E7%A8%8B.md",
+      "sha256": "9b0bc6ced92f81d58f127553c74ee3be560fc6017e31a0292a4d949ab12fbc1c",
+      "bytes": 5934
+    },
+    {
+      "path": "tests/test_ruling_policy.py",
+      "url": "/bookshelf/review-files/tests/test_ruling_policy.py",
+      "sha256": "a116509d3f2967d505250b67ab62952ec1312cf116bd20d4e0efa2e6dab0c8e2",
+      "bytes": 1811
+    },
+    {
+      "path": "tests/test_version_boundary.py",
+      "url": "/bookshelf/review-files/tests/test_version_boundary.py",
+      "sha256": "4670d65bcccb9cfe3a74d278c4c65fcd5ac2d1c652162dcc045830316379ddd6",
+      "bytes": 1426
+    },
+    {
+      "path": "docs/evidence/v19-guard-recovery-final.xml",
+      "url": "/bookshelf/review-files/docs/evidence/v19-guard-recovery-final.xml",
+      "sha256": "2c6e4e4dc5cdcfbc2ab1117916bdb31e066788111169737f0bc688694f9ca7dc",
+      "bytes": 1943
+    },
+    {
+      "path": "docs/实战QA/T04-自动化与后台故障测试覆盖.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/T04-%E8%87%AA%E5%8A%A8%E5%8C%96%E4%B8%8E%E5%90%8E%E5%8F%B0%E6%95%85%E9%9A%9C%E6%B5%8B%E8%AF%95%E8%A6%86%E7%9B%96.md",
+      "sha256": "768fcd14cc8e75e5e08a4e3dab1f4ad31a4f6af898ab8261b84bc2bb12a601bc",
+      "bytes": 4960
+    },
+    {
+      "path": "docs/实战QA/T05-AI生成代码修复及调用方检查.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/T05-AI%E7%94%9F%E6%88%90%E4%BB%A3%E7%A0%81%E4%BF%AE%E5%A4%8D%E5%8F%8A%E8%B0%83%E7%94%A8%E6%96%B9%E6%A3%80%E6%9F%A5.md",
+      "sha256": "117403df133b17b0ebb380b39b93dfa80bab43e4247503406c5646531fb98ac9",
+      "bytes": 3697
+    },
+    {
+      "path": "tests/test_evaluation_preflight.py",
+      "url": "/bookshelf/review-files/tests/test_evaluation_preflight.py",
+      "sha256": "f2731a2e86ab3f683d05daac50e7f0ff3d3ea25c3810b880d8eb71bdccdc988b",
+      "bytes": 789
+    },
+    {
+      "path": "evaluations/results/live-v19-supplemental/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-supplemental/results.jsonl",
+      "sha256": "113b67fc29e448e5db1858aa6231c708c6a322bcb9d125b3732077debf0e566d",
+      "bytes": 288
+    },
+    {
+      "path": "evaluations/results/live-v19-supplemental-recovered/results.jsonl",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-supplemental-recovered/results.jsonl",
+      "sha256": "a8c3f5999dfe86f5373e4ab1bb1193fba3f9d5986a38469818350dba00b96538",
+      "bytes": 14899
+    },
+    {
+      "path": "evaluations/results/live-v19-supplemental-recovered/recovery.json",
+      "url": "/bookshelf/review-files/evaluations/results/live-v19-supplemental-recovered/recovery.json",
+      "sha256": "9990104ea10b9941a2186ffbd0a480c8fa35115381a4bf8f09d6d76cebda62a2",
+      "bytes": 289
+    },
+    {
+      "path": "docs/实战QA/T06-成功失败演示与真人试用边界.md",
+      "url": "/bookshelf/review-files/docs/%E5%AE%9E%E6%88%98QA/T06-%E6%88%90%E5%8A%9F%E5%A4%B1%E8%B4%A5%E6%BC%94%E7%A4%BA%E4%B8%8E%E7%9C%9F%E4%BA%BA%E8%AF%95%E7%94%A8%E8%BE%B9%E7%95%8C.md",
+      "sha256": "33b6622aeb6194ee32c5a070845d7c83a9247ed09c5e516c5f4ed84fdbf921fb",
+      "bytes": 3416
+    },
+    {
+      "path": "docs/evidence/v202-bookshelf-verification-20261117.json",
+      "url": "/bookshelf/review-files/docs/evidence/v202-bookshelf-verification-20261117.json",
+      "sha256": "12052eb6beba8d8fda0baab81d8c7a0dee0bdd216c254622684b00c754a68751",
+      "bytes": 339
+    }
+  ],
+  "unexported": [
+    "frontend\\src\\components\\Feedback.test.tsx",
+    "frontend\\src\\components\\SourceExcerpt.tsx",
+    "frontend\\src\\components\\inputSurface.ts"
+  ]
+}

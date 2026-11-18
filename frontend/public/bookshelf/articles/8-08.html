@@ -1,0 +1,44 @@
+<h1 id="section-1">具体问题修正全过程</h1>
+<p>更新：2026-11-17。</p>
+<h2 id="section-2">对应要求</h2>
+<blockquote>
+<p>至少记录 3 个具体问题的修正过程：原始输入、错误现象、定位依据、实际改动、修改前后结果，以及防止再次出现的测试。可以来自功能调试、真实试用或失败注入。</p>
+</blockquote>
+<h2 id="section-3">本项目回答与证据</h2>
+<p>以下四项来自实际失败与修复，前三项即可逐一说明要求中的六个环节。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>原始输入与错误现象</th>
+<th>定位依据及实际改动</th>
+<th>修改前后与防回归</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>FIX01：反馈第二次保存</td>
+<td>创建草稿后编辑预期结果，保存返回422</td>
+<td>AI生成前端把含session_id的创建体用于PATCH；对照DraftPatch严格Schema与调用方，拆分创建/编辑字段，保留revision</td>
+<td>修前无法编辑，修后浏览器v1→v2→明确确认；<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E9%97%AE%E9%A2%98%E4%BF%AE%E6%AD%A3%E8%AE%B0%E5%BD%95.md">全集FIX01</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fbrowser%2Fsummary.json">浏览器证据</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=frontend%2Fsrc%2Fservices%2Ffeedback.ts">当前服务</a>与反馈组件测试</td>
+</tr>
+<tr>
+<td>FIX31：I01追问遗漏</td>
+<td>“技能没生效，帮我反馈”，缺少武将/技能/时机等必要追问</td>
+<td>核对固定I01预期和协议失败；程序生成必要核对清单，提示词保留用户事实及缺项，不猜步骤</td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.7-I01%E8%BF%BD%E9%97%AE%E4%B8%8E%E8%BE%93%E5%85%A5%E7%84%A6%E7%82%B9%E4%BF%AE%E5%A4%8D-20261112.md">1.7全过程</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-i01-protocol-before.xml">修前</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv17-feedback-protocol-after.xml">修后</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-feedback-v17-20261112-01">真实多轮</a>及<a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-feedback-followup-v17-20261112-01">后续补充</a></td>
+</tr>
+<tr>
+<td>2.0.1：旧裁定污染新话题</td>
+<td>看SC03后查孙权、刘备或曹操，普通查询也显示缺少裁定条件</td>
+<td>历史SC被不加区分继承；调整ruling_policy话题边界，仅明确的裁定延续保留硬约束</td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv201-live-regression-20261117.json">前后原始结果</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F2.0.1-%E8%A3%81%E5%AE%9A%E8%AF%9D%E9%A2%98%E4%B8%8E%E8%BE%93%E5%85%A5%E8%8D%89%E7%A8%BF%E4%BF%AE%E5%A4%8D-20261117.md">报告</a>；<a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_ruling_topic_scope.py">话题测试</a>与<a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_ruling_topic_protocol.py">SDK协议测试</a>，保留未匹配场景弃答</td>
+</tr>
+<tr>
+<td>1.11：来源按钮跑开</td>
+<td>用户点链接按钮，目标位置变化</td>
+<td>实际坐标发现详情改变flex项宽度，拆开按钮排与详情，停止阅读时自动追尾</td>
+<td><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv111-source-buttons-before.json">修前</a>约262.1px，修后最大0px；<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv111-source-buttons-after.json">修后</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.11-%E6%9D%A5%E6%BA%90%E6%8C%89%E9%92%AE%E8%B7%B3%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md">报告</a>及切换长引用/历史滚动行为测试</td>
+</tr>
+</tbody></table>
+<p>历史全部记录：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E9%97%AE%E9%A2%98%E4%BF%AE%E6%AD%A3%E8%AE%B0%E5%BD%95.md">问题修正记录</a>。文件路径随v2重构变化时以当前feature目录和报告的历史版本分别定位，不假装历史截图由当前版本重新生成。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;document=8-05">返回六项记录导航</a> · <a href="/?page=bookshelf&amp;shelf=review&amp;document=8-01">返回文档导航QA</a></p>

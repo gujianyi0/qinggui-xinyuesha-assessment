@@ -1,0 +1,590 @@
+<h1 id="section-1">Python 基础与异步编程（四）：事件循环阻塞、异步客户端与线程池</h1>
+<blockquote>
+<p>对应学习目标：<strong>同步网络请求、<code>time.sleep</code>、耗时计算为什么可能阻塞事件循环；异步客户端、线程池各适合什么场景。</strong></p>
+<p>内容范围：事件循环调度原理、阻塞 I/O、CPU 密集型工作、<code>httpx.AsyncClient</code>、<code>asyncio.to_thread</code>、<code>ThreadPoolExecutor</code>、<code>ProcessPoolExecutor</code>、FastAPI 执行模型、取消与超时、测量与排错。适用于 Python 3.13+ 的主要语法；涉及解释器实现的部分单独说明。</p>
+</blockquote>
+<h2 id="section-2">1. 先明确“阻塞”的对象</h2>
+<p>在 <code>asyncio</code> 的典型使用方式中，<strong>一个事件循环运行在一个操作系统线程上</strong>。同一事件循环内的多个 Task 通过协作式调度交替执行：某个 Task 运行，直到它在合适的等待点挂起、结束或发生异常，其他就绪任务才获得执行机会。</p>
+<p>“阻塞事件循环”不是指整个操作系统停止工作，而是指<strong>运行事件循环的那个线程没办法及时回到事件循环去处理其他任务</strong>。可能表现为：</p>
+<ul>
+<li>已经准备好执行的其他 Task 长时间得不到调度。</li>
+<li>HTTP 服务中其他请求的响应被拖慢，WebSocket 心跳或 SSE 推送延迟。</li>
+<li>已经到期的超时、定时器和取消请求不能及时被处理。</li>
+<li>CPU 使用率可能很高（忙计算），也可能很低（线程正在睡眠或等网络）。</li>
+</ul>
+<p>事件循环的公平性来自协作式让出控制权，<strong>不是</strong>操作系统自动把一个正在执行同步代码的协程强行暂停。<code>async def</code> 本身只定义协程函数；它不改变内部同步操作的语义。</p>
+<h3 id="section-3">1.1 四个容易混淆的概念</h3>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>说明</th>
+<th>典型现象</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>阻塞调用（blocking call）</td>
+<td>调用方在线程里等待返回</td>
+<td><code>time.sleep()</code>、同步 <code>requests.get()</code></td>
+</tr>
+<tr>
+<td>异步等待（non-blocking await）</td>
+<td>当前 Task 等待期间可让出事件循环</td>
+<td><code>await asyncio.sleep()</code>、异步 socket I/O</td>
+</tr>
+<tr>
+<td>并发（concurrency）</td>
+<td>多项任务在同一时间段内交替推进</td>
+<td>同一事件循环处理多个网络请求</td>
+</tr>
+<tr>
+<td>并行（parallelism）</td>
+<td>多项计算在同一时刻真正执行</td>
+<td>多进程使用多个 CPU 核心</td>
+</tr>
+</tbody></table>
+<p><strong>异步不是并行的同义词，线程池也不是“让所有 Python 代码变快”的按钮。</strong></p>
+<h2 id="section-4">2. 为什么 <code>time.sleep()</code> 会阻塞</h2>
+<p><code>time.sleep(seconds)</code> 是<strong>同步函数</strong>。调用它的操作系统线程进入睡眠，只有等待结束才从函数返回。若这行代码发生在事件循环线程上，该线程就无法继续调度其他 Task。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> time
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">bad_task</span>():
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"A 开始"</span>)
+    time.sleep(<span class="hljs-number">2</span>)        <span class="hljs-comment"># 阻塞当前线程，事件循环无法调度其他任务</span>
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"A 结束"</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">another_task</span>():
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"B 开始"</span>)
+    <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.2</span>)
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"B 结束"</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():
+    <span class="hljs-keyword">await</span> asyncio.gather(bad_task(), another_task())
+
+asyncio.run(main())</code></pre></div><p>在默认任务调度方式和此调用顺序下，A 先进入 <code>time.sleep(2)</code>，B 通常只能等 A 结束后再启动；整体耗时约 2.2 秒。具体打印顺序受调度细节影响，不应据此推断所有情况下的绝对顺序。</p>
+<p>正确地<strong>异步等待</strong>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">good_task</span>():
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"A 开始"</span>)
+    <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">2</span>)   <span class="hljs-comment"># 当前 Task 挂起，事件循环可以运行 B</span>
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"A 结束"</span>)</code></pre></div><p>若用 <code>good_task()</code> 替换 <code>bad_task()</code>，A 的两秒等待和 B 的 0.2 秒等待通常重叠，总耗时接近两秒（包含调度开销）。</p>
+<p>注意 <code>asyncio.sleep()</code> 的作用是<strong>安排异步等待</strong>，不是执行繁重计算，也不是把调用搬到另一个线程。</p>
+<h3 id="section-5">2.1 <code>await</code> 本身不是万能的“让出执行权”</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">fake_async</span>():
+    time.sleep(<span class="hljs-number">2</span>)
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"done"</span>
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():
+    result = <span class="hljs-keyword">await</span> fake_async()  <span class="hljs-comment"># 依然阻塞事件循环线程约两秒</span></code></pre></div><p>因为 <code>fake_async()</code> 在返回之前并没有真正经过可以让其他任务运行的异步等待点。给一个同步阻塞函数套 <code>async def</code>，再在调用处加 <code>await</code>，不能自动消除阻塞。</p>
+<p>再看这个例子：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">count</span>():
+    total = <span class="hljs-number">0</span>
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">30_000_000</span>):
+        total += i * i
+    <span class="hljs-keyword">return</span> total</code></pre></div><p>它也是协程函数，但函数体没有任何挂起点；执行期间会持续占用事件循环线程。</p>
+<h2 id="section-6">3. 同步网络请求为什么会阻塞事件循环</h2>
+<p>网络请求通常经历 DNS 查询、连接建立、TLS 握手、写入请求、等待远端响应、接收数据等阶段。<strong>等待网络的时间远远可能超过实际计算时间</strong>。</p>
+<p>同步 HTTP 客户端会让调用方线程等待相关操作完成：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> requests
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_data</span>():
+    response = requests.get(<span class="hljs-string">"https://example.com"</span>, timeout=<span class="hljs-number">5</span>)
+    response.raise_for_status()
+    <span class="hljs-keyword">return</span> response.text</code></pre></div><p>这段代码虽然写在 <code>async def</code> 内，但 <code>requests.get()</code> 仍然是同步调用，可能在网络等待期间阻塞事件循环。<code>httpx.Client().get()</code>、<code>urllib.request.urlopen()</code>、同步数据库驱动、同步文件操作，也可能具有类似问题。</p>
+<p><strong>容易误解：</strong>“设置了 <code>timeout=5</code>，所以不会阻塞。”错误。超时限定的是某种等待条件，而不是把操作转为异步；只要同步调用还在运行，事件循环线程就被占用。此外，不同 HTTP 客户端对超时的定义不同，有些超时不是整个请求的绝对总时长。</p>
+<h3 id="section-7">3.1 同步与异步 HTTP 的执行过程</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">同步请求（发生在事件循环线程中）
+Task A → 发出 HTTP 请求 → [当前线程等待网络] → 收到响应 → 事件循环继续
+Task B ----------------------------------------- 只能推迟执行
+
+异步 HTTP 请求
+Task A → 发出 HTTP 请求 → await（挂起） ───────────→ 收到响应后恢复
+Task B --------------------→ 在 A 等待时继续执行</code></pre></div><p>异步客户端一般借助事件循环及非阻塞 socket 等机制，在网络未就绪时挂起当前任务。不是每个底层步骤都完全零阻塞：如大量响应解码、同步 JSON 解析、复杂证书处理或第三方回调仍可能占用 CPU。因此应区分“网络等待非阻塞”和“整个函数绝对不消耗事件循环时间”。</p>
+<h2 id="section-8">4. 异步客户端适合什么场景</h2>
+<p>当<strong>同一服务需要并发等待很多网络或其他异步 I/O 结果</strong>时，首选异步客户端。例如：</p>
+<ul>
+<li>FastAPI 异步接口请求大模型 API、搜索 API、支付/业务 API。</li>
+<li>使用异步数据库驱动访问 PostgreSQL、Redis。</li>
+<li>长连接、WebSocket、SSE、持续流式模型输出。</li>
+<li>一个请求需要并发读取多个外部信息源。</li>
+</ul>
+<p>常用库：<code>httpx.AsyncClient</code>、<code>aiohttp.ClientSession</code>，以及真正支持异步操作的数据库客户端。<strong>名字里有 <code>Async</code> 并不说明周边业务代码都不会阻塞</strong>；同步密集计算仍要单独处理。</p>
+<h3 id="section-9">4.1 HTTPX 的最小示例</h3>
+<p>先安装：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pip install httpx</code></pre></div><div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> httpx
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">fetch</span>(<span class="hljs-params">url: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> httpx.AsyncClient(timeout=<span class="hljs-number">10.0</span>) <span class="hljs-keyword">as</span> client:
+        response = <span class="hljs-keyword">await</span> client.get(url)
+        response.raise_for_status()
+        <span class="hljs-keyword">return</span> response.text
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():
+    html = <span class="hljs-keyword">await</span> fetch(<span class="hljs-string">"https://example.com"</span>)
+    <span class="hljs-built_in">print</span>(<span class="hljs-built_in">len</span>(html))
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(main())</code></pre></div><p>关键点：</p>
+<ol>
+<li><code>AsyncClient.get()</code> 返回可等待操作，需要 <code>await</code>。</li>
+<li><code>raise_for_status()</code> 用于将非成功 HTTP 状态转换为异常；网络成功不等于业务成功。</li>
+<li><code>async with</code> 负责退出时关闭客户端与连接资源。</li>
+<li>上述写法适合一次性脚本和教学；<strong>高频服务不宜在每次请求里重新创建客户端</strong>。</li>
+</ol>
+<h3 id="section-10">4.2 连接复用和并发限制</h3>
+<p>高并发服务通常为一个生命周期范围内的请求复用 <code>AsyncClient</code>，利用连接池减少重复建立连接的成本：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> httpx
+
+client = httpx.AsyncClient(
+    timeout=httpx.Timeout(<span class="hljs-number">15.0</span>, connect=<span class="hljs-number">3.0</span>),
+    limits=httpx.Limits(max_connections=<span class="hljs-number">50</span>, max_keepalive_connections=<span class="hljs-number">20</span>),
+)
+
+<span class="hljs-comment"># 在所属服务的生命周期内复用 client；关闭时 await client.aclose()</span></code></pre></div><p><code>max_connections</code> 是该客户端连接池的上限，不是全系统或整个集群的请求限流。仍可能需要应用级 <code>Semaphore</code>、每用户限额、超时和上游提供商配额控制。</p>
+<p><strong>为什么要复用客户端？</strong> 每次都创建客户端可能损失 Keep-Alive、连接池、TLS 会话相关优化，并造成无谓的资源开销。但也不要把全局客户端误用于跨进程共享，或在已关闭后继续复用；客户端生命周期应和拥有它的应用/事件循环相匹配。</p>
+<h3 id="section-11">4.3 FastAPI 生命周期内创建与关闭 AsyncClient</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> contextlib <span class="hljs-keyword">import</span> asynccontextmanager
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI, Request
+<span class="hljs-keyword">import</span> httpx
+
+<span class="hljs-meta">@asynccontextmanager</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">lifespan</span>(<span class="hljs-params">app: FastAPI</span>):
+    app.state.http = httpx.AsyncClient(timeout=<span class="hljs-number">10.0</span>)
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">yield</span>
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> app.state.http.aclose()
+
+app = FastAPI(lifespan=lifespan)
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">"/upstream"</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">upstream</span>(<span class="hljs-params">request: Request</span>):
+    client: httpx.AsyncClient = request.app.state.http
+    response = <span class="hljs-keyword">await</span> client.get(<span class="hljs-string">"https://example.com"</span>)
+    response.raise_for_status()
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"status"</span>: response.status_code}</code></pre></div><p>这个例子重点展示资源生命周期。生产使用还要考虑：可控的目标地址、鉴权、重试策略、错误映射、请求取消、响应体大小和安全日志等。</p>
+<h2 id="section-12">5. 线程池为什么能处理同步阻塞 I/O</h2>
+<p>假设一个第三方 SDK 只有同步接口，当前又不能替换。可把同步调用**卸载（offload）**到事件循环线程之外的工作线程：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">事件循环线程                    线程池工作线程
+    |                               |
+    |-- 提交同步函数 ---------------&gt;| 执行 requests.get()，等待网络
+    |-- await（当前 Task 挂起）      | 
+    |-- 继续调度其他 Task            |
+    |&lt;------------- 工作结果 --------|
+    |-- 恢复原来的 Task             |</code></pre></div><p>重要区别：<strong>同步函数本身没有变为异步函数，它只是换了一个线程执行</strong>；此时事件循环线程可以继续处理其他任务。</p>
+<h3 id="section-13">5.1 <code>asyncio.to_thread()</code></h3>
+<p>Python 3.9+ 提供 <code>asyncio.to_thread(func, *args, **kwargs)</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> time
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">blocking_sdk_call</span>(<span class="hljs-params">query: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    time.sleep(<span class="hljs-number">2</span>)             <span class="hljs-comment"># 模拟只能同步等待的第三方 SDK</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-string">f"result: <span class="hljs-subst">{query}</span>"</span>
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():
+    result = <span class="hljs-keyword">await</span> asyncio.to_thread(blocking_sdk_call, <span class="hljs-string">"hello"</span>)
+    <span class="hljs-built_in">print</span>(result)
+
+asyncio.run(main())</code></pre></div><p><strong>细节一：</strong><code>asyncio.to_thread(...)</code> 返回协程对象。只有这个协程被 <code>await</code> 或被安排成 Task 执行后，工作才会被提交到线程池。单独调用 <code>asyncio.to_thread(...)</code> 而不驱动协程，通常不会执行函数。</p>
+<p><strong>细节二：</strong><code>await</code> 等待线程池结果时，事件循环仍可调度其他任务。单纯一个任务执行时，<code>to_thread</code> 未必让它本身更快；它的主要价值是<strong>避免阻塞事件循环，提高其他任务的可响应性</strong>。</p>
+<p><strong>细节三：</strong><code>to_thread</code> 会传播当前 <code>contextvars.Context</code> 的上下文值，但并不意味着普通线程局部变量、任意共享对象都自动安全。</p>
+<h3 id="section-14">5.2 在同步 SDK 上使用 <code>to_thread</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> requests
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">fetch_sync</span>(<span class="hljs-params">url: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    response = requests.get(url, timeout=(<span class="hljs-number">3.0</span>, <span class="hljs-number">10.0</span>))
+    response.raise_for_status()
+    <span class="hljs-keyword">return</span> response.text
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">fetch_from_async_service</span>(<span class="hljs-params">url: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> asyncio.to_thread(fetch_sync, url)</code></pre></div><p>这种写法是<strong>无法使用原生异步客户端时的兼容方案</strong>。若所有请求都经由网络 I/O，且现有库有质量可靠的异步实现，通常更推荐直接使用异步客户端。</p>
+<p><code>requests</code> 的 connect/read 超时不是严格的整次业务执行时限，重试、响应流和多个网络步骤仍须分别设计。</p>
+<h3 id="section-15">5.3 <code>run_in_executor()</code> 与显式线程池</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">from</span> concurrent.futures <span class="hljs-keyword">import</span> ThreadPoolExecutor
+<span class="hljs-keyword">import</span> time
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">blocking_job</span>(<span class="hljs-params">value: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">int</span>:
+    time.sleep(<span class="hljs-number">0.2</span>)
+    <span class="hljs-keyword">return</span> value * <span class="hljs-number">2</span>
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():
+    loop = asyncio.get_running_loop()
+    <span class="hljs-keyword">with</span> ThreadPoolExecutor(max_workers=<span class="hljs-number">4</span>) <span class="hljs-keyword">as</span> pool:
+        results = <span class="hljs-keyword">await</span> asyncio.gather(
+            *(loop.run_in_executor(pool, blocking_job, i) <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">6</span>))
+        )
+        <span class="hljs-built_in">print</span>(results)
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(main())</code></pre></div><p><code>to_thread</code> 通常更简单；<code>run_in_executor</code> 则方便指定线程池或进程池。注意：<code>with ThreadPoolExecutor(...)</code> 退出时会等待工作线程结束，<strong>在异步服务中不应在每个请求里创建和销毁线程池</strong>。应该让其生命周期受到应用统一管理。</p>
+<h2 id="section-16">6. 线程池的边界、代价与误区</h2>
+<h3 id="section-17">6.1 线程不是无限资源</h3>
+<p>每个工作线程需要栈空间、调度开销，并竞争有限的 CPU、网络、数据库连接等资源。线程池队列如果持续堆积，可能出现等待时间增长、内存占用上升和服务难以停机。</p>
+<p>例如 500 个请求都调用 <code>to_thread()</code>，不代表会瞬间创建 500 个线程；默认执行器使用有限的工作线程，其余工作会等待。即使没有阻塞事件循环，<strong>线程池排队仍可能使接口变慢</strong>。</p>
+<h3 id="section-18">6.2 线程安全必须独立验证</h3>
+<p>把 SDK 放到线程池后，要弄清楚它的实例能否跨线程并发调用。共享状态、连接对象、会话上下文、文件句柄等不一定线程安全；需要按 SDK 约束隔离实例，或使用锁与其他同步机制。</p>
+<h3 id="section-19">6.3 超时和取消并不等于强制停止工作线程</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> time
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">non_interruptible_work</span>():
+    time.sleep(<span class="hljs-number">10</span>)
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"done"</span>
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.timeout(<span class="hljs-number">1</span>):
+            <span class="hljs-keyword">await</span> asyncio.to_thread(non_interruptible_work)
+    <span class="hljs-keyword">except</span> TimeoutError:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"调用方已超时，但工作线程可能仍在运行"</span>)
+
+asyncio.run(main())</code></pre></div><p><code>asyncio.timeout(1)</code> 会请求取消等待中的 Task，使调用方在超时后恢复控制，但<strong>已经开始的同步线程函数通常不会因此被强制中断</strong>；<code>asyncio.run()</code> 在退出时还会处理默认线程池关闭，示例程序本身的总运行时长可能仍接近十秒。</p>
+<p>因此不能只给外层 Task 加超时，就宣称实际请求已经停止。需要在同步 SDK 自身设置合理超时，必要时提供协作式取消机制；不可中断的长期任务应考虑独立进程或独立 Worker，并明确强制终止及补偿策略。</p>
+<h2 id="section-20">7. CPU 密集型计算为什么也会阻塞</h2>
+<p><strong>I/O 密集型</strong>表示程序大部分时间在等待外部资源，例如网络、磁盘或数据库。</p>
+<p><strong>CPU 密集型</strong>表示程序大部分时间在持续进行计算，例如大规模解析、图像处理、向量计算、复杂循环或数据转换。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">cpu_heavy</span>():
+    result = <span class="hljs-number">0</span>
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">20_000_000</span>):
+        result += (i * i) % <span class="hljs-number">97</span>
+    <span class="hljs-keyword">return</span> result</code></pre></div><p>即使写在 <code>async def</code> 内，这段循环也不会主动让出事件循环。其他 Task 必须等它运行到挂起点、完成或抛异常后才得到调度机会。</p>
+<h3 id="section-21">7.1 <code>await asyncio.sleep(0)</code> 能否解决？</h3>
+<p>在较长的循环中<strong>周期性</strong>执行 <code>await asyncio.sleep(0)</code> 可以为其他 Task 提供调度机会：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">cooperative_compute</span>(<span class="hljs-params">n: <span class="hljs-built_in">int</span></span>):
+    total = <span class="hljs-number">0</span>
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(n):
+        total += i * i
+        <span class="hljs-keyword">if</span> i % <span class="hljs-number">100_000</span> == <span class="hljs-number">0</span>:
+            <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0</span>)
+    <span class="hljs-keyword">return</span> total</code></pre></div><p>但这并没有把 CPU 计算变成多核并行，也可能因频繁让出控制权增加总耗时。对特别重的计算，一般更合适的方式是移出事件循环线程，甚至使用独立进程/Worker。</p>
+<h2 id="section-22">8. GIL 与线程池执行 CPU 任务的关系</h2>
+<p>标准 CPython 解释器长期采用<strong>全局解释器锁（GIL）</strong>，在通常启用 GIL 的构建中，同一解释器内的多个线程不能同时运行 Python 字节码。因此：</p>
+<ul>
+<li>对同步网络等待，线程仍然很有用，等待 I/O 时通常能够使其他线程运行。</li>
+<li>对纯 Python 计算，多线程一般不能带来直接的多核计算加速；还可能增加切换开销。</li>
+<li>某些 C/C++ 扩展（例如部分数值计算操作）会释放 GIL，可能从多线程获得真正的并行计算收益；是否释放由具体实现决定。</li>
+</ul>
+<p>**版本说明：**Python 3.13 起提供可选的 free-threaded（无 GIL）构建；Python 3.14 的相关能力继续发展。普通 CPython 安装不能想当然地认为 GIL 已经被关闭。即使使用 free-threaded 版本，线程安全仍须单独保证。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> sys
+<span class="hljs-keyword">import</span> sysconfig
+
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"Python:"</span>, sys.version)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"支持自由线程构建:"</span>, sysconfig.get_config_var(<span class="hljs-string">"Py_GIL_DISABLED"</span>))
+<span class="hljs-keyword">if</span> <span class="hljs-built_in">hasattr</span>(sys, <span class="hljs-string">"_is_gil_enabled"</span>):
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"当前 GIL 已启用:"</span>, sys._is_gil_enabled())</code></pre></div><p>这里的运行结果由安装的 Python 解释器决定。</p>
+<h2 id="section-23">9. CPU 密集型任务：进程池更常用</h2>
+<p><code>ProcessPoolExecutor</code> 可以把函数放到独立 Python 进程执行。每个进程通常拥有独立的解释器状态，因此在通常的 CPython/GIL 环境下更容易使用多个 CPU 核心。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">from</span> concurrent.futures <span class="hljs-keyword">import</span> ProcessPoolExecutor
+
+<span class="hljs-comment"># 必须是模块顶层、可被子进程导入和序列化的函数</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">heavy_calculation</span>(<span class="hljs-params">n: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">int</span>:
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">sum</span>(i * i <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(n))
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():
+    loop = asyncio.get_running_loop()
+    <span class="hljs-keyword">with</span> ProcessPoolExecutor(max_workers=<span class="hljs-number">2</span>) <span class="hljs-keyword">as</span> pool:
+        results = <span class="hljs-keyword">await</span> asyncio.gather(
+            loop.run_in_executor(pool, heavy_calculation, <span class="hljs-number">1_000_000</span>),
+            loop.run_in_executor(pool, heavy_calculation, <span class="hljs-number">1_500_000</span>),
+        )
+        <span class="hljs-built_in">print</span>(results)
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(main())</code></pre></div><p>Windows 通常使用 <code>spawn</code> 方式启动子进程，因此 <code>if __name__ == "__main__":</code> 的入口保护尤其重要。进程池中执行的函数和参数必须满足序列化要求；不能直接假定数据库连接、HTTP 客户端、闭包或任意复杂对象可以跨进程传递。</p>
+<p>**进程池不是总能更快：**进程启动、数据复制或序列化、结果传输都有成本。如果任务很小，进程池开销可能超过计算本身；如果任务非常大、要跨服务恢复或需要可靠排队，则独立 Worker/任务队列往往比把任务藏在 Web 进程的进程池里更合适。</p>
+<h2 id="section-24">10. 线程池、进程池、异步客户端的场景选择</h2>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>优先考虑</th>
+<th>理由</th>
+<th>必须注意</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>频繁请求大模型 API</td>
+<td>异步 HTTP/SDK</td>
+<td>I/O 等待可让出事件循环</td>
+<td>连接复用、上游限流、超时</td>
+</tr>
+<tr>
+<td>频繁读取异步数据库</td>
+<td>异步数据库驱动</td>
+<td>高并发 I/O 友好</td>
+<td>连接池、事务、Session 隔离</td>
+</tr>
+<tr>
+<td>只有同步接口的第三方 SDK</td>
+<td><code>asyncio.to_thread</code> / 有界线程池</td>
+<td>减少事件循环阻塞</td>
+<td>线程安全、取消不强停、池容量</td>
+</tr>
+<tr>
+<td>同步文件操作，耗时不可忽略</td>
+<td>线程池或异步文件方案</td>
+<td>避免在事件循环线程等待磁盘</td>
+<td>文件句柄、并发限制</td>
+</tr>
+<tr>
+<td>纯 Python 大规模计算</td>
+<td>进程池 / 独立计算 Worker</td>
+<td>更有机会利用多核</td>
+<td>序列化、进程成本、重试</td>
+</tr>
+<tr>
+<td>NumPy 等释放 GIL 的计算</td>
+<td>根据实现测试线程或进程</td>
+<td>可能真正并行</td>
+<td>检查具体库是否释放 GIL</td>
+</tr>
+<tr>
+<td>WebSocket / SSE / 高并发网络</td>
+<td>异步客户端与异步服务</td>
+<td>同时处理大量连接和等待</td>
+<td>背压、连接限制、断连清理</td>
+</tr>
+<tr>
+<td>持续数分钟且必须断线恢复的任务</td>
+<td>独立任务队列和 Worker</td>
+<td>状态可持久化、可恢复</td>
+<td>幂等、重试、持久状态</td>
+</tr>
+</tbody></table>
+<p>简化决策：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">当前操作主要在做什么？
+├─ 等待网络/数据库，且有真正异步接口
+│  └─ 用异步客户端 + await
+├─ 等待网络/文件，但仅有同步接口
+│  └─ 用有界线程池 / asyncio.to_thread
+├─ 长时间纯 Python 计算
+│  └─ 用进程池或独立计算 Worker
+└─ 很短的纯计算或数据整理
+   └─ 可直接执行，但应监控单次耗时和事件循环延迟</code></pre></div><h2 id="section-25">11. FastAPI 中 <code>def</code> 与 <code>async def</code> 的执行区别</h2>
+<p>FastAPI 对自己负责调用的<strong>同步路径操作函数</strong>（普通 <code>def</code>）及同步依赖，通常会通过线程池运行，避免直接占用事件循环线程；异步路径操作函数（<code>async def</code>）直接在异步机制下运行。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI
+<span class="hljs-keyword">import</span> time
+<span class="hljs-keyword">import</span> asyncio
+
+app = FastAPI()
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">"/sync"</span></span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">sync_endpoint</span>():
+    time.sleep(<span class="hljs-number">2</span>)             <span class="hljs-comment"># FastAPI 将此普通 def 路由放进线程池</span>
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"status"</span>: <span class="hljs-string">"ok"</span>}
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">"/async-good"</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">async_good</span>():
+    <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">2</span>)
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"status"</span>: <span class="hljs-string">"ok"</span>}
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">"/async-bad"</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">async_bad</span>():
+    time.sleep(<span class="hljs-number">2</span>)             <span class="hljs-comment"># 直接阻塞事件循环线程！</span>
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"status"</span>: <span class="hljs-string">"ok"</span>}</code></pre></div><p>关键限制：<strong>FastAPI 不会自动把你在 <code>async def</code> 内直接调用的任意同步辅助函数搬到线程池</strong>。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> requests
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">blocking_helper</span>():
+    <span class="hljs-keyword">return</span> requests.get(<span class="hljs-string">"https://example.com"</span>, timeout=<span class="hljs-number">5</span>).status_code
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">"/still-bad"</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">still_bad</span>():
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"code"</span>: blocking_helper()}  <span class="hljs-comment"># 直接执行同步函数，仍会阻塞</span></code></pre></div><p>改进方法：把可控且适合异步的 I/O 改为真正异步客户端；确实只能同步执行时，显式使用 <code>await asyncio.to_thread(blocking_helper)</code>，或让整个仅使用同步栈的路由由 FastAPI 在线程池中运行。普通 <code>def</code> 路由也不是没有代价：大量慢同步调用可能占满线程池容量。</p>
+<p><strong>不要反过来误解为 <code>def</code> 路由一定性能更好</strong>。对于真正支持异步的客户端及长连接操作，<code>async def</code> 往往更符合设计目标。</p>
+<h2 id="section-26">12. 可运行对照实验：阻塞、异步等待、线程池</h2>
+<p>以下示例只用 Python 标准库，不需要网络，比较事件循环对其他任务的可响应性。保存为 <code>blocking_demo.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> time
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">ticker</span>(<span class="hljs-params">log: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">float</span>]], start: <span class="hljs-built_in">float</span></span>):
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">4</span>):
+        log.append((<span class="hljs-string">f"tick-<span class="hljs-subst">{i}</span>"</span>, time.perf_counter() - start))
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.1</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">blocking_work</span>():
+    time.sleep(<span class="hljs-number">0.35</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">async_wait</span>():
+    <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.35</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">offload_work</span>():
+    <span class="hljs-keyword">await</span> asyncio.to_thread(time.sleep, <span class="hljs-number">0.35</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">scenario</span>(<span class="hljs-params">name: <span class="hljs-built_in">str</span>, work</span>):
+    events = []
+    start = time.perf_counter()
+    <span class="hljs-keyword">await</span> asyncio.gather(ticker(events, start), work())
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">f"\n<span class="hljs-subst">{name}</span>: <span class="hljs-subst">{time.perf_counter()-start:<span class="hljs-number">.3</span>f}</span>s"</span>)
+    <span class="hljs-keyword">for</span> item, timestamp <span class="hljs-keyword">in</span> events:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">f"  <span class="hljs-subst">{item}</span>: <span class="hljs-subst">{timestamp:<span class="hljs-number">.3</span>f}</span>s"</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():
+    <span class="hljs-keyword">await</span> scenario(<span class="hljs-string">"同步阻塞"</span>, blocking_work)
+    <span class="hljs-keyword">await</span> scenario(<span class="hljs-string">"异步等待"</span>, async_wait)
+    <span class="hljs-keyword">await</span> scenario(<span class="hljs-string">"线程卸载"</span>, offload_work)
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(main())</code></pre></div><p>典型现象（示意，具体数值取决于机器和操作系统）：</p>
+<ul>
+<li>同步阻塞：<code>tick-0</code> 可能先记录，但 <code>tick-1</code> 会被推迟到约 0.35 秒之后。</li>
+<li>异步等待：ticker 大致每 0.1 秒得到执行机会。</li>
+<li>线程卸载：ticker 同样能在工作线程等待期间继续推进。</li>
+</ul>
+<p><strong>计时结论应看事件时间线，而不只是看总耗时。</strong> 某些并发任务总耗时差异不大，但延迟分布和其他请求的响应性能可能差距很大。</p>
+<h2 id="section-27">13. 外层超时、底层网络超时与取消之间的区别</h2>
+<p>假设一个 AI API 查询：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">model_query</span>(<span class="hljs-params">client, payload</span>):
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.timeout(<span class="hljs-number">20</span>):
+        response = <span class="hljs-keyword">await</span> client.post(<span class="hljs-string">"https://api.example.com/v1/chat"</span>, json=payload)
+        response.raise_for_status()
+        <span class="hljs-keyword">return</span> response.json()</code></pre></div><p>这里至少有三个层次：</p>
+<ol>
+<li><strong>应用超时</strong>：例如 <code>asyncio.timeout(20)</code>，限制当前异步操作的等待窗口。</li>
+<li><strong>HTTP 客户端超时</strong>：连接、读取、写入、连接池等待等限制，依客户端而异。</li>
+<li><strong>下游执行状态</strong>：客户端不再等待，并不保证远端模型已经中止计算或计费。</li>
+</ol>
+<p>如果外层是 <code>to_thread</code> 包裹同步 SDK，取消等待更不能保证工作线程立即停止。对于外部业务写入、支付、发送消息等有副作用操作，必须另外设计幂等键、最终状态确认及必要的补偿机制。</p>
+<p>本节涉及的是阻塞行为，完整的取消、资源清理和限流会在后续学习目标中进一步展开。</p>
+<h2 id="section-28">14. 如何定位事件循环被阻塞</h2>
+<h3 id="section-29">14.1 观察现象</h3>
+<ul>
+<li>某次耗时请求进行期间，连简单的健康检查也突然变慢。</li>
+<li>WebSocket 心跳或 SSE 更新整体卡顿后一起到达。</li>
+<li>CPU 可能长时间满核，也可能接近空闲。</li>
+<li>定时器、取消或超时的反应明显滞后。</li>
+</ul>
+<p>这些只是线索，不能仅凭一次现象断定事件循环阻塞；还可能是服务器线程/进程池饱和、数据库连接池耗尽、外部 API 配额或者反向代理排队。</p>
+<h3 id="section-30">14.2 使用 <code>asyncio</code> 调试模式</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> logging
+
+logging.basicConfig(level=logging.DEBUG)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():
+    loop = asyncio.get_running_loop()
+    loop.set_debug(<span class="hljs-literal">True</span>)
+    loop.slow_callback_duration = <span class="hljs-number">0.05</span>
+    <span class="hljs-comment"># 在这里运行需要诊断的任务</span>
+
+asyncio.run(main())</code></pre></div><p>在调试模式下，事件循环可以记录执行时间超过阈值的回调等信息。日志具体行为取决于版本、运行环境和回调类型。生产环境启用完整调试模式可能产生额外开销，应审慎使用。</p>
+<h3 id="section-31">14.3 事件循环延迟监测</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">monitor_lag</span>(<span class="hljs-params">interval: <span class="hljs-built_in">float</span> = <span class="hljs-number">0.1</span></span>):
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + interval
+    <span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-built_in">max</span>(<span class="hljs-number">0.0</span>, deadline - loop.time()))
+        lag = <span class="hljs-built_in">max</span>(<span class="hljs-number">0.0</span>, loop.time() - deadline)
+        <span class="hljs-keyword">if</span> lag &gt; <span class="hljs-number">0.05</span>:
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">f"event loop lag: <span class="hljs-subst">{lag:<span class="hljs-number">.3</span>f}</span>s"</span>)
+        deadline = loop.time() + interval</code></pre></div><p>这个指标用于发现定时器预计唤醒时间与实际唤醒时间的偏差。它反映调度延迟，但并不自动告诉你是哪一个函数造成的；应结合日志、性能剖析与调用链排查。</p>
+<h3 id="section-32">14.4 沿调用链找隐藏的同步阻塞</h3>
+<p>从异步路由入口逐层检查：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">FastAPI async 路由
+  └── Service 方法
+        ├── 同步 requests.get()？
+        ├── 同步数据库访问？
+        ├── time.sleep()？
+        ├── 大 JSON 解析或编码？
+        ├── 大量循环/正则/压缩/图像处理？
+        ├── 同步文件读写、日志写入？
+        └── 第三方 SDK 是否实际支持异步？</code></pre></div><p>注意：调用者是 <code>async def</code>，不代表被调函数自动具备异步执行语义。需要沿着<strong>真正执行的同步函数</strong>继续追踪。</p>
+<h2 id="section-33">15. 与 JavaScript、C++ 的思维对照</h2>
+<h3 id="section-34">15.1 JavaScript</h3>
+<p>JavaScript <code>async/await</code> 的常见事件循环模型与 Python <code>asyncio</code> 有相似之处：<code>await fetch()</code> 期间可以处理其他任务；而在主线程里进行漫长同步计算仍会妨碍事件循环。Node.js 中 CPU 密集型工作可能需要 Worker Threads 或独立进程，浏览器中则可以考虑 Web Workers。它们和 Python 线程池并不是 API 层面一一对应的实现。</p>
+<h3 id="section-35">15.2 C++</h3>
+<p>C++ 中同步 <code>std::this_thread::sleep_for()</code> 会让当前线程休眠；同步 socket 读写也可能阻塞当前线程。异步 I/O 可通过不同操作系统或库机制实现；C++20 coroutine 也不能仅凭函数被声明为协程就自动保证调用的底层 I/O 非阻塞。具体线程调度、内存与生命周期规则需要按使用的框架理解。</p>
+<p><strong>共同规律：</strong>“同步/异步”描述等待及控制流模式；“单线程/多线程/多进程”描述执行资源；“并发/并行”描述任务推进方式。它们相关，但不是相同维度。</p>
+<h2 id="section-36">16. 典型错误与准确修正</h2>
+<table>
+<thead>
+<tr>
+<th>错误理解或做法</th>
+<th>为什么不准确</th>
+<th>正确认识</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>async def</code> 内代码肯定非阻塞</td>
+<td>同步函数照常执行</td>
+<td>要查看每个实际调用是否让出控制权</td>
+</tr>
+<tr>
+<td><code>await blocking_func()</code> 可解决阻塞</td>
+<td>同步阻塞可能先发生，且普通返回值也不能直接被 <code>await</code></td>
+<td>使用真正的异步 API 或线程卸载</td>
+</tr>
+<tr>
+<td>只要加 <code>asyncio.sleep(0)</code> CPU 工作就变快</td>
+<td>只改善调度机会，不增加计算资源</td>
+<td>CPU 重任务考虑进程池/Worker</td>
+</tr>
+<tr>
+<td>给同步请求加超时就不会阻塞</td>
+<td>超时不改变同步执行模型</td>
+<td>在异步客户端中等待，或卸载线程</td>
+</tr>
+<tr>
+<td>一个请求超时代表线程已停止</td>
+<td>线程内同步代码可能继续运行</td>
+<td>底层超时、协作取消或进程隔离</td>
+</tr>
+<tr>
+<td>线程越多吞吐越高</td>
+<td>资源竞争、队列和 GIL 限制</td>
+<td>有界并发，按负载测试容量</td>
+</tr>
+<tr>
+<td>CPU 计算放线程池就能多核加速</td>
+<td>普通 CPython 纯 Python 计算受 GIL 影响</td>
+<td>通常用进程池，注意 free-threaded/释放 GIL 的例外</td>
+</tr>
+<tr>
+<td>FastAPI 会自动处理所有同步工具函数</td>
+<td>只自动卸载某些由框架调用的同步函数</td>
+<td><code>async def</code> 内直接调用的同步工具仍阻塞</td>
+</tr>
+<tr>
+<td>每次 HTTP 请求都创建 <code>AsyncClient</code> 最安全</td>
+<td>损失连接复用，增加开销</td>
+<td>按应用生命周期复用，并正确关闭</td>
+</tr>
+<tr>
+<td>异步 HTTP 完全不会占用事件循环</td>
+<td>响应解析、业务计算仍消耗 CPU</td>
+<td>对重 CPU 部分单独评估</td>
+</tr>
+</tbody></table>
+<h2 id="section-37">17. 本节知识边界与总结</h2>
+<p>本节需要建立的因果链是：</p>
+<ol>
+<li><strong>事件循环线程是有限的执行资源</strong>。运行中的同步调用和不让出控制权的计算，会延迟其他 Task。</li>
+<li><strong><code>time.sleep()</code> 和同步网络 I/O</strong> 都会让当前线程等待；如果发生在事件循环线程，就直接影响服务响应性。</li>
+<li><strong><code>await asyncio.sleep()</code> 和原生异步 HTTP 客户端</strong> 会在等待期间挂起当前 Task，让其他 Task 获得执行机会。</li>
+<li><strong>线程池</strong> 是处理已有同步阻塞 I/O 的兼容机制，但有线程安全、容量、生命周期和不可强制取消等限制。</li>
+<li><strong>CPU 密集型计算</strong> 与等待网络不同；普通 CPython 的纯 Python 代码通常更适合进程池或独立计算 Worker，而不是指望线程池带来多核提速。</li>
+<li><strong>正确诊断</strong> 应同时查看事件循环延迟、请求耗时、CPU、线程池/连接池排队、底层调用链与异常记录；不能仅凭有没有 <code>async def</code> 下判断。</li>
+</ol>
+<h2 id="section-38">18. 官方参考资料</h2>
+<p>以下为官方文档的直接链接（核对时间：2026-11-11）。</p>
+<ol>
+<li>Python 3.13 — Coroutines and Tasks（<code>asyncio.sleep</code>、<code>to_thread</code>、Task）：<a href="https://docs.python.org/3.13/library/asyncio-task.html">https://docs.python.org/3.13/library/asyncio-task.html</a></li>
+<li>Python 3.13 — Event Loop（<code>run_in_executor</code>）：<a href="https://docs.python.org/3.13/library/asyncio-eventloop.html">https://docs.python.org/3.13/library/asyncio-eventloop.html</a></li>
+<li>Python 3.13 — Developing with asyncio（阻塞代码与调试）：<a href="https://docs.python.org/3.13/library/asyncio-dev.html">https://docs.python.org/3.13/library/asyncio-dev.html</a></li>
+<li>Python 3.13 — <code>threading</code>、GIL：<a href="https://docs.python.org/3.13/library/threading.html">https://docs.python.org/3.13/library/threading.html</a></li>
+<li>Python 3.13 — Free-threaded CPython：<a href="https://docs.python.org/3.13/howto/free-threading-python.html">https://docs.python.org/3.13/howto/free-threading-python.html</a></li>
+<li>HTTPX — Async Support（AsyncClient、连接复用）：<a href="https://www.python-httpx.org/async/">https://www.python-httpx.org/async/</a></li>
+<li>FastAPI — Concurrency and async / await（<code>def</code> 和 <code>async def</code> 执行模型）：<a href="https://fastapi.tiangolo.com/async/">https://fastapi.tiangolo.com/async/</a></li>
+<li>Python 3.13 — <code>concurrent.futures</code>（线程池、进程池）：<a href="https://docs.python.org/3.13/library/concurrent.futures.html">https://docs.python.org/3.13/library/concurrent.futures.html</a></li>
+</ol>
+<hr />
+<p><em>本文件仅对应“同步网络请求、<code>time.sleep</code>、耗时计算为什么可能阻塞事件循环；异步客户端、线程池各适合什么场景”这一条知识目标。</em></p>

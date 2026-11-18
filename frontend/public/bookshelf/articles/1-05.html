@@ -1,0 +1,870 @@
+<h1 id="section-1">Python 基础与异步编程（五）：超时、取消、异常传播、资源清理与并发限制</h1>
+<blockquote>
+<p><strong>对应学习目标</strong>：超时、取消、异常传播、资源清理和并发限制；一个模型请求很慢时，其他请求仍能得到响应。</p>
+<p><strong>技术范围</strong>：Python 3.13、<code>asyncio</code>、FastAPI、HTTPX；核心机制也适用于相近的 Python 3.11+ 版本。代码中没有依赖真实付费模型的示例可本地运行。</p>
+<p><strong>核心结论</strong>：异步系统是否可靠，不只取决于用了多少 <code>async def</code>，更取决于等待是否会让出事件循环、超时与取消能否正确传播、资源能否释放、容量是否受到限制，以及失败能否被准确表示。</p>
+</blockquote>
+<hr />
+<h2 id="section-2">1. 为什么“一个慢模型请求”可能拖慢整个服务</h2>
+<p>想象一个服务同时收到三次请求：</p>
+<ul>
+<li>A 请求调用模型，响应需 8 秒。</li>
+<li>B 请求查询账户信息，正常需要 50 毫秒。</li>
+<li>C 请求健康检查，正常需要 5 毫秒。</li>
+</ul>
+<p><strong>正确的异步执行</strong>是：A 的网络请求处于等待时，事件循环去处理 B、C。A 耗时长，不应天然导致 B、C 也耗时 8 秒。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">时间 →
+A:  [请求模型 ------------------等待网络------------------ 返回]
+B:       [校验 → 查询 → 返回]
+C:               [健康检查 → 返回]</code></pre></div><p>但以下代码把事件循环线程直接阻塞住：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> time
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">ask_model_wrong</span>() -&gt; <span class="hljs-built_in">str</span>:
+    time.sleep(<span class="hljs-number">8</span>)  <span class="hljs-comment"># 阻塞当前线程，而不是异步等待</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"回答"</span></code></pre></div><p>即使外层是 <code>async def</code>，只要执行的是同步阻塞操作，事件循环就无法按预期调度其他协程。同样有问题的调用包括在事件循环中直接运行同步 <code>requests.get()</code>、大规模纯 Python 计算、阻塞式 SDK 方法。</p>
+<p>非阻塞的模拟等待则是：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">ask_model</span>() -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">8</span>)  <span class="hljs-comment"># 当前 Task 挂起，事件循环可以运行其他任务</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"回答"</span></code></pre></div><p>但是，这只解决“<strong>不阻塞事件循环</strong>”的问题，仍需要解决另外两类风险：</p>
+<ol>
+<li><strong>资源占满</strong>：即使每个请求都异步等待，数千个挂起请求仍可能消耗连接、内存和上游 API 配额。</li>
+<li><strong>无限等待/故障扩散</strong>：模型失去响应、网络半开、重试风暴等，会使请求一直积压。</li>
+</ol>
+<p>所以真正的服务设计是：<strong>非阻塞 I/O + 合理超时 + 正确取消 + 资源清理 + 并发与排队限制 + 故障分类</strong>。</p>
+<h3 id="section-3">1.1 两种“慢”必须区分</h3>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>可能原因</th>
+<th>关键处理手段</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>某个模型请求耗时很长，但其他请求正常</td>
+<td>模型生成慢或网络慢</td>
+<td>网络超时、请求总期限、限流、响应状态</td>
+</tr>
+<tr>
+<td>一个请求变慢后，其他接口也同时明显卡住</td>
+<td>同步阻塞、事件循环饥饿、连接池/线程池耗尽</td>
+<td>排查同步调用与 CPU 占用、资源池隔离、调整容量</td>
+</tr>
+</tbody></table>
+<p><strong>异步不保证所有请求都快</strong>：如果一个模型接口有全局并发槽位限制，那么后续模型请求可能在等待该槽位；这与整个事件循环被阻塞不是一回事。健康检查和不依赖模型的 API 仍应能正常处理。</p>
+<hr />
+<h2 id="section-4">2. 超时（Timeout）不是单一的一个数字</h2>
+<p>“设置 30 秒超时”可能包含许多不同含义，必须知道时间限制施加在哪一层。</p>
+<h3 id="section-5">2.1 常见超时种类</h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>控制的阶段</th>
+<th>常见意义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>连接超时 <code>connect</code></td>
+<td>建立到上游主机的连接</td>
+<td>网络不可达或建立连接过慢</td>
+</tr>
+<tr>
+<td>读取超时 <code>read</code></td>
+<td>等待接收下一批响应数据</td>
+<td>服务器长时间未发送数据</td>
+</tr>
+<tr>
+<td>写入超时 <code>write</code></td>
+<td>向网络写入请求数据</td>
+<td>上传或发送受阻</td>
+</tr>
+<tr>
+<td>连接池等待超时 <code>pool</code></td>
+<td>等待取得可用连接</td>
+<td>已达到连接数限制</td>
+</tr>
+<tr>
+<td>业务总超时 <code>deadline</code></td>
+<td>从开始处理到要求结束的总时间</td>
+<td>包括排队、网络等待、业务处理等</td>
+</tr>
+<tr>
+<td>代理/网关超时</td>
+<td>反向代理或负载均衡器一侧</td>
+<td>即使应用内部允许更久，客户端也可能先断开</td>
+</tr>
+<tr>
+<td>用户交互超时</td>
+<td>客户端愿意等待多久</td>
+<td>超过后提示用户、重试或转成后台任务</td>
+</tr>
+</tbody></table>
+<p>HTTPX 的四种网络阶段超时是 <code>connect/read/write/pool</code>。其中 <strong>read timeout 通常表示两次数据接收之间允许的最大无数据时长，不是整个流式回答的总时长</strong>。因此一个不停输出数据的模型流，可能持续超过单个读取超时而不触发它。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> httpx
+
+timeouts = httpx.Timeout(
+    connect=<span class="hljs-number">3.0</span>,
+    read=<span class="hljs-number">20.0</span>,
+    write=<span class="hljs-number">5.0</span>,
+    pool=<span class="hljs-number">2.0</span>,
+)
+
+limits = httpx.Limits(
+    max_connections=<span class="hljs-number">30</span>,
+    max_keepalive_connections=<span class="hljs-number">15</span>,
+)
+
+<span class="hljs-comment"># 应在应用生命周期中创建并复用，而非每个请求都新建</span>
+client = httpx.AsyncClient(timeout=timeouts, limits=limits)
+<span class="hljs-comment"># 用完后必须 await client.aclose()，详见资源清理部分</span></code></pre></div><p>这些参数是解释机制的示例值，应该根据模型服务、并发预算、网络环境与实际监控调整。</p>
+<h3 id="section-6">2.2 Python <code>asyncio.timeout()</code>：限定一个操作块的执行时间</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">call_model</span>() -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">2</span>)
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"完成"</span>
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.timeout(<span class="hljs-number">0.3</span>):
+            result = <span class="hljs-keyword">await</span> call_model()
+            <span class="hljs-built_in">print</span>(result)
+    <span class="hljs-keyword">except</span> TimeoutError:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"模型请求超过允许时间"</span>)
+
+asyncio.run(main())</code></pre></div><p><code>asyncio.timeout()</code> 在超过期限时，会对<strong>当前 Task 发起取消</strong>，随后由上下文管理器把其内部触发的取消转换成可在外部捕获的 <code>TimeoutError</code>。</p>
+<p>因此通常应把 <code>except TimeoutError</code> 放在 <code>async with</code> <strong>外面</strong>。在上下文内部，代码首先遭遇的是取消，且清理操作可能影响最终耗时。</p>
+<h3 id="section-7">2.3 <code>asyncio.wait_for()</code>：等待指定对象并设置期限</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">result = <span class="hljs-keyword">await</span> asyncio.wait_for(call_model(), timeout=<span class="hljs-number">0.3</span>)</code></pre></div><p>这个形式也可能触发被等待对象的取消，并在超时后抛出 <code>TimeoutError</code>。</p>
+<p>常见区别：</p>
+<ul>
+<li><code>asyncio.timeout()</code> 适合包裹一个包含多个 <code>await</code> 的业务代码块。</li>
+<li><code>asyncio.wait_for()</code> 适合为一次等待设置超时。</li>
+<li>两者都依赖正常的异步取消机制；<strong>不保证到达时限的那个时刻，底层操作已经物理停止</strong>。</li>
+<li><code>wait_for()</code> 等待取消完成，所以实际返回耗时可能略长于指定值。</li>
+</ul>
+<h3 id="section-8">2.4 总预算与局部预算的叠加</h3>
+<p>例如业务允许最多 12 秒：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">HTTP 业务总预算：12 秒
+   ├── 等候并发槽位：最多受到总预算约束
+   ├── 建立上游连接：单次 3 秒
+   ├── 每次等待网络数据：20 秒（但业务总预算可更早结束）
+   └── 结果整理和保存：同样占用总预算</code></pre></div><p>业务总预算应当包含<strong>排队时间</strong>，而不只是获得信号量之后的模型调用时间，否则高负载时可能出现“排队 2 分钟 + 模型调用 12 秒”的情况。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">guarded_model_call</span>(<span class="hljs-params">
+    semaphore: asyncio.Semaphore,
+    prompt: <span class="hljs-built_in">str</span>,
+</span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.timeout(<span class="hljs-number">12</span>):  <span class="hljs-comment"># 超时也覆盖等待 semaphore</span>
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> semaphore:
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> call_model_with_prompt(prompt)</code></pre></div><p><code>call_model_with_prompt</code> 代表真正的异步模型客户端调用。这里没有定义它，是展示组合方式的示意代码。</p>
+<h3 id="section-9">2.5 单一 deadline 比层层重置 timeout 更可靠</h3>
+<p>如果调用链是路由 → Service → 工具 A → 模型 B，每层重新给 30 秒，就可能产生超过预期的整体耗时。可以在入口形成<strong>单调时钟的截止时间</strong>，并向下传递剩余预算：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">parent_operation</span>() -&gt; <span class="hljs-literal">None</span>:
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + <span class="hljs-number">5.0</span>
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.timeout_at(deadline):
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.4</span>)
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.5</span>)</code></pre></div><p><code>loop.time()</code> 是单调时钟，适合计算持续时间；不要直接用可能被系统校时改变的墙上时间计算内部耗时。</p>
+<hr />
+<h2 id="section-10">3. 取消（Cancellation）到底发生了什么</h2>
+<h3 id="section-11">3.1 <code>task.cancel()</code> 是“请求取消”，不是强制杀死线程</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">slow_job</span>() -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">100</span>)
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"清理已经执行"</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:
+    task = asyncio.create_task(slow_job())
+    <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.01</span>)
+    task.cancel()
+
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">await</span> task
+    <span class="hljs-keyword">except</span> asyncio.CancelledError:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"任务已被取消"</span>)
+
+asyncio.run(main())</code></pre></div><p><code>cancel()</code> 发起取消请求。协程在后续适当的挂起点观察到取消，通常抛出 <code>asyncio.CancelledError</code>，执行 <code>finally</code>，然后任务结束。</p>
+<p>如果协程一直运行 CPU 密集型循环或 <code>time.sleep()</code>，可能迟迟没有机会接收取消。此时“已经调用 cancel()”不代表“工作已经停止”。</p>
+<h3 id="section-12">3.2 <code>CancelledError</code> 不是普通业务错误</h3>
+<p>在现代 Python 中，<code>asyncio.CancelledError</code> 直接继承自 <code>BaseException</code>，<strong>不是</strong> <code>Exception</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">try</span>:
+    <span class="hljs-keyword">await</span> some_operation()
+<span class="hljs-keyword">except</span> asyncio.CancelledError:
+    <span class="hljs-comment"># 可记录状态、释放资源，但通常必须继续抛出</span>
+    <span class="hljs-keyword">raise</span>
+<span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> exc:
+    <span class="hljs-comment"># 处理其他实际执行故障</span>
+    handle_error(exc)</code></pre></div><p>不应该为了“防止报错”而吞掉取消：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 错误：破坏取消语义，结构化并发和超时可能失效</span>
+<span class="hljs-keyword">try</span>:
+    <span class="hljs-keyword">await</span> some_operation()
+<span class="hljs-keyword">except</span> asyncio.CancelledError:
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"假装成功"</span></code></pre></div><p>更常见的正确模式是直接使用 <code>try/finally</code> 做清理，让取消自然传播：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">job</span>() -&gt; <span class="hljs-literal">None</span>:
+    resource = <span class="hljs-keyword">await</span> open_resource()
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">await</span> work(resource)
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> resource.aclose()</code></pre></div><p>其中 <code>open_resource</code> 与 <code>work</code> 是示意函数。</p>
+<h3 id="section-13">3.3 取消与客户端断开不是完全等价的</h3>
+<p>浏览器关闭、HTTP 连接断开，不意味着所有 Web 框架、所有响应形式都会立刻取消当前的路由协程。具体行为依赖 ASGI 服务器、框架、代理和响应方式。</p>
+<p>对于流式响应，需要留意断开检测、发送任务取消、生成器清理；对于不应受客户端断开影响的持久任务，应保存任务记录并使用独立 Worker，而非简单 <code>create_task()</code> 后丢弃引用。</p>
+<h3 id="section-14">3.4 取消线程池里的工作有什么局限</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">result = <span class="hljs-keyword">await</span> asyncio.to_thread(blocking_function)</code></pre></div><p>取消正在 <code>await</code> 的 Task，<strong>通常不能直接停止已在线程池中运行的同步函数</strong>。线程可能仍在运行、消耗资源或继续产生副作用。这是为什么数据库写入、文件删除等操作不能仅靠 <code>task.cancel()</code> 保证不发生的原因。</p>
+<p>对无法中途停止的工作，应该使用明确的协作终止机制、可检查的取消标志或独立可恢复任务架构。</p>
+<h3 id="section-15">3.5 <code>asyncio.shield()</code> 的真正含义</h3>
+<p><code>shield(task)</code> 可以让被等待的内部任务不因<strong>外层等待者取消</strong>而直接受到同一次取消传播影响，但外层等待仍会抛出 <code>CancelledError</code>。</p>
+<p>这不等于“该任务永远不会取消”，也不是常规请求必须使用的保护伞。对数据库一致性，应优先使用事务、幂等记录和可靠后台任务；对长运行任务，应保存强引用并明确生命周期。</p>
+<hr />
+<h2 id="section-16">4. 异常传播：哪一层应该处理哪个问题</h2>
+<p>一次模型请求大致可能经历：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">FastAPI Router
+  ↓
+ChatService
+  ↓
+ModelClient / HTTPX
+  ↓
+上游模型 API</code></pre></div><p>如果上游模型超时，HTTPX 可能抛出 <code>httpx.ReadTimeout</code> 或其他 <code>httpx.TimeoutException</code>。Service 可以把上游技术异常转换为自己的领域异常，例如 <code>ModelTemporarilyUnavailable</code>。Router 最后负责决定 HTTP 响应状态码与面向用户的错误内容。</p>
+<h3 id="section-17">4.1 区分不同类型的失败</h3>
+<table>
+<thead>
+<tr>
+<th>情况</th>
+<th>典型异常/信号</th>
+<th>常见处理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>连接模型失败</td>
+<td><code>httpx.ConnectError</code></td>
+<td>记录上游不可用，可有限重试</td>
+</tr>
+<tr>
+<td>读取上游超时</td>
+<td><code>httpx.ReadTimeout</code></td>
+<td>报告模型响应超时，检查是否可安全重试</td>
+</tr>
+<tr>
+<td>业务总超时</td>
+<td><code>TimeoutError</code></td>
+<td>结束当前请求，返回明确失败原因</td>
+</tr>
+<tr>
+<td>超出上游限流</td>
+<td>HTTP <code>429</code></td>
+<td>按 <code>Retry-After</code> 和预算退避；不能无限重试</td>
+</tr>
+<tr>
+<td>上游 5xx</td>
+<td><code>httpx.HTTPStatusError</code></td>
+<td>根据请求幂等性决定重试</td>
+</tr>
+<tr>
+<td>模型输出格式无效</td>
+<td>解析/验证错误</td>
+<td>单独归类，不与网络故障混为一谈</td>
+</tr>
+<tr>
+<td>用户或服务器取消</td>
+<td><code>asyncio.CancelledError</code></td>
+<td>清理后传播，不伪装成功</td>
+</tr>
+<tr>
+<td>本地程序 Bug</td>
+<td>其他异常</td>
+<td>记录诊断信息，不能一概归类为超时</td>
+</tr>
+</tbody></table>
+<p>应避免：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">try</span>:
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> model_call()
+<span class="hljs-keyword">except</span> Exception:
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"answer"</span>: <span class="hljs-string">"模型没有回答"</span>}</code></pre></div><p>这里把格式错误、数据库错误、编程错误和网络错误全部掩盖成同一种“无答案”，造成数据不可信和排障困难。</p>
+<p>更好的方式是先在 Service 中建立稳定的错误分类，再由 Router 转换成 HTTP 错误。若业务本身已经定义了清晰的返回联合类型，也可以使用结果对象表达可预期失败。</p>
+<h3 id="section-18">4.2 <code>raise ... from ...</code> 保留根因</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">class</span> <span class="hljs-title class_">UpstreamModelError</span>(<span class="hljs-title class_ inherited__">RuntimeError</span>):
+    <span class="hljs-keyword">pass</span>
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">request_model</span>(<span class="hljs-params">client</span>):
+    <span class="hljs-keyword">try</span>:
+        response = <span class="hljs-keyword">await</span> client.get(<span class="hljs-string">"https://example.com/"</span>)
+        response.raise_for_status()
+        <span class="hljs-keyword">return</span> response.text
+    <span class="hljs-keyword">except</span> httpx.TimeoutException <span class="hljs-keyword">as</span> exc:
+        <span class="hljs-keyword">raise</span> UpstreamModelError(<span class="hljs-string">"模型网络调用超时"</span>) <span class="hljs-keyword">from</span> exc</code></pre></div><p>使用该片段时需要 <code>import httpx</code>。<code>raise ... from exc</code> 保留异常链，便于日志追踪真实根因。</p>
+<h3 id="section-19">4.3 <code>TaskGroup</code> 与 <code>gather</code> 的异常传播区别</h3>
+<p><code>asyncio.TaskGroup</code> 以结构化方式管理子任务。通常当一个子任务抛出<strong>非取消异常</strong>，它会取消尚未结束的兄弟任务，等待结束，然后把异常作为 <code>ExceptionGroup</code> 抛出。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">failed</span>():
+    <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.01</span>)
+    <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"模拟错误"</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">sibling</span>():
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">10</span>)
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"兄弟任务执行清理"</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.TaskGroup() <span class="hljs-keyword">as</span> group:
+            group.create_task(failed())
+            group.create_task(sibling())
+    <span class="hljs-keyword">except</span>* ValueError <span class="hljs-keyword">as</span> errors:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"捕获业务异常："</span>, <span class="hljs-built_in">len</span>(errors.exceptions))
+
+asyncio.run(main())</code></pre></div><p>相对地，<code>asyncio.gather(..., return_exceptions=False)</code> 在某个子任务抛异常时，会向等待者传播异常，<strong>并不保证自动取消其他正在运行的兄弟任务</strong>。需要根据应用语义选择合适机制。</p>
+<hr />
+<h2 id="section-20">5. 资源清理：取消时最容易出错的部分</h2>
+<p>一个模型接口可能使用多个有限资源：</p>
+<ul>
+<li>网络连接和 HTTP 连接池；</li>
+<li>数据库连接与数据库事务；</li>
+<li>Semaphore 信号量额度；</li>
+<li>StreamingResponse / SSE 生成器与上游流；</li>
+<li>缓冲队列、临时文件和应用内 Task。</li>
+</ul>
+<p>这些资源的生命周期应当清晰且可验证。</p>
+<h3 id="section-21">5.1 <code>try/finally</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">resource = <span class="hljs-keyword">await</span> create_resource()
+<span class="hljs-keyword">try</span>:
+    <span class="hljs-keyword">await</span> use_resource(resource)
+<span class="hljs-keyword">finally</span>:
+    <span class="hljs-keyword">await</span> resource.aclose()</code></pre></div><p>即使 <code>use_resource</code> 抛异常或收到取消，仍会尝试执行清理。注意：异步清理本身也是可等待操作，也可能失败或在某些情况下再次被取消。因此并不能把 <code>finally</code> 理解成“任何故障下保证完成全部外部操作”。</p>
+<h3 id="section-22">5.2 <code>async with</code>：把资源与代码块绑定</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+limiter = asyncio.Semaphore(<span class="hljs-number">3</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">limited_call</span>():
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> limiter:
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.1</span>)</code></pre></div><p>使用 <code>async with</code> 可以在离开上下文时自动释放信号量额度；不建议分散在多个分支中手工 <code>acquire/release</code>，避免异常路径漏释放。</p>
+<h3 id="section-23">5.3 HTTP 客户端应当复用并在关闭服务时释放</h3>
+<p>错误模式：每次请求都新建 <code>httpx.AsyncClient</code>，增加握手、连接开销，还容易漏掉 <code>aclose()</code>。</p>
+<p>更合适的是在 FastAPI 应用生命周期内创建：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> contextlib <span class="hljs-keyword">import</span> asynccontextmanager
+<span class="hljs-keyword">import</span> httpx
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI
+
+<span class="hljs-meta">@asynccontextmanager</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">lifespan</span>(<span class="hljs-params">app: FastAPI</span>):
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> httpx.AsyncClient(
+        timeout=httpx.Timeout(<span class="hljs-number">20.0</span>, connect=<span class="hljs-number">3.0</span>),
+        limits=httpx.Limits(max_connections=<span class="hljs-number">30</span>),
+    ) <span class="hljs-keyword">as</span> client:
+        app.state.http = client
+        <span class="hljs-keyword">yield</span>
+
+app = FastAPI(lifespan=lifespan)</code></pre></div><p>生命周期里的 <code>yield</code> 之前用于初始化，之后用于释放资源。若代码包含独立后台 Worker，它们的生命周期需要另外设计；FastAPI lifespan 不会替其他进程自动管理资源。</p>
+<h3 id="section-24">5.4 数据库 Session 不应不受控地共享</h3>
+<p>通常应为一个请求或一个独立并发任务创建独立的 SQLAlchemy <code>AsyncSession</code>，在结束时关闭或回收；取消与异常发生时还要确保事务正确回滚。共享一个 Session 给互相并发的 Task 可能产生状态和事务竞争。</p>
+<h3 id="section-25">5.5 流式响应必须处理异常结束</h3>
+<p>在 SSE / 流式模型输出场景，应区分：</p>
+<ul>
+<li>正常完成：发送最终结束事件；</li>
+<li>可处理错误：发送带错误代码的终止事件（前提是连接仍可用）；</li>
+<li>客户端断开：停止相关处理并关闭上游流；</li>
+<li>已发送 HTTP 响应头后失败：不能再随意把 HTTP 状态码改成 500；</li>
+<li>超时结束：明确是整个生成超时，还是等待下一块数据超时。</li>
+</ul>
+<p>不能假定 <code>try/finally</code> 一定足以完成所有跨系统的清理和撤销；已产生的外部副作用需要用事务、业务幂等和补偿机制处理。</p>
+<hr />
+<h2 id="section-26">6. 并发限制：Semaphore、连接池和排队是三个问题</h2>
+<h3 id="section-27">6.1 Semaphore 限制正在执行的操作数</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+semaphore = asyncio.Semaphore(<span class="hljs-number">3</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">call_model</span>(<span class="hljs-params">prompt: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> semaphore:
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.5</span>)
+        <span class="hljs-keyword">return</span> <span class="hljs-string">f"回答：<span class="hljs-subst">{prompt}</span>"</span></code></pre></div><p>该代码在<strong>同一进程中的这个信号量实例</strong>上，最多允许 3 个协程同时进入被保护的代码段；其他调用者异步等待额度。</p>
+<p>信号量并不等于：</p>
+<ul>
+<li>进程间/多机器的全局限流器；</li>
+<li>每秒请求次数（RPS）限流器；</li>
+<li>自动限制等待队列长度；</li>
+<li>根据用户 ID 的公平排队；</li>
+<li>上游 HTTP 连接池的最大连接数；</li>
+<li>对 CPU 密集计算的自动加速。</li>
+</ul>
+<h3 id="section-28">6.2 连接池限制与模型并发上限不是同一回事</h3>
+<p><code>httpx.Limits(max_connections=30)</code> 控制客户端连接池容量，不等于“最多向模型提交 30 个完整推理任务”。部分请求可能复用连接、使用 HTTP/2 多路复用，或者在其他阶段等待。</p>
+<p>因此常采用两个不同层次：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">用户请求
+  ↓
+业务模型并发上限（Semaphore）
+  ↓
+HTTPX 网络连接池（Limits + pool timeout）
+  ↓
+模型服务 / 网关（其自身的配额与限流）</code></pre></div><h3 id="section-29">6.3 排队本身也需要容量管理</h3>
+<p><code>Semaphore(3)</code> 只限制同时执行的数量。若同一时刻有 10000 个请求，其他 9997 个可能都挂起等待信号量，导致内存和请求处理资源累积。</p>
+<p>因此还需要：</p>
+<ol>
+<li><strong>排队等待超时</strong>：在排队等待阶段就执行总期限。</li>
+<li><strong>有界队列</strong>：限制系统愿意接纳的等待任务数量。</li>
+<li><strong>过载拒绝</strong>：容量超过阈值时尽早返回 429 或 503，并尽可能提供重试建议。</li>
+<li><strong>独立容量池</strong>：模型接口与健康检查、账户接口、数据库接口不应无条件共用同一个长时间占用的模型信号量。</li>
+<li><strong>全局容量控制</strong>：多 Worker 进程各持有一个 <code>Semaphore(3)</code>，实际总并发可能接近 <code>3 × 进程数</code>，要与上游整体配额协调。</li>
+</ol>
+<h3 id="section-30">6.4 限制应该放在哪个层级</h3>
+<table>
+<thead>
+<tr>
+<th>级别</th>
+<th>常见实现</th>
+<th>目的</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>单次请求</td>
+<td>Deadline / Timeout</td>
+<td>避免无限等待</td>
+</tr>
+<tr>
+<td>单进程模型并发</td>
+<td><code>asyncio.Semaphore</code></td>
+<td>限制模型同时调用数</td>
+</tr>
+<tr>
+<td>单进程 HTTP 连接</td>
+<td>HTTPX <code>Limits</code></td>
+<td>连接资源控制</td>
+</tr>
+<tr>
+<td>单用户/租户</td>
+<td>用户标识 + 计数/令牌桶</td>
+<td>防止某个用户占满配额</td>
+</tr>
+<tr>
+<td>全服务实例组</td>
+<td>网关/Redis 原子计数/分布式协调</td>
+<td>多进程、多主机统一预算</td>
+</tr>
+<tr>
+<td>上游供应商</td>
+<td>API 侧配额与 429</td>
+<td>供应商保护其服务</td>
+</tr>
+</tbody></table>
+<p>分布式计数需要考虑 TTL、进程崩溃和原子操作；Redis 方案不是自动严格正确，必须明确失效与恢复语义。</p>
+<hr />
+<h2 id="section-31">7. 一个可以实际运行的 FastAPI 完整示例</h2>
+<p>本示例用 <code>asyncio.sleep()</code> 模拟模型请求，不依赖外部模型服务。它展示：</p>
+<ul>
+<li>慢请求在等待时不会阻塞同一个事件循环上的快请求；</li>
+<li>每个模型请求受到总期限保护；</li>
+<li>Semaphore 保护模型容量；</li>
+<li>普通 HTTP 接口在模型调用期间仍可以处理；</li>
+<li>超时与其他故障被明确区分；</li>
+<li><code>finally</code> 记录资源退出事件。</li>
+</ul>
+<h3 id="section-32">7.1 <code>app.py</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> logging
+<span class="hljs-keyword">from</span> contextlib <span class="hljs-keyword">import</span> asynccontextmanager
+
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI, HTTPException, Request
+<span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, Field
+
+logger = logging.getLogger(<span class="hljs-string">"model_demo"</span>)
+
+MODEL_CONCURRENCY = <span class="hljs-number">2</span>
+MODEL_DEADLINE = <span class="hljs-number">0.30</span>
+
+
+<span class="hljs-meta">@asynccontextmanager</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">lifespan</span>(<span class="hljs-params">app: FastAPI</span>):
+    app.state.model_slots = asyncio.Semaphore(MODEL_CONCURRENCY)
+    <span class="hljs-keyword">yield</span>
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ChatRequest</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    message: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>)
+    simulated_delay: <span class="hljs-built_in">float</span> = Field(ge=<span class="hljs-number">0.0</span>, le=<span class="hljs-number">5.0</span>)
+
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">fake_model</span>(<span class="hljs-params">message: <span class="hljs-built_in">str</span>, delay: <span class="hljs-built_in">float</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">await</span> asyncio.sleep(delay)
+        <span class="hljs-keyword">return</span> <span class="hljs-string">f"模型回答：<span class="hljs-subst">{message}</span>"</span>
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-comment"># 模拟统计/清理点；这里不代表外部模型调用一定已停止</span>
+        logger.info(<span class="hljs-string">"模型协程离开: %s"</span>, message)
+
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">"/health"</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">health</span>():
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"status"</span>: <span class="hljs-string">"ok"</span>}
+
+
+<span class="hljs-meta">@app.post(<span class="hljs-params"><span class="hljs-string">"/chat"</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">chat</span>(<span class="hljs-params">payload: ChatRequest, request: Request</span>):
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-comment"># 总预算覆盖等待并发槽位的时间与模型响应时间</span>
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.timeout(MODEL_DEADLINE):
+            <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> request.app.state.model_slots:
+                answer = <span class="hljs-keyword">await</span> fake_model(
+                    payload.message, payload.simulated_delay
+                )
+                <span class="hljs-keyword">return</span> {<span class="hljs-string">"answer"</span>: answer}
+    <span class="hljs-keyword">except</span> TimeoutError <span class="hljs-keyword">as</span> exc:
+        <span class="hljs-keyword">raise</span> HTTPException(
+            status_code=<span class="hljs-number">504</span>,
+            detail={<span class="hljs-string">"code"</span>: <span class="hljs-string">"MODEL_TIMEOUT"</span>, <span class="hljs-string">"message"</span>: <span class="hljs-string">"模型处理超时"</span>},
+        ) <span class="hljs-keyword">from</span> exc
+    <span class="hljs-comment"># 不捕获 CancelledError，允许由框架/服务器处理取消</span></code></pre></div><p>启动：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pip install fastapi uvicorn httpx pytest
+uvicorn app:app --host 127.0.0.1 --port 8000</code></pre></div><p>接口请求体示例：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span><span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"你好"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"simulated_delay"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.05</span><span class="hljs-punctuation">}</span></code></pre></div><p>如果 <code>simulated_delay</code> 为 <code>0.05</code>，通常可较快返回；若设置 <code>1.0</code>，则因为业务超时设置为 <code>0.30</code> 秒，通常返回 HTTP 504。</p>
+<p><strong>注意</strong>：0.30 秒仅为快速演示，真实生产环境应根据服务分布和 SLO 设定；本示例不含真实上游网络客户端、用户身份验证、请求排队容量上限或多进程全局限流。</p>
+<h3 id="section-33">7.2 真实异步模型 HTTP 客户端的核心模式</h3>
+<p>在真实系统中，用 API 提供商的异步 SDK 或 HTTPX 异步客户端替换 <code>fake_model()</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> httpx
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">request_provider</span>(<span class="hljs-params">
+    client: httpx.AsyncClient,
+    endpoint: <span class="hljs-built_in">str</span>,
+    payload: <span class="hljs-built_in">dict</span>,
+    token: <span class="hljs-built_in">str</span>,
+</span>) -&gt; <span class="hljs-built_in">dict</span>:
+    response = <span class="hljs-keyword">await</span> client.post(
+        endpoint,
+        json=payload,
+        headers={<span class="hljs-string">"Authorization"</span>: <span class="hljs-string">f"Bearer <span class="hljs-subst">{token}</span>"</span>},
+    )
+    response.raise_for_status()
+    <span class="hljs-keyword">return</span> response.json()</code></pre></div><p><code>endpoint</code>、请求体和响应解析必须按实际服务商的 API 文档填写；该代码只演示通用 HTTP 调用方式，不声称直接兼容某家具体模型 API。</p>
+<p>真实调用应在外层组合：业务总期限、模型 Semaphore、HTTPX 分项超时、有限重试、异常分类以及资源生命周期管理。JSON 反序列化后还应进行业务字段校验。</p>
+<hr />
+<h2 id="section-34">8. 自动化验证：慢模型不能拖住快请求</h2>
+<p>创建 <code>test_app.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> time
+
+<span class="hljs-keyword">import</span> httpx
+<span class="hljs-keyword">import</span> pytest
+
+<span class="hljs-keyword">from</span> app <span class="hljs-keyword">import</span> app
+
+
+<span class="hljs-meta">@pytest.mark.asyncio</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_slow_model_does_not_block_fast_request</span>():
+    <span class="hljs-comment"># ASGITransport 不会自动触发 lifespan，因此在测试中显式进入</span>
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> httpx.AsyncClient(
+            transport=transport, base_url=<span class="hljs-string">"http://test"</span>
+        ) <span class="hljs-keyword">as</span> client:
+            slow = asyncio.create_task(client.post(
+                <span class="hljs-string">"/chat"</span>,
+                json={<span class="hljs-string">"message"</span>: <span class="hljs-string">"slow"</span>, <span class="hljs-string">"simulated_delay"</span>: <span class="hljs-number">1.0</span>},
+            ))
+
+            <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.02</span>)
+            start = time.perf_counter()
+            fast = <span class="hljs-keyword">await</span> client.get(<span class="hljs-string">"/health"</span>)
+            fast_elapsed = time.perf_counter() - start
+            slow_response = <span class="hljs-keyword">await</span> slow
+
+    <span class="hljs-keyword">assert</span> fast.status_code == <span class="hljs-number">200</span>
+    <span class="hljs-keyword">assert</span> fast_elapsed &lt; <span class="hljs-number">0.20</span>
+    <span class="hljs-keyword">assert</span> slow_response.status_code == <span class="hljs-number">504</span>
+    <span class="hljs-keyword">assert</span> slow_response.json()[<span class="hljs-string">"detail"</span>][<span class="hljs-string">"code"</span>] == <span class="hljs-string">"MODEL_TIMEOUT"</span></code></pre></div><p>安装测试依赖：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pip install pytest pytest-asyncio
+python -m pytest -q</code></pre></div><p>这里的 0.20 秒判断阈值用于演示本地正常运行环境；在高负载 CI 中，时间断言可能需要适当放宽或采用更确定性的同步方法。测试检查的是<strong>快请求完成时间是否明显短于慢请求</strong>，不能把某次毫秒数当作跨硬件的性能保证。</p>
+<h3 id="section-35">8.1 更严格的并发额度验证</h3>
+<p>下面是纯 <code>asyncio</code> 的验证，不依赖 FastAPI：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:
+    sem = asyncio.Semaphore(<span class="hljs-number">2</span>)
+    active = <span class="hljs-number">0</span>
+    maximum = <span class="hljs-number">0</span>
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">work</span>() -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">nonlocal</span> active, maximum
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> sem:
+            active += <span class="hljs-number">1</span>
+            maximum = <span class="hljs-built_in">max</span>(maximum, active)
+            <span class="hljs-keyword">try</span>:
+                <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.03</span>)
+            <span class="hljs-keyword">finally</span>:
+                active -= <span class="hljs-number">1</span>
+
+    <span class="hljs-keyword">await</span> asyncio.gather(*(work() <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">12</span>)))
+    <span class="hljs-keyword">assert</span> maximum == <span class="hljs-number">2</span>
+    <span class="hljs-keyword">assert</span> active == <span class="hljs-number">0</span>
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"最大同时运行数:"</span>, maximum)
+
+asyncio.run(main())</code></pre></div><p>这证明在一个事件循环实例里，最多只有 2 个协程进入信号量保护区，且正常执行后额度释放。</p>
+<h3 id="section-36">8.2 超时触发清理验证</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:
+    cleaned = <span class="hljs-literal">False</span>
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">model</span>():
+        <span class="hljs-keyword">nonlocal</span> cleaned
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">1</span>)
+        <span class="hljs-keyword">finally</span>:
+            cleaned = <span class="hljs-literal">True</span>
+
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.timeout(<span class="hljs-number">0.02</span>):
+            <span class="hljs-keyword">await</span> model()
+    <span class="hljs-keyword">except</span> TimeoutError:
+        <span class="hljs-keyword">pass</span>
+
+    <span class="hljs-keyword">assert</span> cleaned
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"已执行 finally 清理"</span>)
+
+asyncio.run(main())</code></pre></div><p>这验证取消进入协程后会执行其 <code>finally</code> 路径，不表示所有外部服务副作用都已撤销。</p>
+<hr />
+<h2 id="section-37">9. 重试：避免把一次慢请求变成十次慢请求</h2>
+<p>超时后立即无条件重试，可能放大供应商和本地系统负载。</p>
+<p>一个合理的重试机制至少考虑：</p>
+<ul>
+<li><strong>可重试性</strong>：暂时性网络故障、部分 5xx、429 有时可重试；非法输入通常不应重试。</li>
+<li><strong>幂等性</strong>：上一次请求可能已经被上游执行，即使本地没有收到响应；涉及写入、扣费、发送消息或工具调用时，不能假定重试安全。</li>
+<li><strong>最大次数</strong>：有限次数，避免无限循环。</li>
+<li><strong>退避与抖动</strong>：指数退避加随机抖动，减少同步重试风暴。</li>
+<li><strong>总期限</strong>：所有尝试与退避时间都必须包含在业务总预算内。</li>
+<li><strong>取消传播</strong>：收到取消后不应继续无谓重试。</li>
+</ul>
+<p>简化的示意：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> random
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">limited_retry</span>(<span class="hljs-params">call, attempts: <span class="hljs-built_in">int</span> = <span class="hljs-number">3</span></span>):
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(attempts):
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> call()
+        <span class="hljs-keyword">except</span> TransientUpstreamError:
+            <span class="hljs-keyword">if</span> i == attempts - <span class="hljs-number">1</span>:
+                <span class="hljs-keyword">raise</span>
+            <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-built_in">min</span>(<span class="hljs-number">0.2</span> * <span class="hljs-number">2</span>**i + random.uniform(<span class="hljs-number">0</span>, <span class="hljs-number">0.1</span>), <span class="hljs-number">2</span>))</code></pre></div><p><code>TransientUpstreamError</code> 是需要在业务代码中定义的自定义异常。实际使用时，应在函数外部施加总期限，确保全部重试都受同一预算约束。</p>
+<hr />
+<h2 id="section-38">10. 生产环境的故障定位与可观测性</h2>
+<p>要判断“模型慢为什么导致其他请求慢”，至少需要区分这些耗时：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">总响应时间
+ ├─ 请求入口排队/接入耗时
+ ├─ 等待 Semaphore 耗时
+ ├─ HTTP 连接池排队耗时
+ ├─ 连接/发送/读取耗时
+ ├─ 模型服务生成耗时
+ ├─ 本地解析与业务处理耗时
+ └─ 响应发送耗时</code></pre></div><p>关键指标：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>请求耗时 p50 / p95 / p99</td>
+<td>判断尾部延迟是否异常</td>
+</tr>
+<tr>
+<td>业务超时次数与比例</td>
+<td>判断期限是否合理</td>
+</tr>
+<tr>
+<td>上游 connect/read/pool timeout</td>
+<td>区分网络与容量问题</td>
+</tr>
+<tr>
+<td>并发槽位使用数</td>
+<td>判断模型入口是否已满</td>
+</tr>
+<tr>
+<td>等待槽位耗时与队列长度</td>
+<td>判断是否拥塞</td>
+</tr>
+<tr>
+<td>HTTP 连接池使用率</td>
+<td>判断网络资源是否紧张</td>
+</tr>
+<tr>
+<td>事件循环延迟</td>
+<td>识别同步阻塞与 CPU 饥饿</td>
+</tr>
+<tr>
+<td>取消请求与实际取消完成数</td>
+<td>识别清理拖延或无法中断</td>
+</tr>
+<tr>
+<td>失败后的遗留资源数</td>
+<td>排查连接、Task 和文件句柄泄漏</td>
+</tr>
+</tbody></table>
+<p>日志建议关联 <code>request_id</code>、<code>user_id</code>（脱敏/最小化）、<code>model_id</code>、阶段、耗时、结果代码及重试次数。避免把 API Key、用户敏感文本和完整私密上下文直接写入日志。</p>
+<h3 id="section-39">10.1 如何理解事件循环延迟</h3>
+<p>一个定时协程计划在 100 毫秒后恢复，但实际 600 毫秒后才恢复，额外的 500 毫秒可表现为事件循环调度延迟。它可能意味着：同步阻塞、CPU 计算、线程争用或运行环境调度抖动。</p>
+<p>事件循环延迟是诊断线索，不足以单独证明“某一个函数就是根因”；需要配合线程栈、性能剖析和请求日志。</p>
+<h3 id="section-40">10.2 常见故障定位对照</h3>
+<table>
+<thead>
+<tr>
+<th>故障现象</th>
+<th>重点排查</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>只有模型 API 慢</td>
+<td>上游生成耗时、请求体、读取超时、模型配额</td>
+</tr>
+<tr>
+<td>健康检查也变慢</td>
+<td>事件循环被阻塞、进程 CPU、容器资源、线程池拥塞</td>
+</tr>
+<tr>
+<td>大量 <code>PoolTimeout</code></td>
+<td>HTTP 连接池耗尽、连接释放、长期流式请求</td>
+</tr>
+<tr>
+<td>大量请求等待并发槽</td>
+<td>Semaphore 太小或请求持续时间过长；是否应限队列</td>
+</tr>
+<tr>
+<td>超时后任务还运行</td>
+<td>取消被吞、同步线程未停止、独立后台任务仍活跃</td>
+</tr>
+<tr>
+<td>取消后连接泄漏</td>
+<td>没有关闭响应流/客户端，清理路径不完整</td>
+</tr>
+<tr>
+<td>多进程总调用数超预算</td>
+<td>每个进程独立信号量，缺少跨进程统一配额</td>
+</tr>
+</tbody></table>
+<hr />
+<h2 id="section-41">11. 异常、取消、超时、并发与资源的关系图</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">                 ┌──────────────────────────────┐
+HTTP 请求 ──────&gt;│ 入口校验、身份验证、总期限   │
+                 └──────────────┬───────────────┘
+                                ↓
+                      有界排队 / 并发控制
+                                ↓
+                        HTTP 客户端连接池
+                                ↓
+                          上游模型 API
+                                ↓
+                     结果校验与业务处理
+                                ↓
+                           HTTP 响应
+
+异常路径：网络/上游错误 → 业务异常分类 → API 错误响应
+取消路径：超时/外部取消 → CancelledError → 清理 → 传播
+资源路径：获取连接与额度 → try/finally 或 async with → 释放
+容量路径：排队上限 + 同时执行上限 + 连接池上限 + 上游配额</code></pre></div><p>几条必须牢记的边界：</p>
+<ol>
+<li><strong>超时是终止等待的策略，不等于保证上游绝对停止执行。</strong></li>
+<li><strong>取消是协作机制，不等于杀死线程或撤销外部副作用。</strong></li>
+<li><strong><code>finally</code> 确保进入清理路径，不等于不可失败的分布式事务。</strong></li>
+<li><strong>Semaphore 限制“进入保护区的并发任务数”，不自动限制等待任务数和全局 RPS。</strong></li>
+<li><strong>单个慢请求不应阻塞事件循环，但共享模型槽位的其他模型请求仍可能排队。</strong></li>
+<li><strong>网络超时、业务超时、取消、输入错误与程序 Bug 应分别建模。</strong></li>
+</ol>
+<hr />
+<h2 id="section-42">12. 与 JavaScript、C++ 的对应关系</h2>
+<table>
+<thead>
+<tr>
+<th>Python</th>
+<th>JavaScript / Node.js</th>
+<th>C++ 典型对应</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>await</code> 异步 I/O</td>
+<td><code>await Promise</code></td>
+<td>协程/异步 I/O 框架中的等待</td>
+</tr>
+<tr>
+<td><code>asyncio.timeout()</code></td>
+<td><code>AbortController</code> + 定时器/<code>Promise.race</code> 的一部分用途</td>
+<td>deadline、取消令牌、定时器</td>
+</tr>
+<tr>
+<td><code>task.cancel()</code></td>
+<td><code>AbortController.abort()</code> 的协作取消语义（不完全相同）</td>
+<td><code>std::stop_token</code> 一类协作终止思想</td>
+</tr>
+<tr>
+<td><code>try/finally</code></td>
+<td><code>try/finally</code></td>
+<td>RAII / scope guard</td>
+</tr>
+<tr>
+<td><code>async with</code></td>
+<td>异步资源管理模式</td>
+<td>RAII + 异步释放的框架封装</td>
+</tr>
+<tr>
+<td><code>asyncio.Semaphore</code></td>
+<td>并发控制器/限流库</td>
+<td><code>std::counting_semaphore</code>（线程模型不同）</td>
+</tr>
+<tr>
+<td>HTTPX 连接池</td>
+<td><code>fetch</code> / HTTP Agent 的连接管理</td>
+<td>HTTP 客户端连接池</td>
+</tr>
+</tbody></table>
+<p>跨语言比较有助于迁移经验，但不要把这些概念视为完全等价。例如，JavaScript <code>Promise.race()</code> 返回最先结束的结果，本身并不自动取消其他 Promise 对应的实际工作。</p>
+<hr />
+<h2 id="section-43">13. 更严格的工程含义：怎样让慢模型不影响其他用户</h2>
+<p>当要求“一个模型请求很慢，其他请求仍能得到响应”时，至少应检验四个层次：</p>
+<p><strong>层次一：事件循环不被阻塞。</strong> 模型调用通过真正的异步 I/O 进行，不在事件循环线程上使用同步网络调用或长期 CPU 密集计算。</p>
+<p><strong>层次二：资源隔离。</strong> 健康检查、账户查询等非模型 API 不依赖等待同一个模型并发槽位；模型调用使用独立的容量控制。</p>
+<p><strong>层次三：有限等待。</strong> 每个请求有总期限，连接/读取/连接池等待有局部超时，排队不允许无限膨胀。</p>
+<p><strong>层次四：可靠退出。</strong> 超时、取消、网络失败、用户断开之后能释放连接与额度，记录真实状态；对已经发生的外部副作用采用独立的幂等和恢复机制。</p>
+<p>这四层共同成立，才更有把握在慢模型和故障场景下保持服务可用。它们也必须通过有代表性的并发、故障注入和压力测试验证，而不是只根据代码表面存在 <code>async def</code> 或 <code>Semaphore</code> 就认定合格。</p>
+<hr />
+<h2 id="section-44">14. 术语速查</h2>
+<ul>
+<li><strong>Deadline</strong>：业务操作应完成的截止时间。</li>
+<li><strong>Timeout</strong>：等待超过规定限制后的行为或异常。</li>
+<li><strong>Cancellation</strong>：向异步任务发出终止执行的请求。</li>
+<li><strong><code>CancelledError</code></strong>：协程观察到取消时可能收到的特殊异常。</li>
+<li><strong>Exception propagation</strong>：异常沿调用链向上返回、传播或被转换。</li>
+<li><strong><code>try/finally</code></strong>：保证执行退出路径中的清理代码。</li>
+<li><strong>Semaphore</strong>：限制同时进入临界区的任务数量。</li>
+<li><strong>Backpressure</strong>：通过拒绝、暂停或减速输入，防止系统超过承载能力。</li>
+<li><strong>Connection pool</strong>：复用并限制网络连接的机制。</li>
+<li><strong>Tail latency</strong>：请求耗时分布高分位（例如 p95、p99）的延迟。</li>
+<li><strong>Cooperative cancellation</strong>：任务在合适位置主动响应取消信号。</li>
+<li><strong>Structured concurrency</strong>：子任务生命周期与父任务作用域绑定的并发管理方式。</li>
+</ul>
+<hr />
+<h2 id="section-45">15. 参考资料（官方）</h2>
+<ol>
+<li>Python 3.13 — Coroutines and Tasks（取消、超时、TaskGroup、<code>wait_for</code>、<code>shield</code>）：<a href="https://docs.python.org/3.13/library/asyncio-task.html">https://docs.python.org/3.13/library/asyncio-task.html</a></li>
+<li>Python 3.13 — Synchronization Primitives（Semaphore、Lock、Event）：<a href="https://docs.python.org/3.13/library/asyncio-sync.html">https://docs.python.org/3.13/library/asyncio-sync.html</a></li>
+<li>HTTPX — Timeouts（connect/read/write/pool）：<a href="https://www.python-httpx.org/advanced/timeouts/">https://www.python-httpx.org/advanced/timeouts/</a></li>
+<li>HTTPX — Resource Limits（连接池容量）：<a href="https://www.python-httpx.org/advanced/resource-limits/">https://www.python-httpx.org/advanced/resource-limits/</a></li>
+<li>HTTPX — Async Support：<a href="https://www.python-httpx.org/async/">https://www.python-httpx.org/async/</a></li>
+<li>FastAPI — Lifespan Events：<a href="https://fastapi.tiangolo.com/advanced/events/">https://fastapi.tiangolo.com/advanced/events/</a></li>
+<li>FastAPI — Concurrency and async/await：<a href="https://fastapi.tiangolo.com/async/">https://fastapi.tiangolo.com/async/</a></li>
+<li>SQLAlchemy 2.0 — Asyncio Integration（AsyncSession 资源和并发规则）：<a href="https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html">https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html</a></li>
+</ol>
+<blockquote>
+<p><strong>适用性说明</strong>：示例着重解释 Python 3.13 中的机制。真实项目的 API 超时、网络限制、代理配置、取消行为和并发容量应以其锁定依赖版本、运行环境和供应商语义为准。</p>
+</blockquote>

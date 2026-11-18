@@ -1,0 +1,869 @@
+<h1 id="section-1">RAG、来源引用与知识更新（五）：固定评测集、独立参考依据与配对回归验证</h1>
+<blockquote>
+<p><strong>对应学习目标</strong>：用固定问题和独立参考依据验证效果；模型或提示词修改后，用同一组样例检查是否退步。</p>
+<p><strong>文档定位</strong>：纯知识性技术说明。覆盖 RAG 问答的评测数据构建、独立事实基准、检索与回答分层评价、A/B 配对实验、回归归因、统计与成本控制，并附可直接运行的 Python 标准库示例。</p>
+<p><strong>术语约定</strong>：本文件中的游戏角色、版本与规则均为构造的教学数据，不代表真实游戏资料。离线测试评估的是评分程序与测试协议，不代表真实模型性能。</p>
+</blockquote>
+<hr />
+<h2 id="section-2">1. 为什么 RAG 需要固定评测集</h2>
+<p>RAG（Retrieval-Augmented Generation）系统由资料导入、解析与索引、检索、上下文组织、模型生成和引用呈现组成。任何一环发生变化，都可能影响最终回答。与常规程序的单一确定性断言相比，RAG 还存在两类困难：</p>
+<ol>
+<li><strong>生成结果具有变化性</strong>：即使问题、资料和提示词相同，模型也可能给出表述、长度或部分细节不同的回复。温度设为零或设置随机种子，也不能保证所有服务与硬件条件下完全可复现。</li>
+<li><strong>“答案看起来合理”不等于“答案有证据”</strong>：流畅、简洁、附带真实链接的回答，仍可能遗漏条件、引用错误版本或编造具体数值。</li>
+</ol>
+<p>所谓<strong>固定评测集（Frozen Evaluation Set）</strong>，是指在一次可比的实验中，预先确定并冻结问题、输入条件、期望行为、独立参考答案和证据来源。不同模型、提示词或检索方案在同一组案例上运行，才能观察差异。</p>
+<p>这里的“固定”有严格含义：仅固定问题文字是不够的。还应固定或记录知识库快照、资料权限、版本范围、参考标注、检索配置与评分规则。若资料版本本身发生改变，应将其视为实验变量，或者为新的资料快照重新建立独立基准。</p>
+<h3 id="section-3">1.1 三类必须区分的“正确”</h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>问题</th>
+<th>典型评价</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>检索正确</td>
+<td>足以回答的证据是否被取回并提供给模型？</td>
+<td>Recall@K、Precision@K、MRR、上下文证据覆盖</td>
+</tr>
+<tr>
+<td>回答正确</td>
+<td>最终回答是否符合独立的正确事实或期望行为？</td>
+<td>Answer Accuracy、事实断言正确率、任务成功率</td>
+</tr>
+<tr>
+<td>有据可查</td>
+<td>回答中的具体断言是否真的被引用的原文支持？</td>
+<td>Faithfulness、Citation Support、归因准确性</td>
+</tr>
+</tbody></table>
+<p>这三者彼此关联，但不能互相替代。例如：检索结果包含全部正确资料，而模型仍回答错误；又如模型碰巧答对，但引用的是错误章节。</p>
+<hr />
+<h2 id="section-4">2. 独立参考依据（Ground Truth / Gold Standard）是什么</h2>
+<p>独立参考依据是<strong>在观察被测模型输出前</strong>，依据可信、可追溯材料建立的评价标准。它不是模型的一次参考回答，也不是另一个模型对当前答案的即兴评价。</p>
+<p>在规则型 RAG 中，一条可靠的参考标注至少包含：</p>
+<ul>
+<li>问题及其必要限定条件，例如产品版本、规则适用范围、角色、地区或生效时间。</li>
+<li>预期行为：<code>ANSWER</code>（可回答）、<code>CLARIFY</code>（必须澄清）、<code>ABSTAIN</code>（应说明信息不足）。</li>
+<li>对可回答问题：正确事实、可接受的表达变体或结构化标准答案。</li>
+<li>对不可直接回答的问题：缺失信息的具体原因，以及何种澄清或补充资料可以解决问题。</li>
+<li>独立证据：文档 ID、版本、章节/页码/段落、引用原文位置、来源时间与内容哈希。</li>
+<li>人工审定状态和标注来源；对争议案例可保留复核记录。</li>
+</ul>
+<p>参考事实应从真实规则文件、权威数据库、适用的规范或其他被接受的资料源中产生。若用模型帮助生成问题，可由模型提出候选，再由人工依据原始资料审定答案与证据；<strong>不能把候选生成直接当成真值</strong>。</p>
+<h3 id="section-5">2.1 示例：一条带来源的黄金样例</h3>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"case_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"RULE-018"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"question"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"在 2.0 版本中，角色 A 初始体力是多少？"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"expected_behavior"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"ANSWER"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"reference_answer"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-attr">"initial_hp"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"evidence"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"document_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"manual-2.0"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"document_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2.0"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"section_path"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"角色 / 角色 A / 基础属性"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"chunk_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"manual-2.0-role-a"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"quote"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"角色 A 的初始体力为 4。"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"content_sha256"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"&lt;在实际导入阶段计算的哈希&gt;"</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"source_review"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"human_verified"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"snapshot_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"corpus-2026-11-11"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>这是<strong>结构示意</strong>，并非真实资料。真实系统应保存该来源在指定版本中的可验证文本、可信标注记录以及访问权限，而不只是文档标题或 URL。</p>
+<h3 id="section-6">2.2 标准答案不一定是固定字符串</h3>
+<p>自然语言问答经常存在等价表达：</p>
+<ul>
+<li>“初始体力为四点”与“4 点初始体力”在结构化数值层面相同。</li>
+<li>“先结算 A，再结算 B”不能简单视为“先结算 B，再结算 A”，因为顺序是业务事实。</li>
+<li>对多条件规则，应校验版本、触发条件、例外条款和结算顺序，而不是只看关键词。</li>
+<li>合理弃答或请求澄清也是一种正确行为，不能一律计为没有回答。</li>
+</ul>
+<p>因此评价可以分为确定性校验（精确数字、枚举、状态、文档 ID）与证据型人工/语义校验（是否遗漏条件、是否被原文蕴含）。不要依赖单一字符串匹配判断复杂答案。</p>
+<hr />
+<h2 id="section-7">3. 如何设计固定问题集：覆盖正常案例与失败边界</h2>
+<p>题目应当从真实用户任务出发，同时覆盖容易发生错误的输入，而不只是“资料里能直接找到的简单问题”。</p>
+<h3 id="section-8">3.1 20 条问题集的一个覆盖矩阵</h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>例数</th>
+<th>预期验证重点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>单事实且有直接证据</td>
+<td>4</td>
+<td>数值、实体、对应来源</td>
+</tr>
+<tr>
+<td>跨章节或多证据组合</td>
+<td>3</td>
+<td>多证据召回、条件完整性</td>
+</tr>
+<tr>
+<td>版本限定的查询</td>
+<td>3</td>
+<td>版本过滤、历史答案与生效规则</td>
+</tr>
+<tr>
+<td>多轮追问</td>
+<td>2</td>
+<td>上下文指代、沿用必要约束</td>
+</tr>
+<tr>
+<td>资料不存在</td>
+<td>2</td>
+<td>合理弃答，不编造</td>
+</tr>
+<tr>
+<td>问题缺少必要限定条件</td>
+<td>2</td>
+<td>澄清而不是猜版本</td>
+</tr>
+<tr>
+<td>来源冲突或未生效草案</td>
+<td>2</td>
+<td>权威性与有效性判断</td>
+</tr>
+<tr>
+<td>检索工具异常或数据访问限制</td>
+<td>2</td>
+<td>识别失败、权限拒绝与恢复路径</td>
+</tr>
+<tr>
+<td><strong>总计</strong></td>
+<td><strong>20</strong></td>
+<td></td>
+</tr>
+</tbody></table>
+<p>这是示例配比，可按业务实际风险调整。若核心场景是跨版本规则问答，就应增加版本歧义和版本切换案例；若系统面向多租户，还应增加隔离和权限测试。</p>
+<h3 id="section-9">3.2 样例的来源与独立性</h3>
+<p>常见来源包括：</p>
+<ol>
+<li>从经过隐私处理的真实问答记录抽样，再由人工标注。</li>
+<li>从资料目录、规则边界和业务流程中人工设计问题。</li>
+<li>汇总历史故障，保留真实输入和独立验证依据。</li>
+<li>利用模型生成变体问题，但必须人工审查事实正确性与覆盖价值。</li>
+</ol>
+<p><strong>不应把被测模型刚刚生成的答案复制为参考答案。</strong> 这会造成评价闭环自证，使错误被当作正确基准。</p>
+<h3 id="section-10">3.3 固定集、开发集和留出集</h3>
+<ul>
+<li><strong>开发集（Development）</strong>：可频繁查看、用于迭代检索参数和提示词。</li>
+<li><strong>回归集（Regression）</strong>：保存已知关键案例和历史故障，作为修改后的稳定性检查。</li>
+<li><strong>独立留出集（Held-out）</strong>：不根据其逐题结果反复优化，专门评估泛化能力。</li>
+<li><strong>线上监测集（Production Monitoring）</strong>：从实际流量的匿名化、授权样本中持续抽样，识别数据分布变化。</li>
+</ul>
+<p>反复根据同一 20 条题调 Prompt，会逐步对这 20 条题过拟合。因此固定集适合做可比回归测试，但不能单独证明对全体真实用户的泛化质量。应定期增加独立样例，维护盲测或留出评测。</p>
+<hr />
+<h2 id="section-11">4. 测试数据和知识库快照必须可复现</h2>
+<p>RAG 的输入不只是一个字符串问题，还包含可检索的知识范围。</p>
+<h3 id="section-12">4.1 需要冻结或记录的条件</h3>
+<table>
+<thead>
+<tr>
+<th>条件</th>
+<th>记录方式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>评测集</td>
+<td><code>dataset_id</code>、<code>dataset_version</code>、文件哈希</td>
+</tr>
+<tr>
+<td>原始资料</td>
+<td><code>source_id</code>、<code>source_version</code>、内容哈希</td>
+</tr>
+<tr>
+<td>索引数据</td>
+<td><code>corpus_snapshot_id</code>、索引构建时间</td>
+</tr>
+<tr>
+<td>分块策略</td>
+<td>分块器版本、Chunk Size、Overlap</td>
+</tr>
+<tr>
+<td>Embedding</td>
+<td>模型 ID、维度、向量归一化方式</td>
+</tr>
+<tr>
+<td>检索器</td>
+<td>算法、过滤、候选 K、重排 K、阈值</td>
+</tr>
+<tr>
+<td>生成模型</td>
+<td>供应商、模型 ID、可用的模型快照标识</td>
+</tr>
+<tr>
+<td>提示词</td>
+<td>Prompt 版本、模板哈希、完整渲染后的关键配置</td>
+</tr>
+<tr>
+<td>生成参数</td>
+<td>温度、Top-p、输出上限、工具列表</td>
+</tr>
+<tr>
+<td>评分器</td>
+<td>评分规则版本、评审模型/人工标注版本</td>
+</tr>
+<tr>
+<td>执行记录</td>
+<td>Run ID、时间、原始响应、用量、延迟、错误</td>
+</tr>
+</tbody></table>
+<p>如果 A 版本使用知识库快照 1，B 版本使用快照 2，则两者的分数差异未必来自模型或提示词修改。要比较单变量效果，必须控制其他因素；如果需要同时比较升级后的完整系统，应该把“全系统比较”明确标注为另一个实验。</p>
+<h3 id="section-13">4.2 “同一组样例”至少需要满足什么</h3>
+<ul>
+<li>同一 <code>case_id</code> 必须代表同一个问题和相同的参考规则。</li>
+<li>不得把 A 版失败题在 B 版中移除。</li>
+<li>不得只统计 B 版成功返回的题，忽略超时、异常或格式错误。</li>
+<li>同一批样例应按 ID 对齐，不能只按数组顺序假设对应。</li>
+<li>如果参考答案因为原始规则修订而需要变化，应记录评测集的新版本，不能悄悄覆盖旧的 Gold Standard。</li>
+</ul>
+<hr />
+<h2 id="section-14">5. RAG 的分层评价框架</h2>
+<p>完整问答不应只得到一个总分。建议至少记录以下几个层次。</p>
+<h3 id="section-15">5.1 第一层：知识库覆盖与导入完整性</h3>
+<p>问题：<strong>需要的原始资料是否进入了正确的知识库版本？</strong></p>
+<p>常见指标：文档导入成功率、解析后文本完整度、章节覆盖、文档版本一致率、索引已发布比例。</p>
+<p>若正确规则根本不存在于当前可访问的索引中，则不能将未召回简单归咎于检索模型。导入与索引完整性测试需要单独进行。</p>
+<h3 id="section-16">5.2 第二层：检索效果</h3>
+<p>使用人工标注的相关证据集合衡量检索：</p>
+<p><strong>Recall@K（召回率）</strong>：前 K 个结果中覆盖了多少应当命中的相关证据。</p>
+<p>[
+\operatorname{Recall@K}(q)=\frac{|R_K(q)\cap G(q)|}{|G(q)|}
+]</p>
+<p>其中，(R_K(q)) 是问题 q 实际检索到的前 K 个证据 ID，(G(q)) 是独立标注的 Gold Evidence ID 集合。若 (G(q)) 为空，应把问题当作特殊的无答案案例，而不是把分母设为零后随意赋值为 1。</p>
+<p><strong>Precision@K（准确率）</strong>：前 K 个结果中相关结果的比例。</p>
+<p>[
+\operatorname{Precision@K}(q)=\frac{|R_K(q)\cap G(q)|}{|R_K(q)|}
+]</p>
+<p>当实际返回结果少于 K 条时，分母口径也可选择 K（传统 Precision@K 常用固定 K）或实际结果数，<strong>必须在评测协议中明确口径并保持一致</strong>。</p>
+<p><strong>MRR（Mean Reciprocal Rank）</strong>：首条正确相关结果的排名倒数在题集上的平均值。适合首个命中的重要性很高的任务，但它不衡量多证据问题的完整覆盖。</p>
+<p><strong>nDCG@K</strong>：支持多级相关性评分（例如“直接支持事实”“背景相关”“无关”），可用于评价排序质量。</p>
+<p>这些指标的前提是证据标签可靠。对于一条资料可能存在多个等价片段的情况，需要在标注中允许有效证据集合或等价组，避免把正确的其他来源误判为不相关。</p>
+<h3 id="section-17">5.3 第三层：上下文交付</h3>
+<p><strong>检索结果命中，不代表模型实际看到了证据。</strong></p>
+<p>检索后可能发生重排、合并、去重、Token 裁剪和权限过滤。因此应另外记录：</p>
+<ul>
+<li>实际检索结果 <code>retrieved_ids</code>；</li>
+<li>经过重排/过滤后保留的结果 <code>selected_ids</code>；</li>
+<li>最终进入 Prompt 的证据 <code>prompt_evidence_ids</code>；</li>
+<li>每段证据是否保留了关键条件和来源信息。</li>
+</ul>
+<p>如果召回成功，但 Prompt 裁剪删掉了关键段落，这属于上下文组织问题，不是检索完全失败，更不是模型在拿到充分证据后仍然答错。</p>
+<h3 id="section-18">5.4 第四层：回答准确性</h3>
+<p><strong>Answer Correctness</strong> 比较生成结论与独立的真实答案，关注：</p>
+<ul>
+<li>核心事实/数字是否正确；</li>
+<li>适用版本是否正确；</li>
+<li>条件、例外和范围是否完整；</li>
+<li>不存在答案时有没有合理说明；</li>
+<li>不明确时是否提出必要澄清。</li>
+</ul>
+<p>对于结构化事实可使用程序判断；开放式文本可以使用分解后的事实断言、明确评分规程和人工复核。文本相似度只能辅助，不能直接代替事实正确性。</p>
+<h3 id="section-19">5.5 第五层：忠实度与引用支持</h3>
+<p><strong>Faithfulness</strong> 检查模型回答中的断言是否得到给定上下文支持；<strong>Citation Support</strong> 进一步检查回答实际标注的引文是否支持其所对应的具体断言。</p>
+<p>一个模型可能答案正确，却给出错误引用；也可能引用真实文档，但该文档没有证实回答中声称的内容。</p>
+<p>可以按“断言 → 引用 → 原文位置 → 是否支持”逐条评价，而不能只检查链接或 Chunk ID 是否存在。引用的版本、访问权限和原文完整性也应被校验。</p>
+<h3 id="section-20">5.6 第六层：用户可感知结果与资源代价</h3>
+<p>包括完成率、合理弃答率、过度弃答率、澄清质量、用户下一步是否明确、P50/P95 耗时、Token 用量、API 成本、超时率和错误率。</p>
+<p>一个模型可能答案略好，但 P95 耗时显著恶化；如果业务要求快速响应，就需要权衡甚至拒绝这次更新。</p>
+<hr />
+<h2 id="section-21">6. 区分四类典型错误的诊断矩阵</h2>
+<table>
+<thead>
+<tr>
+<th>知识库有证据？</th>
+<th>检索结果含证据？</th>
+<th>Prompt 含完整证据？</th>
+<th>最终回答正确？</th>
+<th>优先定位</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>导入、解析、索引与版本发布</td>
+</tr>
+<tr>
+<td>是</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>检索、过滤、候选召回</td>
+</tr>
+<tr>
+<td>是</td>
+<td>是</td>
+<td>否</td>
+<td>否</td>
+<td>重排、上下文选择、截断</td>
+</tr>
+<tr>
+<td>是</td>
+<td>是</td>
+<td>是</td>
+<td>否</td>
+<td>生成、提示词、信息归纳、推理或输出验证</td>
+</tr>
+<tr>
+<td>是</td>
+<td>是</td>
+<td>是</td>
+<td>是，但引用错误</td>
+<td>引用映射、来源定位、证据支持验证</td>
+</tr>
+<tr>
+<td>无合法资料/无权限</td>
+<td>不应提供</td>
+<td>不应提供</td>
+<td>编造答案</td>
+<td>弃答与权限边界失败</td>
+</tr>
+</tbody></table>
+<p>这张表只是诊断框架。现实中可能同时存在多个原因，需要通过保存完整检索轨迹、实际 Prompt、模型响应和引用记录来定位。</p>
+<hr />
+<h2 id="section-22">7. 模型或提示词修改后的配对比较（Paired Evaluation）</h2>
+<p>为了判断修改是否有收益，建议采用<strong>同题配对比较</strong>：</p>
+<ol>
+<li>冻结一份具有来源依据的评测集。</li>
+<li>在旧版本（Baseline）上执行全部题目并保存逐题输出。</li>
+<li>只修改目标变量，例如 Prompt v1 → Prompt v2。</li>
+<li>在新版本（Candidate）上执行完全相同的题目。</li>
+<li>为两次运行分别计算检索、生成、引用和资源指标。</li>
+<li>对每条 <code>case_id</code> 检查：原来正确现在错误、原来错误现在正确、两版都对、两版都错。</li>
+<li>查看平均分之外的失败类别，决定是否回滚或进一步修复。</li>
+</ol>
+<h3 id="section-23">7.1 四种配对结果</h3>
+<table>
+<thead>
+<tr>
+<th>基线</th>
+<th>新版</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>通过</td>
+<td>通过</td>
+<td>保持正确</td>
+</tr>
+<tr>
+<td>失败</td>
+<td>通过</td>
+<td>改进（Improvement）</td>
+</tr>
+<tr>
+<td>通过</td>
+<td>失败</td>
+<td><strong>回归（Regression）</strong></td>
+</tr>
+<tr>
+<td>失败</td>
+<td>失败</td>
+<td>未解决问题</td>
+</tr>
+</tbody></table>
+<p>只对比“平均分提高 10%”是不够的：对高风险场景，一条严重回归可能超过若干低风险改进的价值。</p>
+<h3 id="section-24">7.2 示例：总体变好，但仍有回归</h3>
+<p>假设 8 条固定问题：</p>
+<ul>
+<li>基线：5 条通过，正确率 62.5%。</li>
+<li>新版：7 条通过，正确率 87.5%。</li>
+<li>新版修复了 C02、C03、C06。</li>
+<li>但 C05 由通过变为失败：双证据规则的引用漏掉了其中一条。</li>
+</ul>
+<p>新版<strong>净提高 25 个百分点</strong>，但并不是“没有退步”。是否允许上线，要看 C05 的业务严重程度与发布门槛。</p>
+<hr />
+<h2 id="section-25">8. 什么叫“同一组样例”之外的实验控制</h2>
+<h3 id="section-26">8.1 只改一个变量最容易归因</h3>
+<p>如果要评价 Prompt 修改，尽可能固定：模型、检索器、知识库、温度、输出约束、评分逻辑和其他参数。</p>
+<p>如果同时改模型、Embedding、分块和提示词，仍然可以做系统级 A/B 比较，但无法仅凭总分断言哪个改动造成了差异。可以通过消融实验（Ablation）逐个打开/关闭变更，分析组件贡献。</p>
+<h3 id="section-27">8.2 非确定性与重复测量</h3>
+<p>即使输入相同，生成系统也可能波动。对于结果敏感的模型与参数，可以让相同版本重复运行固定问题，报告：</p>
+<ul>
+<li>各次测试的均值、中位数、范围；</li>
+<li>逐题通过次数比例；</li>
+<li>失败在不同运行间是否稳定；</li>
+<li>关键指标的置信区间（样本足够时）。</li>
+</ul>
+<p><strong>设置 Seed 不等于获得严格的跨版本确定性。</strong> 模型后端、服务部署或并发配置变化都可能影响输出。</p>
+<h3 id="section-28">8.3 数据集大小与统计不确定性</h3>
+<p>在只有 20 条样例时，一题变化就是 5 个百分点；在只有 8 条样例时，一题变化就是 12.5 个百分点。这样的样本足以用于教学和发现具体回归，但不能单独证明大规模生产流量中性能提升的统计显著性。</p>
+<p>若需要做正式实验，可针对配对二元结果关注“只在 A 版通过的条数”与“只在 B 版通过的条数”，使用适合配对数据的检验（例如 McNemar 检验）及置信区间；不要对高度相关的两组样例当成两个独立样本进行比较。评价集也应尽可能覆盖真实业务分布。</p>
+<hr />
+<h2 id="section-29">9. 设计评分规则：先定义通过，再开始跑模型</h2>
+<p>一个有效的评测协议应在实验开始前明确：</p>
+<ul>
+<li>可回答问题必须满足哪些事实条件，是否允许多种等价答案。</li>
+<li>一条回答必须提供几条支持证据，哪些证据组合属于充分证据。</li>
+<li>如何评价多跳问题的遗漏条件。</li>
+<li>版本未知时允许直接回答还是必须澄清。</li>
+<li>未知答案时，何种弃答表达为合格。</li>
+<li>模型 API 失败、超时、工具异常如何计分。</li>
+<li>同一题是否使用人工复核；复核人如何盲评。</li>
+<li>是否存在“一票否决”的关键安全、权限或事实错误。</li>
+</ul>
+<h3 id="section-30">9.1 程序评分与人工/模型评分的分工</h3>
+<table>
+<thead>
+<tr>
+<th>可程序确定性检查</th>
+<th>通常需要人工或校准过的语义评价</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>JSON 可解析、字段存在、数据类型</td>
+<td>文本陈述是否完整且无误导</td>
+</tr>
+<tr>
+<td>数值、固定枚举、精确版本号</td>
+<td>条件与例外是否正确解释</td>
+</tr>
+<tr>
+<td>是否引用存在的证据 ID</td>
+<td>引用原文是否支持具体结论</td>
+</tr>
+<tr>
+<td>返回状态是否符合预期</td>
+<td>非标准但合理的表达是否可接受</td>
+</tr>
+<tr>
+<td>耗时、Token、错误率</td>
+<td>用户是否能够正确理解与采取下一步</td>
+</tr>
+</tbody></table>
+<p><strong>LLM-as-a-Judge</strong> 可以帮助规模化评分，但它也可能有位置偏差、冗长偏好和事实性误判。应使用独立人工已标注的样本校准评分器，复核有争议或高风险案例，记录评分器版本。不能用“另一个模型说对”替代真实证据。</p>
+<hr />
+<h2 id="section-31">10. 把评测数据结构分成三种记录</h2>
+<h3 id="section-32">10.1 Gold Case：独立参考标注</h3>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"case_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"Q-001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"question"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"1.0 版角色 A 初始体力是多少？"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"expected_status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"ANSWER"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"expected_key"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"4"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"required_evidence_ids"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"RULE-V1-A"</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"corpus_snapshot_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"snapshot-v1"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"gold_revision"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2026-11-11-review1"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><h3 id="section-33">10.2 Run Metadata：一次模型或提示词测试的环境</h3>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"run_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"candidate-002"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"dataset_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"eval-v1"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"corpus_snapshot_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"snapshot-v1"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"model_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"your-model-id"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"prompt_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"prompt-v2"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"retriever_config_hash"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"sha256-of-config"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"grader_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"grader-v1"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"temperature"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span>
+<span class="hljs-punctuation">}</span></code></pre></div><h3 id="section-34">10.3 Prediction：逐题实际输出和证据</h3>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"case_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"Q-001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"ANSWER"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"answer_key"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"4"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"retrieved_ids"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"RULE-V1-A"</span><span class="hljs-punctuation">,</span> <span class="hljs-string">"RULE-OTHER"</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"prompt_evidence_ids"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"RULE-V1-A"</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"cited_ids"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"RULE-V1-A"</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"latency_ms"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">810</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"input_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">420</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"output_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">104</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"raw_output_path"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"runs/candidate-002/Q-001.json"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>在真实项目中还需考虑记录访问权限、敏感内容脱敏和日志留存周期。评测数据和原始用户消息不能因为方便调试而无限制开放。</p>
+<hr />
+<h2 id="section-35">11. 完整 Python 离线配对评测程序</h2>
+<p>以下示例只使用 Python 标准库，完全不需要模型 API Key。它验证固定样例对齐、决策状态、结构化答案键、引用是否完整、引用是否属于检索结果、检索召回、平均延迟和逐题改进/回归。</p>
+<p><strong>教学简化条件</strong>：本例中每题的 <code>required_evidence_ids</code> 被视为唯一必需的证据组合；真实 RAG 可能存在多组等价有效证据，必须由人工标注可接受组合。本例的“引用校验”仅检查 ID 对齐和集合覆盖，<strong>并未通过语义方法证明原文真正支持答案</strong>。</p>
+<p>程序中的 BASELINE 与 CANDIDATE 是人工构造的模拟结果，不是模型运行输出。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""离线 RAG 固定样例配对评测；不调用真实大模型或向量数据库。"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+<span class="hljs-keyword">from</span> statistics <span class="hljs-keyword">import</span> mean
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Case</span>:
+    case_id: <span class="hljs-built_in">str</span>
+    question: <span class="hljs-built_in">str</span>
+    expected_status: <span class="hljs-built_in">str</span>             <span class="hljs-comment"># ANSWER / CLARIFY / ABSTAIN</span>
+    expected_key: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>
+    required_evidence_ids: <span class="hljs-built_in">frozenset</span>[<span class="hljs-built_in">str</span>]
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Prediction</span>:
+    case_id: <span class="hljs-built_in">str</span>
+    status: <span class="hljs-built_in">str</span>
+    answer_key: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>
+    retrieved_ids: <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, ...]
+    cited_ids: <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, ...]
+    latency_ms: <span class="hljs-built_in">int</span>
+    input_tokens: <span class="hljs-built_in">int</span>
+    output_tokens: <span class="hljs-built_in">int</span>
+
+
+CASES = [
+    Case(<span class="hljs-string">"C01"</span>, <span class="hljs-string">"1.0 版角色 A 初始体力？"</span>, <span class="hljs-string">"ANSWER"</span>, <span class="hljs-string">"4"</span>, <span class="hljs-built_in">frozenset</span>({<span class="hljs-string">"RULE-V1-A"</span>})),
+    Case(<span class="hljs-string">"C02"</span>, <span class="hljs-string">"2.0 版角色 B 初始体力？"</span>, <span class="hljs-string">"ANSWER"</span>, <span class="hljs-string">"6"</span>, <span class="hljs-built_in">frozenset</span>({<span class="hljs-string">"RULE-V2-B"</span>})),
+    Case(<span class="hljs-string">"C03"</span>, <span class="hljs-string">"没有版本时，角色 C 技能是多少？"</span>, <span class="hljs-string">"CLARIFY"</span>, <span class="hljs-literal">None</span>, <span class="hljs-built_in">frozenset</span>()),
+    Case(<span class="hljs-string">"C04"</span>, <span class="hljs-string">"资料库没有的未发布角色 X 数值？"</span>, <span class="hljs-string">"ABSTAIN"</span>, <span class="hljs-literal">None</span>, <span class="hljs-built_in">frozenset</span>()),
+    Case(<span class="hljs-string">"C05"</span>, <span class="hljs-string">"双条件规则同时触发后效果？"</span>, <span class="hljs-string">"ANSWER"</span>, <span class="hljs-string">"先结算A再结算B"</span>, <span class="hljs-built_in">frozenset</span>({<span class="hljs-string">"RULE-CHAIN-A"</span>, <span class="hljs-string">"RULE-CHAIN-B"</span>})),
+    Case(<span class="hljs-string">"C06"</span>, <span class="hljs-string">"技能 D 每回合最多用几次？"</span>, <span class="hljs-string">"ANSWER"</span>, <span class="hljs-string">"3"</span>, <span class="hljs-built_in">frozenset</span>({<span class="hljs-string">"RULE-D"</span>})),
+    Case(<span class="hljs-string">"C07"</span>, <span class="hljs-string">"两个有效版本不明确时如何回复？"</span>, <span class="hljs-string">"CLARIFY"</span>, <span class="hljs-literal">None</span>, <span class="hljs-built_in">frozenset</span>()),
+    Case(<span class="hljs-string">"C08"</span>, <span class="hljs-string">"规则 E 的伤害属性？"</span>, <span class="hljs-string">"ANSWER"</span>, <span class="hljs-string">"火焰"</span>, <span class="hljs-built_in">frozenset</span>({<span class="hljs-string">"RULE-E"</span>})),
+]
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">pred</span>(<span class="hljs-params">c: Case, *, status: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>, answer: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>,
+         retrieved: <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, ...] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>,
+         cited: <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, ...] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>, latency_ms: <span class="hljs-built_in">int</span> = <span class="hljs-number">800</span></span>) -&gt; Prediction:
+    <span class="hljs-string">"""只用于生成可重复的人工构造测试数据。"""</span>
+    keys = <span class="hljs-built_in">tuple</span>(<span class="hljs-built_in">sorted</span>(c.required_evidence_ids))
+    <span class="hljs-keyword">return</span> Prediction(
+        c.case_id, status <span class="hljs-keyword">or</span> c.expected_status,
+        c.expected_key <span class="hljs-keyword">if</span> answer <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> answer,
+        keys <span class="hljs-keyword">if</span> retrieved <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> retrieved,
+        keys <span class="hljs-keyword">if</span> cited <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> cited,
+        latency_ms, <span class="hljs-number">400</span>, <span class="hljs-number">120</span>,
+    )
+
+
+BASELINE = [pred(c, latency_ms=<span class="hljs-number">800</span> + i * <span class="hljs-number">30</span>) <span class="hljs-keyword">for</span> i, c <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(CASES)]
+CANDIDATE = [pred(c, latency_ms=<span class="hljs-number">1050</span> + i * <span class="hljs-number">30</span>) <span class="hljs-keyword">for</span> i, c <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(CASES)]
+
+<span class="hljs-comment"># 基线：两条决策/答案错误、一条引用缺失。</span>
+BASELINE[<span class="hljs-number">1</span>] = pred(CASES[<span class="hljs-number">1</span>], answer=<span class="hljs-string">"5"</span>, latency_ms=<span class="hljs-number">830</span>)
+BASELINE[<span class="hljs-number">2</span>] = pred(CASES[<span class="hljs-number">2</span>], status=<span class="hljs-string">"ANSWER"</span>, answer=<span class="hljs-string">"未知答案"</span>, latency_ms=<span class="hljs-number">860</span>)
+BASELINE[<span class="hljs-number">5</span>] = pred(CASES[<span class="hljs-number">5</span>], cited=(), latency_ms=<span class="hljs-number">950</span>)
+
+<span class="hljs-comment"># 新版：修复上述三项，却在双证据规则中遗漏一条引用。</span>
+CANDIDATE[<span class="hljs-number">4</span>] = pred(CASES[<span class="hljs-number">4</span>], cited=(<span class="hljs-string">"RULE-CHAIN-A"</span>,), latency_ms=<span class="hljs-number">1170</span>)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">by_id</span>(<span class="hljs-params">items, label: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">dict</span>:
+    result = {}
+    <span class="hljs-keyword">for</span> item <span class="hljs-keyword">in</span> items:
+        <span class="hljs-keyword">if</span> item.case_id <span class="hljs-keyword">in</span> result:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">f"<span class="hljs-subst">{label}</span>: 重复 case_id=<span class="hljs-subst">{item.case_id}</span>"</span>)
+        result[item.case_id] = item
+    <span class="hljs-keyword">return</span> result
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">validate_alignment</span>(<span class="hljs-params">cases: <span class="hljs-built_in">list</span>[Case], predictions: <span class="hljs-built_in">list</span>[Prediction]</span>) -&gt; <span class="hljs-literal">None</span>:
+    gold = by_id(cases, <span class="hljs-string">"gold"</span>)
+    got = by_id(predictions, <span class="hljs-string">"run"</span>)
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">set</span>(gold) != <span class="hljs-built_in">set</span>(got):
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">f"评测集合不一致: missing=<span class="hljs-subst">{<span class="hljs-built_in">set</span>(gold)-<span class="hljs-built_in">set</span>(got)}</span>, extra=<span class="hljs-subst">{<span class="hljs-built_in">set</span>(got)-<span class="hljs-built_in">set</span>(gold)}</span>"</span>)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">grade</span>(<span class="hljs-params"><span class="hljs-keyword">case</span>: Case, p: Prediction</span>) -&gt; <span class="hljs-built_in">dict</span>:
+    <span class="hljs-string">"""确定性校验：状态、闭集答案键、引用 ID 与检索集合，不判断自然语言语义蕴涵。"""</span>
+    <span class="hljs-keyword">if</span> p.status <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> {<span class="hljs-string">"ANSWER"</span>, <span class="hljs-string">"CLARIFY"</span>, <span class="hljs-string">"ABSTAIN"</span>}:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">f"非法状态: <span class="hljs-subst">{p.status}</span>"</span>)
+    <span class="hljs-keyword">if</span> p.latency_ms &lt; <span class="hljs-number">0</span> <span class="hljs-keyword">or</span> p.input_tokens &lt; <span class="hljs-number">0</span> <span class="hljs-keyword">or</span> p.output_tokens &lt; <span class="hljs-number">0</span>:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"耗时和用量不能为负数"</span>)
+    retrieved, cited, required = <span class="hljs-built_in">set</span>(p.retrieved_ids), <span class="hljs-built_in">set</span>(p.cited_ids), <span class="hljs-built_in">set</span>(<span class="hljs-keyword">case</span>.required_evidence_ids)
+    status_ok = p.status == <span class="hljs-keyword">case</span>.expected_status
+    answer_ok = (p.answer_key == <span class="hljs-keyword">case</span>.expected_key) <span class="hljs-keyword">if</span> <span class="hljs-keyword">case</span>.expected_status == <span class="hljs-string">"ANSWER"</span> <span class="hljs-keyword">else</span> p.answer_key <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>
+    <span class="hljs-comment"># 非回答场景不应伪造引用或答案。</span>
+    citation_ok = ((required &lt;= cited) <span class="hljs-keyword">and</span> (cited &lt;= retrieved)) <span class="hljs-keyword">if</span> <span class="hljs-keyword">case</span>.expected_status == <span class="hljs-string">"ANSWER"</span> <span class="hljs-keyword">else</span> (<span class="hljs-keyword">not</span> cited)
+    all_ok = status_ok <span class="hljs-keyword">and</span> answer_ok <span class="hljs-keyword">and</span> citation_ok
+    recall = (<span class="hljs-built_in">len</span>(retrieved &amp; required) / <span class="hljs-built_in">len</span>(required)) <span class="hljs-keyword">if</span> required <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"pass"</span>: all_ok, <span class="hljs-string">"status_ok"</span>: status_ok,
+            <span class="hljs-string">"answer_ok"</span>: answer_ok, <span class="hljs-string">"citation_ok"</span>: citation_ok,
+            <span class="hljs-string">"recall"</span>: recall}
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">compare</span>(<span class="hljs-params">cases: <span class="hljs-built_in">list</span>[Case], baseline: <span class="hljs-built_in">list</span>[Prediction], candidate: <span class="hljs-built_in">list</span>[Prediction]</span>) -&gt; <span class="hljs-built_in">dict</span>:
+    validate_alignment(cases, baseline)
+    validate_alignment(cases, candidate)
+    a, b = by_id(baseline, <span class="hljs-string">"baseline"</span>), by_id(candidate, <span class="hljs-string">"candidate"</span>)
+    grades_a = {c.case_id: grade(c, a[c.case_id]) <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> cases}
+    grades_b = {c.case_id: grade(c, b[c.case_id]) <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> cases}
+    improved = [c.case_id <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> cases <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> grades_a[c.case_id][<span class="hljs-string">"pass"</span>] <span class="hljs-keyword">and</span> grades_b[c.case_id][<span class="hljs-string">"pass"</span>]]
+    regressed = [c.case_id <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> cases <span class="hljs-keyword">if</span> grades_a[c.case_id][<span class="hljs-string">"pass"</span>] <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> grades_b[c.case_id][<span class="hljs-string">"pass"</span>]]
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">summary</span>(<span class="hljs-params">grades, predictions</span>):
+        p = <span class="hljs-built_in">list</span>(predictions)
+        valid_recall = [g[<span class="hljs-string">"recall"</span>] <span class="hljs-keyword">for</span> g <span class="hljs-keyword">in</span> grades.values() <span class="hljs-keyword">if</span> g[<span class="hljs-string">"recall"</span>] <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>]
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">"passed"</span>: <span class="hljs-built_in">sum</span>(g[<span class="hljs-string">"pass"</span>] <span class="hljs-keyword">for</span> g <span class="hljs-keyword">in</span> grades.values()),
+                <span class="hljs-string">"total"</span>: <span class="hljs-built_in">len</span>(cases),
+                <span class="hljs-string">"pass_rate"</span>: <span class="hljs-built_in">sum</span>(g[<span class="hljs-string">"pass"</span>] <span class="hljs-keyword">for</span> g <span class="hljs-keyword">in</span> grades.values()) / <span class="hljs-built_in">len</span>(cases),
+                <span class="hljs-string">"macro_recall"</span>: mean(valid_recall) <span class="hljs-keyword">if</span> valid_recall <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>,
+                <span class="hljs-string">"mean_latency_ms"</span>: mean(x.latency_ms <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> p),
+                <span class="hljs-string">"input_tokens"</span>: <span class="hljs-built_in">sum</span>(x.input_tokens <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> p),
+                <span class="hljs-string">"output_tokens"</span>: <span class="hljs-built_in">sum</span>(x.output_tokens <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> p)}
+
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"baseline"</span>: summary(grades_a, baseline),
+            <span class="hljs-string">"candidate"</span>: summary(grades_b, candidate),
+            <span class="hljs-string">"improved"</span>: improved, <span class="hljs-string">"regressed"</span>: regressed,
+            <span class="hljs-string">"per_case_baseline"</span>: grades_a, <span class="hljs-string">"per_case_candidate"</span>: grades_b}
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    <span class="hljs-keyword">import</span> json
+    <span class="hljs-built_in">print</span>(json.dumps(compare(CASES, BASELINE, CANDIDATE), ensure_ascii=<span class="hljs-literal">False</span>, indent=<span class="hljs-number">2</span>))</code></pre></div><hr />
+<h2 id="section-36">12. Python 单元测试</h2>
+<p>以下测试使用 <code>unittest</code>，覆盖了固定题集对齐、重复 ID、缺失题、非法状态、引用遗漏、答案错误、回归识别和指标统计。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> unittest
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> replace
+<span class="hljs-keyword">from</span> eval_demo <span class="hljs-keyword">import</span> CASES, BASELINE, CANDIDATE, compare, grade, validate_alignment, pred
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">TestOfflineEvaluation</span>(unittest.TestCase):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_case_count</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-built_in">len</span>(CASES), <span class="hljs-number">8</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_all_ids_unique</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-built_in">len</span>({c.case_id <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> CASES}), <span class="hljs-built_in">len</span>(CASES))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_missing_case_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            validate_alignment(CASES, BASELINE[:-<span class="hljs-number">1</span>])
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_duplicate_id_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            validate_alignment(CASES, BASELINE + [BASELINE[<span class="hljs-number">0</span>]])
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_unknown_id_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            validate_alignment(CASES, BASELINE[:-<span class="hljs-number">1</span>] + [replace(BASELINE[-<span class="hljs-number">1</span>], case_id=<span class="hljs-string">"UNKNOWN"</span>)])
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_answer_requires_evidence</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertFalse(grade(CASES[<span class="hljs-number">5</span>], BASELINE[<span class="hljs-number">5</span>])[<span class="hljs-string">"pass"</span>])
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_nonanswer_requires_no_key</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertFalse(grade(CASES[<span class="hljs-number">2</span>], BASELINE[<span class="hljs-number">2</span>])[<span class="hljs-string">"pass"</span>])
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_citation_must_be_retrieved</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertFalse(grade(CASES[<span class="hljs-number">0</span>], replace(BASELINE[<span class="hljs-number">0</span>], retrieved_ids=()))[<span class="hljs-string">"citation_ok"</span>])
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_invalid_status</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            grade(CASES[<span class="hljs-number">0</span>], replace(BASELINE[<span class="hljs-number">0</span>], status=<span class="hljs-string">"MYSTERY"</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_negative_latency</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            grade(CASES[<span class="hljs-number">0</span>], replace(BASELINE[<span class="hljs-number">0</span>], latency_ms=-<span class="hljs-number">1</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_candidate_regression</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(compare(CASES, BASELINE, CANDIDATE)[<span class="hljs-string">"regressed"</span>], [<span class="hljs-string">"C05"</span>])
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_candidate_improvements</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(compare(CASES, BASELINE, CANDIDATE)[<span class="hljs-string">"improved"</span>], [<span class="hljs-string">"C02"</span>, <span class="hljs-string">"C03"</span>, <span class="hljs-string">"C06"</span>])
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_pass_counts</span>(<span class="hljs-params">self</span>):
+        result = compare(CASES, BASELINE, CANDIDATE)
+        <span class="hljs-variable language_">self</span>.assertEqual(result[<span class="hljs-string">"baseline"</span>][<span class="hljs-string">"passed"</span>], <span class="hljs-number">5</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(result[<span class="hljs-string">"candidate"</span>][<span class="hljs-string">"passed"</span>], <span class="hljs-number">7</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_baseline_macro_recall</span>(<span class="hljs-params">self</span>):
+        result = compare(CASES, BASELINE, CANDIDATE)
+        <span class="hljs-variable language_">self</span>.assertEqual(result[<span class="hljs-string">"baseline"</span>][<span class="hljs-string">"macro_recall"</span>], <span class="hljs-number">1.0</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_answer_wrong_even_if_retrieval_perfect</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertFalse(grade(CASES[<span class="hljs-number">1</span>], BASELINE[<span class="hljs-number">1</span>])[<span class="hljs-string">"answer_ok"</span>])
+        <span class="hljs-variable language_">self</span>.assertEqual(grade(CASES[<span class="hljs-number">1</span>], BASELINE[<span class="hljs-number">1</span>])[<span class="hljs-string">"recall"</span>], <span class="hljs-number">1.0</span>)
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    unittest.main()</code></pre></div><h3 id="section-37">12.1 执行方法</h3>
+<p>将上述两个 Python 代码块分别保存为 <code>eval_demo.py</code> 和 <code>test_eval_demo.py</code>，在同一目录执行：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m unittest -v
+python eval_demo.py</code></pre></div><h3 id="section-38">12.2 已实际运行的结果</h3>
+<p>本节代码在当前执行环境中完成了 15 项离线单元测试，全部通过。主要模拟结果如下：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>基线</th>
+<th>候选版本</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>通过案例</td>
+<td>5 / 8</td>
+<td>7 / 8</td>
+</tr>
+<tr>
+<td>总体通过率</td>
+<td>62.5%</td>
+<td>87.5%</td>
+</tr>
+<tr>
+<td>平均检索召回</td>
+<td>100%</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>平均模拟耗时</td>
+<td>905 ms</td>
+<td>1155 ms</td>
+</tr>
+<tr>
+<td>改进案例</td>
+<td>—</td>
+<td>C02、C03、C06</td>
+</tr>
+<tr>
+<td>回归案例</td>
+<td>—</td>
+<td>C05</td>
+</tr>
+</tbody></table>
+<p>该实验故意制造“检索召回 100%，但回答或引用仍然失败”的场景，用来说明分层评估的必要性。候选版本平均模拟耗时高了 250 ms，且存在一条引用回归。</p>
+<p><strong>不得将这些人工构造的演示成绩写成真实模型、真实 RAG 或线上业务的性能结论。</strong></p>
+<hr />
+<h2 id="section-39">13. 将这个评测程序接入真实 RAG 系统</h2>
+<p>实际应用通常要将程序中的人工构造 <code>Prediction</code> 替换为真实系统输出。推荐在执行过程中保留：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">问题 Case ID
+  ↓
+固定知识库版本 + 已记录检索配置
+  ↓
+retrieved_ids（原始召回）
+  ↓
+selected_ids（重排、过滤后的证据）
+  ↓
+prompt_evidence_ids（真正送入模型的证据）
+  ↓
+模型原始响应 + 实际结束状态
+  ↓
+规范化结果（status、answer、cited_ids）
+  ↓
+程序自动评分 + 引用语义复核
+  ↓
+逐题报告 + 配对差异</code></pre></div><p>可按下列边界组织代码：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">evaluate_one</span>(<span class="hljs-params"><span class="hljs-keyword">case</span>, rag_pipeline, grader</span>):
+    <span class="hljs-comment"># 实际实现需要记录检索、上下文与生成各阶段输出。</span>
+    result = <span class="hljs-keyword">await</span> rag_pipeline.answer(<span class="hljs-keyword">case</span>.question)
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> grader.grade(<span class="hljs-keyword">case</span>, result)</code></pre></div><p>以上只是接口示意。真实 <code>rag_pipeline</code> 需要明确支持固定资料快照、权限、超时和事件追踪；<code>grader</code> 需要独立参考证据和确定性的评分契约。不能把“能跑出回复”视为完成了评测。</p>
+<hr />
+<h2 id="section-40">14. 当模型/提示词修改后，如何定位退步原因</h2>
+<p>例如更新 Prompt 后，版本查询能力提升，但某条多规则问题出错。应从同一 <code>case_id</code> 的两次执行记录开始：</p>
+<ol>
+<li>检查参考答案和 Gold Evidence 是否相同，确认没有暗中改题或换资料。</li>
+<li>对比旧新版的 <code>retrieved_ids</code>，看证据是否在检索阶段丢失。</li>
+<li>对比 <code>prompt_evidence_ids</code>，看重排或上下文裁剪是否丢掉关键条件。</li>
+<li>对比最终答案与引用，判断是否存在事实错误、归因错误或漏引用。</li>
+<li>对比输出状态和错误事件，排除超时、截断、工具失败。</li>
+<li>确认修复后不仅当前案例通过，其他既有通过案例也没有回归。</li>
+</ol>
+<p>以此前的 C05 为例：检索依然拿到了两条必需规则，候选版回答内容也与结构化参考一致，但最终只引用其中一条。因此在教学评分契约下这是<strong>引用完整性回归</strong>，不应归咎于知识库不存在或检索失败。</p>
+<hr />
+<h2 id="section-41">15. 如何制定上线门槛而不被平均分误导</h2>
+<p>发布门槛可以同时包含整体质量与关键约束：</p>
+<table>
+<thead>
+<tr>
+<th>指标类别</th>
+<th>可采用的门槛思路</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>整体质量</td>
+<td>重要业务问题的通过率不低于基线</td>
+</tr>
+<tr>
+<td>检索</td>
+<td>指定证据覆盖率不低于基线</td>
+</tr>
+<tr>
+<td>引用</td>
+<td>高风险事实不得出现未经证据支持的引用</td>
+</tr>
+<tr>
+<td>权限</td>
+<td>任何跨用户、跨租户资料泄漏均不接受</td>
+</tr>
+<tr>
+<td>弃答/澄清</td>
+<td>不可回答问题不能转为编造答案</td>
+</tr>
+<tr>
+<td>稳定性</td>
+<td>超时、错误率与关键延迟符合业务预算</td>
+</tr>
+<tr>
+<td>成本</td>
+<td>每次成功解决问题的平均成本不超过可接受范围</td>
+</tr>
+</tbody></table>
+<p>阈值由业务风险、用户场景和服务水平目标决定，而不是照搬某个通用“准确率 90%”要求。</p>
+<p>如果新版本提高了平均成功率，但导致数据权限错误或关键规则引用严重错误，通常应优先修复该回归，再考虑发布。</p>
+<hr />
+<h2 id="section-42">16. 关键统计和质量指标的常见误解</h2>
+<h3 id="section-43">16.1 Recall@K 高，不代表答案正确</h3>
+<p>检索器可以找齐所有证据，但模型仍可能遗漏结算顺序或误写数字。需要独立的回答正确性评价。</p>
+<h3 id="section-44">16.2 Faithfulness 高，不代表真实世界事实正确</h3>
+<p>如果知识库本身包含旧资料或错误数据，模型严格根据资料作答，可能具备高上下文忠实度，但事实仍然不正确。因此需要独立于模型和当前检索输出的可靠参考事实。</p>
+<h3 id="section-45">16.3 逐条准确率不同于总体用户满意度</h3>
+<p>某些问题对用户重要性极高。样例分布应与用户场景对应；必要时按业务严重程度分组，报告每组成绩与关键失败数量。</p>
+<h3 id="section-46">16.4 LLM 评分器不是真值生成器</h3>
+<p>评分器可以帮助自动标注支持关系，但必须验证它与人工独立参考的一致程度。评分器的版本变动也是评测条件变动，应与被测模型版本分开记录。</p>
+<h3 id="section-47">16.5 固定问题不等于“永远不变的唯一测试集”</h3>
+<p>固定问题用于同一轮公平比较；项目长期维护时，应不断引入独立问题并版本化评测集。新增样例应记录为什么加入，避免在历史报表中把不同题集的分数直接并排比较。</p>
+<h3 id="section-48">16.6 平均延迟改善不代表尾延迟改善</h3>
+<p>建议同时记录 P50、P95 或 P99，并注明样本量。对用户而言，少量极慢请求往往比平均延迟更显著。</p>
+<h3 id="section-49">16.7 模型正确率和端到端任务完成率不是一回事</h3>
+<p>系统还需要满足请求状态处理、来源展示、工具执行、权限、前端呈现和用户操作流程。真实服务评测需要覆盖从接口输入到最终用户结果的完整链路。</p>
+<hr />
+<h2 id="section-50">17. 评测记录的推荐文件结构</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">rag-evaluation/
+├── datasets/
+│   ├── eval_v1.jsonl              # 固定问题 + 人工参考标签
+│   ├── heldout_v1.jsonl           # 独立留出数据
+│   └── annotations/              # 证据审核记录
+├── corpus/
+│   └── snapshot_manifest.json    # 文档哈希、版本与索引标识
+├── runs/
+│   ├── baseline_v1/
+│   │   ├── run_config.json
+│   │   ├── predictions.jsonl
+│   │   └── traces/
+│   └── candidate_v2/
+│       ├── run_config.json
+│       ├── predictions.jsonl
+│       └── traces/
+├── graders/
+│   ├── grader_version.json
+│   └── grading_rules.py
+├── reports/
+│   ├── metrics.json
+│   ├── paired_differences.csv
+│   └── regression_cases.md
+└── README.md</code></pre></div><p>其中 <code>traces/</code> 可以包含检索结果、工具调用与上下文证据 ID。实际保存完整 Prompt 或用户问题时应先处理敏感数据与访问控制，避免把用户私人数据直接推送到公共 Git 仓库。</p>
+<hr />
+<h2 id="section-51">18. 本节与前面 RAG 知识的关系</h2>
+<p>前四节已经分别解决：RAG 全流程、分块与检索参数、来源引用定位、冲突与合理弃答。这一节则回答：</p>
+<p><strong>如何证明这些机制在修改模型、Prompt 或检索实现之后仍然有效？</strong></p>
+<p>完整的验证逻辑是：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">独立真实来源
+  → 参考事实与预期行为
+  → 固定问题及证据标注
+  → 运行旧版与新版 RAG
+  → 保存完整检索/生成/引用结果
+  → 分层评分
+  → 逐题配对比较
+  → 定位退步与修复
+  → 在同一基准上复测</code></pre></div><p><strong>这套流程的本质不是追求一个好看的总分，而是让模型或提示词的每次修改都留下可核实的改进和回归证据。</strong></p>
+<hr />
+<h2 id="section-52">19. 官方技术资料与研究入口</h2>
+<p>以下链接用于深入理解指标和评价方法。页面 API、SDK 名称及服务状态可能变化，实际应用应以项目锁定版本的文档为准。</p>
+<ol>
+<li><a href="https://developers.openai.com/api/docs/guides/evaluation-best-practices">OpenAI — Evaluation best practices</a>：评测集、指标、自动评分与人工评审的设计方法。</li>
+<li><a href="https://developers.openai.com/api/docs/guides/evaluation-getting-started">OpenAI — Getting started with datasets</a>：参考标注、数据集和提示词对比的概念。<em>注意：截至 2026 年 11 月，官方已公告旧 Evals 平台的退役时间表；学习评测原理不应依赖将关闭的特定功能。</em></li>
+<li><a href="https://developers.openai.com/api/docs/guides/evals">OpenAI — Working with evals</a>：标准答案与评分器的结构及版本评测方法；同样应注意当前平台退役公告。</li>
+<li><a href="https://docs.ragas.io/en/latest/concepts/metrics/available_metrics/">Ragas — Available metrics</a>：RAG 的检索、回答和忠实度指标分类。</li>
+<li><a href="#alignment">Ragas — Context Recall</a>：有参考答案的上下文召回与 ID 级召回。</li>
+<li><a href="#alignment">Ragas — Faithfulness</a>：回答断言与检索上下文之间的证据一致性。</li>
+<li><a href="https://developers.openai.com/api/docs/guides/graders">OpenAI — Graders</a>：自动评分器、人工参考标注与评分一致性；同样需关注功能退役状态。</li>
+<li><a href="https://developers.openai.com/api/docs/guides/model-optimization">OpenAI — Model optimization</a>：建立基线、优化 Prompt、重新评测的迭代流程。</li>
+</ol>
+<hr />
+<h2 id="section-53">20. 文件与测试边界说明</h2>
+<ul>
+<li>本文包括<strong>完整可运行的教学评测代码</strong>和单元测试，但两组 Prediction 为人工构造，不是外部模型的真实输出。</li>
+<li>代码的确定性部分只检查参考状态、封闭答案键、引用 ID 集合和检索记录；<strong>不包含自动证明自然语言引用语义蕴涵的模型</strong>。</li>
+<li>真实生产 RAG 评测还必须接入实际检索日志、模型 API、来源版本与人工审查。</li>
+<li>同题测试的独立性不仅取决于是否用了同一题集，还取决于评分参考是否在模型响应之前独立建立，以及是否使用可比的资料快照和环境。</li>
+</ul>

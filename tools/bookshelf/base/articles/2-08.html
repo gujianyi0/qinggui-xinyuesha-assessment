@@ -1,0 +1,835 @@
+<h1 id="section-1">大模型原理、API 与输出校验（八）</h1>
+<h1 id="section-2">使用 Pydantic 校验模型结果：格式错误、缺字段、拒答与信息不足的分类处理</h1>
+<blockquote>
+<p><strong>对应学习目标</strong>：用 Pydantic 等方式校验模型结果，分别处理格式错误、缺字段、拒答和信息不足，让调用方知道发生了什么。<br /><strong>范围</strong>：本篇讨论模型输出的解析、验证、语义分流、错误传递与对外接口契约；不展开下一条关于数值计算、运行用量或提示词版本收益分析的知识点。<br /><strong>技术前提</strong>：Python 3.11+、Pydantic v2、FastAPI（演示）。</p>
+</blockquote>
+<hr />
+<h2 id="section-3">01. 为什么模型输出不能直接作为业务结果？</h2>
+<p>模型返回的内容在传入数据库、工具、前端或其他服务之前，应视为<strong>尚未验证的外部输入</strong>。这与接受第三方 HTTP API 的响应相似：接口调用成功，只能说明拿到了数据，不能说明数据满足业务契约。</p>
+<p>典型调用链：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">模型服务 / SDK
+    ↓
+供应商响应检查（状态、拒答、截断、网络错误）
+    ↓
+提取候选内容（文本或结构化对象）
+    ↓
+JSON 解析（Syntax）
+    ↓
+Pydantic 结构与字段校验（Schema）
+    ↓
+状态一致性和必要的业务校验（Semantics）
+    ↓
+统一的应用结果 / 错误封装（Result Envelope）
+    ↓
+调用方（FastAPI、前端、Worker、其他 Agent）</code></pre></div><p>必须分清以下问题：</p>
+<ol>
+<li><strong>请求是否完成？</strong> 网络请求结束、模型结束、未被截断是三个不同事实。</li>
+<li><strong>是否拿到了内容？</strong> <code>None</code>、空字符串、空白文本、拒答消息都可能不存在可供解析的业务结果。</li>
+<li><strong>内容是不是合法 JSON？</strong> JSON 文本必须符合 JSON 语法。</li>
+<li><strong>JSON 是否符合预期 Schema？</strong> 字段必须存在，类型、枚举、嵌套结构满足定义。</li>
+<li><strong>字段组合是否有意义？</strong> 例如 <code>status="answered"</code> 时必须有有效 <code>answer</code>；<code>insufficient_information</code> 时应明确缺少哪些信息。</li>
+<li><strong>调用方下一步做什么？</strong> 正常展示、请求补充、展示拒答、告警、重试或人工处理，处理路径不同。</li>
+</ol>
+<p>这几层不应被一个 <code>try: json.loads(...) except: return None</code> 代替。</p>
+<h2 id="section-4">02. 必须区分的四类核心结果</h2>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>典型症状</th>
+<th>所属层级</th>
+<th>推荐处理</th>
+<th>是否可重试</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>格式错误</td>
+<td>输出 <code>{ "a":</code>、多余 Markdown 包裹、非法转义</td>
+<td>JSON 解析</td>
+<td>标记 <code>INVALID_JSON</code>，保留内部错误定位</td>
+<td>可能，先检查截断原因</td>
+</tr>
+<tr>
+<td>缺字段</td>
+<td>缺少 <code>answer</code> 或 <code>citations</code></td>
+<td>Schema</td>
+<td>标记 <code>REQUIRED_FIELD_MISSING</code>，列出字段路径</td>
+<td>可能，必须有限次</td>
+</tr>
+<tr>
+<td>拒答</td>
+<td>供应商返回专用 <code>refusal</code> 或明确拒绝信号</td>
+<td>模型/策略</td>
+<td>标记 <code>MODEL_REFUSAL</code>，前端展示可理解说明</td>
+<td>通常不应自动重复相同请求</td>
+</tr>
+<tr>
+<td>信息不足</td>
+<td>资料版本未知、缺少用户提供的信息</td>
+<td>业务/证据</td>
+<td>标记 <code>NEEDS_MORE_INFO</code>，告诉用户缺少什么</td>
+<td>需要补充信息，而非原样重试</td>
+</tr>
+</tbody></table>
+<p>另外至少应识别：<strong>输出截断</strong>、<strong>空输出</strong>、<strong>字段类型或范围不符</strong>、<strong>服务超时/限流</strong>、<strong>来源无法验证</strong>。这些都不能混成同一个 <code>False</code>。</p>
+<h3 id="section-5">2.1 格式错误与缺字段不是同一错误</h3>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span><span class="hljs-attr">"answer"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"角色甲生命值为4"</span></code></pre></div><p>这是格式错误：缺少右括号，JSON 语法不完整。</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span><span class="hljs-attr">"answer"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"角色甲生命值为4"</span><span class="hljs-punctuation">}</span></code></pre></div><p>这是合法 JSON，但若业务契约还规定必须返回 <code>status</code>、<code>citations</code> 和 <code>missing_information</code>，就是<strong>缺字段</strong>。</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span><span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"answered"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"answer"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">123</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"citations"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"missing_information"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">}</span></code></pre></div><p>JSON 语法合法、字段齐全，却有<strong>字段类型错误</strong>，且不满足 answered 状态必须有证据的规则。</p>
+<h3 id="section-6">2.2 拒答与信息不足不是同一情况</h3>
+<p><strong>拒答</strong>：模型或服务决定不执行某项请求，可能与安全、策略或能力范围有关。某些提供商的响应有明确拒答字段；应优先使用该字段，不能靠搜索“抱歉”两个字来判定。</p>
+<p><strong>信息不足</strong>：请求属于可以处理的任务，但现有证据不足。例如用户问“角色甲这个技能在第几版被修改？”，但没有提供版本，资料库也无法唯一定位。正确做法是标记缺少的条件并请求补充。</p>
+<p>“不知道”也可能只说明模型不确定，<strong>不意味着</strong>供应商拒答。不能用 <code>refusal</code> 一概表示所有不回答的场景。</p>
+<h2 id="section-7">03. Pydantic 在其中承担什么职责？</h2>
+<p>Pydantic v2 提供：</p>
+<ul>
+<li><code>BaseModel</code>：声明结构化 Python 数据模型。</li>
+<li><code>Field(...)</code>：配置必填、长度、范围等约束。</li>
+<li><code>ConfigDict(strict=True, extra="forbid")</code>：限制隐式类型转换和多余字段。</li>
+<li><code>model_validate(...)</code>：校验 Python 对象、字典等。</li>
+<li><code>model_validate_json(...)</code>：解析并校验 JSON 文本或字节。</li>
+<li><code>field_validator</code>：字段级自定义规则。</li>
+<li><code>model_validator</code>：跨字段一致性规则。</li>
+<li><code>ValidationError.errors()</code>：获取可机器处理的错误类型、路径与说明。</li>
+<li><code>model_dump()</code>：导出经过验证的数据；<code>model_json_schema()</code>：生成 JSON Schema。</li>
+</ul>
+<p>注意：<strong>Pydantic 校验通过不等于外部事实正确</strong>。在本节，我们把它用于验证输入契约与内部一致性。另一个重要细节是，<code>strict=True</code> 不保证所有 Python 模式和 JSON 模式的转换行为完全一致；具体应参考字段类型和 Pydantic 版本文档。</p>
+<h3 id="section-8">3.1 为什么应避免隐式转换</h3>
+<p>默认配置下某些输入可能被转换：字符串 <code>"4"</code> 可能在部分整数字段配置中被接受。这在读用户表单时可能方便，但在严格的模型输出契约里，会掩盖模型没有按规范输出的事实。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, ConfigDict, ValidationError
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">StrictNumber</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    model_config = ConfigDict(strict=<span class="hljs-literal">True</span>)
+    count: <span class="hljs-built_in">int</span>
+
+<span class="hljs-keyword">try</span>:
+    StrictNumber.model_validate({<span class="hljs-string">"count"</span>: <span class="hljs-string">"4"</span>})
+<span class="hljs-keyword">except</span> ValidationError <span class="hljs-keyword">as</span> exc:
+    <span class="hljs-built_in">print</span>(exc.errors()[<span class="hljs-number">0</span>][<span class="hljs-string">"type"</span>])  <span class="hljs-comment"># int_type</span></code></pre></div><p>如果明确允许自动转换，可以在特定字段放宽，而不是不加区分地依赖默认行为。</p>
+<h2 id="section-9">04. Pydantic 中“必填”“可为空”“有默认值”的严格区别</h2>
+<p>这是模型输出校验特别容易忽略的知识。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">class</span> <span class="hljs-title class_">A</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    name: <span class="hljs-built_in">str</span>              <span class="hljs-comment"># 必须出现，且不能为 None</span>
+    note: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>       <span class="hljs-comment"># 必须出现，但可为 null</span>
+    remark: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>  <span class="hljs-comment"># 可省略，省略时默认为 None</span></code></pre></div><p><code>str | None</code> <strong>不自动意味着可省略</strong>；是否必填由有无默认值决定。</p>
+<p>不同契约应精确选择：</p>
+<ul>
+<li><code>answer: str</code>：必须返回非空字符串类型；但空串仍需额外 <code>min_length</code> 或跨字段校验。</li>
+<li><code>answer: str | None</code>：字段必须出现，值可为字符串或 <code>null</code>。</li>
+<li><code>answer: str | None = None</code>：允许模型省略这个字段，不一定适合严格的输出契约。</li>
+<li><code>citations: list[SourceRef]</code>：必须出现一个数组；是否允许空数组另行规定。</li>
+<li><code>citations: list[SourceRef] = Field(default_factory=list)</code>：允许省略，省略时创建新列表。</li>
+</ul>
+<p>将必须返回的字段设为默认空值，会导致漏字段的模型输出被悄悄“修好”，从而丢失错误证据。</p>
+<h2 id="section-10">05. 建议的模型输出契约：明确结果状态</h2>
+<p>与其让模型在 <code>answer</code> 内自然语言描述“我不知道”，更适合定义可解析的状态字段：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"answered"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"answer"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"角色甲在版本2的基础生命值为4。"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"citations"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">{</span><span class="hljs-attr">"source_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"rule-v2"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2"</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"missing_information"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>信息不足时：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"insufficient_information"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"answer"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"citations"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"missing_information"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"游戏版本"</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>上面的 <code>status</code> 是<strong>业务层结果分类</strong>，不是供应商 HTTP 响应状态。供应商如果明确拒答，应当在调用结果的外层被单独处理，而不是要求所有拒答都按照这份 JSON 结构输出。</p>
+<h3 id="section-11">5.1 跨字段规则</h3>
+<ul>
+<li><code>answered</code>：答案非空、至少一个引用、没有缺失信息清单。</li>
+<li><code>insufficient_information</code>：<code>answer=null</code> 且必须列出缺失信息。</li>
+<li>未声明的字段：拒绝，不应默默忽略。</li>
+<li>引用 ID：必须在当前允许检索的资料集合内；仅存在 ID 不能证明内容本身与答案相符。</li>
+</ul>
+<p>这就是“<strong>结构校验 + 状态一致性校验</strong>”的区别。</p>
+<h2 id="section-12">06. 验证错误的机器可读结构</h2>
+<p>调用 <code>ValidationError.errors()</code> 会得到包含字段路径、错误类型、错误描述等信息的列表，例如：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, ValidationError
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Person</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    name: <span class="hljs-built_in">str</span>
+    age: <span class="hljs-built_in">int</span>
+
+<span class="hljs-keyword">try</span>:
+    Person.model_validate({<span class="hljs-string">"name"</span>: <span class="hljs-string">"甲"</span>})
+<span class="hljs-keyword">except</span> ValidationError <span class="hljs-keyword">as</span> exc:
+    <span class="hljs-keyword">for</span> item <span class="hljs-keyword">in</span> exc.errors():
+        <span class="hljs-built_in">print</span>(item[<span class="hljs-string">"loc"</span>], item[<span class="hljs-string">"type"</span>], item[<span class="hljs-string">"msg"</span>])</code></pre></div><p>缺少 <code>age</code> 时，通常可以观察到：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">('age',) missing Field required</code></pre></div><p>常见 <code>type</code> 包括：</p>
+<table>
+<thead>
+<tr>
+<th><code>errors()[i]["type"]</code></th>
+<th>常见含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>json_invalid</code></td>
+<td>JSON 文本非法</td>
+</tr>
+<tr>
+<td><code>missing</code></td>
+<td>必填字段缺失</td>
+</tr>
+<tr>
+<td><code>string_type</code></td>
+<td>字符串类型不符合要求</td>
+</tr>
+<tr>
+<td><code>int_type</code></td>
+<td>严格整数字段类型错误</td>
+</tr>
+<tr>
+<td><code>literal_error</code></td>
+<td>不在 <code>Literal</code> 所列值中</td>
+</tr>
+<tr>
+<td><code>extra_forbidden</code></td>
+<td>出现契约未允许的字段</td>
+</tr>
+<tr>
+<td><code>string_too_short</code></td>
+<td>字符串小于长度下限</td>
+</tr>
+<tr>
+<td><code>value_error</code></td>
+<td>自定义校验器抛出的值错误</td>
+</tr>
+</tbody></table>
+<p>不要将 Pydantic 的英文完整报错原样发送给终端用户。错误对象可能含输入值、结构位置等内部细节。应用应该提取<strong>稳定的错误代码和安全的字段路径</strong>，原始响应只允许在适当授权、脱敏后进行排错。</p>
+<h2 id="section-13">07. 先分流供应商状态，再解析 JSON</h2>
+<p>推荐处理顺序：</p>
+<ol>
+<li><strong>网络与供应商层</strong>：认证失败、限流、超时、服务端异常，先按连接/供应商错误处理。</li>
+<li><strong>专用拒答信号</strong>：例如响应提供明确 <code>refusal</code> 字段，优先识别。</li>
+<li><strong>完成状态</strong>：例如 Chat Completions 的 <code>finish_reason="length"</code> 表示长度限制，不能把截断 JSON 简单归为生成了错误格式。</li>
+<li><strong>空内容</strong>：<code>content is None</code>、<code>""</code> 或纯空白内容需要独立处理。</li>
+<li><strong>结构化解析</strong>：使用 Pydantic 校验 JSON、字段与组合规则。</li>
+<li><strong>业务状态</strong>：<code>answered</code> 对应正常结果，<code>insufficient_information</code> 对应请求补充资料。</li>
+<li><strong>引用/业务再验证</strong>：检查数据访问范围、来源标识等应用约束。</li>
+</ol>
+<p>这个顺序避免将 <code>refusal</code>、截断、工具调用、网络错误全部误判成 <code>JSONDecodeError</code>。</p>
+<blockquote>
+<p><strong>供应商差异</strong>：OpenAI Chat Completions 的结构化输出拒答可通过专用 <code>refusal</code> 字段表达；Responses API 的输出项可以包含 <code>refusal</code> 类型。DeepSeek 或其他提供商字段可能不同，必须按 SDK 实际返回结构编写适配器。示例的 <code>ProviderMessage</code> 是统一的演示抽象，并非某一供应商 SDK 的真实响应对象。</p>
+</blockquote>
+<h2 id="section-14">08. 完整 Python 实现：把模型响应转成确定性结果</h2>
+<p>下面是经离线测试的可运行代码。只依赖 Pydantic v2，未调用付费模型服务。</p>
+<p><strong>安装依赖：</strong></p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pip install <span class="hljs-string">'pydantic&gt;=2,&lt;3'</span> pytest</code></pre></div><p>将下述代码保存为 <code>validation_demo.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Provider-neutral structured LLM output inspection demo. Python 3.11+ / Pydantic 2.x."""</span>
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> <span class="hljs-type">Literal</span>
+<span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, ConfigDict, Field, ValidationError, model_validator
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">SourceRef</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    model_config = ConfigDict(extra=<span class="hljs-string">"forbid"</span>, strict=<span class="hljs-literal">True</span>)
+    source_id: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>)
+    version: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ModelAnswer</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    model_config = ConfigDict(extra=<span class="hljs-string">"forbid"</span>, strict=<span class="hljs-literal">True</span>)
+    status: <span class="hljs-type">Literal</span>[<span class="hljs-string">"answered"</span>, <span class="hljs-string">"insufficient_information"</span>]
+    answer: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>
+    citations: <span class="hljs-built_in">list</span>[SourceRef]
+    missing_information: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>]
+
+<span class="hljs-meta">    @model_validator(<span class="hljs-params">mode=<span class="hljs-string">"after"</span></span>)</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">check_consistency</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.status == <span class="hljs-string">"answered"</span>:
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-variable language_">self</span>.answer <span class="hljs-keyword">or</span> <span class="hljs-keyword">not</span> <span class="hljs-variable language_">self</span>.answer.strip():
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"answered requires a nonempty answer"</span>)
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-variable language_">self</span>.citations:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"answered requires citations"</span>)
+            <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.missing_information:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"answered cannot claim missing information"</span>)
+        <span class="hljs-keyword">else</span>:
+            <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.answer <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"insufficient_information requires answer=null"</span>)
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-variable language_">self</span>.missing_information:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"missing_information must name missing inputs"</span>)
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ProviderMessage</span>:
+    content: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>
+    finish_reason: <span class="hljs-built_in">str</span> = <span class="hljs-string">"stop"</span>
+    refusal: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+    provider_error: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+
+
+OutcomeStatus = <span class="hljs-type">Literal</span>[
+    <span class="hljs-string">"ok"</span>, <span class="hljs-string">"needs_more_info"</span>, <span class="hljs-string">"refused"</span>, <span class="hljs-string">"invalid_json"</span>, <span class="hljs-string">"missing_field"</span>,
+    <span class="hljs-string">"schema_invalid"</span>, <span class="hljs-string">"incomplete"</span>, <span class="hljs-string">"empty"</span>, <span class="hljs-string">"provider_failure"</span>, <span class="hljs-string">"unverified_source"</span>
+]
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Outcome</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    status: OutcomeStatus
+    code: <span class="hljs-built_in">str</span>
+    message: <span class="hljs-built_in">str</span>
+    retryable: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span>
+    details: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = Field(default_factory=<span class="hljs-built_in">list</span>)
+    data: ModelAnswer | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">inspect_response</span>(<span class="hljs-params">msg: ProviderMessage, allowed_sources: <span class="hljs-built_in">set</span>[<span class="hljs-built_in">str</span>]</span>) -&gt; Outcome:
+    <span class="hljs-keyword">if</span> msg.provider_error:
+        <span class="hljs-keyword">return</span> Outcome(status=<span class="hljs-string">"provider_failure"</span>, code=<span class="hljs-string">"UPSTREAM_ERROR"</span>,
+                       message=<span class="hljs-string">"模型服务失败"</span>, retryable=<span class="hljs-literal">True</span>)
+    <span class="hljs-comment"># 供应商的专用拒答字段优先于结构化文本解析。</span>
+    <span class="hljs-keyword">if</span> msg.refusal:
+        <span class="hljs-keyword">return</span> Outcome(status=<span class="hljs-string">"refused"</span>, code=<span class="hljs-string">"MODEL_REFUSAL"</span>, message=<span class="hljs-string">"模型拒绝处理该请求"</span>)
+    <span class="hljs-comment"># 生成被截断时不能将残缺 JSON 误报为普通格式错误。</span>
+    <span class="hljs-keyword">if</span> msg.finish_reason == <span class="hljs-string">"length"</span>:
+        <span class="hljs-keyword">return</span> Outcome(status=<span class="hljs-string">"incomplete"</span>, code=<span class="hljs-string">"OUTPUT_TRUNCATED"</span>,
+                       message=<span class="hljs-string">"模型输出未完成"</span>, retryable=<span class="hljs-literal">True</span>)
+    <span class="hljs-keyword">if</span> msg.finish_reason != <span class="hljs-string">"stop"</span>:
+        <span class="hljs-keyword">return</span> Outcome(status=<span class="hljs-string">"incomplete"</span>, code=<span class="hljs-string">"UNEXPECTED_FINISH"</span>,
+                       message=<span class="hljs-string">"模型未正常完成文本输出"</span>)
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> msg.content <span class="hljs-keyword">or</span> <span class="hljs-keyword">not</span> msg.content.strip():
+        <span class="hljs-keyword">return</span> Outcome(status=<span class="hljs-string">"empty"</span>, code=<span class="hljs-string">"EMPTY_OUTPUT"</span>, message=<span class="hljs-string">"模型返回空内容"</span>, retryable=<span class="hljs-literal">True</span>)
+    <span class="hljs-keyword">try</span>:
+        parsed = ModelAnswer.model_validate_json(msg.content)
+    <span class="hljs-keyword">except</span> ValidationError <span class="hljs-keyword">as</span> exc:
+        issues = exc.errors(include_input=<span class="hljs-literal">False</span>, include_url=<span class="hljs-literal">False</span>)
+        kinds = {item[<span class="hljs-string">"type"</span>] <span class="hljs-keyword">for</span> item <span class="hljs-keyword">in</span> issues}
+        details = [<span class="hljs-string">f"<span class="hljs-subst">{<span class="hljs-string">'.'</span>.join(<span class="hljs-built_in">map</span>(<span class="hljs-built_in">str</span>, x[<span class="hljs-string">'loc'</span>])) <span class="hljs-keyword">or</span> <span class="hljs-string">'root'</span>}</span>: <span class="hljs-subst">{x[<span class="hljs-string">'type'</span>]}</span>"</span> <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> issues]
+        <span class="hljs-keyword">if</span> <span class="hljs-string">"json_invalid"</span> <span class="hljs-keyword">in</span> kinds:
+            <span class="hljs-keyword">return</span> Outcome(status=<span class="hljs-string">"invalid_json"</span>, code=<span class="hljs-string">"INVALID_JSON"</span>,
+                           message=<span class="hljs-string">"模型输出不是合法 JSON"</span>, retryable=<span class="hljs-literal">True</span>, details=details)
+        <span class="hljs-keyword">if</span> <span class="hljs-string">"missing"</span> <span class="hljs-keyword">in</span> kinds:
+            <span class="hljs-keyword">return</span> Outcome(status=<span class="hljs-string">"missing_field"</span>, code=<span class="hljs-string">"REQUIRED_FIELD_MISSING"</span>,
+                           message=<span class="hljs-string">"模型结果缺少必要字段"</span>, retryable=<span class="hljs-literal">True</span>, details=details)
+        <span class="hljs-keyword">return</span> Outcome(status=<span class="hljs-string">"schema_invalid"</span>, code=<span class="hljs-string">"SCHEMA_VALIDATION_FAILED"</span>,
+                       message=<span class="hljs-string">"模型输出未通过结构或条件校验"</span>, retryable=<span class="hljs-literal">True</span>, details=details)
+
+    unknown = <span class="hljs-built_in">sorted</span>({r.source_id <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> parsed.citations} - allowed_sources)
+    <span class="hljs-keyword">if</span> unknown:
+        <span class="hljs-keyword">return</span> Outcome(status=<span class="hljs-string">"unverified_source"</span>, code=<span class="hljs-string">"UNKNOWN_SOURCE"</span>,
+                       message=<span class="hljs-string">"引用未通过来源 ID 校验"</span>, details=unknown)
+
+    <span class="hljs-keyword">if</span> parsed.status == <span class="hljs-string">"insufficient_information"</span>:
+        <span class="hljs-keyword">return</span> Outcome(status=<span class="hljs-string">"needs_more_info"</span>, code=<span class="hljs-string">"NEEDS_MORE_INFO"</span>,
+                       message=<span class="hljs-string">"现有资料不足以作答"</span>, data=parsed)
+    <span class="hljs-keyword">return</span> Outcome(status=<span class="hljs-string">"ok"</span>, code=<span class="hljs-string">"SUCCESS"</span>, message=<span class="hljs-string">"已获得结构化结果"</span>, data=parsed)</code></pre></div><h3 id="section-15">8.1 这份代码的设计特点</h3>
+<ul>
+<li><code>ProviderMessage</code> 表示经过供应商适配器提取的状态：文本、拒答、结束原因、供应商错误。</li>
+<li><code>ModelAnswer</code> 是模型应交付的严格结构。</li>
+<li><code>@model_validator(mode="after")</code> 处理 <code>status</code> 与其他字段之间的一致性。</li>
+<li><code>Outcome</code> 是应用对调用方暴露的<strong>统一结果封装</strong>，包含 <code>status/code/message/retryable/details/data</code>。</li>
+<li><code>inspect_response()</code> 把外部消息转换成稳定的应用状态，而不是返回 <code>None</code> 或捕获全部异常。</li>
+<li><code>allowed_sources</code> 体现来源 ID 检查；它只验证 ID 是否在允许集合中，不替代证据内容核对。</li>
+</ul>
+<h3 id="section-16">8.2 推荐的状态码与调用方动作</h3>
+<table>
+<thead>
+<tr>
+<th><code>Outcome.status</code></th>
+<th><code>code</code></th>
+<th>调用方动作</th>
+<th>重试策略</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ok</code></td>
+<td><code>SUCCESS</code></td>
+<td>展示答案和引用</td>
+<td>无需重试</td>
+</tr>
+<tr>
+<td><code>needs_more_info</code></td>
+<td><code>NEEDS_MORE_INFO</code></td>
+<td>提示用户补充字段/版本</td>
+<td>补充后新请求</td>
+</tr>
+<tr>
+<td><code>refused</code></td>
+<td><code>MODEL_REFUSAL</code></td>
+<td>展示可理解的拒答</td>
+<td>不应机械重试相同请求</td>
+</tr>
+<tr>
+<td><code>invalid_json</code></td>
+<td><code>INVALID_JSON</code></td>
+<td>内部诊断/有限次修复</td>
+<td>视情况</td>
+</tr>
+<tr>
+<td><code>missing_field</code></td>
+<td><code>REQUIRED_FIELD_MISSING</code></td>
+<td>记录字段路径/有限次修复</td>
+<td>视情况</td>
+</tr>
+<tr>
+<td><code>schema_invalid</code></td>
+<td><code>SCHEMA_VALIDATION_FAILED</code></td>
+<td>检查类型、枚举与跨字段规则</td>
+<td>视情况</td>
+</tr>
+<tr>
+<td><code>incomplete</code></td>
+<td><code>OUTPUT_TRUNCATED</code> / <code>UNEXPECTED_FINISH</code></td>
+<td>检查结束原因和预算</td>
+<td>视情况</td>
+</tr>
+<tr>
+<td><code>empty</code></td>
+<td><code>EMPTY_OUTPUT</code></td>
+<td>提示服务没有生成可用结果</td>
+<td>视情况</td>
+</tr>
+<tr>
+<td><code>provider_failure</code></td>
+<td><code>UPSTREAM_ERROR</code></td>
+<td>处理网络/供应商异常</td>
+<td>取决于错误种类</td>
+</tr>
+<tr>
+<td><code>unverified_source</code></td>
+<td><code>UNKNOWN_SOURCE</code></td>
+<td>禁止把未经核对的引用当有效证据</td>
+<td>不直接放行</td>
+</tr>
+</tbody></table>
+<p>这里的 <code>retryable=True</code> 是<strong>重试策略提示</strong>，不意味着自动重试一定安全。例如供应商调用涉及费用，或者调用中已产生其他副作用时，还需要请求幂等、退避、次数和预算控制。真实系统应进一步区分超时、429、服务端错误与不可恢复的 4xx 错误。</p>
+<h2 id="section-17">09. 如何设计调用方能理解的返回结构</h2>
+<p>一个通用业务响应可以长成这样：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"missing_field"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"REQUIRED_FIELD_MISSING"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"模型结果缺少必要字段"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"retryable"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">true</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"details"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"missing_information: missing"</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"data"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>当资料不足时：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"needs_more_info"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"NEEDS_MORE_INFO"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"现有资料不足以作答"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"retryable"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">false</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"details"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"data"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"insufficient_information"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"answer"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"citations"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"missing_information"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"游戏版本"</span><span class="hljs-punctuation">]</span>
+  <span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>这两种场景的 HTTP 请求都可能顺利到达服务端，但业务含义完全不同。调用方不应从 <code>message</code> 的中文措辞猜测状态，而应使用稳定 <code>code</code> 或 <code>status</code> 做分支。</p>
+<h3 id="section-18">9.1 为什么 <code>message</code> 和 <code>code</code> 要分开？</h3>
+<ul>
+<li><code>code</code>：机器判断，尽量稳定，可以适配多语言。</li>
+<li><code>message</code>：面向人类的描述，可以重写或本地化。</li>
+<li><code>details</code>：受控的错误定位信息，不直接泄漏原始 Prompt 或模型输出。</li>
+<li><code>retryable</code>：表示重试建议；具体是否执行由上层策略决定。</li>
+<li><code>data</code>：成功时或“需要补充信息”时的结构化业务数据。</li>
+</ul>
+<p>前端可以根据 <code>code</code> 显示对应 UI，而不是执行 <code>if (message.includes("缺少"))</code> 之类脆弱判断。</p>
+<h2 id="section-19">10. HTTP 状态码与业务状态的分离</h2>
+<p>不能把 Pydantic 异常、模型拒答和用户提交错误都简单映射为 <code>HTTP 422</code>。</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>合理的 HTTP 处理思路</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>用户请求本身不符合输入 Schema</td>
+<td><code>422</code>（FastAPI 常见默认）</td>
+<td>是客户端输入错误</td>
+</tr>
+<tr>
+<td>模型正常回答</td>
+<td><code>200</code></td>
+<td>已成功处理业务</td>
+</tr>
+<tr>
+<td>模型合理提出补充信息</td>
+<td>常见 <code>200</code></td>
+<td>正常业务分支，不是服务故障</td>
+</tr>
+<tr>
+<td>供应商明确拒答</td>
+<td>常见 <code>200</code> + <code>refused</code> 业务状态；也可按产品策略定制</td>
+<td>应与安全策略、产品 UI 协调</td>
+</tr>
+<tr>
+<td>上游返回非法 JSON / 缺字段</td>
+<td>可用 <code>502</code></td>
+<td>上游结果不符合约定，不能怪罪客户端</td>
+</tr>
+<tr>
+<td>模型/上游服务暂不可用</td>
+<td>可用 <code>503</code></td>
+<td>暂时性服务故障</td>
+</tr>
+<tr>
+<td>调用上游超时</td>
+<td>可用 <code>504</code></td>
+<td>如果明确是网关或上游等待超时</td>
+</tr>
+</tbody></table>
+<p>这些并非唯一规范，关键是<strong>设计一致、符合语义并记录在 API 契约中</strong>。例如业务上的“拒答”并非天然等于 HTTP <code>403</code>：后者通常意味着客户端不被允许访问目标资源。不能把“模型选择不回答”与“用户没有权限访问资源”混为一谈。</p>
+<h3 id="section-20">10.1 FastAPI 演示</h3>
+<p>保存为 <code>api_demo.py</code>（需与 <code>validation_demo.py</code> 同目录）：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Minimal FastAPI boundary example. No real model or network required."""</span>
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI, HTTPException
+<span class="hljs-keyword">from</span> fastapi.responses <span class="hljs-keyword">import</span> JSONResponse
+<span class="hljs-keyword">from</span> validation_demo <span class="hljs-keyword">import</span> ProviderMessage, inspect_response
+
+app = FastAPI()
+
+EXAMPLES = {
+    <span class="hljs-string">"ok"</span>: ProviderMessage(<span class="hljs-string">'{"status":"answered","answer":"角色甲的生命值为4","citations":[{"source_id":"rule-v2","version":"2"}],"missing_information":[]}'</span>),
+    <span class="hljs-string">"missing"</span>: ProviderMessage(<span class="hljs-string">'{"status":"answered","answer":"abc","citations":[]}'</span>),
+    <span class="hljs-string">"refused"</span>: ProviderMessage(<span class="hljs-literal">None</span>, refusal=<span class="hljs-string">"拒绝"</span>),
+    <span class="hljs-string">"needs_more"</span>: ProviderMessage(<span class="hljs-string">'{"status":"insufficient_information","answer":null,"citations":[],"missing_information":["游戏版本"]}'</span>),
+    <span class="hljs-string">"timeout"</span>: ProviderMessage(<span class="hljs-literal">None</span>, provider_error=<span class="hljs-string">"timeout"</span>),
+}
+HTTP_STATUS = {
+    <span class="hljs-string">"ok"</span>: <span class="hljs-number">200</span>, <span class="hljs-string">"needs_more_info"</span>: <span class="hljs-number">200</span>, <span class="hljs-string">"refused"</span>: <span class="hljs-number">200</span>,
+    <span class="hljs-string">"invalid_json"</span>: <span class="hljs-number">502</span>, <span class="hljs-string">"missing_field"</span>: <span class="hljs-number">502</span>, <span class="hljs-string">"schema_invalid"</span>: <span class="hljs-number">502</span>,
+    <span class="hljs-string">"incomplete"</span>: <span class="hljs-number">502</span>, <span class="hljs-string">"empty"</span>: <span class="hljs-number">502</span>, <span class="hljs-string">"provider_failure"</span>: <span class="hljs-number">503</span>,
+    <span class="hljs-string">"unverified_source"</span>: <span class="hljs-number">502</span>,
+}
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">"/demo/{scenario}"</span></span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">demo</span>(<span class="hljs-params">scenario: <span class="hljs-built_in">str</span></span>):
+    <span class="hljs-keyword">if</span> scenario <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> EXAMPLES:
+        <span class="hljs-keyword">raise</span> HTTPException(status_code=<span class="hljs-number">404</span>, detail=<span class="hljs-string">"未知演示场景"</span>)
+    result = inspect_response(EXAMPLES[scenario], {<span class="hljs-string">"rule-v2"</span>})
+    <span class="hljs-keyword">return</span> JSONResponse(status_code=HTTP_STATUS[result.status], content=result.model_dump())</code></pre></div><p>示例通过固定演示数据展示各种状态对应的 HTTP 响应，<strong>不发起真实模型调用</strong>。生产项目应让供应商适配器调用相应 SDK，将真实响应信息转换为内部统一结构，再执行 <code>inspect_response()</code>。</p>
+<h2 id="section-21">11. 使用 Structured Outputs 后，还需不需要 Pydantic？</h2>
+<p><strong>需要保留边界校验与业务分流，但可以减少重复解析代码。</strong></p>
+<p>对于支持严格结构化输出的 API，传入 JSON Schema 可以显著提高模型输出符合指定结构的可靠性。但仍然存在以下情况：</p>
+<ol>
+<li>供应商返回明确拒答，拒答内容未必匹配业务 JSON Schema。</li>
+<li>达到长度限制或请求异常结束。</li>
+<li>Schema 只约束形状，不能替代事实验证、来源授权和业务一致性。</li>
+<li>不同 API 的严格 Schema 支持范围不同，部分校验逻辑只能在应用层执行。</li>
+<li>存量数据、缓存数据和数据库记录仍可能绕过当前模型 SDK 的结构约束，需要下游验证。</li>
+</ol>
+<p>OpenAI 提供与 Pydantic 集成的解析辅助；但使用 SDK 自动解析时，也应先按其约定处理拒答和未完成状态。<strong>不要把“解析成功”当成无条件成功。</strong></p>
+<h3 id="section-22">11.1 Pydantic JSON Schema 与供应商 Schema 不是完全同义</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-built_in">print</span>(ModelAnswer.model_json_schema())</code></pre></div><p>这会生成包含字段与约束的 JSON Schema，但供应商严格模式支持的 JSON Schema 子集可能不同。例如部分结构化输出 API 对所有属性必填、额外字段限制、对象嵌套、特定校验关键字有约束。<strong>不能假定 <code>model_json_schema()</code> 的所有特性都能原样被所有模型服务接受。</strong></p>
+<h3 id="section-23">11.2 如果模型返回 Markdown 代码块怎么办？</h3>
+<p>例如：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">```json
+{"status": "answered", ...}
+```</code></pre></div><p>在要求严格 JSON 的系统中，这应当被视为格式契约违背。可以针对已知的非严格输出建立明确、可测试的兼容层，但不要在核心处理函数中无条件删除任意字符串、用正则“猜测” JSON 起止位置再直接执行后续业务操作。修复动作必须有限、可观测、不会修改语义，并保留错误路径。</p>
+<h2 id="section-24">12. 模型的“拒答”应该从哪里判断？</h2>
+<p>推荐区分三个信号来源：</p>
+<p><strong>A. 供应商显式状态</strong>：专用拒答字段或类型化拒答事件。优先级高，最适合程序化分流。</p>
+<p><strong>B. 模型按业务 Schema 返回某种状态</strong>：例如 <code>insufficient_information</code>，表示该业务问题现有条件不足。这不是拒答字段。</p>
+<p><strong>C. 普通自由文本</strong>：模型输出“抱歉，我不能回答”。除非供应商或应用明确约定该文本属于拒答，否则字符串匹配只是启发式判断，容易误伤正常内容。</p>
+<p>为什么不建议依赖文本关键词？</p>
+<ul>
+<li>多语言表达不同。</li>
+<li>模型可能引用“拒绝回答”作为说明文字，并非真正拒答。</li>
+<li>用户输入中可以主动包含这些词。</li>
+<li>文本流在中途可能只出现片段，状态尚未确定。</li>
+</ul>
+<p>因此应优先使用供应商的结构化信号，必要时另设受控的输出分类器；分类器判断也可能出错。</p>
+<h2 id="section-25">13. “信息不足”应该如何设计？</h2>
+<p>信息不足不是技术异常，而是<strong>业务无法在当前输入与证据条件下完成</strong>。</p>
+<p>常见场景：</p>
+<ul>
+<li>缺少对象 ID、游戏版本、日期或其他必需参数。</li>
+<li>有多个同名目标，无法确定哪一个。</li>
+<li>检索没有找到支持断言的资料。</li>
+<li>检索到的资料存在版本冲突。</li>
+<li>用户只提供“这个技能有问题”，缺少复现步骤。</li>
+</ul>
+<p>正确表达应告诉调用方<strong>缺少什么</strong>：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"insufficient_information"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"answer"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"citations"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"missing_information"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"发生问题的游戏版本"</span><span class="hljs-punctuation">,</span> <span class="hljs-string">"复现步骤"</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>注意两个原则：</p>
+<ol>
+<li><code>missing_information</code> 是待补充项列表，不应伪造答案填补 <code>answer</code>。</li>
+<li>一个模型返回“信息不足”也不必然证明资料真的缺失，应用可结合检索结果和业务规则再次判断。</li>
+</ol>
+<p>对于 AI Agent，可以把 <code>needs_more_info</code> 转换为“向用户提问”的交互动作；对于批处理 Worker，则应进入 <code>WAITING_FOR_INPUT</code> 等持久化状态，而不是不断重试同一消息。</p>
+<h2 id="section-26">14. 错误分类的优先级为什么重要？</h2>
+<p>想象一条响应同时满足：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">finish_reason = "length"
+content = "{\"status\": \"answered\", \"answer\": "</code></pre></div><p>显然 JSON 不完整，但直接报告“模型产生非法 JSON”会掩盖更有价值的根因：<strong>生成被截断</strong>。优先分类为 <code>OUTPUT_TRUNCATED</code>，比盲目追加“请输出合法 JSON”更准确。</p>
+<p>类似地：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">refusal = "I cannot help with that"
+content = null</code></pre></div><p>如果先检查 <code>content is None</code>，就会误报空内容，而非拒答。因此应先检查拒答信号。</p>
+<p>又例如：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">provider_error = "HTTP 503"
+content = null</code></pre></div><p>应归类为上游服务不可用，而非模型没有输出。</p>
+<p><strong>推荐的处理顺序是：供应商异常 → 明确拒答 → 未完成状态 → 空内容 → JSON 与 Schema → 业务状态。</strong> 具体供应商响应字段的优先关系还应以其 API 文档为准。</p>
+<h2 id="section-27">15. 生产级边界：不要把校验器变成不可控的重试器</h2>
+<p>遇到模型结果不符合 Schema，一种常见做法是把原始结果和错误信息再发给模型要求修复。这可以是一种工程策略，但不应没有限制。</p>
+<ul>
+<li>确定哪些错误可修复：例如固定 Schema 下的缺字段。</li>
+<li>确定哪些不应该原样重试：拒答、信息不足、账号权限不足、确定性业务错误。</li>
+<li>限制尝试次数、总耗时和请求预算。</li>
+<li>避免将完整的敏感输入、内部系统提示和用户隐私数据回传给不必要的服务。</li>
+<li>对可能产生副作用的操作设置事务/幂等机制，不能因结构修复触发重复执行。</li>
+<li>记录重试前后是否真正通过验证，不要根据“看起来更通顺”判断。</li>
+</ul>
+<p><strong>特别注意：校验错误不一定能靠重试解决。</strong> 如果 Schema 本身定义错误、供应商不支持指定结构，重复请求只会造成延迟和资源消耗。</p>
+<h2 id="section-28">16. 流式响应中的结构化验证</h2>
+<p>流式模型返回的是连续增量，不一定构成完整 JSON。假设收到：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">chunk1: {"status": "answer
+chunk2: ed", "answer": "角色
+chunk3: 甲...", "citations": []}</code></pre></div><p>在收完所有增量之前，不能把半截字符串送进业务数据库，也不能执行依赖其字段的写入操作。</p>
+<p>正确区分：</p>
+<ul>
+<li><strong>UI 预览层</strong>：可以展示暂时的文字片段，但应明确“生成中”。</li>
+<li><strong>结构化消费层</strong>：等待结束事件，再对完整结果验证。</li>
+<li><strong>高风险执行层</strong>：只有验证全部通过且经过必要的授权/确认，才允许落库或调用产生副作用的工具。</li>
+<li><strong>异常结束</strong>：流断开、总超时、取消或生成截断时，应标记为未完成，不默认当作成功。</li>
+</ul>
+<p>如果采用支持增量结构化解析的库，还必须明确处理“当前暂不完整”和“最终不可接受”之间的区别。</p>
+<h2 id="section-29">17. 日志、错误暴露与安全边界</h2>
+<p>为了排错，需要知道模型失败类型，但不意味着应该将完整外部数据暴露给前端。</p>
+<p>建议在内部记录：</p>
+<ul>
+<li><code>request_id</code>、<code>session_id</code> 或任务标识（避免不必要的身份数据）。</li>
+<li>失败阶段：<code>provider / completion / json / schema / business</code>。</li>
+<li>错误代码及字段路径，例如 <code>citations.0.source_id: missing</code>。</li>
+<li>是否进行了重试、最终状态。</li>
+<li>可选的输入指纹/脱敏摘要，帮助定位重复问题。</li>
+</ul>
+<p>不应默认记录：API Key、私人聊天原文、用户密钥、完整未脱敏 Prompt、含个人信息的工具结果。</p>
+<p><code>ValidationError.errors()</code> 可能携带原始 <code>input</code>；对外构造 <code>details</code> 时只应复制经过审查的字段，如 <code>type</code> 和 <code>loc</code>。要注意 <code>loc</code> 中也可能含由外部数据决定的键名，需在严格隐私场景进一步过滤。</p>
+<h2 id="section-30">18. 自动化测试：用固定输入验证每种分流</h2>
+<p>单靠“模型返回过一次正确 JSON”不能证明错误处理可靠。下面的 <code>pytest</code> 用例不访问真实模型 API，利用受控 <code>ProviderMessage</code> 验证分类分支。</p>
+<p>保存为 <code>test_validation_demo.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> pytest
+<span class="hljs-keyword">from</span> validation_demo <span class="hljs-keyword">import</span> ProviderMessage, inspect_response
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">body</span>(<span class="hljs-params">status=<span class="hljs-string">"answered"</span>, answer=<span class="hljs-string">"角色甲的生命值为4"</span>, citations=<span class="hljs-literal">None</span>, missing=<span class="hljs-literal">None</span></span>):
+    <span class="hljs-keyword">return</span> json.dumps({<span class="hljs-string">"status"</span>: status, <span class="hljs-string">"answer"</span>: answer,
+                       <span class="hljs-string">"citations"</span>: [{<span class="hljs-string">"source_id"</span>:<span class="hljs-string">"rule-v2"</span>,<span class="hljs-string">"version"</span>:<span class="hljs-string">"2"</span>}] <span class="hljs-keyword">if</span> citations <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> citations,
+                       <span class="hljs-string">"missing_information"</span>: [] <span class="hljs-keyword">if</span> missing <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> missing}, ensure_ascii=<span class="hljs-literal">False</span>)
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params"><span class="hljs-string">"label,msg,expected"</span>, [
+    (<span class="hljs-params"><span class="hljs-string">"success"</span>, ProviderMessage(<span class="hljs-params">body(<span class="hljs-params"></span>)</span>), <span class="hljs-string">"ok"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"bad json"</span>, ProviderMessage(<span class="hljs-params"><span class="hljs-string">'{"status": '</span></span>), <span class="hljs-string">"invalid_json"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"missing"</span>, ProviderMessage(<span class="hljs-params"><span class="hljs-string">'{"status":"answered","answer":"a","citations":[]}'</span></span>), <span class="hljs-string">"missing_field"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"wrong type"</span>, ProviderMessage(<span class="hljs-params"><span class="hljs-string">'{"status":"answered","answer":2,"citations":[],"missing_information":[]}'</span></span>), <span class="hljs-string">"schema_invalid"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"refusal"</span>, ProviderMessage(<span class="hljs-params">body(<span class="hljs-params"></span>), refusal=<span class="hljs-string">"No"</span></span>), <span class="hljs-string">"refused"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"no evidence"</span>, ProviderMessage(<span class="hljs-params">body(<span class="hljs-params"><span class="hljs-string">"insufficient_information"</span>, <span class="hljs-literal">None</span>, [], [<span class="hljs-string">"游戏版本"</span>]</span>)</span>), <span class="hljs-string">"needs_more_info"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"truncated"</span>, ProviderMessage(<span class="hljs-params"><span class="hljs-string">'{"status":'</span>, finish_reason=<span class="hljs-string">"length"</span></span>), <span class="hljs-string">"incomplete"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"empty"</span>, ProviderMessage(<span class="hljs-params"><span class="hljs-string">""</span></span>), <span class="hljs-string">"empty"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"provider error"</span>, ProviderMessage(<span class="hljs-params"><span class="hljs-literal">None</span>, provider_error=<span class="hljs-string">"HTTP 503"</span></span>), <span class="hljs-string">"provider_failure"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"unknown source"</span>, ProviderMessage(<span class="hljs-params">body(<span class="hljs-params">citations=[{<span class="hljs-string">"source_id"</span>:<span class="hljs-string">"fake"</span>,<span class="hljs-string">"version"</span>:<span class="hljs-string">"0"</span>}]</span>)</span>), <span class="hljs-string">"unverified_source"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"logic mismatch"</span>, ProviderMessage(<span class="hljs-params">body(<span class="hljs-params"><span class="hljs-string">"answered"</span>, <span class="hljs-string">"a"</span>, []</span>)</span>), <span class="hljs-string">"schema_invalid"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"extra key"</span>, ProviderMessage(<span class="hljs-params"><span class="hljs-string">'{"status":"answered","answer":"a","citations":[{"source_id":"rule-v2","version":"2"}],"missing_information":[],"extra":10}'</span></span>), <span class="hljs-string">"schema_invalid"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"null response in answered"</span>, ProviderMessage(<span class="hljs-params">body(<span class="hljs-params"><span class="hljs-string">"answered"</span>, <span class="hljs-literal">None</span></span>)</span>), <span class="hljs-string">"schema_invalid"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"no missing info"</span>, ProviderMessage(<span class="hljs-params">body(<span class="hljs-params"><span class="hljs-string">"insufficient_information"</span>, <span class="hljs-literal">None</span>, [], []</span>)</span>), <span class="hljs-string">"schema_invalid"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"unusual finish"</span>, ProviderMessage(<span class="hljs-params">body(<span class="hljs-params"></span>), finish_reason=<span class="hljs-string">"tool_calls"</span></span>), <span class="hljs-string">"incomplete"</span></span>),
+]</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cases</span>(<span class="hljs-params">label, msg, expected</span>):
+    result = inspect_response(msg, {<span class="hljs-string">"rule-v2"</span>})
+    <span class="hljs-keyword">assert</span> result.status == expected, label
+    <span class="hljs-keyword">assert</span> result.code
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_leak_raw_input</span>():
+    result = inspect_response(ProviderMessage(<span class="hljs-string">'secret: 123'</span>), <span class="hljs-built_in">set</span>())
+    <span class="hljs-keyword">assert</span> <span class="hljs-string">'secret'</span> <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> <span class="hljs-built_in">str</span>(result.model_dump())
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_json_schema_generated</span>():
+    <span class="hljs-keyword">from</span> validation_demo <span class="hljs-keyword">import</span> ModelAnswer
+    schema = ModelAnswer.model_json_schema()
+    <span class="hljs-keyword">assert</span> <span class="hljs-string">'properties'</span> <span class="hljs-keyword">in</span> schema
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">set</span>(schema[<span class="hljs-string">'required'</span>]) == {<span class="hljs-string">'status'</span>,<span class="hljs-string">'answer'</span>,<span class="hljs-string">'citations'</span>,<span class="hljs-string">'missing_information'</span>}</code></pre></div><p>保存为 <code>test_api_demo.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> pytest
+<span class="hljs-keyword">from</span> fastapi.testclient <span class="hljs-keyword">import</span> TestClient
+<span class="hljs-keyword">from</span> api_demo <span class="hljs-keyword">import</span> app
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params"><span class="hljs-string">"scenario,code,status"</span>, [
+    (<span class="hljs-params"><span class="hljs-string">"ok"</span>, <span class="hljs-number">200</span>, <span class="hljs-string">"ok"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"missing"</span>, <span class="hljs-number">502</span>, <span class="hljs-string">"missing_field"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"refused"</span>, <span class="hljs-number">200</span>, <span class="hljs-string">"refused"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"needs_more"</span>, <span class="hljs-number">200</span>, <span class="hljs-string">"needs_more_info"</span></span>),
+    (<span class="hljs-params"><span class="hljs-string">"timeout"</span>, <span class="hljs-number">503</span>, <span class="hljs-string">"provider_failure"</span></span>),
+]</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_response_envelope</span>(<span class="hljs-params">scenario, code, status</span>):
+    r = TestClient(app).get(<span class="hljs-string">f"/demo/<span class="hljs-subst">{scenario}</span>"</span>)
+    <span class="hljs-keyword">assert</span> r.status_code == code
+    <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">"status"</span>] == status</code></pre></div><p>执行：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pip install <span class="hljs-string">'fastapi&gt;=0.100'</span> <span class="hljs-string">'httpx&gt;=0.27'</span> <span class="hljs-string">'pydantic&gt;=2,&lt;3'</span> pytest
+python -m pytest -q</code></pre></div><p>本次示例在指定运行环境中实测 <strong>22 项测试通过</strong>：17 项输出分类/Schema 相关测试，5 项 FastAPI 接口封装测试。测试使用固定模拟响应，<strong>不是付费模型真实调用，不代表模型线上正确率</strong>。</p>
+<p>覆盖情况包括：</p>
+<table>
+<thead>
+<tr>
+<th>测试样例</th>
+<th>预期状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>正常合法结果</td>
+<td><code>ok</code></td>
+</tr>
+<tr>
+<td>不能解析 JSON</td>
+<td><code>invalid_json</code></td>
+</tr>
+<tr>
+<td>必填字段缺失</td>
+<td><code>missing_field</code></td>
+</tr>
+<tr>
+<td>字段类型错误</td>
+<td><code>schema_invalid</code></td>
+</tr>
+<tr>
+<td>显式拒答</td>
+<td><code>refused</code></td>
+</tr>
+<tr>
+<td>资料不足并明确缺项</td>
+<td><code>needs_more_info</code></td>
+</tr>
+<tr>
+<td>输出长度截断</td>
+<td><code>incomplete</code></td>
+</tr>
+<tr>
+<td>空输出</td>
+<td><code>empty</code></td>
+</tr>
+<tr>
+<td>供应商返回异常</td>
+<td><code>provider_failure</code></td>
+</tr>
+<tr>
+<td>引用未知资料 ID</td>
+<td><code>unverified_source</code></td>
+</tr>
+<tr>
+<td>状态与答案不一致</td>
+<td><code>schema_invalid</code></td>
+</tr>
+<tr>
+<td>不允许的额外字段</td>
+<td><code>schema_invalid</code></td>
+</tr>
+<tr>
+<td>前端收到稳定业务状态</td>
+<td>HTTP 分支检查通过</td>
+</tr>
+</tbody></table>
+<h3 id="section-31">18.1 还需要与真实服务验证的内容</h3>
+<ul>
+<li>对真实 SDK 正确提取 <code>refusal</code>、<code>finish_reason</code>、<code>content</code>。</li>
+<li>严格结构化输出是否受当前模型及 Schema 支持。</li>
+<li>返回流断开/请求取消后是否残留半成品业务记录。</li>
+<li>来源 ID 是否确实对应可访问的资料版本和支持答案的片段。</li>
+<li>不同用户会话之间的数据隔离与授权。</li>
+</ul>
+<p>这些超出了本次离线测试的范围，不能仅凭上述测试声称已经验证。</p>
+<h2 id="section-32">19. 常见错误设计及对应后果</h2>
+<table>
+<thead>
+<tr>
+<th>错误做法</th>
+<th>后果</th>
+<th>正确思路</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>json.loads()</code> 成功就写入数据库</td>
+<td>格式正确但字段/业务无效</td>
+<td>再经 Pydantic 与业务验证</td>
+</tr>
+<tr>
+<td>所有异常都 <code>except Exception: return None</code></td>
+<td>调用方无法区分原因</td>
+<td>对外使用明确状态和代码</td>
+</tr>
+<tr>
+<td>把 <code>answer: str | None</code> 视为可省略</td>
+<td>漏字段时误判</td>
+<td>正确认识 required 与 nullable</td>
+</tr>
+<tr>
+<td>给所有字段设默认值</td>
+<td>模型遗漏被掩盖</td>
+<td>必填字段不提供默认值</td>
+</tr>
+<tr>
+<td>把 <code>refusal</code> 当普通文本解析</td>
+<td>拒答被误判为非法 JSON</td>
+<td>先识别供应商专用拒答</td>
+</tr>
+<tr>
+<td>把信息不足当服务异常</td>
+<td>无意义重试</td>
+<td>请求补充条件或新资料</td>
+</tr>
+<tr>
+<td>把截断 JSON 当纯模型格式错误</td>
+<td>根因被隐藏</td>
+<td>优先检查完成状态</td>
+</tr>
+<tr>
+<td>自动接受模型编造的来源 ID</td>
+<td>虚假引用获得信任</td>
+<td>检查可访问来源及其实际内容</td>
+</tr>
+<tr>
+<td>将 Pydantic 错误原文返回前端</td>
+<td>潜在泄漏内部结构或敏感数据</td>
+<td>提取安全错误码与字段路径</td>
+</tr>
+<tr>
+<td>在流式中途就执行工具/写入</td>
+<td>半成品数据、不可逆副作用</td>
+<td>完成且通过验证再执行</td>
+</tr>
+</tbody></table>
+<h2 id="section-33">20. 总结：四类场景的确定性处理模型</h2>
+<p>将知识归纳为一个可执行的判断树：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">拿到一次模型执行结果
+   │
+   ├── 供应商/网络失败？ ── 是 → UPSTREAM_ERROR / TIMEOUT
+   │
+   ├── 显式拒答？ ─────── 是 → MODEL_REFUSAL
+   │
+   ├── 非正常完成/截断？ ─ 是 → OUTPUT_TRUNCATED / INCOMPLETE
+   │
+   ├── 无内容？ ───────── 是 → EMPTY_OUTPUT
+   │
+   ├── JSON 不可解析？ ── 是 → INVALID_JSON
+   │
+   ├── Pydantic 缺字段？ ─ 是 → REQUIRED_FIELD_MISSING
+   │
+   ├── 类型/跨字段错误？ ── 是 → SCHEMA_VALIDATION_FAILED
+   │
+   ├── 资料/来源边界无效？ 是 → UNKNOWN_SOURCE / BUSINESS_INVALID
+   │
+   ├── status=insufficient_information
+   │                    └─→ NEEDS_MORE_INFO（告知缺项）
+   │
+   └── status=answered ─────→ SUCCESS（向调用方提供合法结构）</code></pre></div><p><strong>本节最核心的结论：Pydantic 负责把不可靠的模型文本变成符合程序契约的数据；但模型拒答、上游执行状态和业务信息不足，需要与 Pydantic 协作组成一个更完整的结果处理层。调用方应该读稳定的错误代码和业务状态，而不是猜测自由文本。</strong></p>
+<hr />
+<h2 id="section-34">参考资料</h2>
+<ol>
+<li><strong>Pydantic 官方：BaseModel / 验证 JSON</strong><br /><a href="https://docs.pydantic.dev/latest/api/base_model/">https://docs.pydantic.dev/latest/api/base_model/</a><br /><a href="https://docs.pydantic.dev/latest/concepts/models/">https://docs.pydantic.dev/latest/concepts/models/</a></li>
+<li><strong>Pydantic 官方：Validators、Validation Errors、Configuration</strong><br /><a href="https://docs.pydantic.dev/latest/concepts/validators/">https://docs.pydantic.dev/latest/concepts/validators/</a><br /><a href="https://docs.pydantic.dev/latest/errors/errors/">https://docs.pydantic.dev/latest/errors/errors/</a><br /><a href="https://docs.pydantic.dev/latest/api/config/">https://docs.pydantic.dev/latest/api/config/</a></li>
+<li><strong>OpenAI 官方：Structured Outputs 与拒答处理</strong><br /><a href="https://developers.openai.com/api/docs/guides/structured-outputs">https://developers.openai.com/api/docs/guides/structured-outputs</a></li>
+<li><strong>FastAPI 官方：HTTP 错误与异常处理</strong><br /><a href="https://fastapi.tiangolo.com/tutorial/handling-errors/">https://fastapi.tiangolo.com/tutorial/handling-errors/</a></li>
+<li><strong>FastAPI 官方：响应状态码</strong><br /><a href="https://fastapi.tiangolo.com/tutorial/response-status-code/">https://fastapi.tiangolo.com/tutorial/response-status-code/</a></li>
+</ol>
+<blockquote>
+<p>以上内容使用的是 Pydantic v2 风格 API。不同模型供应商和 SDK 对拒答字段、结束状态、严格结构化输出的支持不同，接入时需按所用版本核对官方接口。</p>
+</blockquote>

@@ -1,0 +1,968 @@
+<h1 id="section-1">HTTP 服务、SQL、数据库与缓存（七）</h1>
+<h1 id="section-2">身份认证、数据访问范围与后端授权控制</h1>
+<blockquote>
+<p><strong>对应学习目标</strong>：身份校验与数据访问范围，在后端检查用户是否有权读取和修改数据。</p>
+<p>范围：概念、信任边界、API 认证、对象与字段授权、多租户隔离、数据库查询与事务、PostgreSQL RLS、异步访问、Agent 与缓存、故障与测试。文档是独立知识资料，不依赖前面章节。</p>
+<p>参考技术：Python 3.13、FastAPI、Pydantic v2、SQLAlchemy 2.x、PostgreSQL、PyJWT。示例使用 SQLite 便于离线测试；生产化注意事项单独列出。</p>
+</blockquote>
+<h2 id="section-3">目录</h2>
+<ol>
+<li>认证、授权与数据范围的根本区别</li>
+<li>身份信息如何成为可信上下文</li>
+<li>Token、JWT、服务端 Session 与 Cookie</li>
+<li>权限模型：RBAC、ABAC、ReBAC</li>
+<li>对象、功能、字段与租户四种授权维度</li>
+<li>BOLA / IDOR：为什么知道 ID 不等于有权限</li>
+<li>从 FastAPI 请求到数据库查询的安全执行链</li>
+<li>SQL 层的访问范围约束</li>
+<li>修改与删除：把权限检查纳入实际 SQL</li>
+<li>创建操作与字段级授权</li>
+<li>HTTP 状态码与错误信息边界</li>
+<li>PostgreSQL Row-Level Security（RLS）</li>
+<li>SQLAlchemy Session、事务与权限变更</li>
+<li>缓存、后台任务、Agent、RAG 的权限传递</li>
+<li>授权策略架构与审计</li>
+<li>常见错误写法与修复</li>
+<li>完整 FastAPI + SQLAlchemy 教学实现</li>
+<li>自动化测试</li>
+<li>测试结果与验证边界</li>
+<li>进一步阅读与参考资料</li>
+</ol>
+<hr />
+<h2 id="section-4">1. 认证、授权与数据范围的根本区别</h2>
+<h3 id="section-5">1.1 Authentication：你是谁</h3>
+<p>身份认证的任务是把一次 HTTP 请求与一个可信身份主体（Principal）关联起来。主体可以是用户、服务账户、后台 Worker 或代表某个用户执行的代理。认证一般需要校验凭据，而不是直接读取客户端传入的 <code>user_id</code>。</p>
+<p>认证的常见输入包括：登录后颁发的 Access Token、带保护的 Cookie 会话、API Key、服务间工作负载身份。有效凭据仅支持“此请求可归属于哪个主体”这一结论；它不能直接证明该主体拥有任何特定数据的读取权。</p>
+<h3 id="section-6">1.2 Authorization：你可以做什么</h3>
+<p>授权判断至少需要四类信息：</p>
+<ul>
+<li><strong>Subject（主体）</strong>：已经认证的用户或服务身份，以及当前角色、所属租户等属性。</li>
+<li><strong>Action（动作）</strong>：读取、创建、修改、删除、导出、发送、调用工具等。</li>
+<li><strong>Resource（资源）</strong>：具体笔记、订单、对话、反馈、工具执行结果等。</li>
+<li><strong>Context（上下文）</strong>：所属组织、所有者、记录状态、时间、任务用途及其他业务条件。</li>
+</ul>
+<p>可把授权判定抽象为：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">allow = Policy(subject, action, resource, context)</code></pre></div><p>策略未允许的操作应默认拒绝（deny by default）。<code>authenticated = True</code> 并不推出 <code>authorized = True</code>。</p>
+<h3 id="section-7">1.3 数据访问范围（Data Scope）</h3>
+<p>范围不仅是“接口是否可调用”，更是“接口能够触及哪些记录”。例如，拥有 <code>GET /conversations</code> 权限的普通用户，仅应看到被授权的会话，而不能看到全站所有会话。</p>
+<p>三层检查要分别存在：</p>
+<ol>
+<li><strong>功能级</strong>：可否执行 <code>list_notes</code>、<code>delete_note</code>？</li>
+<li><strong>对象级</strong>：可否访问 <code>note_id=102</code>？</li>
+<li><strong>字段级</strong>：可否读取或修改 <code>owner_id</code>、<code>role</code>、<code>is_admin</code> 等字段？</li>
+</ol>
+<p>只做第一层而忽略后两层，会造成严重的越权风险。</p>
+<h2 id="section-8">2. 身份信息如何成为可信上下文</h2>
+<p>客户端能够控制 URL、请求体、查询参数、绝大多数请求头，甚至能够在自己本地修改前端代码。因此这些内容都只能视为请求数据，而不能自动视为权限依据。</p>
+<h3 id="section-9">2.1 可信主体的建立</h3>
+<p>一个典型的 Bearer Token 认证过程：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Authorization: Bearer &lt;access_token&gt;
+        ↓
+检查凭据存在、形式正确
+        ↓
+验证签名或向可信认证服务校验
+        ↓
+校验过期时间、签发者、受众、必要声明
+        ↓
+解析 sub 等稳定身份标识
+        ↓
+查询用户是否存在、是否停用
+        ↓
+建立 RequestPrincipal(user_id=...)</code></pre></div><p>对 JWT，特别需要检查：</p>
+<ul>
+<li><code>iss</code>：谁签发；</li>
+<li><code>aud</code>：令牌供哪一个服务使用；</li>
+<li><code>exp</code>：何时失效；</li>
+<li><code>iat</code>、<code>nbf</code>：签发与生效时间（按使用的令牌契约验证）；</li>
+<li><code>sub</code>：身份主体标识；</li>
+<li>签名算法：必须由服务器配置允许列表，而非信任令牌头部要求；</li>
+<li>账户状态与撤销策略：签名有效不等于当前账号仍然有权访问。</li>
+</ul>
+<h3 id="section-10">2.2 为什么不能相信客户端发送的 <code>user_id</code></h3>
+<p>以下写法存在越权风险：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">'/users/{user_id}/messages'</span></span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">list_messages</span>(<span class="hljs-params">user_id: <span class="hljs-built_in">int</span></span>):
+    <span class="hljs-keyword">return</span> database.get_messages(user_id=user_id)</code></pre></div><p>如果没有认证与授权，任何人可以把 URL 改成其他用户的 ID。</p>
+<p>正确策略是：从服务器认证产生的 <code>principal.user_id</code> 开始，构造受限查询。如果确实是管理员代查，也需要通过独立的管理员授权路径，而不是默认信任传入的 <code>user_id</code>。</p>
+<h3 id="section-11">2.3 账号停用与权限撤销</h3>
+<p>JWT 可以在签发后继续有效直至过期，但用户的角色或账号状态可能已经改变。因此：</p>
+<ul>
+<li>需要及时撤销的角色、成员资格等，应以当前可信服务端状态为依据；</li>
+<li>会话撤销可使用短有效期、令牌版本、撤销记录等机制；</li>
+<li>多级缓存会影响权限撤销传播延迟，必须建立可接受的时效策略。</li>
+</ul>
+<h2 id="section-12">3. Token、JWT、服务端 Session 与 Cookie</h2>
+<h3 id="section-13">3.1 JWT 是一种携带声明的令牌格式</h3>
+<p>JWT 的常见签名形式为 <code>header.payload.signature</code>。<strong>签名不等于加密</strong>：普通 JWT 的载荷可以被解码查看，不能把敏感秘密当作安全地存放在签名 JWT 中。</p>
+<p>JWT 的优点是服务端可以在符合信任前提时直接验证签名；但撤销、权限变化和密钥轮换需另外设计。</p>
+<h3 id="section-14">3.2 不透明 Token 与服务端 Session</h3>
+<p>不透明 Token 本身不暴露业务声明，后端通过数据库、缓存或认证服务查找会话主体。优点包括服务端可以直接失效；代价是增加状态查询或认证服务依赖。</p>
+<h3 id="section-15">3.3 Cookie 与 Bearer Token 的安全差异</h3>
+<ul>
+<li>Cookie 常用于浏览器登录态；应评估 <code>HttpOnly</code>、<code>Secure</code>、<code>SameSite</code>、CSRF 防护等。</li>
+<li><code>Authorization: Bearer</code> 常用于 API；应重视令牌泄漏、前端存储方式、XSS 与 HTTPS。</li>
+<li>使用 Bearer Token 不代表没有任何浏览器安全问题；具体风险取决于令牌如何保存和发送。</li>
+</ul>
+<p>Access Token、Refresh Token 和 ID Token 的目的不应混用。对外部身份提供方的 OIDC ID Token，不能未经 API 接口受众检查便当作本 API 的 Access Token。</p>
+<h2 id="section-16">4. 权限模型：RBAC、ABAC、ReBAC</h2>
+<h3 id="section-17">4.1 RBAC：基于角色</h3>
+<p>定义角色与权限关系，例如：</p>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>查看自己的笔记</th>
+<th>修改自己的笔记</th>
+<th>查看本租户所有笔记</th>
+<th>修改其他租户笔记</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>普通成员</td>
+<td>允许</td>
+<td>允许</td>
+<td>拒绝</td>
+<td>拒绝</td>
+</tr>
+<tr>
+<td>本租户管理员</td>
+<td>允许</td>
+<td>允许</td>
+<td>允许</td>
+<td>拒绝</td>
+</tr>
+</tbody></table>
+<p>注意“管理员”通常也需要作用域：<strong>租户管理员不等于平台全局管理员</strong>。</p>
+<h3 id="section-18">4.2 ABAC：基于属性</h3>
+<p>由用户属性、记录属性和环境条件共同决策，例如：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">allow = (
+    actor.active
+    <span class="hljs-keyword">and</span> actor.tenant_id == document.tenant_id
+    <span class="hljs-keyword">and</span> (actor.<span class="hljs-built_in">id</span> == document.owner_id <span class="hljs-keyword">or</span> actor.role == <span class="hljs-string">'admin'</span>)
+    <span class="hljs-keyword">and</span> document.status != <span class="hljs-string">'locked'</span>
+)</code></pre></div><p>这段只说明判断思想，真实实现还需要避免把客户端提供的 <code>actor.role</code> 当作可信值。</p>
+<h3 id="section-19">4.3 ReBAC：基于关系</h3>
+<p>某个用户是否可以访问一份文件，由 <code>user → belongs_to → team → owns → file</code> 等关系决定。适合文档共享、组织协作、项目成员和复杂资源授权。</p>
+<h3 id="section-20">4.4 多种模型往往同时使用</h3>
+<p>真实系统通常组合：功能级 RBAC、数据级所有者判断、资源分享关系以及状态约束。单独使用角色名不足以表达所有权限。</p>
+<h2 id="section-21">5. 对象、功能、字段与租户四种授权维度</h2>
+<h3 id="section-22">5.1 功能级：能否调用这个动作</h3>
+<p>例如，普通用户可以查看反馈，但不能导出全租户反馈；管理员可能有导出权限。这是功能级授权。</p>
+<h3 id="section-23">5.2 对象级：能否访问这个具体 ID</h3>
+<p>例如，用户 A 可以调用 <code>GET /notes/{id}</code>，但只能读取自己拥有或被分享的那条记录。不能用“接口对普通用户开放”推出“所有 note 都可以读取”。</p>
+<h3 id="section-24">5.3 字段级：能否读取、修改具体字段</h3>
+<p>一条记录可能包括：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"title"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"一个反馈"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"body"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"正文"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"owner_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"tenant_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"internal_risk_score"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0.91</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"approved"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">false</span></span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>普通用户可以修改 <code>title</code> 和 <code>body</code>，但不能传入 <code>owner_id</code>、<code>tenant_id</code>、<code>approved</code> 改变归属或审批结果，也不一定能读取 <code>internal_risk_score</code>。</p>
+<p>应定义不同的 Pydantic 输入与响应模型，并尽可能把后台控制字段完全排除出用户可写 Schema。</p>
+<h3 id="section-25">5.4 租户级：任何用户操作都不能跨越租户隔离边界</h3>
+<p>多租户系统中，通常应同时约束：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">resource.tenant_id == authorized_tenant_id
+AND (
+  resource.owner_id == current_user.id
+  OR current_user.has_tenant_admin_permission
+)</code></pre></div><p>这里只是示意；如果业务存在共享记录或团队权限，需要把真实分享关系加入策略，而不是随意放宽到整租户。</p>
+<h2 id="section-26">6. BOLA / IDOR：为什么知道 ID 不等于有权限</h2>
+<p>OWASP API1:2023 Broken Object Level Authorization（BOLA）描述了 API 接受对象标识，却没有对该对象执行充分授权检查的问题。IDOR（Insecure Direct Object Reference）是与此高度相关的传统术语。</p>
+<p>脆弱示例：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">'/notes/{note_id}'</span></span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">get_note</span>(<span class="hljs-params">note_id: <span class="hljs-built_in">int</span>, db: Session</span>):
+    <span class="hljs-keyword">return</span> db.get(Note, note_id)</code></pre></div><p>它能查到任何存在的笔记，完全没有考虑当前用户、租户或权限。</p>
+<p>加上随机 UUID 可能降低“猜测”便利性，却<strong>不会使越权访问自动安全</strong>。对象 ID 可能通过日志、链接、浏览器缓存、搜索接口或正常业务泄露，权限验证仍不可省略。</p>
+<p>正确思路是把授权范围直接合并到查询：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">stmt = select(Note).where(
+    Note.<span class="hljs-built_in">id</span> == note_id,
+    Note.tenant_id == allowed_tenant_id,
+    Note.owner_id == authenticated_user_id,
+)</code></pre></div><p>如果业务允许管理员查看本租户所有记录，应根据可信成员资格改变额外条件，而不是删除所有范围约束。</p>
+<h2 id="section-27">7. 从 FastAPI 请求到数据库查询的安全执行链</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">HTTP Request
+  │
+  ├─ Bearer Token / Cookie
+  ▼
+Authentication Dependency
+  │ 检查签名、过期、用户存在与状态
+  ▼
+Authenticated Principal
+  │ 当前可信 user_id
+  ▼
+Authorization Policy
+  │ 校验当前 tenant membership、role、action
+  ▼
+Scoped Repository Query
+  │ WHERE tenant_id = ... AND owner_id = ...
+  ▼
+Database Transaction
+  │ 执行受限 SELECT/INSERT/UPDATE/DELETE
+  ▼
+Response Model
+  │ 只序列化被允许的字段
+  ▼
+HTTP Response</code></pre></div><h3 id="section-28">7.1 FastAPI Dependency 的职责</h3>
+<p><code>Depends()</code> 可以集中管理认证依赖，避免每个路由独立解析 Token。业务授权则应继续在资源访问处做检查，因为身份有效不代表能访问某条记录。</p>
+<h3 id="section-29">7.2 不应把全部授权放到前端</h3>
+<p>前端可以隐藏不可用操作、减少误触，但这只是用户体验。用户可以跳过网页直接发送 HTTP 请求，所以最终授权必须由服务器端检查。</p>
+<h3 id="section-30">7.3 不应把全部授权放到 Prompt</h3>
+<p>对 Agent / AI 服务，模型可以建议读取某个资源；真正的工具执行层必须依据可信主体验证参数、操作和目标。Prompt 不能替代数据库查询的访问范围限制。</p>
+<h2 id="section-31">8. SQL 层的访问范围约束</h2>
+<h3 id="section-32">8.1 列表查询也要过滤</h3>
+<p>最常见的安全漏洞之一是详情接口做了授权，但分页列表、搜索、导出、统计接口没有限制数据范围。</p>
+<p>普通成员的查询：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">SELECT</span> id, tenant_id, owner_id, title, body
+<span class="hljs-keyword">FROM</span> notes
+<span class="hljs-keyword">WHERE</span> tenant_id <span class="hljs-operator">=</span> :tenant_id
+  <span class="hljs-keyword">AND</span> owner_id <span class="hljs-operator">=</span> :current_user_id
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> id
+LIMIT :limit;</code></pre></div><p>本租户管理员的查询：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">SELECT</span> id, tenant_id, owner_id, title, body
+<span class="hljs-keyword">FROM</span> notes
+<span class="hljs-keyword">WHERE</span> tenant_id <span class="hljs-operator">=</span> :tenant_id
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> id
+LIMIT :limit;</code></pre></div><p>其中 <code>tenant_id</code> 必须经过成员资格验证，<code>current_user_id</code> 来自可信认证上下文。</p>
+<h3 id="section-33">8.2 授权前过滤还是查询后检查</h3>
+<p>建议优先将范围约束加入查询本身，减少误把未授权记录加载到应用层、缓存层或日志中的机会。额外的应用层检查可以存在，但不应取代受限查询。</p>
+<h3 id="section-34">8.3 防止复杂 JOIN 泄漏数据</h3>
+<p>当查询中存在 <code>JOIN</code> 时，权限条件不能因为关联关系变化而丢失。例如某笔记属于租户 10，其附件表如果通过不充分的关联条件加载，仍可能泄漏其他租户的附件。</p>
+<p>跨租户关联可考虑复合外键、联表条件、数据库 RLS 与自动化测试共同保护。</p>
+<h3 id="section-35">8.4 SQL 参数化</h3>
+<p><code>WHERE owner_id = :uid</code> 这种绑定参数形式与字符串拼接 SQL 不同。权限约束应通过 ORM 表达式或安全参数化 SQL 构造，不能把用户输入直接拼到 SQL 文本中。</p>
+<h2 id="section-36">9. 修改与删除：把权限检查纳入实际 SQL</h2>
+<h3 id="section-37">9.1 典型竞态：先查权限，再执行无范围 UPDATE</h3>
+<p>错误的思路：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">SELECT 找到 note 101 → 检查所有权
+        ↓ 另一事务改变归属
+UPDATE notes SET ... WHERE id = 101</code></pre></div><p>权限依赖的资源状态可能发生变化。尤其在并发环境中，应把目标资源、租户、所有权与版本条件纳入最终修改语句，必要时再结合事务锁或更严格隔离级别。</p>
+<h3 id="section-38">9.2 带范围和版本的条件更新</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">UPDATE</span> notes
+<span class="hljs-keyword">SET</span> title <span class="hljs-operator">=</span> :title,
+    version <span class="hljs-operator">=</span> version <span class="hljs-operator">+</span> <span class="hljs-number">1</span>
+<span class="hljs-keyword">WHERE</span> id <span class="hljs-operator">=</span> :note_id
+  <span class="hljs-keyword">AND</span> tenant_id <span class="hljs-operator">=</span> :tenant_id
+  <span class="hljs-keyword">AND</span> owner_id <span class="hljs-operator">=</span> :current_user_id
+  <span class="hljs-keyword">AND</span> version <span class="hljs-operator">=</span> :expected_version;</code></pre></div><p>检查受影响行数：</p>
+<ul>
+<li>行数为 1：本次有条件修改成功，可进入事务提交；</li>
+<li>行数为 0：可能是记录不存在、无权限或版本冲突；</li>
+<li>需要区分版本冲突时，只能在授权范围内进一步查询，不应通过额外查询泄漏未经授权记录的存在。</li>
+</ul>
+<p><code>WHERE version = ...</code> 是乐观并发控制，能够防止旧版本覆盖新版本；它与身份授权是两个不同条件。</p>
+<h3 id="section-39">9.3 删除同理</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">DELETE</span> <span class="hljs-keyword">FROM</span> notes
+<span class="hljs-keyword">WHERE</span> id <span class="hljs-operator">=</span> :note_id
+  <span class="hljs-keyword">AND</span> tenant_id <span class="hljs-operator">=</span> :tenant_id
+  <span class="hljs-keyword">AND</span> owner_id <span class="hljs-operator">=</span> :current_user_id;</code></pre></div><p>只有通过所有范围条件的记录才会被删除。在涉及共享资源、合规保留、软删除与审计的场景，需要更复杂的业务规则。</p>
+<h2 id="section-40">10. 创建操作与字段级授权</h2>
+<h3 id="section-41">10.1 创建时不要接受客户端传入的归属字段</h3>
+<p>错误：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">note = Note(**request.model_dump())</code></pre></div><p>如果 <code>request</code> 中包含 <code>owner_id</code> 或 <code>tenant_id</code>，可能触发 Mass Assignment（批量赋值越权）。</p>
+<p>正确做法：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">note = Note(
+    owner_id=authenticated_user.<span class="hljs-built_in">id</span>,
+    tenant_id=authorized_tenant_id,
+    title=request.title,
+    body=request.body,
+)</code></pre></div><h3 id="section-42">10.2 字段白名单优于字段黑名单</h3>
+<p>明确只允许 <code>title</code> 和 <code>body</code>，比允许所有字段后排除若干敏感字段更稳健。<code>Pydantic ConfigDict(extra="forbid")</code> 能帮助拒绝未声明字段，但重要字段的业务权限仍需在后端检查。</p>
+<h3 id="section-43">10.3 响应字段也需要控制</h3>
+<p>即便 SQL 查询到了更多字段，也不应该直接返回 ORM 实例的所有内部数据。可使用独立的 <code>NoteOut</code> 响应模型，仅暴露已授权的字段。</p>
+<h2 id="section-44">11. HTTP 状态码与错误信息边界</h2>
+<table>
+<thead>
+<tr>
+<th>状态码</th>
+<th>通常表示</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>401 Unauthorized</code></td>
+<td>没有通过认证</td>
+<td>Token 缺失、过期或签名无效</td>
+</tr>
+<tr>
+<td><code>403 Forbidden</code></td>
+<td>身份有效，但不允许该操作</td>
+<td>普通用户尝试调用管理员专用功能</td>
+</tr>
+<tr>
+<td><code>404 Not Found</code></td>
+<td>资源不存在，或选择隐藏无权限对象的存在</td>
+<td>读取别人的私有笔记</td>
+</tr>
+<tr>
+<td><code>409 Conflict</code></td>
+<td>业务状态冲突</td>
+<td>记录版本已变化</td>
+</tr>
+<tr>
+<td><code>422 Unprocessable Content</code></td>
+<td>输入不满足契约</td>
+<td>试图修改 <code>owner_id</code> 等不允许字段</td>
+</tr>
+</tbody></table>
+<p>选择对越权对象返回 <code>403</code> 还是 <code>404</code>，取决于产品与安全策略。对于私有数据，统一的 <code>404</code> 往往可以减少对象存在性泄漏；但应避免通过不同响应体、耗时和列表总数暴露敏感信息。</p>
+<p>认证失败与授权失败必须区分，不能把所有权限问题都响应 <code>500</code>。</p>
+<h2 id="section-45">12. PostgreSQL Row-Level Security（RLS）</h2>
+<h3 id="section-46">12.1 RLS 的定位</h3>
+<p>PostgreSQL 的 Row-Level Security 可以让数据库在执行 <code>SELECT</code>、<code>INSERT</code>、<code>UPDATE</code>、<code>DELETE</code> 时直接应用行访问策略，成为应用层授权的补充防线。</p>
+<p>基本示意（假设 <code>notes</code> 已有 <code>tenant_id</code>、<code>owner_id</code> 两列，且值为 BIGINT）：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">ALTER TABLE</span> notes ENABLE <span class="hljs-type">ROW</span> LEVEL SECURITY;
+<span class="hljs-keyword">ALTER TABLE</span> notes FORCE <span class="hljs-type">ROW</span> LEVEL SECURITY;
+
+<span class="hljs-keyword">CREATE</span> POLICY notes_owner_select <span class="hljs-keyword">ON</span> notes
+<span class="hljs-keyword">FOR</span> <span class="hljs-keyword">SELECT</span>
+<span class="hljs-keyword">USING</span> (
+  tenant_id <span class="hljs-operator">=</span> <span class="hljs-built_in">NULLIF</span>(current_setting(<span class="hljs-string">'app.tenant_id'</span>, <span class="hljs-literal">true</span>), <span class="hljs-string">''</span>)::<span class="hljs-type">bigint</span>
+  <span class="hljs-keyword">AND</span> owner_id <span class="hljs-operator">=</span> <span class="hljs-built_in">NULLIF</span>(current_setting(<span class="hljs-string">'app.user_id'</span>, <span class="hljs-literal">true</span>), <span class="hljs-string">''</span>)::<span class="hljs-type">bigint</span>
+);
+
+<span class="hljs-keyword">CREATE</span> POLICY notes_owner_insert <span class="hljs-keyword">ON</span> notes
+<span class="hljs-keyword">FOR</span> <span class="hljs-keyword">INSERT</span>
+<span class="hljs-keyword">WITH</span> <span class="hljs-keyword">CHECK</span> (
+  tenant_id <span class="hljs-operator">=</span> <span class="hljs-built_in">NULLIF</span>(current_setting(<span class="hljs-string">'app.tenant_id'</span>, <span class="hljs-literal">true</span>), <span class="hljs-string">''</span>)::<span class="hljs-type">bigint</span>
+  <span class="hljs-keyword">AND</span> owner_id <span class="hljs-operator">=</span> <span class="hljs-built_in">NULLIF</span>(current_setting(<span class="hljs-string">'app.user_id'</span>, <span class="hljs-literal">true</span>), <span class="hljs-string">''</span>)::<span class="hljs-type">bigint</span>
+);
+
+<span class="hljs-keyword">CREATE</span> POLICY notes_owner_update <span class="hljs-keyword">ON</span> notes
+<span class="hljs-keyword">FOR</span> <span class="hljs-keyword">UPDATE</span>
+<span class="hljs-keyword">USING</span> (
+  tenant_id <span class="hljs-operator">=</span> <span class="hljs-built_in">NULLIF</span>(current_setting(<span class="hljs-string">'app.tenant_id'</span>, <span class="hljs-literal">true</span>), <span class="hljs-string">''</span>)::<span class="hljs-type">bigint</span>
+  <span class="hljs-keyword">AND</span> owner_id <span class="hljs-operator">=</span> <span class="hljs-built_in">NULLIF</span>(current_setting(<span class="hljs-string">'app.user_id'</span>, <span class="hljs-literal">true</span>), <span class="hljs-string">''</span>)::<span class="hljs-type">bigint</span>
+)
+<span class="hljs-keyword">WITH</span> <span class="hljs-keyword">CHECK</span> (
+  tenant_id <span class="hljs-operator">=</span> <span class="hljs-built_in">NULLIF</span>(current_setting(<span class="hljs-string">'app.tenant_id'</span>, <span class="hljs-literal">true</span>), <span class="hljs-string">''</span>)::<span class="hljs-type">bigint</span>
+  <span class="hljs-keyword">AND</span> owner_id <span class="hljs-operator">=</span> <span class="hljs-built_in">NULLIF</span>(current_setting(<span class="hljs-string">'app.user_id'</span>, <span class="hljs-literal">true</span>), <span class="hljs-string">''</span>)::<span class="hljs-type">bigint</span>
+);</code></pre></div><p>这个例子表达的是“普通成员只能访问自己的记录”，没有实现管理员访问规则；真实系统要结合完整角色模型、表权限与不同操作的策略。管理员需求不能简单通过信任客户端传入 <code>app.is_admin=true</code> 实现。</p>
+<h3 id="section-47">12.2 将可信用户上下文绑定到数据库事务</h3>
+<p>在连接池环境下，应避免把上一个请求的租户 ID 永久保留在数据库连接中。一种思路是为<strong>当前事务</strong>设置会话参数：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">SELECT</span> set_config(<span class="hljs-string">'app.user_id'</span>, :authenticated_user_id, <span class="hljs-literal">true</span>);
+<span class="hljs-keyword">SELECT</span> set_config(<span class="hljs-string">'app.tenant_id'</span>, :authorized_tenant_id, <span class="hljs-literal">true</span>);</code></pre></div><p>第三个参数 <code>true</code> 指事务局部有效。应用必须先完成可信身份验证与租户授权，然后才设置这些参数；在事务中执行受保护查询，完成后事务结束。</p>
+<h3 id="section-48">12.3 RLS 的边界</h3>
+<ol>
+<li>数据库超级用户与具有 <code>BYPASSRLS</code> 属性的角色会绕过 RLS。</li>
+<li>表所有者通常可绕过 RLS；<code>FORCE ROW LEVEL SECURITY</code> 能让表所有者也受策略约束，但不影响超级用户等其他绕过角色。</li>
+<li>RLS 不是替代身份认证的机制；它需要可信的数据库角色或安全设置的会话上下文。</li>
+<li>外键与唯一性检查具有特殊的完整性语义，不能假设所有数据库机制都遵循相同的 RLS 过滤视图。</li>
+<li>多条策略的 OR/AND 组合、复杂视图、<code>SECURITY DEFINER</code> 函数、后台任务和迁移账号，都需要专门审查。</li>
+<li>单独启用 RLS，不会自动实现复杂的功能级权限或所有字段级权限。</li>
+</ol>
+<p>因此推荐使用非特权应用数据库账户，并实测不同身份与租户的 RLS 行为。</p>
+<h2 id="section-49">13. SQLAlchemy Session、事务与权限变更</h2>
+<h3 id="section-50">13.1 Session 生命周期</h3>
+<p>SQLAlchemy <code>Session</code> 是单个工作单元的状态容器；<code>AsyncSession</code> 不应在并发任务之间共享同一个实例。通常可以共享 <code>Engine</code> 和 Session 工厂，为每个请求或独立后台任务创建各自的 Session。</p>
+<h3 id="section-51">13.2 权限检查与业务修改的事务边界</h3>
+<p>典型过程：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">创建 Session / 开始事务
+    ↓
+查询可信身份及成员资格
+    ↓
+执行带访问范围的 UPDATE / DELETE
+    ↓
+检查实际受影响行数
+    ↓
+提交事务；失败时回滚</code></pre></div><p>某些场景需要更强的一致性：如果业务要求撤销成员身份后绝不允许尚在执行中的更新继续完成，就必须明确其事务串行化、锁或版本验证策略。简单地在业务修改前读一次成员资格，并不能自动覆盖所有并发撤销场景。</p>
+<h3 id="section-52">13.3 约束和授权不是同一回事</h3>
+<ul>
+<li>外键、唯一约束和 <code>CHECK</code> 保证数据结构或业务不变量；</li>
+<li>授权策略保证某个主体是否可以执行某项操作；</li>
+<li>事务保证相关修改的一致提交或回滚；</li>
+<li>乐观锁解决并发修改冲突。</li>
+</ul>
+<p>这几种机制应组合使用，不应彼此替代。</p>
+<h2 id="section-53">14. 缓存、后台任务、Agent、RAG 的权限传递</h2>
+<h3 id="section-54">14.1 Redis 与缓存</h3>
+<p>不能用只有资源 ID 的缓存键存放“某用户可见的私有数据”，然后无条件返回给其他用户。例如 <code>note:101</code> 若缓存了包含私有字段的结果，必须在读取缓存前重新验证访问范围，或者使用经过验证的用户/租户上下文及明确的授权结果策略设计缓存。</p>
+<p>权限变化时，缓存 TTL 可能导致撤销延迟；应设计短期缓存、显式失效或版本化授权策略。</p>
+<h3 id="section-55">14.2 后台 Worker 与队列</h3>
+<p>后台任务脱离原始 HTTP 请求后，仍然必须有可信身份上下文。不能只信任 Kafka 消息体里的 <code>user_id</code> 或 <code>is_admin</code>。消息的生产者、完整性、任务授权范围和身份传递方式都需要控制。</p>
+<p>处理延迟较长的任务时应区别：</p>
+<ul>
+<li>提交任务时是否有权操作；</li>
+<li>实际执行时是否仍有权操作；</li>
+<li>是否属于一次事先批准且有确定内容的执行授权。</li>
+</ul>
+<p>具体检查时机取决于业务语义，必须显式定义。</p>
+<h3 id="section-56">14.3 Agent 工具调用</h3>
+<p>模型决定调用某工具时，工具实现仍应通过可信主体检查目标对象。工具不应接受模型任意声明的 <code>tenant_id</code> 和 <code>user_id</code> 作为授权来源。资料检索、数据读取与写入工具都必须遵循相同的访问边界。</p>
+<h3 id="section-57">14.4 RAG 向量检索</h3>
+<p>检索前应限制租户、资料权限和发布版本；检索结果不得跨租户泄漏。仅依赖模型在 Prompt 中“不要引用其他用户资料”无法构成后端数据访问控制。</p>
+<h3 id="section-58">14.5 SSE、WebSocket 与持续任务</h3>
+<p>建立连接时需要认证。长时间订阅或推送时，还需考虑权限发生变化、连接取消、重新连接后的认证，以及每个事件/频道的资源访问边界。</p>
+<h2 id="section-59">15. 授权策略架构与审计</h2>
+<h3 id="section-60">15.1 PEP、PDP、PIP</h3>
+<p>常见授权架构把职责拆成：</p>
+<ul>
+<li><strong>PEP（Policy Enforcement Point）</strong>：执行点，拦截操作并实际阻止未授权访问。</li>
+<li><strong>PDP（Policy Decision Point）</strong>：决策点，根据策略判断允许或拒绝。</li>
+<li><strong>PIP（Policy Information Point）</strong>：属性来源，提供当前角色、租户、资源状态等事实。</li>
+</ul>
+<p>即使把策略集中管理，服务和工具的执行点仍必须落实拒绝结果。策略服务故障时应有明确的失败行为，避免默认放行。</p>
+<h3 id="section-61">15.2 审计日志该记录什么</h3>
+<p>有用的最小字段包括：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"request_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"req-..."</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"actor_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">17</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"tenant_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"action"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"note.update"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"resource_type"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"note"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"resource_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">101</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"decision"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"DENY"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"reason_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"OWNER_MISMATCH"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"policy_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"authz-v3"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>拒绝原因可保存在服务器端审计日志中，但不一定需要原样暴露给客户端。不要记录原始访问令牌、密码、私钥或不必要的敏感业务正文。</p>
+<p>审计日志能说明系统观察到什么决策，不等于能证明不存在隐藏代码路径绕过授权。</p>
+<h2 id="section-62">16. 常见错误写法与修复</h2>
+<table>
+<thead>
+<tr>
+<th>错误做法</th>
+<th>为什么错误</th>
+<th>正确方向</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>前端隐藏删除按钮</td>
+<td>可以绕过 UI 调用 API</td>
+<td>后端强制授权</td>
+</tr>
+<tr>
+<td>直接信任 <code>user_id</code> 参数</td>
+<td>可被客户端修改</td>
+<td>使用已认证主体</td>
+</tr>
+<tr>
+<td><code>db.get(Note, id)</code> 后立即返回</td>
+<td>未检查对象归属</td>
+<td>增加租户及对象过滤</td>
+</tr>
+<tr>
+<td>仅验证是否登录</td>
+<td>登录不代表拥有对象权限</td>
+<td>功能、对象、字段分别授权</td>
+</tr>
+<tr>
+<td>全站共用 <code>role=admin</code></td>
+<td>管理员范围可能仅限一个租户</td>
+<td>授权角色必须带作用域</td>
+</tr>
+<tr>
+<td>直接把请求体写进 ORM</td>
+<td>可以篡改归属/状态字段</td>
+<td>输入字段白名单与后端赋值</td>
+</tr>
+<tr>
+<td>详情接口授权但列表未过滤</td>
+<td>列表可批量泄漏</td>
+<td>所有读取入口都做范围限制</td>
+</tr>
+<tr>
+<td>修改前查询权限，更新时只按 ID</td>
+<td>存在状态变化与竞态风险</td>
+<td>修改 SQL 中包含范围与版本约束</td>
+</tr>
+<tr>
+<td>UUID 难猜就省略授权</td>
+<td>ID 可能从其他渠道获取</td>
+<td>每个对象都要验证权限</td>
+</tr>
+<tr>
+<td>Prompt 声明不允许越权</td>
+<td>模型文本约束不是执行控制</td>
+<td>工具层和数据库授权</td>
+</tr>
+<tr>
+<td>Redis 缓存结果全局复用</td>
+<td>可能泄漏私有数据</td>
+<td>访问前校验或安全分区缓存</td>
+</tr>
+<tr>
+<td>通过 JWT 中的旧角色永远授权</td>
+<td>权限撤销不会立即生效</td>
+<td>查服务端成员资格或设计撤销机制</td>
+</tr>
+<tr>
+<td>RLS 应用连接使用超级用户</td>
+<td>数据库策略可能被绕过</td>
+<td>非特权账号与实测策略</td>
+</tr>
+<tr>
+<td>401/403/404 完全混用</td>
+<td>调用方无法理解状态且可能泄漏对象存在</td>
+<td>明确 API 错误契约</td>
+</tr>
+</tbody></table>
+<hr />
+<h2 id="section-63">17. 完整 FastAPI + SQLAlchemy 教学实现</h2>
+<p>下面的示例使用：</p>
+<ul>
+<li>FastAPI <code>HTTPBearer</code> 获取 Access Token；</li>
+<li>PyJWT 校验签名、受众、签发者、有效期；</li>
+<li>通过数据库查询用户是否停用以及是否属于目标租户；</li>
+<li>普通成员只读写自己的笔记；</li>
+<li>租户管理员可以读写本租户记录，但不能越过租户边界；</li>
+<li>Pydantic 禁止客户端指定或修改 <code>owner_id</code>、<code>tenant_id</code>；</li>
+<li><code>UPDATE</code> 使用资源范围条件和 <code>expected_version</code> 防止旧版本覆盖；</li>
+<li>用明确响应模型限制字段暴露。</li>
+</ul>
+<p><strong>示例边界</strong>：为了使权限验证本身能够在无外部服务的环境中运行，数据库使用 SQLite；令牌签发函数仅供本地测试。生产系统应由真实认证服务签发令牌，并使用 HTTPS、安全密钥管理、审计、限流和适用的数据库策略。本示例是同步 SQLAlchemy 代码；真正使用 PostgreSQL 异步驱动时应采用 <code>AsyncSession</code>，但授权原则相同。</p>
+<p>安装依赖（使用兼容版本，正式项目应锁定版本）：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pip install <span class="hljs-string">'fastapi'</span> <span class="hljs-string">'sqlalchemy&gt;=2,&lt;3'</span> <span class="hljs-string">'pyjwt&gt;=2,&lt;3'</span> <span class="hljs-string">'httpx'</span> <span class="hljs-string">'pytest'</span></code></pre></div><p>将下面的 Python 代码保存为 <code>authz_demo.py</code>，再将第 18 节测试保存为 <code>test_authz_demo.py</code>，运行 <code>python -m pytest -q</code>。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""可独立测试的 FastAPI + SQLAlchemy 授权教学示例。
+注意： SQLite 只用来验证教学逻辑。正式部署需配置实际身份提供方、PostgreSQL、审计与限流。
+"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">from</span> datetime <span class="hljs-keyword">import</span> datetime, timedelta, timezone
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> Annotated
+
+<span class="hljs-keyword">import</span> jwt
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> Depends, FastAPI, HTTPException, Query, status
+<span class="hljs-keyword">from</span> fastapi.security <span class="hljs-keyword">import</span> HTTPAuthorizationCredentials, HTTPBearer
+<span class="hljs-keyword">from</span> jwt.exceptions <span class="hljs-keyword">import</span> InvalidTokenError
+<span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, ConfigDict, Field
+<span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
+<span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> delete, select, update
+<span class="hljs-keyword">from</span> sqlalchemy.orm <span class="hljs-keyword">import</span> DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+
+ISSUER = <span class="hljs-string">"https://auth.example.internal"</span>
+AUDIENCE = <span class="hljs-string">"game-api"</span>
+bearer_scheme = HTTPBearer(auto_error=<span class="hljs-literal">False</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Base</span>(<span class="hljs-title class_ inherited__">DeclarativeBase</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">User</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"users"</span>
+    <span class="hljs-built_in">id</span>: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(Integer, primary_key=<span class="hljs-literal">True</span>)
+    active: Mapped[<span class="hljs-built_in">bool</span>] = mapped_column(Boolean, nullable=<span class="hljs-literal">False</span>, default=<span class="hljs-literal">True</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Tenant</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"tenants"</span>
+    <span class="hljs-built_in">id</span>: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(Integer, primary_key=<span class="hljs-literal">True</span>)
+    name: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">100</span>), nullable=<span class="hljs-literal">False</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Membership</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"memberships"</span>
+    __table_args__ = (UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"user_id"</span>),)
+    <span class="hljs-built_in">id</span>: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(Integer, primary_key=<span class="hljs-literal">True</span>)
+    tenant_id: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(ForeignKey(<span class="hljs-string">"tenants.id"</span>), nullable=<span class="hljs-literal">False</span>)
+    user_id: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(ForeignKey(<span class="hljs-string">"users.id"</span>), nullable=<span class="hljs-literal">False</span>)
+    role: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">20</span>), nullable=<span class="hljs-literal">False</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Note</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"notes"</span>
+    <span class="hljs-built_in">id</span>: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(Integer, primary_key=<span class="hljs-literal">True</span>)
+    tenant_id: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(ForeignKey(<span class="hljs-string">"tenants.id"</span>), nullable=<span class="hljs-literal">False</span>)
+    owner_id: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(ForeignKey(<span class="hljs-string">"users.id"</span>), nullable=<span class="hljs-literal">False</span>)
+    title: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">100</span>), nullable=<span class="hljs-literal">False</span>)
+    body: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(Text, nullable=<span class="hljs-literal">False</span>)
+    version: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(Integer, nullable=<span class="hljs-literal">False</span>, default=<span class="hljs-number">1</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">NoteCreate</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    model_config = ConfigDict(extra=<span class="hljs-string">"forbid"</span>)
+    title: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>, max_length=<span class="hljs-number">100</span>)
+    body: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>, max_length=<span class="hljs-number">5000</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">NotePatch</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    model_config = ConfigDict(extra=<span class="hljs-string">"forbid"</span>)
+    expected_version: <span class="hljs-built_in">int</span> = Field(ge=<span class="hljs-number">1</span>)
+    title: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = Field(default=<span class="hljs-literal">None</span>, min_length=<span class="hljs-number">1</span>, max_length=<span class="hljs-number">100</span>)
+    body: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = Field(default=<span class="hljs-literal">None</span>, min_length=<span class="hljs-number">1</span>, max_length=<span class="hljs-number">5000</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">NoteOut</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    model_config = ConfigDict(from_attributes=<span class="hljs-literal">True</span>)
+    <span class="hljs-built_in">id</span>: <span class="hljs-built_in">int</span>
+    tenant_id: <span class="hljs-built_in">int</span>
+    owner_id: <span class="hljs-built_in">int</span>
+    title: <span class="hljs-built_in">str</span>
+    body: <span class="hljs-built_in">str</span>
+    version: <span class="hljs-built_in">int</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">create_demo_token</span>(<span class="hljs-params">user_id: <span class="hljs-built_in">int</span>, secret: <span class="hljs-built_in">str</span>, *, expire_seconds: <span class="hljs-built_in">int</span> = <span class="hljs-number">3600</span>,
+                      audience: <span class="hljs-built_in">str</span> = AUDIENCE</span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-string">"""仅用于本地教学/测试。生产环境由认证服务签发令牌。"""</span>
+    now = datetime.now(timezone.utc)
+    <span class="hljs-keyword">return</span> jwt.encode({
+        <span class="hljs-string">"sub"</span>: <span class="hljs-built_in">str</span>(user_id), <span class="hljs-string">"iss"</span>: ISSUER, <span class="hljs-string">"aud"</span>: audience,
+        <span class="hljs-string">"iat"</span>: now, <span class="hljs-string">"exp"</span>: now + timedelta(seconds=expire_seconds),
+    }, secret, algorithm=<span class="hljs-string">"HS256"</span>)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">create_app</span>(<span class="hljs-params">session_factory: sessionmaker[Session], jwt_secret: <span class="hljs-built_in">str</span></span>) -&gt; FastAPI:
+    app = FastAPI(title=<span class="hljs-string">"访问授权教学示例"</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_db</span>():
+        <span class="hljs-keyword">with</span> session_factory() <span class="hljs-keyword">as</span> db:
+            <span class="hljs-keyword">yield</span> db
+
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">authenticate</span>(<span class="hljs-params">
+        credential: Annotated[HTTPAuthorizationCredentials | <span class="hljs-literal">None</span>, Depends(<span class="hljs-params">bearer_scheme</span>)],
+        db: Session = Depends(<span class="hljs-params">get_db</span>),
+    </span>) -&gt; User:
+        err = HTTPException(
+            status_code=<span class="hljs-number">401</span>, detail=<span class="hljs-string">"无效或缺失的身份凭据"</span>,
+            headers={<span class="hljs-string">"WWW-Authenticate"</span>: <span class="hljs-string">"Bearer"</span>},
+        )
+        <span class="hljs-keyword">if</span> credential <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">raise</span> err
+        <span class="hljs-keyword">try</span>:
+            payload = jwt.decode(
+                credential.credentials, jwt_secret,
+                algorithms=[<span class="hljs-string">"HS256"</span>], audience=AUDIENCE, issuer=ISSUER,
+                options={<span class="hljs-string">"require"</span>: [<span class="hljs-string">"sub"</span>, <span class="hljs-string">"iss"</span>, <span class="hljs-string">"aud"</span>, <span class="hljs-string">"iat"</span>, <span class="hljs-string">"exp"</span>]},
+            )
+            user_id = <span class="hljs-built_in">int</span>(payload[<span class="hljs-string">"sub"</span>])
+            <span class="hljs-keyword">if</span> user_id &lt;= <span class="hljs-number">0</span>:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"invalid subject"</span>)
+        <span class="hljs-keyword">except</span> (InvalidTokenError, ValueError, TypeError, KeyError):
+            <span class="hljs-keyword">raise</span> err <span class="hljs-keyword">from</span> <span class="hljs-literal">None</span>
+        user = db.get(User, user_id)
+        <span class="hljs-keyword">if</span> user <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">or</span> <span class="hljs-keyword">not</span> user.active:
+            <span class="hljs-keyword">raise</span> err
+        <span class="hljs-keyword">return</span> user
+
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">require_role</span>(<span class="hljs-params">db: Session, actor: User, tenant_id: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+        role = db.scalar(select(Membership.role).where(
+            Membership.tenant_id == tenant_id,
+            Membership.user_id == actor.<span class="hljs-built_in">id</span>,
+        ))
+        <span class="hljs-comment"># 对未授权的租户使用 404，避免暴露租户是否存在。</span>
+        <span class="hljs-keyword">if</span> role <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> {<span class="hljs-string">"member"</span>, <span class="hljs-string">"admin"</span>}:
+            <span class="hljs-keyword">raise</span> HTTPException(<span class="hljs-number">404</span>, detail=<span class="hljs-string">"资源不存在"</span>)
+        <span class="hljs-keyword">return</span> role
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">note_filter</span>(<span class="hljs-params">actor: User, tenant_id: <span class="hljs-built_in">int</span>, role: <span class="hljs-built_in">str</span></span>):
+        criteria = [Note.tenant_id == tenant_id]
+        <span class="hljs-keyword">if</span> role != <span class="hljs-string">"admin"</span>:
+            criteria.append(Note.owner_id == actor.<span class="hljs-built_in">id</span>)
+        <span class="hljs-keyword">return</span> criteria
+
+<span class="hljs-meta">    @app.get(<span class="hljs-params"><span class="hljs-string">"/me"</span></span>)</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_me</span>(<span class="hljs-params">actor: User = Depends(<span class="hljs-params">authenticate</span>)</span>):
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">"user_id"</span>: actor.<span class="hljs-built_in">id</span>}
+
+<span class="hljs-meta">    @app.get(<span class="hljs-params"><span class="hljs-string">"/tenants/{tenant_id}/notes"</span>, response_model=<span class="hljs-built_in">list</span>[NoteOut]</span>)</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">list_notes</span>(<span class="hljs-params">tenant_id: <span class="hljs-built_in">int</span>, db: Session = Depends(<span class="hljs-params">get_db</span>), actor: User = Depends(<span class="hljs-params">authenticate</span>),
+                   limit: <span class="hljs-built_in">int</span> = Query(<span class="hljs-params"><span class="hljs-number">50</span>, ge=<span class="hljs-number">1</span>, le=<span class="hljs-number">100</span></span>)</span>):
+        role = require_role(db, actor, tenant_id)
+        stmt = (select(Note).where(*note_filter(actor, tenant_id, role))
+                .order_by(Note.<span class="hljs-built_in">id</span>).limit(limit))
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">list</span>(db.scalars(stmt))
+
+<span class="hljs-meta">    @app.get(<span class="hljs-params"><span class="hljs-string">"/tenants/{tenant_id}/notes/{note_id}"</span>, response_model=NoteOut</span>)</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_note</span>(<span class="hljs-params">tenant_id: <span class="hljs-built_in">int</span>, note_id: <span class="hljs-built_in">int</span>, db: Session = Depends(<span class="hljs-params">get_db</span>), actor: User = Depends(<span class="hljs-params">authenticate</span>)</span>):
+        role = require_role(db, actor, tenant_id)
+        stmt = select(Note).where(Note.<span class="hljs-built_in">id</span> == note_id,
+                                  *note_filter(actor, tenant_id, role))
+        note = db.scalar(stmt)
+        <span class="hljs-keyword">if</span> note <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">raise</span> HTTPException(<span class="hljs-number">404</span>, detail=<span class="hljs-string">"资源不存在"</span>)
+        <span class="hljs-keyword">return</span> note
+
+<span class="hljs-meta">    @app.post(<span class="hljs-params"><span class="hljs-string">"/tenants/{tenant_id}/notes"</span>, response_model=NoteOut, status_code=<span class="hljs-number">201</span></span>)</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">create_note</span>(<span class="hljs-params">tenant_id: <span class="hljs-built_in">int</span>, request: NoteCreate, db: Session = Depends(<span class="hljs-params">get_db</span>), actor: User = Depends(<span class="hljs-params">authenticate</span>)</span>):
+        require_role(db, actor, tenant_id)
+        <span class="hljs-comment"># 归属字段完全由已验证身份与后端资源上下文决定。</span>
+        note = Note(tenant_id=tenant_id, owner_id=actor.<span class="hljs-built_in">id</span>,
+                    title=request.title, body=request.body, version=<span class="hljs-number">1</span>)
+        db.add(note)
+        <span class="hljs-keyword">try</span>:
+            db.commit()
+        <span class="hljs-keyword">except</span> Exception:
+            db.rollback()
+            <span class="hljs-keyword">raise</span>
+        db.refresh(note)
+        <span class="hljs-keyword">return</span> note
+
+<span class="hljs-meta">    @app.patch(<span class="hljs-params"><span class="hljs-string">"/tenants/{tenant_id}/notes/{note_id}"</span>, response_model=NoteOut</span>)</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">patch_note</span>(<span class="hljs-params">tenant_id: <span class="hljs-built_in">int</span>, note_id: <span class="hljs-built_in">int</span>, request: NotePatch,
+                   db: Session = Depends(<span class="hljs-params">get_db</span>), actor: User = Depends(<span class="hljs-params">authenticate</span>)</span>):
+        role = require_role(db, actor, tenant_id)
+        changes = request.model_dump(exclude_unset=<span class="hljs-literal">True</span>, exclude={<span class="hljs-string">"expected_version"</span>})
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> changes <span class="hljs-keyword">or</span> <span class="hljs-built_in">any</span>(v <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">for</span> v <span class="hljs-keyword">in</span> changes.values()):
+            <span class="hljs-keyword">raise</span> HTTPException(<span class="hljs-number">422</span>, detail=<span class="hljs-string">"必须提供至少一个有效的可修改字段"</span>)
+        predicates = [Note.<span class="hljs-built_in">id</span> == note_id, Note.version == request.expected_version,
+                      *note_filter(actor, tenant_id, role)]
+        stmt = update(Note).where(*predicates).values(**changes, version=Note.version + <span class="hljs-number">1</span>)
+        <span class="hljs-keyword">try</span>:
+            result = db.execute(stmt)
+            <span class="hljs-keyword">if</span> result.rowcount != <span class="hljs-number">1</span>:
+                exists = db.scalar(select(Note.<span class="hljs-built_in">id</span>).where(
+                    Note.<span class="hljs-built_in">id</span> == note_id, *note_filter(actor, tenant_id, role)))
+                <span class="hljs-keyword">if</span> exists <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+                    <span class="hljs-keyword">raise</span> HTTPException(<span class="hljs-number">409</span>, detail=<span class="hljs-string">"数据版本冲突，请重新读取"</span>)
+                <span class="hljs-keyword">raise</span> HTTPException(<span class="hljs-number">404</span>, detail=<span class="hljs-string">"资源不存在"</span>)
+            db.commit()
+        <span class="hljs-keyword">except</span> Exception:
+            db.rollback()
+            <span class="hljs-keyword">raise</span>
+        <span class="hljs-keyword">return</span> db.scalar(select(Note).where(Note.<span class="hljs-built_in">id</span> == note_id,
+                                              *note_filter(actor, tenant_id, role)))
+
+<span class="hljs-meta">    @app.delete(<span class="hljs-params"><span class="hljs-string">"/tenants/{tenant_id}/notes/{note_id}"</span>, status_code=<span class="hljs-number">204</span></span>)</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">delete_note</span>(<span class="hljs-params">tenant_id: <span class="hljs-built_in">int</span>, note_id: <span class="hljs-built_in">int</span>, db: Session = Depends(<span class="hljs-params">get_db</span>), actor: User = Depends(<span class="hljs-params">authenticate</span>)</span>):
+        role = require_role(db, actor, tenant_id)
+        stmt = delete(Note).where(Note.<span class="hljs-built_in">id</span> == note_id,
+                                  *note_filter(actor, tenant_id, role))
+        <span class="hljs-keyword">try</span>:
+            result = db.execute(stmt)
+            <span class="hljs-keyword">if</span> result.rowcount != <span class="hljs-number">1</span>:
+                <span class="hljs-keyword">raise</span> HTTPException(<span class="hljs-number">404</span>, detail=<span class="hljs-string">"资源不存在"</span>)
+            db.commit()
+        <span class="hljs-keyword">except</span> Exception:
+            db.rollback()
+            <span class="hljs-keyword">raise</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span>
+
+    <span class="hljs-keyword">return</span> app</code></pre></div><h2 id="section-64">18. 自动化测试</h2>
+<p>本节测试在每个测试案例开始时创建独立的 SQLite 内存数据库，并准备两个租户、四个已知用户与三条示例笔记。测试用例覆盖认证、租户隔离、对象授权、字段授权、条件修改和删除。测试用的签名密钥只适用于本地开发，<strong>不能复制到生产环境</strong>。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> datetime <span class="hljs-keyword">import</span> datetime, timedelta, timezone
+
+<span class="hljs-keyword">import</span> jwt
+<span class="hljs-keyword">import</span> pytest
+<span class="hljs-keyword">from</span> fastapi.testclient <span class="hljs-keyword">import</span> TestClient
+<span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> create_engine
+<span class="hljs-keyword">from</span> sqlalchemy.orm <span class="hljs-keyword">import</span> sessionmaker
+<span class="hljs-keyword">from</span> sqlalchemy.pool <span class="hljs-keyword">import</span> StaticPool
+
+<span class="hljs-keyword">from</span> authz_demo <span class="hljs-keyword">import</span> (AUDIENCE, ISSUER, Base, Membership, Note, Tenant, User,
+                        create_app, create_demo_token)
+
+SECRET = <span class="hljs-string">"local-demo-secret-only-not-for-production-123456789"</span>
+
+<span class="hljs-meta">@pytest.fixture</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">env</span>():
+    engine = create_engine(<span class="hljs-string">"sqlite+pysqlite://"</span>, connect_args={<span class="hljs-string">"check_same_thread"</span>: <span class="hljs-literal">False</span>}, poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    Factory = sessionmaker(engine, expire_on_commit=<span class="hljs-literal">False</span>)
+    <span class="hljs-keyword">with</span> Factory.begin() <span class="hljs-keyword">as</span> s:
+        s.add_all([User(<span class="hljs-built_in">id</span>=<span class="hljs-number">1</span>, active=<span class="hljs-literal">True</span>), User(<span class="hljs-built_in">id</span>=<span class="hljs-number">2</span>, active=<span class="hljs-literal">True</span>),
+                   User(<span class="hljs-built_in">id</span>=<span class="hljs-number">3</span>, active=<span class="hljs-literal">True</span>), User(<span class="hljs-built_in">id</span>=<span class="hljs-number">4</span>, active=<span class="hljs-literal">False</span>)])
+        s.add_all([Tenant(<span class="hljs-built_in">id</span>=<span class="hljs-number">10</span>, name=<span class="hljs-string">"甲租户"</span>), Tenant(<span class="hljs-built_in">id</span>=<span class="hljs-number">20</span>, name=<span class="hljs-string">"乙租户"</span>)])
+        s.add_all([
+            Membership(user_id=<span class="hljs-number">1</span>, tenant_id=<span class="hljs-number">10</span>, role=<span class="hljs-string">"member"</span>),
+            Membership(user_id=<span class="hljs-number">2</span>, tenant_id=<span class="hljs-number">10</span>, role=<span class="hljs-string">"member"</span>),
+            Membership(user_id=<span class="hljs-number">2</span>, tenant_id=<span class="hljs-number">20</span>, role=<span class="hljs-string">"member"</span>),
+            Membership(user_id=<span class="hljs-number">3</span>, tenant_id=<span class="hljs-number">10</span>, role=<span class="hljs-string">"admin"</span>),
+            Membership(user_id=<span class="hljs-number">4</span>, tenant_id=<span class="hljs-number">10</span>, role=<span class="hljs-string">"member"</span>),
+        ])
+        s.add_all([
+            Note(<span class="hljs-built_in">id</span>=<span class="hljs-number">101</span>, tenant_id=<span class="hljs-number">10</span>, owner_id=<span class="hljs-number">1</span>, title=<span class="hljs-string">"用户一"</span>, body=<span class="hljs-string">"正文一"</span>, version=<span class="hljs-number">1</span>),
+            Note(<span class="hljs-built_in">id</span>=<span class="hljs-number">102</span>, tenant_id=<span class="hljs-number">10</span>, owner_id=<span class="hljs-number">2</span>, title=<span class="hljs-string">"用户二"</span>, body=<span class="hljs-string">"正文二"</span>, version=<span class="hljs-number">1</span>),
+            Note(<span class="hljs-built_in">id</span>=<span class="hljs-number">201</span>, tenant_id=<span class="hljs-number">20</span>, owner_id=<span class="hljs-number">2</span>, title=<span class="hljs-string">"另一租户"</span>, body=<span class="hljs-string">"隔离"</span>, version=<span class="hljs-number">1</span>),
+        ])
+    app = create_app(Factory, SECRET)
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> client:
+        tokens = {i: {<span class="hljs-string">"Authorization"</span>: <span class="hljs-string">f"Bearer <span class="hljs-subst">{create_demo_token(i, SECRET)}</span>"</span>} <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">1</span>, <span class="hljs-number">6</span>)}
+        <span class="hljs-keyword">yield</span> client, tokens, Factory
+    engine.dispose()
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_missing_token</span>(<span class="hljs-params">env</span>):
+    c, _, _ = env
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/me"</span>).status_code == <span class="hljs-number">401</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_invalid_signature</span>(<span class="hljs-params">env</span>):
+    c, _, _ = env
+    t = create_demo_token(<span class="hljs-number">1</span>, <span class="hljs-string">"wrong-secret-of-sufficient-length-for-hs256"</span>)
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/me"</span>, headers={<span class="hljs-string">"Authorization"</span>: <span class="hljs-string">"Bearer "</span> + t}).status_code == <span class="hljs-number">401</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_expired_token</span>(<span class="hljs-params">env</span>):
+    c, _, _ = env
+    t = create_demo_token(<span class="hljs-number">1</span>, SECRET, expire_seconds=-<span class="hljs-number">2</span>)
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/me"</span>, headers={<span class="hljs-string">"Authorization"</span>: <span class="hljs-string">"Bearer "</span> + t}).status_code == <span class="hljs-number">401</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_wrong_audience</span>(<span class="hljs-params">env</span>):
+    c, _, _ = env
+    t = create_demo_token(<span class="hljs-number">1</span>, SECRET, audience=<span class="hljs-string">"another-api"</span>)
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/me"</span>, headers={<span class="hljs-string">"Authorization"</span>: <span class="hljs-string">"Bearer "</span> + t}).status_code == <span class="hljs-number">401</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_inactive_user</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/me"</span>, headers=t[<span class="hljs-number">4</span>]).status_code == <span class="hljs-number">401</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_missing_user</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/me"</span>, headers=t[<span class="hljs-number">5</span>]).status_code == <span class="hljs-number">401</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_authenticated_identity</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/me"</span>, headers=t[<span class="hljs-number">1</span>]).json() == {<span class="hljs-string">"user_id"</span>: <span class="hljs-number">1</span>}
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_own_read</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/tenants/10/notes/101"</span>, headers=t[<span class="hljs-number">1</span>]).json()[<span class="hljs-string">"title"</span>] == <span class="hljs-string">"用户一"</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cross_user_read_denied</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/tenants/10/notes/102"</span>, headers=t[<span class="hljs-number">1</span>]).status_code == <span class="hljs-number">404</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_tenant_mismatch_denied</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/tenants/10/notes/201"</span>, headers=t[<span class="hljs-number">2</span>]).status_code == <span class="hljs-number">404</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_non_member_denied</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/tenants/20/notes"</span>, headers=t[<span class="hljs-number">1</span>]).status_code == <span class="hljs-number">404</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_admin_reads_tenant</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    result = c.get(<span class="hljs-string">"/tenants/10/notes"</span>, headers=t[<span class="hljs-number">3</span>])
+    <span class="hljs-keyword">assert</span> result.status_code == <span class="hljs-number">200</span> <span class="hljs-keyword">and</span> <span class="hljs-built_in">len</span>(result.json()) == <span class="hljs-number">2</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_admin_not_global</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/tenants/20/notes/201"</span>, headers=t[<span class="hljs-number">3</span>]).status_code == <span class="hljs-number">404</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_list_filtered</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    data = c.get(<span class="hljs-string">"/tenants/10/notes"</span>, headers=t[<span class="hljs-number">1</span>]).json()
+    <span class="hljs-keyword">assert</span> [x[<span class="hljs-string">"id"</span>] <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> data] == [<span class="hljs-number">101</span>]
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_list_invalid_limit</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/tenants/10/notes?limit=1000"</span>, headers=t[<span class="hljs-number">1</span>]).status_code == <span class="hljs-number">422</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_create_owner_is_authenticated</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    response = c.post(<span class="hljs-string">"/tenants/10/notes"</span>, headers=t[<span class="hljs-number">1</span>], json={<span class="hljs-string">"title"</span>: <span class="hljs-string">"新笔记"</span>, <span class="hljs-string">"body"</span>:<span class="hljs-string">"正文"</span>})
+    <span class="hljs-keyword">assert</span> response.status_code == <span class="hljs-number">201</span> <span class="hljs-keyword">and</span> response.json()[<span class="hljs-string">"owner_id"</span>] == <span class="hljs-number">1</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_create_mass_assignment_rejected</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    response = c.post(<span class="hljs-string">"/tenants/10/notes"</span>, headers=t[<span class="hljs-number">1</span>], json={<span class="hljs-string">"title"</span>: <span class="hljs-string">"恶意"</span>, <span class="hljs-string">"body"</span>: <span class="hljs-string">"x"</span>, <span class="hljs-string">"owner_id"</span>: <span class="hljs-number">2</span>})
+    <span class="hljs-keyword">assert</span> response.status_code == <span class="hljs-number">422</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_create_wrong_tenant</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    response = c.post(<span class="hljs-string">"/tenants/20/notes"</span>, headers=t[<span class="hljs-number">1</span>], json={<span class="hljs-string">"title"</span>: <span class="hljs-string">"新"</span>, <span class="hljs-string">"body"</span>:<span class="hljs-string">"x"</span>})
+    <span class="hljs-keyword">assert</span> response.status_code == <span class="hljs-number">404</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_patch_own_note</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    resp = c.patch(<span class="hljs-string">"/tenants/10/notes/101"</span>, headers=t[<span class="hljs-number">1</span>],
+                   json={<span class="hljs-string">"expected_version"</span>:<span class="hljs-number">1</span>, <span class="hljs-string">"title"</span>:<span class="hljs-string">"修订版"</span>})
+    <span class="hljs-keyword">assert</span> resp.status_code == <span class="hljs-number">200</span> <span class="hljs-keyword">and</span> resp.json()[<span class="hljs-string">"version"</span>] == <span class="hljs-number">2</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_patch_other_user_denied</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.patch(<span class="hljs-string">"/tenants/10/notes/102"</span>, headers=t[<span class="hljs-number">1</span>],
+                   json={<span class="hljs-string">"expected_version"</span>:<span class="hljs-number">1</span>,<span class="hljs-string">"title"</span>:<span class="hljs-string">"试图修改"</span>}).status_code == <span class="hljs-number">404</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_patch_stale_version_conflict</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    c.patch(<span class="hljs-string">"/tenants/10/notes/101"</span>, headers=t[<span class="hljs-number">1</span>],
+            json={<span class="hljs-string">"expected_version"</span>:<span class="hljs-number">1</span>, <span class="hljs-string">"title"</span>:<span class="hljs-string">"新版"</span>})
+    <span class="hljs-keyword">assert</span> c.patch(<span class="hljs-string">"/tenants/10/notes/101"</span>, headers=t[<span class="hljs-number">1</span>],
+                   json={<span class="hljs-string">"expected_version"</span>:<span class="hljs-number">1</span>, <span class="hljs-string">"title"</span>:<span class="hljs-string">"覆盖旧版"</span>}).status_code == <span class="hljs-number">409</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_patch_owner_id_rejected</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.patch(<span class="hljs-string">"/tenants/10/notes/101"</span>, headers=t[<span class="hljs-number">1</span>],
+                   json={<span class="hljs-string">"expected_version"</span>:<span class="hljs-number">1</span>, <span class="hljs-string">"owner_id"</span>:<span class="hljs-number">2</span>}).status_code == <span class="hljs-number">422</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_patch_empty_rejected</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.patch(<span class="hljs-string">"/tenants/10/notes/101"</span>, headers=t[<span class="hljs-number">1</span>],
+                   json={<span class="hljs-string">"expected_version"</span>:<span class="hljs-number">1</span>}).status_code == <span class="hljs-number">422</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_patch_null_rejected</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.patch(<span class="hljs-string">"/tenants/10/notes/101"</span>, headers=t[<span class="hljs-number">1</span>],
+                   json={<span class="hljs-string">"expected_version"</span>:<span class="hljs-number">1</span>,<span class="hljs-string">"title"</span>:<span class="hljs-literal">None</span>}).status_code == <span class="hljs-number">422</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_admin_can_patch_tenant_note</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    resp = c.patch(<span class="hljs-string">"/tenants/10/notes/102"</span>, headers=t[<span class="hljs-number">3</span>],
+                   json={<span class="hljs-string">"expected_version"</span>:<span class="hljs-number">1</span>,<span class="hljs-string">"body"</span>:<span class="hljs-string">"管理员修订"</span>})
+    <span class="hljs-keyword">assert</span> resp.status_code == <span class="hljs-number">200</span> <span class="hljs-keyword">and</span> resp.json()[<span class="hljs-string">"body"</span>] == <span class="hljs-string">"管理员修订"</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_member_cannot_delete_other</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.delete(<span class="hljs-string">"/tenants/10/notes/102"</span>, headers=t[<span class="hljs-number">1</span>]).status_code == <span class="hljs-number">404</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_owner_can_delete</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.delete(<span class="hljs-string">"/tenants/10/notes/101"</span>, headers=t[<span class="hljs-number">1</span>]).status_code == <span class="hljs-number">204</span>
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/tenants/10/notes/101"</span>, headers=t[<span class="hljs-number">1</span>]).status_code == <span class="hljs-number">404</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_id_injection_rejected</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">"/tenants/10/notes/101 OR 1=1"</span>, headers=t[<span class="hljs-number">1</span>]).status_code == <span class="hljs-number">422</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_secret_fields_exposed</span>(<span class="hljs-params">env</span>):
+    c, t, _ = env
+    data = c.get(<span class="hljs-string">"/tenants/10/notes/101"</span>, headers=t[<span class="hljs-number">1</span>]).json()
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">set</span>(data) == {<span class="hljs-string">"id"</span>,<span class="hljs-string">"tenant_id"</span>,<span class="hljs-string">"owner_id"</span>,<span class="hljs-string">"title"</span>,<span class="hljs-string">"body"</span>,<span class="hljs-string">"version"</span>}
+</code></pre></div><h2 id="section-65">19. 测试结果与验证边界</h2>
+<p>本节示例使用本地 Python 解释器运行，测试命令：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pytest -q</code></pre></div><p>实际结果：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">29 passed in 1.06s</code></pre></div><p>覆盖项目包括：</p>
+<ul>
+<li>Token 缺失、签名错误、过期和受众不匹配 → <code>401</code>；</li>
+<li>用户已停用、用户不存在 → <code>401</code>；</li>
+<li>正确认证后取得当前用户 ID；</li>
+<li>正常读取自己拥有的数据；</li>
+<li>跨用户、跨租户、不属于租户的读取 → <code>404</code>；</li>
+<li>租户管理员读取本租户数据，但不能越权读取其他租户；</li>
+<li>列表接口只返回授权记录；</li>
+<li>创建数据自动绑定可信主体；</li>
+<li>请求体伪造 <code>owner_id</code> → <code>422</code>；</li>
+<li>更新自己的记录、阻止更新他人记录；</li>
+<li>乐观锁版本冲突 → <code>409</code>；</li>
+<li>更新时伪造所有者字段、空修改、非法可空字段 → <code>422</code>；</li>
+<li>只能删除有权限的对象；</li>
+<li>对路径 ID 的非法输入进行类型校验；</li>
+<li>响应模型仅暴露定义字段。</li>
+</ul>
+<p><strong>未验证范围</strong>：</p>
+<ul>
+<li>PostgreSQL 实例上真实启用 RLS 的测试；</li>
+<li>数据库多连接、多进程和跨节点并发；</li>
+<li>真实 OAuth2/OIDC 身份提供方、Refresh Token、密钥轮换和撤销流程；</li>
+<li>严格撤销竞态（成员权限恰在写事务中被移除）；</li>
+<li>Redis 缓存授权和跨节点同步；</li>
+<li>Kafka、Agent 及真实生产日志与审计系统的集成；</li>
+<li>浏览器端 Cookie / CSRF 与端到端身份登录流程。</li>
+</ul>
+<p>这些部分需要在真实业务环境中单独进行集成、并发和安全测试，不能因为本节 29 项教学测试通过就推断完整生产系统安全。</p>
+<h2 id="section-66">20. 进一步阅读与参考资料</h2>
+<ol>
+<li><p><strong>OWASP API1:2023 — Broken Object Level Authorization</strong><br /><a href="https://api-security.owasp.org/editions/2023/en/0xa1-broken-object-level-authorization/">https://api-security.owasp.org/editions/2023/en/0xa1-broken-object-level-authorization/</a><br />对象级授权缺失、用户控制 ID 的风险与防护。</p>
+</li>
+<li><p><strong>OWASP API3:2023 — Broken Object Property Level Authorization</strong><br /><a href="https://api-security.owasp.org/editions/2023/en/0xa3-broken-object-property-level-authorization/">https://api-security.owasp.org/editions/2023/en/0xa3-broken-object-property-level-authorization/</a><br />多余字段暴露、Mass Assignment 与字段级授权。</p>
+</li>
+<li><p><strong>OWASP Authorization Cheat Sheet</strong><br /><a href="https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html">https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html</a><br />默认拒绝、最小权限、每次请求验证、策略设计与测试。</p>
+</li>
+<li><p><strong>OWASP Authorization Patterns Cheat Sheet</strong><br /><a href="https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Patterns_Cheat_Sheet.html">https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Patterns_Cheat_Sheet.html</a><br />PEP/PDP/PIP、服务级策略决策与执行点。</p>
+</li>
+<li><p><strong>FastAPI：OAuth2 with Password and JWT</strong><br /><a href="https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/">https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/</a><br />Python JWT 验证、密码哈希、认证依赖。</p>
+</li>
+<li><p><strong>FastAPI：OAuth2 Scopes</strong><br /><a href="https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/">https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/</a><br />作用域授权与 <code>SecurityScopes</code>。</p>
+</li>
+<li><p><strong>PostgreSQL：Row Security Policies</strong><br /><a href="https://www.postgresql.org/docs/current/ddl-rowsecurity.html">https://www.postgresql.org/docs/current/ddl-rowsecurity.html</a><br /><code>USING</code>、<code>WITH CHECK</code>、表所有者与 <code>BYPASSRLS</code> 的重要差别。</p>
+</li>
+<li><p><strong>SQLAlchemy 2.0：Session Basics</strong><br /><a href="https://docs.sqlalchemy.org/en/20/orm/session_basics.html">https://docs.sqlalchemy.org/en/20/orm/session_basics.html</a><br />Session 事务模型以及并发使用边界。</p>
+</li>
+<li><p><strong>SQLAlchemy 2.0：Asynchronous I/O</strong><br /><a href="https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html">https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html</a><br /><code>AsyncSession</code>、异步查询与每任务独立 Session。</p>
+</li>
+</ol>
+<blockquote>
+<p>注：文中授权策略以教学中的“成员仅拥有自己的笔记，租户管理员可管理租户内笔记”为具体例子。权限模型不是 Python、FastAPI 或 PostgreSQL 自动决定的，它必须由业务需求显式定义，并通过后端代码及数据库机制强制执行。</p>
+</blockquote>

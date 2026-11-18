@@ -1,0 +1,113 @@
+{
+  "source_check": "assessment-audit-20261112-source-check.json",
+  "version": "1.6",
+  "unit_tests": 152,
+  "test_classes": {
+    "tests.test_agno_protocol": 16,
+    "tests.test_api": 11,
+    "tests.test_bridge": 19,
+    "tests.test_chunking": 5,
+    "tests.test_citation_audit": 2,
+    "tests.test_database_transfer": 10,
+    "tests.test_database_unavailable": 4,
+    "tests.test_evaluation_terms": 4,
+    "tests.test_full_regression_fixes": 9,
+    "tests.test_jobs": 7,
+    "tests.test_migrations": 1,
+    "tests.test_model_import": 4,
+    "tests.test_redis_integration_support": 7,
+    "tests.test_release_snapshot": 3,
+    "tests.test_retrieval_cache": 12,
+    "tests.test_ruling_inputs": 4,
+    "tests.test_ruling_text": 4,
+    "tests.test_runtime": 4,
+    "tests.test_sources": 6,
+    "tests.test_status_file": 6,
+    "tests.test_worker": 6,
+    "tests.test_worker_resilience": 8
+  },
+  "frontend_tests": 4,
+  "compose_checks": 17,
+  "browser_checks": 7,
+  "offline_lua_runs": 9,
+  "live_runs": [
+    {
+      "label": "live-assessment-audit-20261112-01",
+      "cases_selected": 32,
+      "turns": 34,
+      "completed": 33,
+      "failed": 1,
+      "blocked_cases": [
+        "F01"
+      ],
+      "input_tokens": 120351,
+      "output_tokens": 9839,
+      "charged_cny_estimate": 1.3301020000000001,
+      "estimated_usage_runs": 1,
+      "citations": 99,
+      "citation_integrity_issues": 0,
+      "prompt_versions": [
+        "grounded-v1"
+      ]
+    },
+    {
+      "label": "live-assessment-audit-20261112-02",
+      "cases_selected": 32,
+      "turns": 34,
+      "completed": 32,
+      "failed": 2,
+      "blocked_cases": [
+        "F01"
+      ],
+      "input_tokens": 124016,
+      "output_tokens": 9692,
+      "charged_cny_estimate": 2.346944,
+      "estimated_usage_runs": 2,
+      "citations": 114,
+      "citation_integrity_issues": 0,
+      "prompt_versions": [
+        "grounded-53420f59ef2d204d",
+        "grounded-e0e653cd3ae92a7f"
+      ]
+    },
+    {
+      "label": "live-assessment-audit-20261112-03",
+      "cases_selected": 32,
+      "turns": 34,
+      "completed": 34,
+      "failed": 0,
+      "blocked_cases": [
+        "F01"
+      ],
+      "input_tokens": 108915,
+      "output_tokens": 6965,
+      "charged_cny_estimate": 0.27355,
+      "estimated_usage_runs": 0,
+      "citations": 111,
+      "citation_integrity_issues": 0,
+      "prompt_versions": [
+        "grounded-28508b88cdd12e40",
+        "grounded-8add40a6ca1becb8"
+      ]
+    }
+  ],
+  "semantic_review": {
+    "passed_selected_assertions": 30,
+    "blocked_live": 1,
+    "partial": 1
+  },
+  "ledger_start_cny": 5.762454000000001,
+  "ledger_end_cny": 9.721822000000007,
+  "round_estimate_cny": 3.9593680000000058,
+  "billing_notice": "项目单价及用量缺失时的保守估算，非供应商账单",
+  "primary_maintenance": {
+    "isolated_matrix_passed": true,
+    "primary_restored": true,
+    "isolated_failure_demo_recorded": true,
+    "all_18_tables_unchanged": true,
+    "budget_unchanged": true,
+    "quiescent_after": true
+  },
+  "github_uploaded": false,
+  "human_trial": "removed_by_user"
+}

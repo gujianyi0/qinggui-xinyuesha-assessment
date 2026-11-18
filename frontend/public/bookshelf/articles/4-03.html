@@ -1,0 +1,897 @@
+<h1 id="section-1">RAG、来源引用与知识更新（三）：资料来源、章节、版本与引用证据核验</h1>
+<blockquote>
+<p><strong>对应学习目标</strong>：保留资料来源、章节和版本；回答引用能指向实际支持该说法的内容。</p>
+<p>文档性质：独立的技术知识手册。所有示例中的游戏设定和数值均为教学构造，不代表任何实际游戏规则。</p>
+<p>适用范围：Python、FastAPI、PostgreSQL/pgvector、RAG 检索、Agent 工具调用及审计日志。</p>
+</blockquote>
+<h2 id="section-2">1. 问题的本质：引用与证据不是一回事</h2>
+<p>RAG（Retrieval-Augmented Generation）通过外部资料辅助模型生成回答，但存在一个容易被忽略的区别：</p>
+<ul>
+<li><strong>资料存在</strong>：知识库里有某个文档。</li>
+<li><strong>资料被检索到</strong>：某个分块进入检索结果。</li>
+<li><strong>资料进入上下文</strong>：模型确实收到了该分块内容。</li>
+<li><strong>模型给出了引用</strong>：回答附上了源文档、编号或链接。</li>
+<li><strong>引用真实支持说法</strong>：被引用的原文能够证明对应陈述，且其版本、适用范围与当前问题一致。</li>
+</ul>
+<p>只有最后一步才是“可信引用”的核心。一个完全真实的网址，也可能被错误地用于支持网站中根本没有提及的结论。</p>
+<p><strong>例：</strong></p>
+<ul>
+<li>已核实的原文：<code>版本 1.1 中，角色青霄的基础生命值为 4。</code></li>
+<li>合理回答：<code>版本 1.1 中，青霄的基础生命值为 4。〔规则文档 v1.1，第 1 章〕</code></li>
+<li>错误引用：<code>版本 1.1 中，青霄的生命值为 6。〔规则文档 v1.1，第 1 章〕</code></li>
+<li>范围错误：<code>青霄在所有版本中的生命值都为 4。〔规则文档 v1.1，第 1 章〕</code></li>
+</ul>
+<p>第二和第三种回答都带有看似“正确”的来源，却没有获得该来源的实际支持。我们必须分别检查<strong>引用定位是否有效</strong>、<strong>证据是否支持陈述</strong>和<strong>陈述是否适用于当前条件</strong>。</p>
+<h2 id="section-3">2. RAG 引用体系中的四个对象</h2>
+<h3 id="section-4">2.1 Source Document：源文档</h3>
+<p>源文档是用户实际上传、系统同步或通过合法渠道获得的原始资料。例如 PDF、Markdown、HTML 页面、数据库规则记录和官方 API 数据。通常需要记录：</p>
+<table>
+<thead>
+<tr>
+<th>元数据</th>
+<th>含义</th>
+<th>典型示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>document_id</code></td>
+<td>文档逻辑身份，跨版本稳定</td>
+<td><code>game-rules</code></td>
+</tr>
+<tr>
+<td><code>source_type</code></td>
+<td>来源类别</td>
+<td><code>pdf</code>, <code>web</code>, <code>database</code></td>
+</tr>
+<tr>
+<td><code>source_uri</code></td>
+<td>文档原始地址或内部存储位置</td>
+<td><code>https://example.org/rules</code></td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>文档标题</td>
+<td><code>战斗规则</code></td>
+</tr>
+<tr>
+<td><code>publisher</code></td>
+<td>发布主体</td>
+<td><code>官方规则维护组</code></td>
+</tr>
+<tr>
+<td><code>tenant_id</code></td>
+<td>所属租户，控制数据访问范围</td>
+<td><code>team-A</code></td>
+</tr>
+<tr>
+<td><code>license</code></td>
+<td>授权和使用限制</td>
+<td><code>internal-use</code></td>
+</tr>
+<tr>
+<td><code>retrieved_at</code></td>
+<td>系统获取资料的时间</td>
+<td>ISO 8601 时间戳</td>
+</tr>
+<tr>
+<td><code>source_status</code></td>
+<td>来源的当前管理状态</td>
+<td><code>active</code>, <code>archived</code></td>
+</tr>
+</tbody></table>
+<p><code>source_uri</code> 不能代替文档版本 ID：网页内容可能原地更新，URL 不变而正文发生变化。</p>
+<h3 id="section-5">2.2 Document Version：文档版本</h3>
+<p>一个逻辑文档可能有多个内容快照。对同一份规则，可以存在 v1.0、v1.1、v1.2；每个版本都应视为独立、不可悄悄覆盖的可追溯数据对象。</p>
+<p>核心字段：</p>
+<ul>
+<li><code>version_id</code>：内部唯一主键，不应仅由文档标题推导。</li>
+<li><code>document_id</code>：关联逻辑文档。</li>
+<li><code>business_version</code>：来源声明的业务版本，例如 <code>1.2</code>。</li>
+<li><code>content_sha256</code>：原始内容快照哈希，用于完整性检查。</li>
+<li><code>published_at</code>：来源宣称的发布时间。</li>
+<li><code>valid_from</code> / <code>valid_to</code>：规则在业务上生效的时间范围（可能为空）。</li>
+<li><code>ingested_at</code>：系统实际导入时间，和业务生效时间不是一回事。</li>
+<li><code>status</code>：草稿、已发布、弃用、撤销等状态。</li>
+<li><code>parser_version</code>：本次解析流水线的软件版本。</li>
+</ul>
+<p><strong>四种“版本”不能混淆：</strong></p>
+<ol>
+<li><strong>业务版本</strong>：游戏规则 1.2、政策 2026-11 版。</li>
+<li><strong>源文件版本</strong>：内容变更记录、哈希或仓库提交。</li>
+<li><strong>解析版本</strong>：不同解析器可能得到不同段落或坐标。</li>
+<li><strong>索引版本</strong>：分块策略、Embedding 模型或索引构建批次。</li>
+</ol>
+<p>即使业务版本没变，重新 OCR 或重新分块也会改变检索对象；反过来，即使使用同一 Embedding，来源内容改变也必须重新判断引用是否仍指向正确文本。</p>
+<h3 id="section-6">2.3 Chunk / Node：检索分块</h3>
+<p>Chunk 是为搜索或模型上下文而产生的内容片段，它通常只是原始资料的一部分。一个分块至少应保留：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"chunk_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"ck-001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"document_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"game-rules"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"version_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"game-rules@1.2:sha256-prefix"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"section_path"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"第一章"</span><span class="hljs-punctuation">,</span> <span class="hljs-string">"角色参数"</span><span class="hljs-punctuation">,</span> <span class="hljs-string">"青霄"</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"page_start"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">6</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"page_end"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">6</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"start_char"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3421</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"end_char"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3496</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"text_sha256"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"..."</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"parser_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"parser-2"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"index_batch_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"index-20261111-A"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"tenant_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"team-A"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"visibility"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"internal"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>上述字段是<strong>推荐的应用数据契约</strong>，并非所有 RAG 框架的默认字段。LlamaIndex 文档区分 Document 和 Node，Node 可以关联来源并携带元数据及关系信息；LangChain 的 Document 同样有 <code>page_content</code>、<code>metadata</code> 和可选 <code>id</code>。它们提供基础能力，实际版本治理仍需要业务层设计。</p>
+<h3 id="section-7">2.4 Evidence / Citation：引用与证据关系</h3>
+<p>一个引用至少需要关联：</p>
+<ul>
+<li><code>claim_id</code>：回答中的哪条陈述。</li>
+<li><code>version_id</code> / <code>chunk_id</code>：使用哪个版本、哪块资料。</li>
+<li><code>anchor</code>：原文精确位置（页、行、字符区间、表格单元格等）。</li>
+<li><code>quote</code> 或 <code>quote_hash</code>：被引用的实际内容或其完整性校验值。</li>
+<li><code>support_status</code>：该内容是否支持该陈述，及由何种方式判定。</li>
+</ul>
+<p>这形成了 <strong>Claim → Evidence Span → Chunk → Document Version → Source</strong> 的证据链。</p>
+<h2 id="section-8">3. 来源溯源（Provenance）的理论基础</h2>
+<p>来源溯源不仅回答“答案引用了什么”，还回答“这些数据是怎样形成的”。</p>
+<p>W3C PROV 将来源关系分成若干概念：</p>
+<ul>
+<li><strong>Entity</strong>：资料、文件、版本、分块、答案等实体。</li>
+<li><strong>Activity</strong>：上传、解析、分块、索引、检索、生成、审核等活动。</li>
+<li><strong>Agent</strong>：执行活动的用户、系统或组织。</li>
+<li><strong>Derivation</strong>：一个实体从另一个实体派生的关系。</li>
+</ul>
+<p>一个典型的来源关系可以写成：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">原始 PDF（Entity）
+    │
+    ├── [解析活动 / parser v2]
+    ↓
+解析文本（Entity）
+    │
+    ├── [分块活动 / splitter v3]
+    ↓
+Chunk（Entity）
+    │
+    ├── [Embedding / 索引活动]
+    ↓
+索引记录（Entity）
+    │
+    ├── [检索活动]
+    ↓
+检索证据集合（Entity）
+    │
+    ├── [生成活动 / model / prompt version]
+    ↓
+带引用的答案（Entity）</code></pre></div><p>如果无法追溯这些关系，就容易出现“答案带有引用，但原文已经更新、引用坐标失效”的问题。</p>
+<h2 id="section-9">4. 资料解析时怎样保存章节与原文坐标</h2>
+<h3 id="section-10">4.1 Markdown / HTML / 纯文本</h3>
+<p>应同时保存：</p>
+<ul>
+<li>文档标题和章节层级，例如 <code>第 2 章 &gt; 2.3 技能 &gt; 2.3.1 使用限制</code>。</li>
+<li>原始字符串中的字符偏移 <code>start_char</code>、<code>end_char</code>。</li>
+<li>解析后文本对应的来源位置；如果清洗改变偏移，应保留映射关系。</li>
+<li>原始文档快照、原始哈希和解析后的文本哈希。</li>
+</ul>
+<p>字符区间常采用 Python 风格的半开区间 <code>[start, end)</code>。必须在数据契约中声明偏移单位，例如 Unicode 码点索引、UTF-8 字节偏移或 UTF-16 code unit。Python 的字符串切片使用 Unicode 码点索引；浏览器 JavaScript 字符串下标按 UTF-16 code unit 计数，两者对某些补充平面字符的偏移会不同。</p>
+<h3 id="section-11">4.2 PDF</h3>
+<p>PDF 引用可能需要：</p>
+<ul>
+<li>页码（注意物理页序号和印刷页码可能不同）。</li>
+<li>页面上的文本块、坐标边框 <code>bbox</code>。</li>
+<li>表格行列、单元格位置。</li>
+<li>原始页文本和解析器输出的对照。</li>
+<li>扫描件的 OCR 结果及置信度（当 OCR 技术支持提供时）。</li>
+</ul>
+<p>页码通常比纯分块 ID 更适合用户核对，但<strong>只有页码仍然不够精确</strong>。一页可能包含多个互相矛盾的条件和大量文字。更好的是在同一页面中定位具体原文范围。</p>
+<h3 id="section-12">4.3 表格、图片和多模态内容</h3>
+<ul>
+<li>表格需要保留行头、列头和单位。单独抽取 <code>15</code> 而丢失 <code>价格（元）</code> 无法判断含义。</li>
+<li>图片中的结论应标记图像或图表 ID、页码以及对应区域；不要把模型对图片的描述伪装成源文件本来具有的文字。</li>
+<li>OCR 错误会影响引用可信度；高风险场景需要与原始版面交叉校验。</li>
+</ul>
+<h2 id="section-13">5. 分块必须保留父子关系</h2>
+<h3 id="section-14">5.1 典型错误</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 错误方向：只保留文本，丢弃来源元数据</span>
+chunks = [text[i:i+<span class="hljs-number">500</span>] <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">0</span>, <span class="hljs-built_in">len</span>(text), <span class="hljs-number">500</span>)]</code></pre></div><p>如果后续只把字符串写进向量数据库，再想恢复章节、版本与页码，就非常困难。</p>
+<h3 id="section-15">5.2 正确原则</h3>
+<p>分块之前先明确并持久化源文档和版本身份；分块之后将来源身份、章节路径和精确偏移复制或关联到每个分块。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">chunk = {
+    <span class="hljs-string">"chunk_id"</span>: <span class="hljs-string">"..."</span>,
+    <span class="hljs-string">"document_version_id"</span>: version_id,
+    <span class="hljs-string">"section_path"</span>: [<span class="hljs-string">"第 1 章"</span>, <span class="hljs-string">"技能规则"</span>],
+    <span class="hljs-string">"start_char"</span>: start,
+    <span class="hljs-string">"end_char"</span>: end,
+    <span class="hljs-string">"text"</span>: source_text[start:end],
+}</code></pre></div><p>应优先将可复用的元数据与版本主键保持关联，而不是完全依赖向量库中嵌入的一份冗余字符串。</p>
+<h3 id="section-16">5.3 重叠分块与引用</h3>
+<p>如果相邻 Chunk 有重叠，同一原文可能被检索到两次：</p>
+<ul>
+<li>不要因为同一句话出现于两个 Chunk，就把它当成两份独立来源。</li>
+<li>引用去重应考虑 <code>(version_id, start_char, end_char)</code> 或等价的原文定位信息。</li>
+<li>评测覆盖率时要避免将重复的分块计为独立证据。</li>
+<li>若文本被规范化（合并空格、删脚注），引用锚点应映射回<strong>来源快照</strong>，而不是只定位规范化后的索引文本。</li>
+</ul>
+<h2 id="section-17">6. 版本治理：版本存在、版本有效与版本适用</h2>
+<h3 id="section-18">6.1 最新版本不一定适用</h3>
+<p>用户问“1.1 版本的角色生命值”，应检索 1.1 的规则，即使当前最新版本已经是 1.3。</p>
+<p>用户问“现在的规则”，则需要定义“现在”的判定条件，例如依据有效期、发布状态或用户指定的运行环境；不能简单拿 <code>MAX(version_string)</code> 或“最新导入的一份文件”当成唯一权威。</p>
+<h3 id="section-19">6.2 文档时间的四个常见字段</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义</th>
+<th>不能互相替代的原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>published_at</code></td>
+<td>来源公开发布时间</td>
+<td>发布日不一定是生效日</td>
+</tr>
+<tr>
+<td><code>valid_from</code></td>
+<td>规则开始适用的时间</td>
+<td>可能提前发布</td>
+</tr>
+<tr>
+<td><code>ingested_at</code></td>
+<td>系统导入时间</td>
+<td>导入可能晚于生效</td>
+</tr>
+<tr>
+<td><code>indexed_at</code></td>
+<td>向量索引完成时间</td>
+<td>索引可能滞后于导入</td>
+</tr>
+</tbody></table>
+<p>在法规、合同、游戏补丁、价格政策等有时间效力的领域，保留这几个时间点十分重要。</p>
+<h3 id="section-20">6.3 推荐的版本处理策略</h3>
+<ol>
+<li>新内容写入新的不可变 <code>document_version</code>，不要覆盖旧版本。</li>
+<li>同步记录发布状态、有效期和来源权威等级（权威等级应有明确维护规则）。</li>
+<li>变更资料时重新解析、重新分块或重建索引，并保存新批次标识。</li>
+<li>查询时先确定租户与访问权限，再按业务版本、发布时间、有效期过滤。</li>
+<li>新旧版本冲突时标记冲突，不能把两个版本的片段直接拼成一个没有版本说明的结论。</li>
+<li>回答引用锁定具体版本快照；历史答案可继续核对其<strong>当时</strong>依据的版本，即使新版本已发布。</li>
+<li>撤销、过期或删除后的资料应有明确治理状态；是否允许历史审计访问应由权限政策决定。</li>
+</ol>
+<h2 id="section-21">7. 来源可靠性、权限与优先级</h2>
+<p><strong>来源身份清晰不代表来源一定正确。</strong> 外部网页可能包含错误，内部文档可能过期，用户上传文件可能只是草稿。来源元数据应与可信度判断分离。</p>
+<p>一套可解释的证据优先级规则可能包含：</p>
+<ul>
+<li>官方正式发布资料优先于未经验证的转述，但应结合具体问题。</li>
+<li>当前适用版本优先于旧版本（除非问题明确要求旧版）。</li>
+<li>具体规则条款优先于没有可核实依据的概述。</li>
+<li>有效时间、适用对象、地域或角色必须一致。</li>
+<li>同等级权威资料产生实质冲突时，明确告知冲突并请求补充信息或人工核实。</li>
+</ul>
+<p>还需要 <strong>对象级访问控制</strong>。即使一个分块与查询高度相关，也不能将另一租户或无权访问的资料提供给当前用户。检索前、索引后和引用展开时均应有授权保护。</p>
+<p>例如 PostgreSQL 支持 Row-Level Security，但 RLS 的设置并不自动消除所有风险；数据库角色、表所有者、超级用户权限及连接管理都会影响其实际效果。正式服务应结合后端授权和行级策略设计。</p>
+<h2 id="section-22">8. 引用格式：用户能否真正核查</h2>
+<p>推荐一个机器与前端都容易处理的响应契约：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"answer"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"在 1.1 版本中，青霄的基础生命值为 4。"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"claims"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">"claim_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"c1"</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"text"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"在 1.1 版本中，青霄的基础生命值为 4。"</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"citation_ids"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"e1"</span><span class="hljs-punctuation">]</span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"citations"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">"citation_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"e1"</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"document_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"game-rules"</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"version_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"rules-v1.1-immutable"</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"title"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"游戏规则 1.1"</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"section_path"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"第 1 章"</span><span class="hljs-punctuation">,</span> <span class="hljs-string">"角色参数"</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"page"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">6</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"quote"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"青霄的基础生命值为 4。"</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"anchor"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-attr">"start_char"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">120</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"end_char"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">133</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">"support_status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"verified"</span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>这是<strong>示意格式</strong>；实际项目必须依据源文件计算偏移值，不能直接把这里的示意数字当作有效坐标。</p>
+<p>前端可以把引用显示为 <code>〔游戏规则 1.1，第 1 章，p.6〕</code>，点击后打开来源片段，并突出显示支持该句的原文。</p>
+<p>引用交互应提供：</p>
+<ul>
+<li>清晰的标题、版本、章节、页码或时间位置。</li>
+<li>可展开的原文片段，而非仅仅一个打不开的 URL。</li>
+<li>来源已被撤销或没有权限时的明确提示。</li>
+<li>版本不一致或证据冲突时的提示。</li>
+<li>引用定位失败时的错误状态，而不是悄悄显示错误片段。</li>
+</ul>
+<h2 id="section-23">9. Claim-level Attribution：按陈述逐条绑定证据</h2>
+<p>一段回答可能包含多条事实：</p>
+<blockquote>
+<p>青霄在 v1.1 的生命值为 4，v1.2 提升到 5，而且从未削弱过。</p>
+</blockquote>
+<p>它至少有三条可拆分的陈述：</p>
+<ol>
+<li><code>v1.1 的基础生命值为 4</code>。</li>
+<li><code>v1.2 的基础生命值为 5</code>。</li>
+<li><code>从未削弱过</code>。</li>
+</ol>
+<p>前两条可以分别由 v1.1、v1.2 文档支持；第三条是涵盖所有历史版本的整体判断，只有两个版本的片段通常无法证明“从未”。</p>
+<p>因此实际系统应将回答拆为可核验的原子陈述，然后为每条陈述提供一条或多条足够的证据；不能只给整段文字附一个来源编号就视为正确。</p>
+<h3 id="section-24">9.1 证据支持的常见类型</h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>示例</th>
+<th>判断</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>直接支持</td>
+<td>原文：基础生命值为 4 → 回答：基础生命值为 4</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>合理推导</td>
+<td>两条独立有效规则结合可得到结论</td>
+<td>需明确推导过程</td>
+</tr>
+<tr>
+<td>仅主题相关</td>
+<td>文档讲角色技能，未给生命值</td>
+<td>不支持</td>
+</tr>
+<tr>
+<td>直接矛盾</td>
+<td>原文为 4，回答为 5</td>
+<td>不支持</td>
+</tr>
+<tr>
+<td>条件遗漏</td>
+<td>原文说“夜间技能生效”，回答省略夜间条件</td>
+<td>不充分</td>
+</tr>
+<tr>
+<td>版本错配</td>
+<td>引用 v1.0，回答声称 v1.2</td>
+<td>不支持</td>
+</tr>
+<tr>
+<td>过度概括</td>
+<td>文档只覆盖某个版本，回答声称所有版本</td>
+<td>不支持</td>
+</tr>
+<tr>
+<td>只引用出处但无原文</td>
+<td>链接存在，但未定位相关论据</td>
+<td>待核实</td>
+</tr>
+</tbody></table>
+<h3 id="section-25">9.2 “支持”与“真实”仍有差别</h3>
+<p>即使被引用的文档确实写着某句话，也不保证文档的内容与外部现实一致。</p>
+<ul>
+<li><strong>Faithfulness / Groundedness</strong>：回答能否从给定证据中得到支持。</li>
+<li><strong>Factual correctness</strong>：回答是否与独立、可信的事实基准一致。</li>
+</ul>
+<p>两者要分别评测。Ragas 的 Faithfulness 文档便使用“拆分陈述、判断证据支持关系”的方式描述其指标。</p>
+<h2 id="section-26">10. 引用的两层验证</h2>
+<h3 id="section-27">10.1 第一层：机械完整性校验</h3>
+<p>可由确定性程序验证：</p>
+<ul>
+<li><code>citation_id</code> 是否在本次允许的证据集合中。</li>
+<li><code>version_id</code>、<code>chunk_id</code> 是否真实存在。</li>
+<li>版本是否属于指定文档且用户有权访问。</li>
+<li>原文字符区间是否合法。</li>
+<li>引用摘录是否与<strong>不可变源快照</strong>中的文本一致。</li>
+<li>摘录哈希、源版本哈希是否一致。</li>
+<li>当前问题的版本条件是否匹配。</li>
+</ul>
+<p>这层校验相对容易可靠自动化。</p>
+<h3 id="section-28">10.2 第二层：语义支持校验</h3>
+<p>需要判断：<strong>证据的含义是否支持该陈述</strong>。</p>
+<p>可以采用：</p>
+<ul>
+<li>规则型验证：对结构化字段或确定性计算，例如数值、日期、版本约束。</li>
+<li>人工审核：关键条款、外部来源真实性和复杂推理。</li>
+<li>NLI（自然语言推断）模型或 LLM Judge：辅助判断 <code>entailment / contradiction / neutral</code>，但不能保证零误判。</li>
+<li>多证据推理检查：答案依赖两个以上片段时，检查每个前提和推导步骤。</li>
+</ul>
+<p><strong>禁止将“引用 ID 存在”“关键词重叠”“相似度高”直接标记为语义支持已通过。</strong></p>
+<h2 id="section-29">11. 引用验证推荐流水线</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">用户问题
+   ↓
+身份认证、租户权限与任务约束
+   ↓
+解析版本、时间和其他查询条件
+   ↓
+检索 → 重排 → 选择允许使用的证据
+   ↓
+冻结本次上下文的证据快照和引用 ID
+   ↓
+模型生成结构化回答与 Claim-Citation 映射
+   ↓
+检查输出 Schema 和引用 ID 合法性
+   ↓
+按引用 ID 读取实际原文并核对偏移/版本/权限
+   ↓
+对每条 Claim 进行语义支持验证
+   ↓
+标记 Supported / Contradicted / Not Enough Evidence
+   ↓
+生成可点击的最终回答；无法证明时拒绝编造或明确说明不确定</code></pre></div><p>对于可信度要求较高的系统，不应只在提示词中要求“请引用来源”，而是由程序执行引用回查，并建立独立的证据关系表。</p>
+<h2 id="section-30">12. 检索结果编号为什么不能直接当长期引用</h2>
+<p>一些实现会在当前请求中用 <code>[1]</code>、<code>[2]</code>、<code>[3]</code> 表示资料片段。这种编号适合当前回答，但不适合永久存储，因为：</p>
+<ul>
+<li>下次检索排序可能变化。</li>
+<li>不同问题可能使用相同编号指向不同来源。</li>
+<li>重新分块后 Chunk ID 可能变化。</li>
+<li>来源可能新增、删除或变更版本。</li>
+</ul>
+<p>应该在当前请求中维护 <code>临时编号 → 稳定 version_id / anchor</code> 的映射，长期记录保存稳定的来源键和本次上下文快照标识。</p>
+<p>一个稳定的引用 ID 可以由不可变文档版本 ID 和原文定位派生，但需要考虑偏移规范、编码、碰撞以及不同解析版本下锚点是否仍然有效。</p>
+<h2 id="section-31">13. PostgreSQL 关系表设计示例</h2>
+<p>以下为简化结构，省略用户、租户、ACL、索引和部分外键；不能直接视为生产数据库完整迁移脚本。</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE TABLE</span> source_documents (
+    document_id TEXT <span class="hljs-keyword">PRIMARY KEY</span>,
+    tenant_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    title TEXT <span class="hljs-keyword">NOT NULL</span>,
+    source_uri TEXT,
+    source_type TEXT <span class="hljs-keyword">NOT NULL</span>
+);
+
+<span class="hljs-keyword">CREATE TABLE</span> document_versions (
+    version_id TEXT <span class="hljs-keyword">PRIMARY KEY</span>,
+    document_id TEXT <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">REFERENCES</span> source_documents(document_id),
+    business_version TEXT <span class="hljs-keyword">NOT NULL</span>,
+    content_sha256 TEXT <span class="hljs-keyword">NOT NULL</span>,
+    original_text TEXT <span class="hljs-keyword">NOT NULL</span>,
+    status TEXT <span class="hljs-keyword">NOT NULL</span>,
+    published_at TIMESTAMPTZ,
+    valid_from TIMESTAMPTZ,
+    valid_to TIMESTAMPTZ,
+    ingested_at TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> now(),
+    <span class="hljs-keyword">UNIQUE</span>(document_id, business_version, content_sha256)
+);
+
+<span class="hljs-keyword">CREATE TABLE</span> source_chunks (
+    chunk_id TEXT <span class="hljs-keyword">PRIMARY KEY</span>,
+    version_id TEXT <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">REFERENCES</span> document_versions(version_id),
+    section_path TEXT[] <span class="hljs-keyword">NOT NULL</span>,
+    page_start <span class="hljs-type">INTEGER</span>,
+    page_end <span class="hljs-type">INTEGER</span>,
+    start_char <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span>,
+    end_char <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span>,
+    text_sha256 TEXT <span class="hljs-keyword">NOT NULL</span>,
+    <span class="hljs-keyword">CHECK</span> (end_char <span class="hljs-operator">&gt;</span> start_char)
+);
+
+<span class="hljs-keyword">CREATE TABLE</span> answer_claims (
+    claim_id TEXT <span class="hljs-keyword">PRIMARY KEY</span>,
+    answer_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    claim_text TEXT <span class="hljs-keyword">NOT NULL</span>
+);
+
+<span class="hljs-keyword">CREATE TABLE</span> claim_evidence (
+    claim_id TEXT <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">REFERENCES</span> answer_claims(claim_id),
+    chunk_id TEXT <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">REFERENCES</span> source_chunks(chunk_id),
+    evidence_start <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span>,
+    evidence_end <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span>,
+    support_status TEXT <span class="hljs-keyword">NOT NULL</span>,
+    reviewer_type TEXT,
+    review_version TEXT,
+    <span class="hljs-keyword">PRIMARY KEY</span> (claim_id, chunk_id, evidence_start, evidence_end)
+);</code></pre></div><p><strong>工程注意事项：</strong></p>
+<ul>
+<li>SQL 约束 <code>end_char &gt; start_char</code> 只验证两者大小，不保证偏移在源文本范围内；这种验证还要由应用层执行。</li>
+<li><code>content_sha256</code> 是完整性检查工具，不构成来源可信度证明。</li>
+<li><code>reviewer_type</code> 需要区分人工复核、规则算法、模型裁判，避免混淆。</li>
+<li>多租户生产场景需要租户键、组合外键及 RLS 或同等级权限体系，防止跨租户外键关联。</li>
+<li>版本如果已用于历史引用，应保留其不可变快照或有明确的合法删除与审计替代方案。</li>
+<li>PostgreSQL 的数组和全文检索能力可与 pgvector 结合，但本节重点是引用数据模型，不是向量相似度 SQL。</li>
+</ul>
+<h2 id="section-32">14. Python 完整示例：保存版本、章节与原文锚点</h2>
+<p>下面的示例仅依赖 Python 标准库，能实际执行。它实现四个基本功能：</p>
+<ol>
+<li>保存不可变的教学文档版本。</li>
+<li>创建精确定位的原文证据锚点。</li>
+<li>验证引用位置、原文哈希、版本和租户访问权限。</li>
+<li>将“机械定位正确”与“已经人工复核语义支持”严格区分。</li>
+</ol>
+<h3 id="section-33">14.1 完整代码 <code>provenance_demo.py</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+<span class="hljs-keyword">from</span> enum <span class="hljs-keyword">import</span> Enum
+<span class="hljs-keyword">from</span> hashlib <span class="hljs-keyword">import</span> sha256
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">digest</span>(<span class="hljs-params">text: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> sha256(text.encode(<span class="hljs-string">"utf-8"</span>)).hexdigest()
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">DocumentVersion</span>:
+    document_id: <span class="hljs-built_in">str</span>
+    version_id: <span class="hljs-built_in">str</span>
+    business_version: <span class="hljs-built_in">str</span>
+    tenant_id: <span class="hljs-built_in">str</span>
+    title: <span class="hljs-built_in">str</span>
+    source_uri: <span class="hljs-built_in">str</span>
+    section: <span class="hljs-built_in">str</span>
+    text: <span class="hljs-built_in">str</span>
+    content_hash: <span class="hljs-built_in">str</span>
+
+<span class="hljs-meta">    @classmethod</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">create</span>(<span class="hljs-params">
+        cls, *, document_id: <span class="hljs-built_in">str</span>, business_version: <span class="hljs-built_in">str</span>,
+        tenant_id: <span class="hljs-built_in">str</span>, title: <span class="hljs-built_in">str</span>, source_uri: <span class="hljs-built_in">str</span>,
+        section: <span class="hljs-built_in">str</span>, text: <span class="hljs-built_in">str</span>,
+    </span>) -&gt; <span class="hljs-string">"DocumentVersion"</span>:
+        content_hash = digest(text)
+        <span class="hljs-keyword">return</span> cls(
+            document_id=document_id,
+            version_id=<span class="hljs-string">f"<span class="hljs-subst">{document_id}</span>@<span class="hljs-subst">{business_version}</span>:<span class="hljs-subst">{content_hash[:<span class="hljs-number">16</span>]}</span>"</span>,
+            business_version=business_version,
+            tenant_id=tenant_id,
+            title=title,
+            source_uri=source_uri,
+            section=section,
+            text=text,
+            content_hash=content_hash,
+        )
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Citation</span>:
+    citation_id: <span class="hljs-built_in">str</span>
+    claim_id: <span class="hljs-built_in">str</span>
+    version_id: <span class="hljs-built_in">str</span>
+    start_char: <span class="hljs-built_in">int</span>
+    end_char: <span class="hljs-built_in">int</span>
+    quoted_text: <span class="hljs-built_in">str</span>
+    quote_hash: <span class="hljs-built_in">str</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Status</span>(<span class="hljs-built_in">str</span>, Enum):
+    ANCHOR_INVALID = <span class="hljs-string">"ANCHOR_INVALID"</span>
+    VERSION_NOT_FOUND = <span class="hljs-string">"VERSION_NOT_FOUND"</span>
+    FORBIDDEN = <span class="hljs-string">"FORBIDDEN"</span>
+    REVIEW_REQUIRED = <span class="hljs-string">"REVIEW_REQUIRED"</span>
+    SUPPORTED = <span class="hljs-string">"SUPPORTED"</span>
+    NOT_SUPPORTED = <span class="hljs-string">"NOT_SUPPORTED"</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ProvenanceStore</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.versions: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, DocumentVersion] = {}
+        <span class="hljs-comment"># (claim_id, citation_id) → 人工/独立流程复核的支持判断。</span>
+        <span class="hljs-variable language_">self</span>.reviews: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">str</span>], <span class="hljs-built_in">bool</span>] = {}
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">add</span>(<span class="hljs-params">self, doc: DocumentVersion</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> doc.version_id <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.versions:
+            <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.versions[doc.version_id] != doc:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"版本 ID 冲突，禁止覆盖不可变快照"</span>)
+            <span class="hljs-keyword">return</span>
+        <span class="hljs-keyword">if</span> digest(doc.text) != doc.content_hash:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"文档快照哈希无效"</span>)
+        <span class="hljs-variable language_">self</span>.versions[doc.version_id] = doc
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">anchor</span>(<span class="hljs-params">
+        self, *, doc: DocumentVersion, claim_id: <span class="hljs-built_in">str</span>, exact_quote: <span class="hljs-built_in">str</span>
+    </span>) -&gt; Citation:
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> exact_quote:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"引用文字不能为空"</span>)
+        start = doc.text.find(exact_quote)
+        <span class="hljs-keyword">if</span> start &lt; <span class="hljs-number">0</span>:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"原文中不存在该引用片段"</span>)
+        end = start + <span class="hljs-built_in">len</span>(exact_quote)
+        citation_id = digest(
+            <span class="hljs-string">f"<span class="hljs-subst">{doc.version_id}</span>:<span class="hljs-subst">{start}</span>:<span class="hljs-subst">{end}</span>:<span class="hljs-subst">{exact_quote}</span>"</span>
+        )[:<span class="hljs-number">20</span>]
+        <span class="hljs-keyword">return</span> Citation(
+            citation_id=citation_id,
+            claim_id=claim_id,
+            version_id=doc.version_id,
+            start_char=start,
+            end_char=end,
+            quoted_text=exact_quote,
+            quote_hash=digest(exact_quote),
+        )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">review_support</span>(<span class="hljs-params">
+        self, *, claim_id: <span class="hljs-built_in">str</span>, citation_id: <span class="hljs-built_in">str</span>, supports: <span class="hljs-built_in">bool</span>
+    </span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-comment"># 教学示例：假定该入口只能由已授权的审核流程调用。</span>
+        <span class="hljs-comment"># 生产环境必须验证审核人员身份、版本和审核对象。</span>
+        <span class="hljs-variable language_">self</span>.reviews[(claim_id, citation_id)] = supports
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">verify</span>(<span class="hljs-params">self, *, citation: Citation, tenant_id: <span class="hljs-built_in">str</span></span>) -&gt; Status:
+        doc = <span class="hljs-variable language_">self</span>.versions.get(citation.version_id)
+        <span class="hljs-keyword">if</span> doc <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">return</span> Status.VERSION_NOT_FOUND
+        <span class="hljs-keyword">if</span> doc.tenant_id != tenant_id:
+            <span class="hljs-keyword">return</span> Status.FORBIDDEN
+        <span class="hljs-keyword">if</span> digest(doc.text) != doc.content_hash:
+            <span class="hljs-keyword">return</span> Status.ANCHOR_INVALID
+        start, end = citation.start_char, citation.end_char
+        <span class="hljs-keyword">if</span> start &lt; <span class="hljs-number">0</span> <span class="hljs-keyword">or</span> end &lt;= start <span class="hljs-keyword">or</span> end &gt; <span class="hljs-built_in">len</span>(doc.text):
+            <span class="hljs-keyword">return</span> Status.ANCHOR_INVALID
+        actual = doc.text[start:end]
+        <span class="hljs-keyword">if</span> actual != citation.quoted_text:
+            <span class="hljs-keyword">return</span> Status.ANCHOR_INVALID
+        <span class="hljs-keyword">if</span> digest(actual) != citation.quote_hash:
+            <span class="hljs-keyword">return</span> Status.ANCHOR_INVALID
+        expected_id = digest(
+            <span class="hljs-string">f"<span class="hljs-subst">{doc.version_id}</span>:<span class="hljs-subst">{start}</span>:<span class="hljs-subst">{end}</span>:<span class="hljs-subst">{actual}</span>"</span>
+        )[:<span class="hljs-number">20</span>]
+        <span class="hljs-keyword">if</span> citation.citation_id != expected_id:
+            <span class="hljs-keyword">return</span> Status.ANCHOR_INVALID
+        reviewed = <span class="hljs-variable language_">self</span>.reviews.get((citation.claim_id, citation.citation_id))
+        <span class="hljs-keyword">if</span> reviewed <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">return</span> Status.REVIEW_REQUIRED
+        <span class="hljs-keyword">return</span> Status.SUPPORTED <span class="hljs-keyword">if</span> reviewed <span class="hljs-keyword">else</span> Status.NOT_SUPPORTED
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">example</span>() -&gt; <span class="hljs-literal">None</span>:
+    store = ProvenanceStore()
+    v11 = DocumentVersion.create(
+        document_id=<span class="hljs-string">"demo-game-rules"</span>, business_version=<span class="hljs-string">"1.1"</span>,
+        tenant_id=<span class="hljs-string">"tenant-a"</span>, title=<span class="hljs-string">"演示规则 1.1"</span>,
+        source_uri=<span class="hljs-string">"internal://demo/rules/1.1"</span>,
+        section=<span class="hljs-string">"第 1 章 / 角色参数"</span>,
+        text=<span class="hljs-string">"第 1 章 角色参数\n版本 1.1 中，青霄的基础生命值为 4。\n"</span>,
+    )
+    v12 = DocumentVersion.create(
+        document_id=<span class="hljs-string">"demo-game-rules"</span>, business_version=<span class="hljs-string">"1.2"</span>,
+        tenant_id=<span class="hljs-string">"tenant-a"</span>, title=<span class="hljs-string">"演示规则 1.2"</span>,
+        source_uri=<span class="hljs-string">"internal://demo/rules/1.2"</span>,
+        section=<span class="hljs-string">"第 1 章 / 角色参数"</span>,
+        text=<span class="hljs-string">"第 1 章 角色参数\n版本 1.2 中，青霄的基础生命值为 5。\n"</span>,
+    )
+    store.add(v11)
+    store.add(v12)
+
+    cite = store.anchor(
+        doc=v11, claim_id=<span class="hljs-string">"claim-1"</span>,
+        exact_quote=<span class="hljs-string">"版本 1.1 中，青霄的基础生命值为 4。"</span>,
+    )
+    <span class="hljs-built_in">print</span>(store.verify(citation=cite, tenant_id=<span class="hljs-string">"tenant-a"</span>))
+    <span class="hljs-comment"># 在独立审核人员确认陈述与原文语义一致之后：</span>
+    store.review_support(
+        claim_id=<span class="hljs-string">"claim-1"</span>, citation_id=cite.citation_id, supports=<span class="hljs-literal">True</span>
+    )
+    <span class="hljs-built_in">print</span>(store.verify(citation=cite, tenant_id=<span class="hljs-string">"tenant-a"</span>))
+    <span class="hljs-built_in">print</span>(store.verify(citation=cite, tenant_id=<span class="hljs-string">"tenant-b"</span>))
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    example()</code></pre></div><p>运行：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python provenance_demo.py</code></pre></div><p>预期状态为 <code>REVIEW_REQUIRED</code>、<code>SUPPORTED</code>、<code>FORBIDDEN</code>。前两者说明：<strong>原文定位正确时，也不能自动声称已经通过语义支持校验。</strong></p>
+<h3 id="section-34">14.2 该示例的边界</h3>
+<p>这个教学实现并非完整 RAG，也不是真实模型评测：</p>
+<ul>
+<li>不执行 Embedding、向量索引和语义检索。</li>
+<li>不自动判定陈述是否被证据支持；语义支持结果由独立审核流程传入。</li>
+<li>假设 <code>review_support()</code> 只能由可信后端调用；尚未实现审核权限与不可变审核记录。</li>
+<li><code>anchor()</code> 查找首次完全相同的子串；真实资料中重复文本应携带章节及位置消歧。</li>
+<li>使用进程内字典而非数据库；正式系统应持久化来源快照、审核记录和权限信息。</li>
+<li>未实现 OCR 坐标映射、文档撤销和生效时间过滤。</li>
+<li>示例状态只描述本次调用的单条引用；生产系统还要做 Claim → 多证据关系的完整校验。</li>
+</ul>
+<h2 id="section-35">15. 自动化测试：不同失败类型不可混为一谈</h2>
+<p>可把上面代码保存为 <code>provenance_demo.py</code>，再创建 <code>test_provenance_demo.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> replace
+<span class="hljs-keyword">import</span> unittest
+<span class="hljs-keyword">from</span> provenance_demo <span class="hljs-keyword">import</span> (
+    Citation, DocumentVersion, ProvenanceStore, Status, digest
+)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ProvenanceTests</span>(unittest.TestCase):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">setUp</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store = ProvenanceStore()
+        <span class="hljs-variable language_">self</span>.doc = DocumentVersion.create(
+            document_id=<span class="hljs-string">"rules"</span>, business_version=<span class="hljs-string">"v1"</span>,
+            tenant_id=<span class="hljs-string">"t1"</span>, title=<span class="hljs-string">"规则 v1"</span>,
+            source_uri=<span class="hljs-string">"internal://rules/v1"</span>, section=<span class="hljs-string">"规则 / 参数"</span>,
+            text=<span class="hljs-string">"技能只能在白天使用。\n角色生命值为 4。"</span>,
+        )
+        <span class="hljs-variable language_">self</span>.store.add(<span class="hljs-variable language_">self</span>.doc)
+        <span class="hljs-variable language_">self</span>.cite = <span class="hljs-variable language_">self</span>.store.anchor(
+            doc=<span class="hljs-variable language_">self</span>.doc, claim_id=<span class="hljs-string">"c1"</span>, exact_quote=<span class="hljs-string">"技能只能在白天使用。"</span>
+        )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_valid_anchor_still_requires_review</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(
+            <span class="hljs-variable language_">self</span>.store.verify(citation=<span class="hljs-variable language_">self</span>.cite, tenant_id=<span class="hljs-string">"t1"</span>),
+            Status.REVIEW_REQUIRED,
+        )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_support_after_review</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.review_support(
+            claim_id=<span class="hljs-string">"c1"</span>, citation_id=<span class="hljs-variable language_">self</span>.cite.citation_id,
+            supports=<span class="hljs-literal">True</span>,
+        )
+        <span class="hljs-variable language_">self</span>.assertEqual(
+            <span class="hljs-variable language_">self</span>.store.verify(citation=<span class="hljs-variable language_">self</span>.cite, tenant_id=<span class="hljs-string">"t1"</span>),
+            Status.SUPPORTED,
+        )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_review_may_reject_support</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.store.review_support(
+            claim_id=<span class="hljs-string">"c1"</span>, citation_id=<span class="hljs-variable language_">self</span>.cite.citation_id,
+            supports=<span class="hljs-literal">False</span>,
+        )
+        <span class="hljs-variable language_">self</span>.assertEqual(
+            <span class="hljs-variable language_">self</span>.store.verify(citation=<span class="hljs-variable language_">self</span>.cite, tenant_id=<span class="hljs-string">"t1"</span>),
+            Status.NOT_SUPPORTED,
+        )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cross_tenant_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(
+            <span class="hljs-variable language_">self</span>.store.verify(citation=<span class="hljs-variable language_">self</span>.cite, tenant_id=<span class="hljs-string">"t2"</span>),
+            Status.FORBIDDEN,
+        )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_missing_version</span>(<span class="hljs-params">self</span>):
+        fake = replace(<span class="hljs-variable language_">self</span>.cite, version_id=<span class="hljs-string">"unknown"</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(
+            <span class="hljs-variable language_">self</span>.store.verify(citation=fake, tenant_id=<span class="hljs-string">"t1"</span>),
+            Status.VERSION_NOT_FOUND,
+        )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_modified_quote_rejected</span>(<span class="hljs-params">self</span>):
+        fake = replace(<span class="hljs-variable language_">self</span>.cite, quoted_text=<span class="hljs-string">"技能只能在夜间使用。"</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(
+            <span class="hljs-variable language_">self</span>.store.verify(citation=fake, tenant_id=<span class="hljs-string">"t1"</span>),
+            Status.ANCHOR_INVALID,
+        )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_modified_hash_rejected</span>(<span class="hljs-params">self</span>):
+        fake = replace(<span class="hljs-variable language_">self</span>.cite, quote_hash=digest(<span class="hljs-string">"伪造"</span>))
+        <span class="hljs-variable language_">self</span>.assertEqual(
+            <span class="hljs-variable language_">self</span>.store.verify(citation=fake, tenant_id=<span class="hljs-string">"t1"</span>),
+            Status.ANCHOR_INVALID,
+        )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_negative_offset_rejected</span>(<span class="hljs-params">self</span>):
+        fake = replace(<span class="hljs-variable language_">self</span>.cite, start_char=-<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(
+            <span class="hljs-variable language_">self</span>.store.verify(citation=fake, tenant_id=<span class="hljs-string">"t1"</span>),
+            Status.ANCHOR_INVALID,
+        )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_changed_id_rejected</span>(<span class="hljs-params">self</span>):
+        fake = replace(<span class="hljs-variable language_">self</span>.cite, citation_id=<span class="hljs-string">"some-other-id"</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(
+            <span class="hljs-variable language_">self</span>.store.verify(citation=fake, tenant_id=<span class="hljs-string">"t1"</span>),
+            Status.ANCHOR_INVALID,
+        )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_anchor_missing_quote_raises</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            <span class="hljs-variable language_">self</span>.store.anchor(
+                doc=<span class="hljs-variable language_">self</span>.doc, claim_id=<span class="hljs-string">"c2"</span>, exact_quote=<span class="hljs-string">"不存在的句子"</span>
+            )
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_duplicate_version_id_cannot_be_overwritten</span>(<span class="hljs-params">self</span>):
+        fake = replace(<span class="hljs-variable language_">self</span>.doc, title=<span class="hljs-string">"另一份文档"</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            <span class="hljs-variable language_">self</span>.store.add(fake)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_source_content_hash_checked</span>(<span class="hljs-params">self</span>):
+        fake = replace(<span class="hljs-variable language_">self</span>.doc, text=<span class="hljs-string">"被替换的正文"</span>)
+        new_store = ProvenanceStore()
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            new_store.add(fake)
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    unittest.main()</code></pre></div><p>运行：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m unittest -v test_provenance_demo.py</code></pre></div><p>这里有 12 项离线测试。它们检查的是本地来源锚点及状态区分，<strong>不能代替真实语义支持判断或模型 RAG 效果测试</strong>。</p>
+<h2 id="section-36">16. 真实 RAG 中的证据验证指标</h2>
+<h3 id="section-37">16.1 引用有效率（Anchor Validity）</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">引用有效率 = 可定位到正确原文快照的引用数 / 总引用数</code></pre></div><p>检查的是 <code>version_id</code>、锚点、权限和原文一致性；不能证明内容支持回答。</p>
+<h3 id="section-38">16.2 引用支持率（Citation Support Rate）</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">引用支持率 = 经核验支持其关联陈述的引用数 / 参与核验的引用数</code></pre></div><p>应说明哪些引用被人工审核、哪些由模型裁判审核；分母是否包含定位失败、未核验和拒绝处理的引用，也要在评测协议中预先规定。</p>
+<h3 id="section-39">16.3 陈述证据覆盖率（Claim Coverage）</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">陈述证据覆盖率 = 拥有充分证据支持的事实陈述数 / 总事实陈述数</code></pre></div><p>一句话可能有多个子事实，评测要按独立陈述计算，防止一个宽泛引用覆盖多个互不相关的主张。</p>
+<h3 id="section-40">16.4 版本一致率（Version Consistency）</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">版本一致率 = 引用版本满足问题版本/时间条件的陈述数 / 需要版本约束的陈述数</code></pre></div><h3 id="section-41">16.5 Faithfulness / Groundedness</h3>
+<p>Faithfulness 通常表示回答的陈述能够从已检索的上下文中得到多少支持。Ragas 将其建立在“拆分陈述—判断每条是否被上下文支持”的基础上。它与事实真实度不同，尤其不能替代来源本身的权威性检查。</p>
+<h3 id="section-42">16.6 评测集建议</h3>
+<p>至少覆盖：</p>
+<ul>
+<li>单文档精确事实。</li>
+<li>同文档多章节联合推导。</li>
+<li>新旧版本差异。</li>
+<li>发布日期与生效时间差异。</li>
+<li>未收录资料。</li>
+<li>检索到相关但不支持结论的资料。</li>
+<li>明确矛盾或条件缺失。</li>
+<li>需要多个来源共同支持的结论。</li>
+<li>无权限资料不得出现在引用中。</li>
+<li>分块重叠导致的重复引用。</li>
+<li>文档更新后历史答案能否回溯。</li>
+<li>OCR 错位、表格单位丢失和锚点变更。</li>
+</ul>
+<p>对同一组样例比较不同模型、索引、分块或提示词版本，分开报告检索质量、引用有效率、语义支持率及最终答案正确率。</p>
+<h2 id="section-43">17. 常见故障与定位方法</h2>
+<table>
+<thead>
+<tr>
+<th>故障</th>
+<th>表现</th>
+<th>首先检查</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>来源丢失</td>
+<td>只剩 Chunk 文本，无法打开原文</td>
+<td>导入阶段是否保存 <code>document_id</code>、<code>version_id</code></td>
+</tr>
+<tr>
+<td>章节错误</td>
+<td>引用显示了其他章节</td>
+<td>Parser 结构识别和 metadata 继承</td>
+</tr>
+<tr>
+<td>页码错位</td>
+<td>引用打开的 PDF 页面不匹配</td>
+<td>印刷页码与物理页码映射</td>
+</tr>
+<tr>
+<td>版本混淆</td>
+<td>回答混用 v1.0 与 v1.2</td>
+<td>查询过滤条件与生效时间</td>
+</tr>
+<tr>
+<td>锚点漂移</td>
+<td>重新清洗后字符位置失效</td>
+<td>原始快照与偏移映射</td>
+</tr>
+<tr>
+<td>引用幻觉</td>
+<td>模型输出未检索到的引用 ID</td>
+<td>引用 ID 是否从本次证据列表校验</td>
+</tr>
+<tr>
+<td>相关而不支持</td>
+<td>引用主题相关，却没有结论</td>
+<td>Claim-level 语义支持审核</td>
+</tr>
+<tr>
+<td>跨用户泄露</td>
+<td>用户看到了其他租户资料</td>
+<td>后端授权与检索过滤</td>
+</tr>
+<tr>
+<td>证据互相矛盾</td>
+<td>不同正式文档存在不同规则</td>
+<td>来源优先级、版本、日期与冲突处理</td>
+</tr>
+<tr>
+<td>历史引用失效</td>
+<td>新文档覆盖了旧原文</td>
+<td>不可变版本快照及历史锚点</td>
+</tr>
+<tr>
+<td>UI 无法核查</td>
+<td>只有文件名没有原文片段</td>
+<td>引用解析接口和前端高亮定位</td>
+</tr>
+</tbody></table>
+<h2 id="section-44">18. 参考资料与阅读入口</h2>
+<p>以下均为可核查的技术资料；页面内容和框架 API 可能随版本演进，应结合实际锁定的依赖版本阅读。</p>
+<ol>
+<li><strong>LlamaIndex — Documents / Nodes</strong>：介绍文档与分块对象，以及 metadata 与 relationships。<br /><a href="https://developers.llamaindex.ai/python/framework/module_guides/loading/documents_and_nodes/">https://developers.llamaindex.ai/python/framework/module_guides/loading/documents_and_nodes/</a></li>
+<li><strong>LlamaIndex — Defining and Customizing Nodes</strong>：介绍 Node 创建、关联与内容处理。<br /><a href="https://developers.llamaindex.ai/python/framework/module_guides/loading/documents_and_nodes/usage_nodes/">https://developers.llamaindex.ai/python/framework/module_guides/loading/documents_and_nodes/usage_nodes/</a></li>
+<li><strong>LlamaIndex — CitationQueryEngine 源码</strong>：展示按来源分块、编号和生成带引用回答的实现方式。<br /><a href="https://github.com/run-llama/llama_index/blob/main/llama-index-core/llama_index/core/query_engine/citation_query_engine.py">https://github.com/run-llama/llama_index/blob/main/llama-index-core/llama_index/core/query_engine/citation_query_engine.py</a></li>
+<li><strong>LangChain — Knowledge Base / Document</strong>：介绍 <code>page_content</code>、<code>metadata</code> 与文档 ID。<br /><a href="https://github.com/langchain-ai/docs/blob/main/src/oss/langchain/knowledge-base.mdx">https://github.com/langchain-ai/docs/blob/main/src/oss/langchain/knowledge-base.mdx</a></li>
+<li><strong>W3C PROV Model Primer</strong>：实体、活动、代理及版本来源的概念模型。<br /><a href="https://www.w3.org/TR/prov-primer/">https://www.w3.org/TR/prov-primer/</a></li>
+<li><strong>W3C PROV-N</strong>：来源信息表达的标准化表示。<br /><a href="https://www.w3.org/TR/prov-n/">https://www.w3.org/TR/prov-n/</a></li>
+<li><strong>Ragas — Faithfulness</strong>：基于陈述与检索上下文的支持关系进行评估。<br /><a href="https://docs.ragas.io/en/latest/concepts/metrics/available_metrics/faithfulness/">https://docs.ragas.io/en/latest/concepts/metrics/available_metrics/faithfulness/</a></li>
+<li><strong>PostgreSQL — Row Security Policies</strong>：多租户数据查询中的行级安全策略及例外。<br /><a href="https://www.postgresql.org/docs/current/ddl-rowsecurity.html">https://www.postgresql.org/docs/current/ddl-rowsecurity.html</a></li>
+<li><strong>OpenAI — File Search</strong>：托管检索工具、文件引用和检索结果输出接口。<br /><a href="https://developers.openai.com/api/docs/guides/tools-file-search">https://developers.openai.com/api/docs/guides/tools-file-search</a></li>
+</ol>
+<hr />
+<h2 id="section-45">19. 归纳：本节知识的三个层次</h2>
+<p><strong>第一层：资料可追溯。</strong> 保存源文档、章节层级、版本与时间、生效范围、原始快照及分块关联，确保引用能找到“哪一版资料的哪一处文字”。</p>
+<p><strong>第二层：引用可验证。</strong> 由程序校验引用 ID、权限、版本、页码或字符锚点、原文哈希，避免无效、越权、过期或漂移的引用。</p>
+<p><strong>第三层：陈述可证明。</strong> 将答案拆成事实陈述，再分别判断证据是否真正支持该说法；缺失、矛盾、跨版本或超出来源范围时，不把相关文档伪装成可靠证据。</p>
+<p>最终结论：<strong>保存来源只是起点；真正可信的 RAG 引用需要“可追溯的原始证据 + 可核验的定位信息 + 逐条陈述的语义支持关系”。</strong></p>

@@ -1,0 +1,96 @@
+{
+  "date": "2026-11-14",
+  "scope": "Read-only Windows counters/event logs and current Docker service stats; user reported whole-browser freeze",
+  "model_request": {
+    "input": "查询凯撒技能",
+    "run_id": "398007e2-1f21-51eb-a0db-ccd4d61b8b02",
+    "status": "completed",
+    "elapsed_ms": 5593,
+    "error": null
+  },
+  "service_health": {
+    "owner_web_15174": 200,
+    "api_18081": 200,
+    "database": "postgresql",
+    "model_mode": "live",
+    "index_published": true
+  },
+  "host_samples": [
+    {
+      "available_physical_kib": 409952,
+      "total_physical_kib": 16625724,
+      "available_virtual_kib": 5157664,
+      "total_virtual_kib": 66957148
+    },
+    {
+      "committed_bytes": 64194236416,
+      "commit_limit_bytes": 68564119552,
+      "available_mib": 621
+    },
+    {
+      "note": "later during sequential build",
+      "available_physical_kib": 173736,
+      "available_virtual_kib": 3137692
+    }
+  ],
+  "windows_events": [
+    {
+      "time": "2026-11-14T15:33:50+08:00",
+      "id": 2004,
+      "summary": "virtual memory shortage",
+      "largest_reported_bytes": {
+        "vmmemWSL": 8570003456,
+        "msedge": 5539917824,
+        "node": 2619715584
+      }
+    },
+    {
+      "time": "2026-11-14T15:53:14+08:00",
+      "id": 2004,
+      "summary": "virtual memory shortage",
+      "largest_reported_bytes": {
+        "vmmemWSL": 8585412608,
+        "msedge": 5526085632,
+        "python": 2660020224
+      }
+    },
+    {
+      "time": "2026-11-14T15:33:59+08:00",
+      "id": 1000,
+      "application": "msedge.exe",
+      "exception": "0xe0000008",
+      "note": "earlier event, not proof of screenshot incident cause"
+    }
+  ],
+  "docker_memory_mib": {
+    "worker": 62.38,
+    "api": 509.5,
+    "web": 15.75,
+    "redis": 18.46,
+    "postgres": 326.8,
+    "kafka": 466
+  },
+  "existing_ui_probe": {
+    "scope": "Actual owner UI, existing saved conversation; no submission/model call",
+    "before": {
+      "top": 2149.333251953125,
+      "height": 2555,
+      "client": 386
+    },
+    "after": {
+      "top": 1499.3333740234375,
+      "input": "输入响应检查（不发送）",
+      "inputEnabled": true,
+      "frame_ms": 11.099999964237213,
+      "questions": 5
+    },
+    "scrollResponded": true,
+    "inputResponded": true
+  },
+  "conclusion": "Host memory pressure is strongly supported. Exact freeze was not reproduced or captured with a crash dump; no evidence of current Worker runaway or failed Caesar request.",
+  "actions_not_taken": [
+    "kill unrelated processes",
+    "change global WSL memory or pagefile",
+    "clear browser profile or user conversations"
+  ]
+}

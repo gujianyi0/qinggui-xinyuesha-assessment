@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -14,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, text, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+from .bookshelf_progress import MasteryInput, ShelfProgress
 from .catalog import Catalog, Embedder, KnowledgeSearch
 from .config import Settings
 from .db import Database
@@ -35,6 +37,7 @@ from .models import (
     User,
     now,
 )
+from .public_records import records_router
 from .public_schemas import PublicIdentity, PublicRunInput
 from .runtime import Runtime
 from .schemas import (
@@ -73,18 +76,32 @@ def create_app(settings: Settings | None = None):
     runtime = Runtime(config, database, catalog, search)
     jobs = Jobs(config, database, catalog, embedder)
     admission_lock = asyncio.Lock()
+    shelf_progress = ShelfProgress(config)
 
     @asynccontextmanager
     async def lifespan(app):
         await database.initialize(config)
         await runtime.recover_interrupted()
-        yield
-        await runtime.close()
-        await search.close()
-        await database.close()
+        warmup = None
+        if config.embedding_mode == "local":
+            async with database.sessions() as db:
+                published = await db.get(PublishedIndex, catalog.active_id) if catalog.active_id else None
+            if published:
+                warmup = asyncio.create_task(embedder.warmup(), name="embedding-warmup")
+        try:
+            yield
+        finally:
+            if warmup:
+                warmup.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await warmup
+            await runtime.close()
+            await search.close()
+            await database.close()
 
     app = FastAPI(title="轻归 · 新月杀资料与反馈助手", version="0.1.0", lifespan=lifespan)
     app.state.settings, app.state.database, app.state.runtime = config, database, runtime
+    app.state.shelf_progress = shelf_progress
     app.state.catalog, app.state.jobs, app.state.search = catalog, jobs, search
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], allow_methods=["GET", "POST", "PATCH"], allow_headers=["Authorization", "Content-Type", "X-Assessment-Fault"])
 
@@ -102,6 +119,21 @@ def create_app(settings: Settings | None = None):
                 raise HTTPException(401, "登录已失效，请重新登录")
             return token.user_id
 
+    async def shelf_owner(user_id: str) -> bool:
+        async with database.sessions() as db:
+            user = await db.get(User, user_id)
+            return bool(user and user.username == config.bookshelf_owner_username and config.bookshelf_owner_key)
+
+    @app.get('/bookshelf/progress')
+    async def bookshelf_progress(user_id: str = Depends(current_user)):
+        return await shelf_progress.read(await shelf_owner(user_id))
+
+    @app.patch('/bookshelf/progress')
+    async def change_bookshelf_progress(body: MasteryInput, user_id: str = Depends(current_user)):
+        if not await shelf_owner(user_id):
+            raise HTTPException(403, '仅书架主人可以修改共享掌握进度')
+        return await shelf_progress.write(body)
+
     async def bridge_auth(x_bridge_token: str = Header(default="")):
         if not config.bridge_token or not secrets.compare_digest(x_bridge_token, config.bridge_token):
             raise HTTPException(401, "桥接服务身份无效")
@@ -109,6 +141,8 @@ def create_app(settings: Settings | None = None):
     async def public_service_auth(x_public_service: str = Header(default="")):
         if not config.public_service_token or not secrets.compare_digest(x_public_service, config.public_service_token):
             raise HTTPException(401, "公共网关身份无效")
+
+    app.include_router(records_router(database, config, current_user, public_service_auth))
 
     async def owned(model, identifier: str, user_id: str):
         async with database.sessions() as db:
@@ -195,7 +229,7 @@ def create_app(settings: Settings | None = None):
             cache_status = "available" if await search.cache.ping() else "unavailable_fallback"
         except Exception:
             cache_status = "unavailable_fallback"
-        return {"status": "ok", "cache": cache_status, "model_mode": config.model_mode, "model_id": config.model_id, "snapshot_id": catalog.active_id, "embedding_mode": config.embedding_mode, "index_published": published is not None, "database": database.engine.dialect.name, "fault_injection_enabled": config.enable_test_faults, "budget": {"spent_cny": budget.spent, "reserved_cny": budget.reserved, "limit_cny": config.total_budget_cny, "warning": budget.spent + budget.reserved >= config.budget_warning_cny}}
+        return {"status": "ok", "cache": cache_status, "model_mode": config.model_mode, "model_id": config.model_id, "snapshot_id": catalog.active_id, "embedding_mode": config.embedding_mode, "embedding": embedder.diagnostics(), "index_published": published is not None, "database": database.engine.dialect.name, "fault_injection_enabled": config.enable_test_faults, "budget": {"spent_cny": budget.spent, "reserved_cny": budget.reserved, "limit_cny": config.total_budget_cny, "warning": budget.spent + budget.reserved >= config.budget_warning_cny}}
 
     @app.post("/auth/token")
     async def login(body: Login):

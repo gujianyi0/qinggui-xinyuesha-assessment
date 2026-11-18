@@ -1,0 +1,1217 @@
+<h1 id="section-1">测试、部署与效果验证（01）——pytest 核心逻辑、失败分支与接口/数据库/后台任务集成测试</h1>
+<blockquote>
+<p>对应学习目标：<strong>用 pytest 检查核心逻辑和失败分支，用集成测试检查接口、数据库与后台任务；每个测试写清预期结果。</strong></p>
+<p>技术范围：Python 3.13、pytest 9、pytest-asyncio、FastAPI、Pydantic 2、SQLAlchemy 2.x、SQLite 教学环境；区分真实 PostgreSQL/Kafka 集成测试与本地模拟测试。</p>
+<p>本文属于知识性解释与可运行工程实例。它不将模拟环境的通过率视为生产可靠性证明。</p>
+</blockquote>
+<h2 id="section-2">1. 软件测试在验证什么</h2>
+<p>程序“运行了”和“正确”不是同义词。<strong>测试</strong>是在明确前提和可观察预期的条件下执行程序，判断其行为是否满足约定。正确性的依据应来自需求、接口契约、数据库约束或独立业务规则，而不能简单地把当前程序输出复制成“预期答案”。</p>
+<p>一条可执行的测试至少由五个元素组成：</p>
+<ol>
+<li><strong>前置条件（Given）</strong>：输入、系统状态、用户身份、外部依赖状态。</li>
+<li><strong>操作（When）</strong>：调用函数、请求 API、消费消息、执行数据库事务。</li>
+<li><strong>预期（Then）</strong>：返回值、HTTP 状态、异常类型、持久化数据、消息状态等。</li>
+<li><strong>可观测手段（Oracle）</strong>：断言依据来自哪里，例如业务需求、Schema、唯一约束。</li>
+<li><strong>隔离与清理（Isolation）</strong>：测试执行后是否留下影响其他测试的状态。</li>
+</ol>
+<p>例如，“用户重复提交同一反馈”不是一个足够精确的测试描述。更精确的表述是：</p>
+<blockquote>
+<p>Given：数据库中已存在 <code>owner=alice, idempotency_key=req-01</code> 的任务；When：同一身份、同一键、相同内容再次发送 POST；Then：仍返回原有任务 ID，数据库记录总数保持 1，不重新执行已经完成的副作用。</p>
+</blockquote>
+<p>测试通过只能证明<strong>被测试的输入、环境和断言所覆盖的性质</strong>，不是对所有执行条件的形式化保证。尤其不能从单线程的离线测试推断多节点并发一定正确。</p>
+<h2 id="section-3">2. 单元测试、集成测试、端到端测试与效果评测</h2>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>测试对象</th>
+<th>外部依赖</th>
+<th>示例</th>
+<th>不能直接证明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>单元测试（Unit Test）</td>
+<td>函数、类、独立算法</td>
+<td>使用固定数据或替身</td>
+<td><code>normalize_payload()</code> 对空白的处理</td>
+<td>数据库、HTTP、Kafka 整体正确</td>
+</tr>
+<tr>
+<td>组件测试（Component Test）</td>
+<td>API 应用的一部分</td>
+<td>可以替换部分依赖</td>
+<td>FastAPI 路由 + 伪模型服务</td>
+<td>真实模型、网络稳定性</td>
+</tr>
+<tr>
+<td>集成测试（Integration Test）</td>
+<td>两个及以上真实组件的协作</td>
+<td>至少一部分真实依赖</td>
+<td>FastAPI → SQLAlchemy → SQLite</td>
+<td>PostgreSQL 特有的锁与隔离行为</td>
+</tr>
+<tr>
+<td>端到端测试（E2E）</td>
+<td>从真实入口到最终系统结果</td>
+<td>尽可能使用完整部署</td>
+<td>前端 → API → Kafka → Worker → PostgreSQL → UI</td>
+<td>所有故障都已经覆盖</td>
+</tr>
+<tr>
+<td>AI 效果评测（Evaluation）</td>
+<td>模型/检索/工具选择质量</td>
+<td>通常需真实模型和参考答案</td>
+<td>固定问题、证据核对、答案评分</td>
+<td>程序事务、异常分支正确</td>
+</tr>
+</tbody></table>
+<p>这些分类不是根据文件目录、测试速度或“用了多少个依赖”来划分，而是根据<strong>验证对象和替代程度</strong>来划分。使用 <code>TestClient</code> 并不自动意味着端到端测试；它调用的是真实 FastAPI 处理链，但并没有启动生产 HTTP Server。使用 SQLite 也不等于验证了 PostgreSQL 的隔离级别、行锁和 RLS。</p>
+<h3 id="section-4">2.1 为什么要分层</h3>
+<p>单元测试速度快、易定位错误；集成测试能发现组件之间的契约不一致；E2E 测试检验真实部署下是否能够完成业务。它们是互补关系：</p>
+<ul>
+<li>单元测试发现 <code>retry_delay(0)</code> 没有正确拒绝。</li>
+<li>API 集成测试发现请求体无效却被错误地接受。</li>
+<li>数据库集成测试发现插入一半时第二条记录冲突，没有正确回滚。</li>
+<li>Worker 集成测试发现任务失败后数据库状态未更新。</li>
+<li>真正的 Kafka 集成测试才可能发现提交 Offset、Rebalance 和网络故障下的行为。</li>
+</ul>
+<h2 id="section-5">3. pytest 如何发现和执行测试</h2>
+<p>pytest 是 Python 测试运行器。默认按命名约定收集测试模块、函数和类，例如 <code>test_service.py</code>、<code>test_submit()</code>、<code>TestService.test_error()</code>。它通过 <code>assert</code> 判断预期，对失败断言展示表达式差异。测试中未经预期捕获的异常通常表现为 Error/Failure，意味着测试未按预期完成。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># tests/test_math.py</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">add</span>(<span class="hljs-params">a: <span class="hljs-built_in">int</span>, b: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">int</span>:
+    <span class="hljs-keyword">return</span> a + b
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_add_two_integers</span>():
+    <span class="hljs-comment"># Given：整数 2、3；When：执行加法；Then：结果为 5。</span>
+    <span class="hljs-keyword">assert</span> add(<span class="hljs-number">2</span>, <span class="hljs-number">3</span>) == <span class="hljs-number">5</span></code></pre></div><p>常用命令：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pytest -q                   <span class="hljs-comment"># 运行全部测试，简洁输出</span>
+python -m pytest -v                   <span class="hljs-comment"># 展示每条测试名称</span>
+python -m pytest tests/test_unit.py   <span class="hljs-comment"># 运行指定文件</span>
+python -m pytest -k <span class="hljs-string">"rollback"</span>        <span class="hljs-comment"># 按名称筛选</span>
+python -m pytest -x                   <span class="hljs-comment"># 第一处失败即停止</span>
+python -m pytest --lf                 <span class="hljs-comment"># 重新运行上次失败的测试</span>
+python -m pytest --collect-only -q    <span class="hljs-comment"># 仅检查发现了哪些测试</span>
+python -m pytest --durations=10       <span class="hljs-comment"># 查看耗时最长的测试</span></code></pre></div><p>推荐从项目根目录执行 <code>python -m pytest</code>，使 Python 解释器与当前虚拟环境一致。若直接执行 <code>pytest</code> 因环境或导入路径导致找不到模块，应排查项目安装方式与 <code>sys.path</code>，不能仅用忽略错误的方式处理。</p>
+<h3 id="section-6">3.1 失败测试与预期失败</h3>
+<ul>
+<li><strong>PASS</strong>：断言满足。</li>
+<li><strong>FAIL</strong>：断言不满足或程序出现未预期错误。</li>
+<li><strong>SKIP</strong>：当前不执行，需注明原因。</li>
+<li><strong>XFAIL</strong>：已知缺陷/暂时不可实现且预期失败；通常建议 <code>strict=True</code>，避免缺陷意外修复后测试仍被掩盖。</li>
+<li><strong>XPASS</strong>：标记为 XFAIL 的测试却通过了，需检查是否应取消该标记。</li>
+</ul>
+<p><code>pytest.raises</code> 用于<strong>预期发生的异常</strong>，不是忽略所有异常。避免 <code>except Exception: pass</code>、没有断言的“运行型测试”、依赖打印日志判断成功等做法。</p>
+<h2 id="section-7">4. 核心逻辑的单元测试</h2>
+<p>适合单元测试的代码包括：业务值规范化、状态转换、幂等键构造、重试退避、费用计算、参数边界与权限判定。它们应尽量不依赖真实数据库、模型 API 和 Kafka。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> pytest
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params">
+    <span class="hljs-string">"raw, expected"</span>,
+    [
+        pytest.param(<span class="hljs-params"><span class="hljs-string">"  a   b "</span>, <span class="hljs-string">"a b"</span>, <span class="hljs-built_in">id</span>=<span class="hljs-string">"space-collapse"</span></span>),
+        pytest.param(<span class="hljs-params"><span class="hljs-string">"x\ny"</span>, <span class="hljs-string">"x y"</span>, <span class="hljs-built_in">id</span>=<span class="hljs-string">"newline"</span></span>),
+        pytest.param(<span class="hljs-params"><span class="hljs-string">"你好"</span>, <span class="hljs-string">"你好"</span>, <span class="hljs-built_in">id</span>=<span class="hljs-string">"unicode"</span></span>),
+    ],
+</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_normalize_payload</span>(<span class="hljs-params">raw, expected</span>):
+    <span class="hljs-comment"># Given：不同空白形式；When：规范化；Then：得到独立规定的结果。</span>
+    <span class="hljs-keyword">assert</span> normalize_payload(raw) == expected</code></pre></div><p><code>@pytest.mark.parametrize</code> 的每一组参数会变成一个独立测试用例。为复杂参数添加 <code>id</code>，失败报告就能直接定位具体输入；测试用例数量以 pytest 收集结果为准，而不是源代码中的 <code>def test_</code> 数量。</p>
+<h3 id="section-8">4.1 异常分支</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">test_reject_blank_message</span>():
+    <span class="hljs-comment"># Given：空白消息；When：执行规范化；Then：抛出 ValueError。</span>
+    <span class="hljs-keyword">with</span> pytest.raises(ValueError, <span class="hljs-keyword">match</span>=<span class="hljs-string">"blank"</span>):
+        normalize_payload(<span class="hljs-string">"   "</span>)</code></pre></div><p>异常测试至少可验证异常类型、错误码或错误信息；更加重要的是验证<strong>错误没有造成不应发生的副作用</strong>。例如请求 422 时，数据库中不应该产生任务。</p>
+<h3 id="section-9">4.2 为什么要验证边界</h3>
+<p>只测试正常的“黄金路径”无法证明异常处理有效。需要关注：</p>
+<ul>
+<li>空字符串、空集合、缺失值、超长输入、非法枚举、错误类型。</li>
+<li>最大与最小允许值、整数溢出（与具体业务和 DB 类型有关）、负数、精度。</li>
+<li>重复请求、乱序事件、已完成状态再次执行。</li>
+<li>外部调用超时、拒绝、无响应、非法 JSON、部分成功。</li>
+<li>数据库唯一冲突、事务中途失败、服务重启。</li>
+</ul>
+<p>失败分支是业务契约的一部分，不是“发生问题才补测试”的附属品。</p>
+<h2 id="section-10">5. Fixture、依赖注入与测试隔离</h2>
+<p><code>@pytest.fixture</code> 定义可复用的测试前置资源。pytest 根据测试函数参数名注入它们。Fixture 可以依赖其他 Fixture，形成依赖图。常见作用域为 <code>function</code>（默认）、<code>class</code>、<code>module</code>、<code>package</code>、<code>session</code>。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-meta">@pytest.fixture</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">db_factory</span>(<span class="hljs-params">tmp_path</span>):
+    engine = create_engine(<span class="hljs-string">f"sqlite+pysqlite:///<span class="hljs-subst">{tmp_path / <span class="hljs-string">'jobs.db'</span>}</span>"</span>)
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=<span class="hljs-literal">False</span>)
+    <span class="hljs-keyword">yield</span> factory
+    engine.dispose()</code></pre></div><p>这里每条测试都拥有独立临时 SQLite 文件、Schema 和 Engine。<code>yield</code> 之前是准备，之后是资源清理。<code>tmp_path</code> 是 pytest 提供的临时目录，减少文件互相污染。</p>
+<p>以下做法容易引入误判：</p>
+<ul>
+<li>多个测试共用全局可变字典、共享 Session 或真实开发数据库。</li>
+<li>测试依赖执行顺序，例如第二个测试依赖第一个测试创建的数据。</li>
+<li>只回滚主测试事务，但后台 Worker 使用另一连接，导致后台写入仍然持久化。</li>
+<li>在 <code>session</code> 级 Fixture 中复用可变数据库数据，却默认测试相互独立。</li>
+</ul>
+<h3 id="section-11">5.1 SQLAlchemy 事务隔离测试</h3>
+<p>针对 PostgreSQL 和支持 SAVEPOINT 的驱动，可以使用外部事务 + <code>Session(join_transaction_mode="create_savepoint")</code> 的测试隔离方案；应用内部即使调用 <code>session.commit()</code>，测试结束后外层事务仍可以回滚。该模式需要数据库和驱动正确支持 SAVEPOINT，并且<strong>只覆盖绑定到该事务/连接的工作</strong>。如果 API 和 Worker 在不同进程、不同连接执行，单个外部测试事务不能自动回滚两者全部写入。</p>
+<p>另一种更接近实际服务的策略是<strong>每条测试使用独立数据库/schema，执行真实提交，测试后销毁资源</strong>。本文可运行示例采用这种方式，以便验证重开 Session 后的数据确实存在。</p>
+<h2 id="section-12">6. 用替身替代昂贵或不可控的依赖</h2>
+<p>为了验证失败处理，通常不需要真的让模型 API 故障。可以通过受控替身强制抛出指定异常并检查后端反应。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">flaky_model</span>(<span class="hljs-params">prompt: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">raise</span> TimeoutError(<span class="hljs-string">"model timeout"</span>)
+
+<span class="hljs-comment"># 将 flaky_model 作为依赖传入业务函数，验证该异常映射到什么状态。</span></code></pre></div><p>常见工具与职责：</p>
+<table>
+<thead>
+<tr>
+<th>技术</th>
+<th>作用</th>
+<th>典型场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>monkeypatch</code></td>
+<td>临时替换函数、对象属性、环境变量</td>
+<td>改写远程服务地址或模拟异常</td>
+</tr>
+<tr>
+<td><code>unittest.mock.Mock</code></td>
+<td>设置预期调用与返回值</td>
+<td>断言工具被调用几次</td>
+</tr>
+<tr>
+<td><code>AsyncMock</code></td>
+<td>模拟异步调用</td>
+<td>模拟 <code>await model_client.chat(...)</code></td>
+</tr>
+<tr>
+<td><code>tmp_path</code></td>
+<td>隔离文件与目录</td>
+<td>状态文件、日志、SQLite 文件</td>
+</tr>
+<tr>
+<td><code>caplog</code></td>
+<td>捕获日志</td>
+<td>检查错误记录且不泄露密钥</td>
+</tr>
+<tr>
+<td>自定义 Fake</td>
+<td>按状态模拟替代服务</td>
+<td>先失败再成功、重试耗尽</td>
+</tr>
+</tbody></table>
+<p>好的替身只替代<strong>需要受控的边界</strong>，不要替代整个被测试系统。否则测试只是在检查 Mock 自己是否按预设返回，并没有验证真实业务逻辑。</p>
+<h3 id="section-13">6.1 避免错误地使用 Mock</h3>
+<ul>
+<li>Mock 只能证明调用发生过；不会证明真实第三方接口兼容。</li>
+<li>不要大量断言函数内部实现细节，导致无行为变化的重构也造成测试失败。</li>
+<li>替身应模拟有意义的协议错误，例如 HTTP 429、超时、无效模型输出。</li>
+<li>必须另设少量真实第三方集成或合同测试，验证 Mock 假设未过时。</li>
+</ul>
+<h2 id="section-14">7. FastAPI 接口集成测试</h2>
+<p>FastAPI 提供基于 Starlette 和 HTTPX 的 <code>TestClient</code>。它能调用 ASGI 应用的真实路由、依赖、请求/响应校验和异常处理器，不必另外运行 Uvicorn 进程。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">test_api_submit_returns_202_pending</span>(<span class="hljs-params">submit</span>):
+    response = submit()
+    <span class="hljs-keyword">assert</span> response.status_code == <span class="hljs-number">202</span>
+    <span class="hljs-keyword">assert</span> response.json()[<span class="hljs-string">"state"</span>] == <span class="hljs-string">"pending"</span>
+    <span class="hljs-keyword">assert</span> response.json()[<span class="hljs-string">"attempts"</span>] == <span class="hljs-number">0</span></code></pre></div><p>检查 API 时，应分三层：</p>
+<ol>
+<li><strong>HTTP 层</strong>：状态码、响应头、内容类型、错误码。</li>
+<li><strong>契约层</strong>：请求 Schema、响应字段、必填项和可空性。</li>
+<li><strong>业务层</strong>：数据库是否保存、状态是否正确、重复请求是否去重、未授权是否拒绝。</li>
+</ol>
+<p>注意 HTTP <code>202 Accepted</code> 仅说明任务被接收，<strong>并不意味着后台处理成功</strong>。读取任务状态返回 <code>200 OK</code> 也可能读到业务状态 <code>FAILED</code>。</p>
+<h3 id="section-15">7.1 生命周期测试</h3>
+<p>使用 <code>with TestClient(app) as client:</code> 可以触发应用的 <code>lifespan</code> 启动与关闭事件（应用如果声明了 lifespan）。单纯创建 <code>TestClient(app)</code> 后不进入上下文管理器，不应假定生命周期处理已经运行。针对启动时创建的 HTTP 客户端、数据库引擎、缓存连接，应检查：</p>
+<ul>
+<li>服务启动前资源不存在，启动后就绪；</li>
+<li>启动失败不会报告虚假的健康状态；</li>
+<li>正常关闭会停止新任务并释放资源；</li>
+<li>运行中的请求/后台任务如何被停止或移交；</li>
+<li>重复启动关闭不会泄漏连接或重复注册 Worker。</li>
+</ul>
+<h2 id="section-16">8. 数据库集成测试：提交、回滚与约束</h2>
+<p>数据库测试应从实际数据库状态判断结果，而不只是检查 ORM 对象字段。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">with</span> db_factory.begin() <span class="hljs-keyword">as</span> session:
+    session.add(Job(owner=<span class="hljs-string">"u"</span>, idempotency_key=<span class="hljs-string">"existing"</span>, ...))
+
+<span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+    <span class="hljs-keyword">with</span> db_factory.begin() <span class="hljs-keyword">as</span> session:
+        session.add(Job(owner=<span class="hljs-string">"u"</span>, idempotency_key=<span class="hljs-string">"new"</span>, ...))
+        session.add(Job(owner=<span class="hljs-string">"u"</span>, idempotency_key=<span class="hljs-string">"existing"</span>, ...))
+
+<span class="hljs-keyword">with</span> db_factory() <span class="hljs-keyword">as</span> session:
+    <span class="hljs-keyword">assert</span> session.scalar(select(Job).where(Job.idempotency_key == <span class="hljs-string">"new"</span>)) <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span></code></pre></div><p>预期：冲突事务整体回滚，因此 <code>new</code> 也不能保留，但此前已经提交的 <code>existing</code> 记录应继续存在。</p>
+<p><strong>必须区别</strong>：</p>
+<ul>
+<li><code>flush()</code> 在当前事务中把修改发送给数据库，不等于提交。</li>
+<li><code>commit()</code> 成功之后，其他符合事务隔离规则的连接可以观察到已提交结果。</li>
+<li><code>rollback()</code> 只能回滚尚未提交的同一数据库事务；不能撤销外部 API 调用。</li>
+<li>SQLite 的唯一约束与基本事务行为可以用于教学，但 PostgreSQL 特有的 <code>FOR UPDATE</code>、隔离级别、RLS、死锁和多事务并发需要真实 PostgreSQL 测试。</li>
+</ul>
+<h3 id="section-17">8.1 测试不完整结果</h3>
+<p>一项业务可能需要同时创建任务、保存反馈、写出待发布事件。预期是三者要么在同一数据库事务中全部成功，要么全部回滚。测试时应在第二或第三个写入环节注入失败，并从<strong>新的 Session</strong> 查询三张表的最终状态。若某些步骤跨不同数据库或外部服务，则不能仅依赖单库事务，需要 Outbox、幂等和补偿机制。</p>
+<h2 id="section-18">9. 后台任务集成测试的分层</h2>
+<p>后台任务需要验证的不仅是执行函数返回什么，还包括：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">HTTP POST /jobs
+    ↓
+数据库创建 PENDING
+    ↓
+Worker 领取任务 → RUNNING
+    ↓
+业务执行器成功/失败/退出
+    ↓
+数据库记录 SUCCEEDED / PENDING / FAILED / RUNNING
+    ↓
+HTTP GET /jobs/{id} 读取结果</code></pre></div><p>本节示例实现了一个<strong>本地 Worker 函数</strong>，通过同一 SQLite 文件的不同 Session 读写状态。测试 API → 数据库 → Worker 函数 → 数据库 → API 的数据闭环；它不启动 Kafka、不提供分布式原子领取，也不自动调度任务。它因此是<strong>本地组件集成测试</strong>，不是 Kafka 消费系统的端到端测试。</p>
+<p>至少要覆盖如下业务行为：</p>
+<ul>
+<li>正常执行：PENDING → RUNNING → SUCCEEDED，结果可重开 Session 查询。</li>
+<li>暂时性错误：记录错误和尝试次数，在预算内允许重试。</li>
+<li>永久性错误：进入 FAILED，保留可诊断原因。</li>
+<li>重试耗尽：不能无上限循环。</li>
+<li>同一业务重复提交：返回相同任务或根据业务契约拒绝冲突。</li>
+<li>成功任务重复执行：不重复生成业务结果。</li>
+<li>模拟崩溃：在途状态可查询，并按租约与恢复策略决定是否再次处理。</li>
+<li>两个 Worker 同时执行：需在<strong>真实 PostgreSQL 事务和 Kafka</strong>环境中验证竞态与 Offset 安全提交；本文示例不宣称覆盖。</li>
+</ul>
+<h3 id="section-19">9.1 服务断开与重启后的查询</h3>
+<p>若任务状态保存于数据库，HTTP 请求断开不应该自动删除任务记录。测试应重新创建客户端甚至重启独立进程，重新连接同一个持久化数据库，再检查任务状态和最终结果。单进程测试里“新开 Session”只能证明部分持久化行为，无法等价替代强制停止进程、重新启动容器和真实消息重投。</p>
+<h3 id="section-20">9.2 故障注入比等待真实故障更可靠</h3>
+<p>不要依靠真的等待 30 秒超时或者人工断网才能运行常规测试。可以注入时钟、故障执行器与网络替身，直接控制：</p>
+<ul>
+<li>第一次请求抛 <code>TransientFailure</code>，第二次成功；</li>
+<li>第三次尝试仍失败，进入终态；</li>
+<li>执行器在持久化 RUNNING 之后异常中断；</li>
+<li>租约未到期返回 <code>busy</code>；到期后允许接管；</li>
+<li>再次调用已成功的任务时返回 <code>already_terminal</code>。</li>
+</ul>
+<p>这样测试快速且确定性较强。真实容器杀进程、Broker 断链等压力测试仍需要在独立集成环境运行。</p>
+<h2 id="section-21">10. 异步与并发测试</h2>
+<p>异步函数不能仅因定义了 <code>async def</code> 就由普通 pytest 测试自动执行。配合 <code>pytest-asyncio</code>，可以：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> pytest
+
+<span class="hljs-meta">@pytest.mark.asyncio</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_model_failure_propagates</span>():
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">broken</span>():
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0</span>)
+        <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"model unavailable"</span>)
+
+    <span class="hljs-keyword">with</span> pytest.raises(RuntimeError, <span class="hljs-keyword">match</span>=<span class="hljs-string">"unavailable"</span>):
+        <span class="hljs-keyword">await</span> broken()</code></pre></div><p>如果测试的是异步 HTTP 路由加真实异步数据库，可以用 <code>httpx.AsyncClient</code> 和 <code>ASGITransport</code> 配合 <code>pytest.mark.asyncio</code>，并正确管理 FastAPI <code>lifespan</code>。避免在正在运行的事件循环中调用 <code>asyncio.run()</code>。</p>
+<p>并发测试需要注意：</p>
+<ul>
+<li><code>asyncio.gather()</code> 能测试协程调度与错误传播，但不能模拟多个独立进程。</li>
+<li>使用事件或 Barrier 明确控制交错点，比依赖 <code>sleep(0.1)</code> 更可靠。</li>
+<li>对数据库唯一约束应在多个连接/事务下发起竞争。</li>
+<li>对 Kafka Offset 应控制消息重投、同分区完成顺序和提交窗口。</li>
+<li>不要以毫秒级硬编码耗时阈值来证明业务正确性；时间断言会受到 CI 负载影响。</li>
+</ul>
+<h2 id="section-22">11. 如何为每个测试写出明确预期</h2>
+<p>推荐采用 <code>Given / When / Then</code> 并让测试名称可读。例如：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">test_duplicate_submit_returns_same_job</span>(<span class="hljs-params">submit</span>):
+    <span class="hljs-string">"""Given 同一用户和幂等键；When 重复提交相同内容；
+    Then 返回同一个任务 ID，不创建第二条业务任务。"""</span>
+    first_id = submit().json()[<span class="hljs-string">"id"</span>]
+    second_id = submit().json()[<span class="hljs-string">"id"</span>]
+    <span class="hljs-keyword">assert</span> first_id == second_id</code></pre></div><p>但这条断言仍有局限：只断言 ID 相同，<strong>不直接证明数据库没有多一条记录</strong>。若该性质重要，应追加 <code>SELECT COUNT(*)</code> 或唯一约束检查。测试名称、文档预期与实际断言必须一致。</p>
+<h3 id="section-23">11.1 一份测试用例记录模板</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Case ID：API-IDEMPOTENT-001
+功能：同一请求重复提交
+前提：用户 alice 的数据库初始无该任务
+输入：payload='rule A'，idempotency_key='req-01'
+步骤：连续发起两个 POST /jobs
+预期 HTTP：两次均返回明确约定的成功/已存在状态
+预期业务：两次返回同一 job_id
+预期持久化：数据库中该 owner + key 仅一条记录
+预期副作用：不会重复写入最终结果
+失败定位：路由、唯一约束、事务、并发竞态</code></pre></div><p>不应将“预期返回什么”留到程序运行之后才补写。否则容易出现测试只重复代码当前行为而不独立验证需求的问题。</p>
+<h2 id="section-24">12. 后台任务测试应该断言哪些维度</h2>
+<p><strong>至少有三类断言：</strong></p>
+<ol>
+<li><strong>状态断言</strong>：例如 <code>RUNNING</code> 后失败进入 <code>PENDING</code>（可重试）或 <code>FAILED</code>（终态）。</li>
+<li><strong>数据断言</strong>：例如最终结果只保存一条、错误原因可查询、尝试次数正确。</li>
+<li><strong>副作用断言</strong>：例如实际执行器调用次数、Outbox 记录数、消息确认顺序。</li>
+</ol>
+<p>对于跨系统可靠性，还要追加以下真实集成测试：</p>
+<ul>
+<li>Kafka 发送成功但 HTTP 请求失败时重新提交是否去重；</li>
+<li>数据库提交成功、Offset 未提交时进程强杀和重启是否重投；</li>
+<li>同分区并发消息的安全提交水位是否正确；</li>
+<li>Consumer Group 重平衡中旧 Worker 是否被阻止继续写入；</li>
+<li>Worker 长任务在关闭、取消、超时、租约到期后能否恢复；</li>
+<li>不能处理的消息是否有限重试并持久进入失败集合，其他任务是否仍可推进。</li>
+</ul>
+<p>离线替身测试证明执行控制逻辑；真实 Broker/数据库测试证明组件之间的协作。两者都需要。</p>
+<h2 id="section-25">13. 现实中的测试环境如何划分</h2>
+<table>
+<thead>
+<tr>
+<th>环境</th>
+<th>推荐用途</th>
+<th>数据隔离方式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>纯内存/临时文件</td>
+<td>单元测试与本地教学</td>
+<td>每测试新建对象或 <code>tmp_path</code></td>
+</tr>
+<tr>
+<td>SQLite 文件</td>
+<td>SQLAlchemy 基本事务与 ORM 联动</td>
+<td>每测试独立 DB 文件</td>
+</tr>
+<tr>
+<td>临时 PostgreSQL 容器</td>
+<td>SQL、事务隔离、约束和迁移</td>
+<td>每套测试独立数据库/schema</td>
+</tr>
+<tr>
+<td>PostgreSQL + Kafka + Redis Compose</td>
+<td>集成与故障测试</td>
+<td>独立 Topic、Consumer Group 和数据库</td>
+</tr>
+<tr>
+<td>真实部署的预生产环境</td>
+<td>E2E、重启、性能和观测</td>
+<td>与生产隔离的测试租户</td>
+</tr>
+</tbody></table>
+<p>Python Testcontainers 等工具能够在 Docker 环境中为 pytest 启动临时 PostgreSQL 实例。不要把生产数据库直接用作自动化集成测试的重置目标。</p>
+<h3 id="section-26">13.1 迁移测试与数据库重建</h3>
+<p>创建表 <code>Base.metadata.create_all()</code> 只测试 ORM 元数据建表，<strong>不验证 Alembic 迁移文件能从旧版本升级</strong>。针对实际项目，应从空库执行 <code>alembic upgrade head</code>，并从上一版数据库执行升级、检查历史数据回填和索引/约束。对不可逆的数据迁移不要假设 <code>downgrade</code> 必然安全。</p>
+<h2 id="section-27">14. 测试数据、重放与确定性</h2>
+<p>自动化测试应具备以下性质：</p>
+<ul>
+<li><strong>可重复</strong>：相同输入和环境通常得到相同断言结果。</li>
+<li><strong>独立</strong>：不同测试之间无执行顺序依赖。</li>
+<li><strong>可定位</strong>：失败报告能指向具体用例及预期差异。</li>
+<li><strong>快速反馈</strong>：常规单元测试不依赖真实付费模型。</li>
+<li><strong>可观测</strong>：失败时保留非敏感的日志、事件及 DB 状态。</li>
+</ul>
+<p>若使用随机数据，应保存随机种子和失败输入；若使用时间，应注入测试时钟；若使用模型，应保存模型与提示词版本、来源和评测集快照。不要把固定 Sleep 时间当成时序契约。</p>
+<h2 id="section-28">15. Coverage 是什么，不能证明什么</h2>
+<p>覆盖率工具可以统计行覆盖（line coverage）、分支覆盖（branch coverage），但它们不是“业务正确率”。</p>
+<p>例如下面的代码即使每行都被执行，仍可能没有测试“负数输入”的预期：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">calculate_discount</span>(<span class="hljs-params">amount</span>):
+    <span class="hljs-keyword">return</span> amount * <span class="hljs-number">0.1</span></code></pre></div><p>建议根据风险设计测试覆盖：</p>
+<ul>
+<li>正常业务路径；</li>
+<li>字段/范围校验；</li>
+<li>权限拒绝、跨租户数据隔离；</li>
+<li>事务冲突、重复提交；</li>
+<li>外部错误、取消、超时；</li>
+<li>Worker 重试、失败终态与恢复。</li>
+</ul>
+<p>可以使用 <code>pytest-cov</code> 统计覆盖率，但不应仅为了达到数值而写无意义断言。变更关键业务逻辑时，优先关注<strong>原先失败能否被复现、修复后是否恢复、是否引入回归</strong>。</p>
+<h2 id="section-29">16. CI 中执行什么</h2>
+<p>一条常见 CI 流程：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">提交 / Pull Request
+    ├── 格式与静态检查（可选）
+    ├── 单元测试（快速）
+    ├── API + SQLite 本地集成测试
+    ├── PostgreSQL 真实集成测试
+    ├── Kafka/Worker 故障恢复测试（较慢）
+    └── 测试报告 / 失败日志 / 必要工件</code></pre></div><p>建议将慢速的真实环境测试标记成 <code>integration</code> 或 <code>e2e</code>，并让 CI 的检查状态清楚显示哪些被执行、哪些被跳过。<code>pytest -q</code> 全绿只能说明此次<strong>收集并实际执行</strong>的测试通过；若大量关键测试被 <code>skip</code>，不能对外概括为“全部能力已验证”。</p>
+<h2 id="section-30">17. 常见错误及其修正</h2>
+<table>
+<thead>
+<tr>
+<th>错误做法</th>
+<th>结果</th>
+<th>更可靠的方法</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>只看 HTTP 200/202</td>
+<td>把处理中或失败当成功</td>
+<td>分开断言 HTTP、业务状态、DB 结果</td>
+</tr>
+<tr>
+<td>只断言方法被调用一次</td>
+<td>真实结果可能错误</td>
+<td>从持久化状态和接口最终输出核对</td>
+</tr>
+<tr>
+<td>每个测试复用一个全局数据库</td>
+<td>测试之间污染</td>
+<td>独立 DB/schema 或严格事务隔离</td>
+</tr>
+<tr>
+<td>Mock 了整个服务</td>
+<td>无法验证组件协作</td>
+<td>仅替换不可控边界，关键路径集成</td>
+</tr>
+<tr>
+<td>测试预期从当前输出复制</td>
+<td>错误实现也可能通过</td>
+<td>使用需求、协议或独立资料作为 Oracle</td>
+</tr>
+<tr>
+<td>通过多次 <code>sleep</code> 等待</td>
+<td>测试慢且不稳定</td>
+<td>注入时间和状态转移触发条件</td>
+</tr>
+<tr>
+<td>失败后直接 <code>pass</code></td>
+<td>隐藏程序缺陷</td>
+<td>断言具体异常和无副作用</td>
+</tr>
+<tr>
+<td>SQLite 成功即宣称 PostgreSQL 通过</td>
+<td>数据库差异被忽略</td>
+<td>在真实 PostgreSQL 跑迁移及并发测试</td>
+</tr>
+<tr>
+<td>模拟 Worker 成功即宣称 Kafka 可靠</td>
+<td>Offset 与重平衡没测</td>
+<td>接入真实 Kafka 强制故障测试</td>
+</tr>
+<tr>
+<td>将人工模型示例当自动程序测试</td>
+<td>两类指标混合</td>
+<td>模型效果评测和程序测试独立报告</td>
+</tr>
+</tbody></table>
+<h2 id="section-31">18. 本文验证用完整教学工程</h2>
+<p>工程包含 <code>app.py</code>、<code>tests/conftest.py</code>、<code>tests/test_unit.py</code>、<code>tests/test_api_db.py</code> 四个文件。其中：</p>
+<ul>
+<li><strong>单元层</strong>：文本规范化、业务指纹、退避时长、错误分支和异步异常。</li>
+<li><strong>API 层</strong>：Pydantic 请求校验、202/404/409/422、任务状态查询与跨用户范围模拟。</li>
+<li><strong>数据库层</strong>：SQLite 唯一约束、事务回滚、提交后重新打开 Session。</li>
+<li><strong>Worker 层</strong>：成功、失败重试、最大尝试次数、成功后重复处理、模拟异常中断及租约到期恢复。</li>
+</ul>
+<p>注意：<code>X-Demo-User</code> 只是教学环境中模拟“已经认证过的用户身份”，<strong>绝不能作为生产登录或授权机制</strong>。真实应用应由可信认证中间件或鉴权依赖得到 <code>user_id</code>。教学 Worker 也不包含原子认领、执行代际令牌与 Kafka Offset 处理，不能直接投入多 Worker 生产环境。</p>
+<h3 id="section-32">18.1 目录</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">pytest-case/
+├── app.py
+└── tests/
+    ├── conftest.py
+    ├── test_unit.py
+    └── test_api_db.py</code></pre></div><h3 id="section-33">18.2 安装与执行</h3>
+<p>在 Python 3.13 环境下：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m venv .venv
+<span class="hljs-comment"># Windows PowerShell：.venv\Scripts\Activate.ps1</span>
+<span class="hljs-comment"># Linux/macOS：source .venv/bin/activate</span>
+python -m pip install <span class="hljs-string">"pytest&gt;=9,&lt;10"</span> <span class="hljs-string">"pytest-asyncio&gt;=1.3,&lt;2"</span> <span class="hljs-string">"fastapi&gt;=0.128,&lt;1"</span> <span class="hljs-string">"sqlalchemy&gt;=2.0,&lt;2.1"</span> <span class="hljs-string">"httpx&gt;=0.28,&lt;1"</span>
+python -m pytest -q</code></pre></div><p>依赖范围是教学示例的兼容预期，不替代项目的锁文件。实际执行测试的环境版本为 Python 3.13.5、pytest 9.0.2、pytest-asyncio 1.3.0、FastAPI 0.128.2、SQLAlchemy 2.0.50、HTTPX 0.28.1、Pydantic 2.13.5。</p>
+<p><strong>本文实测：34 项测试全部通过，运行时间约 0.39 秒</strong>（测试所在容器的结果，不是其他机器的性能承诺）。其中包括参数化产生的多条独立测试。</p>
+<h2 id="section-34">19. 固定测试用例与预期结果</h2>
+<p>下面的每一行都对应附录中的实际 pytest 测试。测试函数的中文文档字符串也写有独立预期，便于 <code>pytest -v</code> 和阅读源文件定位。</p>
+<table>
+<thead>
+<tr>
+<th>序号</th>
+<th>层次</th>
+<th>测试案例</th>
+<th>明确预期</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>API</td>
+<td><code>test_api_submit_returns_202_pending</code></td>
+<td>有效入参；预期 202 和持久化 PENDING 任务。</td>
+</tr>
+<tr>
+<td>2</td>
+<td>API</td>
+<td><code>test_api_rejects_invalid_payload[blank]</code></td>
+<td>非法 payload；预期 422 而非创建任务。</td>
+</tr>
+<tr>
+<td>3</td>
+<td>API</td>
+<td><code>test_api_rejects_invalid_payload[too-long]</code></td>
+<td>非法 payload；预期 422 而非创建任务。</td>
+</tr>
+<tr>
+<td>4</td>
+<td>API</td>
+<td><code>test_api_requires_demo_user_header</code></td>
+<td>缺少演示身份头；预期 422（仅表示字段校验，不是认证）。</td>
+</tr>
+<tr>
+<td>5</td>
+<td>API</td>
+<td><code>test_duplicate_submit_returns_same_job</code></td>
+<td>同一用户、幂等键和内容重复提交；预期相同 Job ID。</td>
+</tr>
+<tr>
+<td>6</td>
+<td>API</td>
+<td><code>test_idempotency_conflict_returns_409</code></td>
+<td>同一幂等键对应不同内容；预期明确冲突而非覆盖。</td>
+</tr>
+<tr>
+<td>7</td>
+<td>API</td>
+<td><code>test_same_key_different_user_is_independent</code></td>
+<td>不同演示用户使用相同幂等键；预期两个不同任务。</td>
+</tr>
+<tr>
+<td>8</td>
+<td>API</td>
+<td><code>test_api_get_missing_returns_404</code></td>
+<td>不存在的 ID；预期 404。</td>
+</tr>
+<tr>
+<td>9</td>
+<td>API</td>
+<td><code>test_api_does_not_expose_other_users_job</code></td>
+<td>演示用户 bob 读取 alice 的任务；预期 404。</td>
+</tr>
+<tr>
+<td>10</td>
+<td>API</td>
+<td><code>test_api_get_after_worker_success</code></td>
+<td>任务执行成功；预期 API 查询最终状态和结果。</td>
+</tr>
+<tr>
+<td>11</td>
+<td>API</td>
+<td><code>test_db_unique_constraint_blocks_duplicate</code></td>
+<td>绕过 API 直接插入相同业务键；预期数据库唯一约束拒绝。</td>
+</tr>
+<tr>
+<td>12</td>
+<td>API</td>
+<td><code>test_db_rollback_on_integrity_error</code></td>
+<td>同一事务中第二个插入冲突；预期第一个新插入也回滚。</td>
+</tr>
+<tr>
+<td>13</td>
+<td>API</td>
+<td><code>test_db_commit_survives_new_session</code></td>
+<td>API 提交数据库后创建新 Session；预期数据仍存在。</td>
+</tr>
+<tr>
+<td>14</td>
+<td>API</td>
+<td><code>test_worker_transient_then_success</code></td>
+<td>首次暂时性失败、第二次成功；预期 attempts=2 且有结果。</td>
+</tr>
+<tr>
+<td>15</td>
+<td>API</td>
+<td><code>test_worker_permanent_failure</code></td>
+<td>永久错误；预期 FAILED 和可查询的错误原因。</td>
+</tr>
+<tr>
+<td>16</td>
+<td>API</td>
+<td><code>test_worker_retries_are_bounded</code></td>
+<td>持续暂时失败；预期第 3 次达到 FAILED，不能无限重试。</td>
+</tr>
+<tr>
+<td>17</td>
+<td>API</td>
+<td><code>test_worker_repeat_after_success_does_not_execute_again</code></td>
+<td>已成功任务再次分发；预期不重复调用执行函数。</td>
+</tr>
+<tr>
+<td>18</td>
+<td>API</td>
+<td><code>test_worker_crash_keeps_running_until_lease_expiry</code></td>
+<td>执行器发生进程级故障；预期状态保持 RUNNING，租约未到期无法领取，过期后可恢复。</td>
+</tr>
+<tr>
+<td>19</td>
+<td>API</td>
+<td><code>test_worker_missing_job</code></td>
+<td>未知任务 ID；预期 not_found，不会执行任务。</td>
+</tr>
+<tr>
+<td>20</td>
+<td>单元/异步</td>
+<td><code>test_normalize_payload[space-collapse]</code></td>
+<td>给定可接受文本；预期去除多余空白并保持语义字序。</td>
+</tr>
+<tr>
+<td>21</td>
+<td>单元/异步</td>
+<td><code>test_normalize_payload[newline]</code></td>
+<td>给定可接受文本；预期去除多余空白并保持语义字序。</td>
+</tr>
+<tr>
+<td>22</td>
+<td>单元/异步</td>
+<td><code>test_normalize_payload[unicode]</code></td>
+<td>给定可接受文本；预期去除多余空白并保持语义字序。</td>
+</tr>
+<tr>
+<td>23</td>
+<td>单元/异步</td>
+<td><code>test_normalize_payload[single-char]</code></td>
+<td>给定可接受文本；预期去除多余空白并保持语义字序。</td>
+</tr>
+<tr>
+<td>24</td>
+<td>单元/异步</td>
+<td><code>test_normalize_rejects_blank[]</code></td>
+<td>给定空内容；预期抛出 ValueError，不产生空任务。</td>
+</tr>
+<tr>
+<td>25</td>
+<td>单元/异步</td>
+<td><code>test_normalize_rejects_blank[ \n\t ]</code></td>
+<td>给定空内容；预期抛出 ValueError，不产生空任务。</td>
+</tr>
+<tr>
+<td>26</td>
+<td>单元/异步</td>
+<td><code>test_normalize_rejects_wrong_type</code></td>
+<td>给定非字符串；预期明确的 TypeError。</td>
+</tr>
+<tr>
+<td>27</td>
+<td>单元/异步</td>
+<td><code>test_fingerprint_is_stable_after_normalization</code></td>
+<td>同一规范化内容；预期相同指纹。</td>
+</tr>
+<tr>
+<td>28</td>
+<td>单元/异步</td>
+<td><code>test_retry_delay[1-0.2]</code></td>
+<td>不同重试次数；预期指数增长且不超过上限。</td>
+</tr>
+<tr>
+<td>29</td>
+<td>单元/异步</td>
+<td><code>test_retry_delay[2-0.4]</code></td>
+<td>不同重试次数；预期指数增长且不超过上限。</td>
+</tr>
+<tr>
+<td>30</td>
+<td>单元/异步</td>
+<td><code>test_retry_delay[3-0.8]</code></td>
+<td>不同重试次数；预期指数增长且不超过上限。</td>
+</tr>
+<tr>
+<td>31</td>
+<td>单元/异步</td>
+<td><code>test_retry_delay[9-5.0]</code></td>
+<td>不同重试次数；预期指数增长且不超过上限。</td>
+</tr>
+<tr>
+<td>32</td>
+<td>单元/异步</td>
+<td><code>test_retry_rejects_zero_attempt</code></td>
+<td>尝试次数从 1 起；预期非法值被拒绝。</td>
+</tr>
+<tr>
+<td>33</td>
+<td>单元/异步</td>
+<td><code>test_async_failure_propagates</code></td>
+<td>协程抛出错误；预期异步测试捕获原始异常。</td>
+</tr>
+<tr>
+<td>34</td>
+<td>单元/异步</td>
+<td><code>test_async_tasks_can_make_progress</code></td>
+<td>两个任务在事件循环中调度；预期均执行并返回结果。</td>
+</tr>
+</tbody></table>
+<h2 id="section-35">20. 生产集成测试还需补什么</h2>
+<p>本文的 34 项测试已覆盖核心逻辑与本地数据库/接口/Worker 协作，但<strong>未覆盖</strong>：</p>
+<ol>
+<li>真实 PostgreSQL <code>READ COMMITTED</code>、<code>SERIALIZABLE</code>、行锁、死锁和不同连接间的竞争。</li>
+<li>Alembic 从上一版本升级与数据回填。</li>
+<li>Kafka Broker 重投递、Offset 手动提交、重平衡、同分区并发安全提交。</li>
+<li>Redis 故障、缓存过期、锁失效与持久化数据库之间的分工。</li>
+<li>多进程 Worker、SIGKILL、容器重启、真实 Broker/数据库断链与恢复。</li>
+<li>实际模型调用、流式中途断开、用量、事实正确性和固定评测集质量。</li>
+<li>真实 JWT/OIDC 认证、RLS、租户隔离和横向越权访问。</li>
+<li>真正的资源清理、过载背压、长时间稳定性与性能回归。</li>
+</ol>
+<p>这些是后续需要在正式依赖环境中补充的测试，而不是对已有本地测试结果的否定。</p>
+<h2 id="section-36">21. 官方资料与适用边界</h2>
+<ol>
+<li><a href="https://docs.pytest.org/en/stable/contents.html">pytest 文档总览</a>：发现、断言、fixtures、参数化、标记、临时目录和 Mock。</li>
+<li><a href="https://pytest.org/en/latest/how-to/fixtures.html">pytest fixtures</a>：Fixture 依赖、作用域、清理与隔离。</li>
+<li><a href="https://pytest.org/en/latest/example/parametrize.html">pytest 参数化</a>：为不同输入生成独立用例。</li>
+<li><a href="https://pytest.org/en/latest/how-to/monkeypatch.html">pytest monkeypatch</a>：替换环境变量和可控依赖。</li>
+<li><a href="https://pytest-asyncio.readthedocs.io/en/stable/reference/markers/">pytest-asyncio 标记</a>：异步测试的事件循环执行。</li>
+<li><a href="https://fastapi.tiangolo.com/tutorial/testing/">FastAPI Testing</a>：TestClient、请求和响应断言。</li>
+<li><a href="https://docs.sqlalchemy.org/en/20/orm/session_transaction.html">SQLAlchemy Transactions / Testing</a>：事务、SAVEPOINT 与测试隔离。</li>
+<li><a href="https://docs.docker.com/guides/testcontainers-python-getting-started/">Docker：Testcontainers for Python</a>：真实 PostgreSQL 容器集成测试。</li>
+</ol>
+<hr />
+<h1 id="section-37">附录 A：完整可运行源代码</h1>
+<p>以下源码与实际测试文件保持一致。将其分别保存到上文目录中即可运行。</p>
+<h2 id="section-38">A.1 <code>app.py</code></h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""教学用 API、数据库和任务 Worker：并非生产级消息队列。"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">from</span> datetime <span class="hljs-keyword">import</span> datetime, timezone
+<span class="hljs-keyword">from</span> hashlib <span class="hljs-keyword">import</span> sha256
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> <span class="hljs-type">Callable</span>
+
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> Depends, FastAPI, Header, HTTPException, status
+<span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, Field
+<span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> Float, ForeignKey, Integer, String, UniqueConstraint, create_engine, select
+<span class="hljs-keyword">from</span> sqlalchemy.exc <span class="hljs-keyword">import</span> IntegrityError
+<span class="hljs-keyword">from</span> sqlalchemy.orm <span class="hljs-keyword">import</span> DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Base</span>(<span class="hljs-title class_ inherited__">DeclarativeBase</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Job</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"jobs"</span>
+    __table_args__ = (UniqueConstraint(<span class="hljs-string">"owner"</span>, <span class="hljs-string">"idempotency_key"</span>, name=<span class="hljs-string">"uq_job_owner_key"</span>),)
+    <span class="hljs-built_in">id</span>: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(Integer, primary_key=<span class="hljs-literal">True</span>, autoincrement=<span class="hljs-literal">True</span>)
+    owner: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">80</span>), nullable=<span class="hljs-literal">False</span>)
+    idempotency_key: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">80</span>), nullable=<span class="hljs-literal">False</span>)
+    payload: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">300</span>), nullable=<span class="hljs-literal">False</span>)
+    fingerprint: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">64</span>), nullable=<span class="hljs-literal">False</span>)
+    state: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">20</span>), nullable=<span class="hljs-literal">False</span>, default=<span class="hljs-string">"pending"</span>)
+    attempts: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(Integer, nullable=<span class="hljs-literal">False</span>, default=<span class="hljs-number">0</span>)
+    lease_expires_at: Mapped[<span class="hljs-built_in">float</span> | <span class="hljs-literal">None</span>] = mapped_column(Float, nullable=<span class="hljs-literal">True</span>)
+    result: Mapped[<span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>] = mapped_column(String(<span class="hljs-number">600</span>), nullable=<span class="hljs-literal">True</span>)
+    error: Mapped[<span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>] = mapped_column(String(<span class="hljs-number">200</span>), nullable=<span class="hljs-literal">True</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">JobCreate</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    payload: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>, max_length=<span class="hljs-number">200</span>)
+    idempotency_key: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>, max_length=<span class="hljs-number">80</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">JobView</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    <span class="hljs-built_in">id</span>: <span class="hljs-built_in">int</span>
+    state: <span class="hljs-built_in">str</span>
+    attempts: <span class="hljs-built_in">int</span>
+    result: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>
+    error: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">normalize_payload</span>(<span class="hljs-params">value: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-string">"""教学中的确定性归一化规则。"""</span>
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">isinstance</span>(value, <span class="hljs-built_in">str</span>):
+        <span class="hljs-keyword">raise</span> TypeError(<span class="hljs-string">"payload must be str"</span>)
+    normalized = <span class="hljs-string">" "</span>.join(value.split())
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> normalized:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"payload is blank"</span>)
+    <span class="hljs-keyword">return</span> normalized
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">fingerprint</span>(<span class="hljs-params">payload: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> sha256(normalize_payload(payload).encode(<span class="hljs-string">"utf-8"</span>)).hexdigest()
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">retry_delay</span>(<span class="hljs-params">attempt: <span class="hljs-built_in">int</span>, base: <span class="hljs-built_in">float</span> = <span class="hljs-number">0.2</span>, cap: <span class="hljs-built_in">float</span> = <span class="hljs-number">5.0</span></span>) -&gt; <span class="hljs-built_in">float</span>:
+    <span class="hljs-keyword">if</span> attempt &lt; <span class="hljs-number">1</span>:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"attempt starts at 1"</span>)
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">min</span>(cap, base * (<span class="hljs-number">2</span> ** (attempt - <span class="hljs-number">1</span>)))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">create_app</span>(<span class="hljs-params">factory: sessionmaker[Session]</span>) -&gt; FastAPI:
+    app = FastAPI(title=<span class="hljs-string">"pytest teaching service"</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_session</span>():
+        <span class="hljs-keyword">with</span> factory() <span class="hljs-keyword">as</span> session:
+            <span class="hljs-keyword">yield</span> session
+
+    <span class="hljs-comment"># X-Demo-User 仅模拟认证后的身份，不能作为真实登录认证方案。</span>
+<span class="hljs-meta">    @app.post(<span class="hljs-params"><span class="hljs-string">"/jobs"</span>, status_code=status.HTTP_202_ACCEPTED, response_model=JobView</span>)</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">create_job</span>(<span class="hljs-params">
+        body: JobCreate,
+        x_demo_user: <span class="hljs-built_in">str</span> = Header(<span class="hljs-params">min_length=<span class="hljs-number">1</span></span>),
+        session: Session = Depends(<span class="hljs-params">get_session</span>),
+    </span>):
+        payload = normalize_payload(body.payload)
+        fp = fingerprint(payload)
+        query = select(Job).where(
+            Job.owner == x_demo_user,
+            Job.idempotency_key == body.idempotency_key,
+        )
+        existing = session.scalar(query)
+        <span class="hljs-keyword">if</span> existing <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">if</span> existing.fingerprint != fp:
+                <span class="hljs-keyword">raise</span> HTTPException(<span class="hljs-number">409</span>, <span class="hljs-string">"same key, different payload"</span>)
+            <span class="hljs-keyword">return</span> _view(existing)
+
+        job = Job(owner=x_demo_user, idempotency_key=body.idempotency_key,
+                  payload=payload, fingerprint=fp, state=<span class="hljs-string">"pending"</span>, attempts=<span class="hljs-number">0</span>)
+        session.add(job)
+        <span class="hljs-keyword">try</span>:
+            session.commit()
+        <span class="hljs-keyword">except</span> IntegrityError:
+            session.rollback()
+            existing = session.scalar(query)
+            <span class="hljs-keyword">if</span> existing <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                <span class="hljs-keyword">raise</span>
+            <span class="hljs-keyword">if</span> existing.fingerprint != fp:
+                <span class="hljs-keyword">raise</span> HTTPException(<span class="hljs-number">409</span>, <span class="hljs-string">"same key, different payload"</span>)
+            <span class="hljs-keyword">return</span> _view(existing)
+        session.refresh(job)
+        <span class="hljs-keyword">return</span> _view(job)
+
+<span class="hljs-meta">    @app.get(<span class="hljs-params"><span class="hljs-string">"/jobs/{job_id}"</span>, response_model=JobView</span>)</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_job</span>(<span class="hljs-params">job_id: <span class="hljs-built_in">int</span>, x_demo_user: <span class="hljs-built_in">str</span> = Header(<span class="hljs-params">min_length=<span class="hljs-number">1</span></span>),
+                session: Session = Depends(<span class="hljs-params">get_session</span>)</span>):
+        job = session.scalar(select(Job).where(Job.<span class="hljs-built_in">id</span> == job_id, Job.owner == x_demo_user))
+        <span class="hljs-keyword">if</span> job <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">raise</span> HTTPException(<span class="hljs-number">404</span>, <span class="hljs-string">"job not found"</span>)
+        <span class="hljs-keyword">return</span> _view(job)
+
+    <span class="hljs-keyword">return</span> app
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">_view</span>(<span class="hljs-params">job: Job</span>) -&gt; JobView:
+    <span class="hljs-keyword">return</span> JobView(<span class="hljs-built_in">id</span>=job.<span class="hljs-built_in">id</span>, state=job.state, attempts=job.attempts,
+                   result=job.result, error=job.error)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">TransientFailure</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">PermanentFailure</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">epoch_now</span>() -&gt; <span class="hljs-built_in">float</span>:
+    <span class="hljs-keyword">return</span> datetime.now(timezone.utc).timestamp()
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">run_one</span>(<span class="hljs-params">factory: sessionmaker[Session], job_id: <span class="hljs-built_in">int</span>,
+            executor: <span class="hljs-type">Callable</span>[[<span class="hljs-built_in">str</span>], <span class="hljs-built_in">str</span>], *,
+            now: <span class="hljs-type">Callable</span>[[], <span class="hljs-built_in">float</span>] = epoch_now,
+            lease_seconds: <span class="hljs-built_in">float</span> = <span class="hljs-number">30.0</span>, max_attempts: <span class="hljs-built_in">int</span> = <span class="hljs-number">3</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-string">"""单进程教学 Worker。真实多 Worker 需使用数据库原子认领/代际保护。"""</span>
+    <span class="hljs-keyword">with</span> factory.begin() <span class="hljs-keyword">as</span> session:
+        job = session.get(Job, job_id)
+        <span class="hljs-keyword">if</span> job <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">return</span> <span class="hljs-string">"not_found"</span>
+        <span class="hljs-keyword">if</span> job.state <span class="hljs-keyword">in</span> (<span class="hljs-string">"succeeded"</span>, <span class="hljs-string">"failed"</span>):
+            <span class="hljs-keyword">return</span> <span class="hljs-string">"already_terminal"</span>
+        <span class="hljs-keyword">if</span> job.state == <span class="hljs-string">"running"</span> <span class="hljs-keyword">and</span> (job.lease_expires_at <span class="hljs-keyword">or</span> <span class="hljs-number">0</span>) &gt; now():
+            <span class="hljs-keyword">return</span> <span class="hljs-string">"busy"</span>
+        <span class="hljs-keyword">if</span> job.attempts &gt;= max_attempts:
+            job.state = <span class="hljs-string">"failed"</span>
+            job.error = <span class="hljs-string">"attempts exhausted"</span>
+            job.lease_expires_at = <span class="hljs-literal">None</span>
+            <span class="hljs-keyword">return</span> <span class="hljs-string">"failed"</span>
+        job.state = <span class="hljs-string">"running"</span>
+        job.attempts += <span class="hljs-number">1</span>
+        attempt = job.attempts
+        payload = job.payload
+        job.lease_expires_at = now() + lease_seconds
+
+    <span class="hljs-comment"># 这里模拟长耗时任务：业务并未被持久化队列自动调度。</span>
+    <span class="hljs-keyword">try</span>:
+        answer = executor(payload)
+    <span class="hljs-keyword">except</span> TransientFailure <span class="hljs-keyword">as</span> exc:
+        new_state = <span class="hljs-string">"pending"</span> <span class="hljs-keyword">if</span> attempt &lt; max_attempts <span class="hljs-keyword">else</span> <span class="hljs-string">"failed"</span>
+        <span class="hljs-keyword">with</span> factory.begin() <span class="hljs-keyword">as</span> session:
+            job = session.get(Job, job_id)
+            <span class="hljs-comment"># 教学示例：真实并发场景应加执行代际 token 和条件 UPDATE。</span>
+            <span class="hljs-keyword">if</span> job.state == <span class="hljs-string">"running"</span> <span class="hljs-keyword">and</span> job.attempts == attempt:
+                job.state = new_state
+                job.error = <span class="hljs-built_in">str</span>(exc)
+                job.lease_expires_at = <span class="hljs-literal">None</span>
+        <span class="hljs-keyword">return</span> new_state
+    <span class="hljs-keyword">except</span> PermanentFailure <span class="hljs-keyword">as</span> exc:
+        <span class="hljs-keyword">with</span> factory.begin() <span class="hljs-keyword">as</span> session:
+            job = session.get(Job, job_id)
+            <span class="hljs-keyword">if</span> job.state == <span class="hljs-string">"running"</span> <span class="hljs-keyword">and</span> job.attempts == attempt:
+                job.state = <span class="hljs-string">"failed"</span>
+                job.error = <span class="hljs-built_in">str</span>(exc)
+                job.lease_expires_at = <span class="hljs-literal">None</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"failed"</span>
+    <span class="hljs-comment"># 未捕获的进程级故障可让 RUNNING 留存，下一次租约过期后接管。</span>
+    <span class="hljs-keyword">else</span>:
+        <span class="hljs-keyword">with</span> factory.begin() <span class="hljs-keyword">as</span> session:
+            job = session.get(Job, job_id)
+            <span class="hljs-keyword">if</span> job.state == <span class="hljs-string">"running"</span> <span class="hljs-keyword">and</span> job.attempts == attempt:
+                job.state = <span class="hljs-string">"succeeded"</span>
+                job.result = answer
+                job.error = <span class="hljs-literal">None</span>
+                job.lease_expires_at = <span class="hljs-literal">None</span>
+                <span class="hljs-keyword">return</span> <span class="hljs-string">"succeeded"</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"stale"</span></code></pre></div><h2 id="section-39">A.2 <code>tests/conftest.py</code></h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> pytest
+<span class="hljs-keyword">from</span> fastapi.testclient <span class="hljs-keyword">import</span> TestClient
+<span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> create_engine
+<span class="hljs-keyword">from</span> sqlalchemy.orm <span class="hljs-keyword">import</span> sessionmaker
+
+<span class="hljs-keyword">from</span> app <span class="hljs-keyword">import</span> Base, create_app
+
+
+<span class="hljs-meta">@pytest.fixture</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">db_factory</span>(<span class="hljs-params">tmp_path</span>):
+    <span class="hljs-string">"""每个测试独立 SQLite 文件、Schema 和连接池。"""</span>
+    path = tmp_path / <span class="hljs-string">"jobs.db"</span>
+    engine = create_engine(<span class="hljs-string">f"sqlite+pysqlite:///<span class="hljs-subst">{path}</span>"</span>)
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine, expire_on_commit=<span class="hljs-literal">False</span>)
+    <span class="hljs-keyword">yield</span> factory
+    engine.dispose()
+
+
+<span class="hljs-meta">@pytest.fixture</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">client</span>(<span class="hljs-params">db_factory</span>):
+    app = create_app(db_factory)
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> test_client:
+        <span class="hljs-keyword">yield</span> test_client
+
+
+<span class="hljs-meta">@pytest.fixture</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">submit</span>(<span class="hljs-params">client</span>):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_submit</span>(<span class="hljs-params">payload=<span class="hljs-string">"rule A"</span>, key=<span class="hljs-string">"request-001"</span>, user=<span class="hljs-string">"alice"</span></span>):
+        <span class="hljs-keyword">return</span> client.post(
+            <span class="hljs-string">"/jobs"</span>, json={<span class="hljs-string">"payload"</span>: payload, <span class="hljs-string">"idempotency_key"</span>: key},
+            headers={<span class="hljs-string">"X-Demo-User"</span>: user},
+        )
+    <span class="hljs-keyword">return</span> _submit</code></pre></div><h2 id="section-40">A.3 <code>tests/test_unit.py</code></h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+<span class="hljs-keyword">import</span> pytest
+
+<span class="hljs-keyword">from</span> app <span class="hljs-keyword">import</span> fingerprint, normalize_payload, retry_delay
+
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params">
+    <span class="hljs-string">"raw, expected"</span>,
+    [
+        pytest.param(<span class="hljs-params"><span class="hljs-string">"  a   b "</span>, <span class="hljs-string">"a b"</span>, <span class="hljs-built_in">id</span>=<span class="hljs-string">"space-collapse"</span></span>),
+        pytest.param(<span class="hljs-params"><span class="hljs-string">"x\ny"</span>, <span class="hljs-string">"x y"</span>, <span class="hljs-built_in">id</span>=<span class="hljs-string">"newline"</span></span>),
+        pytest.param(<span class="hljs-params"><span class="hljs-string">"你好"</span>, <span class="hljs-string">"你好"</span>, <span class="hljs-built_in">id</span>=<span class="hljs-string">"unicode"</span></span>),
+        pytest.param(<span class="hljs-params"><span class="hljs-string">"x"</span>, <span class="hljs-string">"x"</span>, <span class="hljs-built_in">id</span>=<span class="hljs-string">"single-char"</span></span>),
+    ],
+</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_normalize_payload</span>(<span class="hljs-params">raw, expected</span>):
+    <span class="hljs-string">"""给定可接受文本；预期去除多余空白并保持语义字序。"""</span>
+    <span class="hljs-keyword">assert</span> normalize_payload(raw) == expected
+
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params"><span class="hljs-string">"bad"</span>, [<span class="hljs-string">""</span>, <span class="hljs-string">" \n\t "</span>]</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_normalize_rejects_blank</span>(<span class="hljs-params">bad</span>):
+    <span class="hljs-string">"""给定空内容；预期抛出 ValueError，不产生空任务。"""</span>
+    <span class="hljs-keyword">with</span> pytest.raises(ValueError, <span class="hljs-keyword">match</span>=<span class="hljs-string">"blank"</span>):
+        normalize_payload(bad)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_normalize_rejects_wrong_type</span>():
+    <span class="hljs-string">"""给定非字符串；预期明确的 TypeError。"""</span>
+    <span class="hljs-keyword">with</span> pytest.raises(TypeError, <span class="hljs-keyword">match</span>=<span class="hljs-string">"str"</span>):
+        normalize_payload(<span class="hljs-number">123</span>)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_fingerprint_is_stable_after_normalization</span>():
+    <span class="hljs-string">"""同一规范化内容；预期相同指纹。"""</span>
+    <span class="hljs-keyword">assert</span> fingerprint(<span class="hljs-string">" x  y "</span>) == fingerprint(<span class="hljs-string">"x y"</span>)
+
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params"><span class="hljs-string">"attempt,expected"</span>, [(<span class="hljs-params"><span class="hljs-number">1</span>, <span class="hljs-number">0.2</span></span>), (<span class="hljs-params"><span class="hljs-number">2</span>, <span class="hljs-number">0.4</span></span>), (<span class="hljs-params"><span class="hljs-number">3</span>, <span class="hljs-number">0.8</span></span>), (<span class="hljs-params"><span class="hljs-number">9</span>, <span class="hljs-number">5.0</span></span>)]</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_retry_delay</span>(<span class="hljs-params">attempt, expected</span>):
+    <span class="hljs-string">"""不同重试次数；预期指数增长且不超过上限。"""</span>
+    <span class="hljs-keyword">assert</span> retry_delay(attempt) == pytest.approx(expected)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_retry_rejects_zero_attempt</span>():
+    <span class="hljs-string">"""尝试次数从 1 起；预期非法值被拒绝。"""</span>
+    <span class="hljs-keyword">with</span> pytest.raises(ValueError):
+        retry_delay(<span class="hljs-number">0</span>)
+
+
+<span class="hljs-meta">@pytest.mark.asyncio</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_async_failure_propagates</span>():
+    <span class="hljs-string">"""协程抛出错误；预期异步测试捕获原始异常。"""</span>
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">broken</span>():
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0</span>)
+        <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"model unavailable"</span>)
+
+    <span class="hljs-keyword">with</span> pytest.raises(RuntimeError, <span class="hljs-keyword">match</span>=<span class="hljs-string">"unavailable"</span>):
+        <span class="hljs-keyword">await</span> broken()
+
+
+<span class="hljs-meta">@pytest.mark.asyncio</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_async_tasks_can_make_progress</span>():
+    <span class="hljs-string">"""两个任务在事件循环中调度；预期均执行并返回结果。"""</span>
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">work</span>(<span class="hljs-params">n</span>):
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0</span>)
+        <span class="hljs-keyword">return</span> n * <span class="hljs-number">2</span>
+
+    a, b = <span class="hljs-keyword">await</span> asyncio.gather(work(<span class="hljs-number">2</span>), work(<span class="hljs-number">3</span>))
+    <span class="hljs-keyword">assert</span> (a, b) == (<span class="hljs-number">4</span>, <span class="hljs-number">6</span>)</code></pre></div><h2 id="section-41">A.4 <code>tests/test_api_db.py</code></h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> pytest
+<span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> select
+<span class="hljs-keyword">from</span> sqlalchemy.exc <span class="hljs-keyword">import</span> IntegrityError
+
+<span class="hljs-keyword">from</span> app <span class="hljs-keyword">import</span> Job, run_one
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_api_submit_returns_202_pending</span>(<span class="hljs-params">submit</span>):
+    <span class="hljs-string">"""有效入参；预期 202 和持久化 PENDING 任务。"""</span>
+    r = submit()
+    <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">202</span>
+    <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">"state"</span>] == <span class="hljs-string">"pending"</span>
+    <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">"attempts"</span>] == <span class="hljs-number">0</span>
+
+
+<span class="hljs-meta">@pytest.mark.parametrize(<span class="hljs-params">
+    <span class="hljs-string">"payload"</span>,
+    [pytest.param(<span class="hljs-params"><span class="hljs-string">""</span>, <span class="hljs-built_in">id</span>=<span class="hljs-string">"blank"</span></span>), pytest.param(<span class="hljs-params"><span class="hljs-string">"x"</span> * <span class="hljs-number">201</span>, <span class="hljs-built_in">id</span>=<span class="hljs-string">"too-long"</span></span>)],
+</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_api_rejects_invalid_payload</span>(<span class="hljs-params">client, payload</span>):
+    <span class="hljs-string">"""非法 payload；预期 422 而非创建任务。"""</span>
+    r = client.post(<span class="hljs-string">"/jobs"</span>, json={<span class="hljs-string">"payload"</span>: payload, <span class="hljs-string">"idempotency_key"</span>: <span class="hljs-string">"k"</span>},
+                    headers={<span class="hljs-string">"X-Demo-User"</span>: <span class="hljs-string">"alice"</span>})
+    <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">422</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_api_requires_demo_user_header</span>(<span class="hljs-params">client</span>):
+    <span class="hljs-string">"""缺少演示身份头；预期 422（仅表示字段校验，不是认证）。"""</span>
+    r = client.post(<span class="hljs-string">"/jobs"</span>, json={<span class="hljs-string">"payload"</span>: <span class="hljs-string">"x"</span>, <span class="hljs-string">"idempotency_key"</span>: <span class="hljs-string">"k"</span>})
+    <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">422</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_duplicate_submit_returns_same_job</span>(<span class="hljs-params">submit</span>):
+    <span class="hljs-string">"""同一用户、幂等键和内容重复提交；预期相同 Job ID。"""</span>
+    first = submit().json()[<span class="hljs-string">"id"</span>]
+    second = submit().json()[<span class="hljs-string">"id"</span>]
+    <span class="hljs-keyword">assert</span> first == second
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_idempotency_conflict_returns_409</span>(<span class="hljs-params">submit</span>):
+    <span class="hljs-string">"""同一幂等键对应不同内容；预期明确冲突而非覆盖。"""</span>
+    submit(payload=<span class="hljs-string">"one"</span>, key=<span class="hljs-string">"k"</span>)
+    <span class="hljs-keyword">assert</span> submit(payload=<span class="hljs-string">"different"</span>, key=<span class="hljs-string">"k"</span>).status_code == <span class="hljs-number">409</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_same_key_different_user_is_independent</span>(<span class="hljs-params">submit</span>):
+    <span class="hljs-string">"""不同演示用户使用相同幂等键；预期两个不同任务。"""</span>
+    a = submit(user=<span class="hljs-string">"alice"</span>).json()[<span class="hljs-string">"id"</span>]
+    b = submit(user=<span class="hljs-string">"bob"</span>).json()[<span class="hljs-string">"id"</span>]
+    <span class="hljs-keyword">assert</span> a != b
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_api_get_missing_returns_404</span>(<span class="hljs-params">client</span>):
+    <span class="hljs-string">"""不存在的 ID；预期 404。"""</span>
+    <span class="hljs-keyword">assert</span> client.get(<span class="hljs-string">"/jobs/9999"</span>, headers={<span class="hljs-string">"X-Demo-User"</span>: <span class="hljs-string">"alice"</span>}).status_code == <span class="hljs-number">404</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_api_does_not_expose_other_users_job</span>(<span class="hljs-params">submit, client</span>):
+    <span class="hljs-string">"""演示用户 bob 读取 alice 的任务；预期 404。"""</span>
+    job_id = submit(user=<span class="hljs-string">"alice"</span>).json()[<span class="hljs-string">"id"</span>]
+    <span class="hljs-keyword">assert</span> client.get(<span class="hljs-string">f"/jobs/<span class="hljs-subst">{job_id}</span>"</span>, headers={<span class="hljs-string">"X-Demo-User"</span>: <span class="hljs-string">"bob"</span>}).status_code == <span class="hljs-number">404</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_api_get_after_worker_success</span>(<span class="hljs-params">submit, client, db_factory</span>):
+    <span class="hljs-string">"""任务执行成功；预期 API 查询最终状态和结果。"""</span>
+    job_id = submit().json()[<span class="hljs-string">"id"</span>]
+    <span class="hljs-keyword">assert</span> run_one(db_factory, job_id, <span class="hljs-keyword">lambda</span> value: value.upper()) == <span class="hljs-string">"succeeded"</span>
+    r = client.get(<span class="hljs-string">f"/jobs/<span class="hljs-subst">{job_id}</span>"</span>, headers={<span class="hljs-string">"X-Demo-User"</span>: <span class="hljs-string">"alice"</span>})
+    <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">200</span>
+    <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">"state"</span>] == <span class="hljs-string">"succeeded"</span>
+    <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">"result"</span>] == <span class="hljs-string">"RULE A"</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_db_unique_constraint_blocks_duplicate</span>(<span class="hljs-params">db_factory</span>):
+    <span class="hljs-string">"""绕过 API 直接插入相同业务键；预期数据库唯一约束拒绝。"""</span>
+    <span class="hljs-keyword">with</span> db_factory.begin() <span class="hljs-keyword">as</span> s:
+        s.add(Job(owner=<span class="hljs-string">"u"</span>, idempotency_key=<span class="hljs-string">"k"</span>, payload=<span class="hljs-string">"a"</span>, fingerprint=<span class="hljs-string">"hash-a"</span>))
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> db_factory.begin() <span class="hljs-keyword">as</span> s:
+            s.add(Job(owner=<span class="hljs-string">"u"</span>, idempotency_key=<span class="hljs-string">"k"</span>, payload=<span class="hljs-string">"a"</span>, fingerprint=<span class="hljs-string">"hash-a"</span>))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_db_rollback_on_integrity_error</span>(<span class="hljs-params">db_factory</span>):
+    <span class="hljs-string">"""同一事务中第二个插入冲突；预期第一个新插入也回滚。"""</span>
+    <span class="hljs-keyword">with</span> db_factory.begin() <span class="hljs-keyword">as</span> s:
+        s.add(Job(owner=<span class="hljs-string">"u"</span>, idempotency_key=<span class="hljs-string">"existing"</span>, payload=<span class="hljs-string">"x"</span>, fingerprint=<span class="hljs-string">"hx"</span>))
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> db_factory.begin() <span class="hljs-keyword">as</span> s:
+            s.add(Job(owner=<span class="hljs-string">"u"</span>, idempotency_key=<span class="hljs-string">"new"</span>, payload=<span class="hljs-string">"new"</span>, fingerprint=<span class="hljs-string">"hn"</span>))
+            s.add(Job(owner=<span class="hljs-string">"u"</span>, idempotency_key=<span class="hljs-string">"existing"</span>, payload=<span class="hljs-string">"duplicate"</span>, fingerprint=<span class="hljs-string">"hd"</span>))
+    <span class="hljs-keyword">with</span> db_factory() <span class="hljs-keyword">as</span> s:
+        <span class="hljs-keyword">assert</span> s.scalar(select(Job).where(Job.idempotency_key == <span class="hljs-string">"new"</span>)) <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>
+        <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(s.scalars(select(Job)).<span class="hljs-built_in">all</span>()) == <span class="hljs-number">1</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_db_commit_survives_new_session</span>(<span class="hljs-params">submit, db_factory</span>):
+    <span class="hljs-string">"""API 提交数据库后创建新 Session；预期数据仍存在。"""</span>
+    job_id = submit().json()[<span class="hljs-string">"id"</span>]
+    <span class="hljs-keyword">with</span> db_factory() <span class="hljs-keyword">as</span> s:
+        <span class="hljs-keyword">assert</span> s.get(Job, job_id).state == <span class="hljs-string">"pending"</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_worker_transient_then_success</span>(<span class="hljs-params">submit, db_factory</span>):
+    <span class="hljs-string">"""首次暂时性失败、第二次成功；预期 attempts=2 且有结果。"""</span>
+    job_id = submit().json()[<span class="hljs-string">"id"</span>]
+    calls = [<span class="hljs-number">0</span>]
+    <span class="hljs-keyword">from</span> app <span class="hljs-keyword">import</span> TransientFailure
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">flaky</span>(<span class="hljs-params">value</span>):
+        calls[<span class="hljs-number">0</span>] += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">if</span> calls[<span class="hljs-number">0</span>] == <span class="hljs-number">1</span>:
+            <span class="hljs-keyword">raise</span> TransientFailure(<span class="hljs-string">"temporary"</span>)
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"ok"</span>
+
+    <span class="hljs-keyword">assert</span> run_one(db_factory, job_id, flaky) == <span class="hljs-string">"pending"</span>
+    <span class="hljs-keyword">assert</span> run_one(db_factory, job_id, flaky) == <span class="hljs-string">"succeeded"</span>
+    <span class="hljs-keyword">with</span> db_factory() <span class="hljs-keyword">as</span> s:
+        job = s.get(Job, job_id)
+        <span class="hljs-keyword">assert</span> job.attempts == <span class="hljs-number">2</span>
+        <span class="hljs-keyword">assert</span> job.result == <span class="hljs-string">"ok"</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_worker_permanent_failure</span>(<span class="hljs-params">submit, db_factory</span>):
+    <span class="hljs-string">"""永久错误；预期 FAILED 和可查询的错误原因。"""</span>
+    <span class="hljs-keyword">from</span> app <span class="hljs-keyword">import</span> PermanentFailure
+    job_id = submit().json()[<span class="hljs-string">"id"</span>]
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">fail</span>(<span class="hljs-params">_</span>):
+        <span class="hljs-keyword">raise</span> PermanentFailure(<span class="hljs-string">"invalid document"</span>)
+    <span class="hljs-keyword">assert</span> run_one(db_factory, job_id, fail) == <span class="hljs-string">"failed"</span>
+    <span class="hljs-keyword">with</span> db_factory() <span class="hljs-keyword">as</span> s:
+        <span class="hljs-keyword">assert</span> s.get(Job, job_id).error == <span class="hljs-string">"invalid document"</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_worker_retries_are_bounded</span>(<span class="hljs-params">submit, db_factory</span>):
+    <span class="hljs-string">"""持续暂时失败；预期第 3 次达到 FAILED，不能无限重试。"""</span>
+    <span class="hljs-keyword">from</span> app <span class="hljs-keyword">import</span> TransientFailure
+    job_id = submit().json()[<span class="hljs-string">"id"</span>]
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">fail</span>(<span class="hljs-params">_</span>):
+        <span class="hljs-keyword">raise</span> TransientFailure(<span class="hljs-string">"unavailable"</span>)
+    <span class="hljs-keyword">assert</span> [run_one(db_factory, job_id, fail) <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">3</span>)] == [<span class="hljs-string">"pending"</span>, <span class="hljs-string">"pending"</span>, <span class="hljs-string">"failed"</span>]
+    <span class="hljs-keyword">assert</span> run_one(db_factory, job_id, fail) == <span class="hljs-string">"already_terminal"</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_worker_repeat_after_success_does_not_execute_again</span>(<span class="hljs-params">submit, db_factory</span>):
+    <span class="hljs-string">"""已成功任务再次分发；预期不重复调用执行函数。"""</span>
+    job_id = submit().json()[<span class="hljs-string">"id"</span>]
+    counter = [<span class="hljs-number">0</span>]
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">execute</span>(<span class="hljs-params">_</span>):
+        counter[<span class="hljs-number">0</span>] += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"done"</span>
+    <span class="hljs-keyword">assert</span> run_one(db_factory, job_id, execute) == <span class="hljs-string">"succeeded"</span>
+    <span class="hljs-keyword">assert</span> run_one(db_factory, job_id, execute) == <span class="hljs-string">"already_terminal"</span>
+    <span class="hljs-keyword">assert</span> counter[<span class="hljs-number">0</span>] == <span class="hljs-number">1</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_worker_crash_keeps_running_until_lease_expiry</span>(<span class="hljs-params">submit, db_factory</span>):
+    <span class="hljs-string">"""执行器发生进程级故障；预期状态保持 RUNNING，租约未到期无法领取，过期后可恢复。"""</span>
+    job_id = submit().json()[<span class="hljs-string">"id"</span>]
+    clock = [<span class="hljs-number">1000.0</span>]
+    <span class="hljs-keyword">class</span> <span class="hljs-title class_">SimulatedCrash</span>(<span class="hljs-title class_ inherited__">BaseException</span>):
+        <span class="hljs-keyword">pass</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">crash</span>(<span class="hljs-params">_</span>):
+        <span class="hljs-keyword">raise</span> SimulatedCrash()
+
+    <span class="hljs-keyword">with</span> pytest.raises(SimulatedCrash):
+        run_one(db_factory, job_id, crash, now=<span class="hljs-keyword">lambda</span>: clock[<span class="hljs-number">0</span>], lease_seconds=<span class="hljs-number">10</span>)
+    <span class="hljs-keyword">assert</span> run_one(db_factory, job_id, <span class="hljs-keyword">lambda</span> _: <span class="hljs-string">"bad"</span>, now=<span class="hljs-keyword">lambda</span>: clock[<span class="hljs-number">0</span>]) == <span class="hljs-string">"busy"</span>
+    clock[<span class="hljs-number">0</span>] = <span class="hljs-number">1011.0</span>
+    <span class="hljs-keyword">assert</span> run_one(db_factory, job_id, <span class="hljs-keyword">lambda</span> _: <span class="hljs-string">"recovered"</span>, now=<span class="hljs-keyword">lambda</span>: clock[<span class="hljs-number">0</span>]) == <span class="hljs-string">"succeeded"</span>
+    <span class="hljs-keyword">with</span> db_factory() <span class="hljs-keyword">as</span> s:
+        job = s.get(Job, job_id)
+        <span class="hljs-keyword">assert</span> job.attempts == <span class="hljs-number">2</span>
+        <span class="hljs-keyword">assert</span> job.result == <span class="hljs-string">"recovered"</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_worker_missing_job</span>(<span class="hljs-params">db_factory</span>):
+    <span class="hljs-string">"""未知任务 ID；预期 not_found，不会执行任务。"""</span>
+    <span class="hljs-keyword">assert</span> run_one(db_factory, <span class="hljs-number">999</span>, <span class="hljs-keyword">lambda</span> _: <span class="hljs-string">"no"</span>) == <span class="hljs-string">"not_found"</span></code></pre></div>

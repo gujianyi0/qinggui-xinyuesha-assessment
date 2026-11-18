@@ -1,0 +1,27 @@
+{
+  "feedback": 5,
+  "drafts": 5,
+  "unsettled_usage": 0,
+  "running_runs": 0,
+  "active_jobs": 0,
+  "feedback_unchanged": true,
+  "drafts_unchanged": true,
+  "health": {
+    "status": "ok",
+    "cache": "available",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 9.800032000000005,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "new_fee_estimate_cny": 0.07820999999999856
+}

@@ -1,0 +1,392 @@
+{
+  "version": "2.0.1-local.1",
+  "real_model_runs": 9,
+  "charged_cny": 0.109748,
+  "all_usage_settled_and_known": true,
+  "before_fix": {
+    "session_id": "96f017e8-09cd-4b7c-acdb-900aecc2c69f",
+    "records": [
+      {
+        "case": "fixed_record",
+        "message": "请查看SC03固定测试记录，说明记录前提与结果，不代表我的实际局面。",
+        "run_id": "f187dd21-0d9d-5456-bf79-74596f68ba61",
+        "status": "completed",
+        "text": "以下引用固定快照中已执行的测试记录，仅在列出的前提下适用；不表示你的完整局面已经匹配。\n\n## SC03 酒火杀、连环、藤甲与白银狮子\n该固定局面首目标受3点火焰伤害；传导到白银狮子时伤害减至1点，两者解除连环。\n\n记录前提（全部成立才可套用该记录的具体结果）：\n- 攻击者先用酒再使用火杀\n- 首目标装备藤甲且与第二目标连环\n- 第二目标装备白银狮子\n- 没有闪、其他防止伤害或额外增伤\n\n来源核对的时间顺序：\n1. 首目标藤甲将酒火杀伤害由2增加至3；事件轨迹显示，首目标在体力实际扣减之前解除连环。\n2. 首目标扣除3点体力，伤害结束后继续向另一名连环角色传导。\n3. 传导目标的白银狮子将伤害由3减至1；该目标也在体力实际扣减之前解除连环，随后扣除1点体力。\n\n核对项目（断言条目，不表示时间顺序）：\n- 酒火杀加藤甲对首目标造成3点\n- 传导到白银狮子被减至1点\n- 首目标解除连环\n- 传导目标解除连环\n- 酒加伤状态已消费\n\n执行证据：rulings/evidence/SC03.json；1 个测试，0 个失败。\n\n不同记录的饮酒、防具位置、选择及用牌次数等前提不能混用。只有部分前提相同的局面仍须补充信息或另行验证；这里列出的是测试记录，未把缺失条件当成玩家事实。\n\n资料快照：freekill-local-b9dc701220bc；验证范围：固定快照 Lua 规则 / fake_backend，非完整客户端或线上对局。",
+        "citations": [
+          {
+            "id": "verified-ruling:freekill-local-b9dc701220bc:SC03",
+            "title": "酒火杀、连环、藤甲与白银狮子",
+            "path": "rulings/evidence/SC03.json",
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "verified_ruling",
+            "excerpt": "该固定局面首目标受3点火焰伤害；传导到白银狮子时伤害减至1点，两者解除连环。",
+            "sha256": "fc6846098e19023e1650e0c3d6c5bb6ad3f802fa6841139257c8a46513830ed5"
+          }
+        ],
+        "tool_names": [
+          "get_verified_ruling"
+        ],
+        "usage": {
+          "run_id": "f187dd21-0d9d-5456-bf79-74596f68ba61",
+          "reserved_cny": 1.010688,
+          "charged_cny": 0.00365,
+          "estimated": false,
+          "settled": true
+        },
+        "citations_from_current_tool_results": null
+      },
+      {
+        "case": "changed_conditions",
+        "message": "那如果改成仁王盾，而且不喝酒呢？",
+        "run_id": "7ea2abfa-e4c2-5ea1-b444-bbcfd9315a3f",
+        "status": "completed",
+        "text": "当前未取得与这些前提匹配的已验证裁定，暂不能判断结算结果。请核对或补充以下条件：\n- 请补充当前局面的必要前提，或明确要求查看固定测试记录。",
+        "citations": [],
+        "tool_names": [
+          "get_verified_ruling",
+          "query_game_data",
+          "get_verified_ruling"
+        ],
+        "usage": {
+          "run_id": "7ea2abfa-e4c2-5ea1-b444-bbcfd9315a3f",
+          "reserved_cny": 1.010688,
+          "charged_cny": 0.020036,
+          "estimated": false,
+          "settled": true
+        },
+        "citations_from_current_tool_results": null
+      },
+      {
+        "case": "sunquan",
+        "message": "孙权技能",
+        "run_id": "3a9beec8-9a36-58c2-ab61-599baaf9eac6",
+        "status": "completed",
+        "text": "当前未取得与这些前提匹配的已验证裁定，暂不能判断结算结果。请核对或补充以下条件：\n- 本轮未取得受控裁定结果。请确认场景及当前必要条件，或明确查看固定记录。",
+        "citations": [],
+        "tool_names": [
+          "query_game_data",
+          "query_game_data",
+          "ruling_guard"
+        ],
+        "usage": {
+          "run_id": "3a9beec8-9a36-58c2-ab61-599baaf9eac6",
+          "reserved_cny": 1.010688,
+          "charged_cny": 0.018066,
+          "estimated": false,
+          "settled": true
+        },
+        "citations_from_current_tool_results": true
+      }
+    ]
+  },
+  "after_fix": {
+    "session_id": "1d9dd62d-599e-4ef6-8086-7e1980e88437",
+    "records": [
+      {
+        "case": "fixed_record",
+        "message": "请查看SC03固定测试记录，说明记录前提与结果，不代表我的实际局面。",
+        "run_id": "e78977ee-6a47-5ad5-bbd1-24b25dc2bf0c",
+        "status": "completed",
+        "text": "以下引用固定快照中已执行的测试记录，仅在列出的前提下适用；不表示你的完整局面已经匹配。\n\n## SC03 酒火杀、连环、藤甲与白银狮子\n该固定局面首目标受3点火焰伤害；传导到白银狮子时伤害减至1点，两者解除连环。\n\n记录前提（全部成立才可套用该记录的具体结果）：\n- 攻击者先用酒再使用火杀\n- 首目标装备藤甲且与第二目标连环\n- 第二目标装备白银狮子\n- 没有闪、其他防止伤害或额外增伤\n\n来源核对的时间顺序：\n1. 首目标藤甲将酒火杀伤害由2增加至3；事件轨迹显示，首目标在体力实际扣减之前解除连环。\n2. 首目标扣除3点体力，伤害结束后继续向另一名连环角色传导。\n3. 传导目标的白银狮子将伤害由3减至1；该目标也在体力实际扣减之前解除连环，随后扣除1点体力。\n\n核对项目（断言条目，不表示时间顺序）：\n- 酒火杀加藤甲对首目标造成3点\n- 传导到白银狮子被减至1点\n- 首目标解除连环\n- 传导目标解除连环\n- 酒加伤状态已消费\n\n执行证据：rulings/evidence/SC03.json；1 个测试，0 个失败。\n\n不同记录的饮酒、防具位置、选择及用牌次数等前提不能混用。只有部分前提相同的局面仍须补充信息或另行验证；这里列出的是测试记录，未把缺失条件当成玩家事实。\n\n资料快照：freekill-local-b9dc701220bc；验证范围：固定快照 Lua 规则 / fake_backend，非完整客户端或线上对局。",
+        "citations": [
+          {
+            "id": "verified-ruling:freekill-local-b9dc701220bc:SC03",
+            "title": "酒火杀、连环、藤甲与白银狮子",
+            "path": "rulings/evidence/SC03.json",
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "verified_ruling",
+            "excerpt": "该固定局面首目标受3点火焰伤害；传导到白银狮子时伤害减至1点，两者解除连环。",
+            "sha256": "fc6846098e19023e1650e0c3d6c5bb6ad3f802fa6841139257c8a46513830ed5"
+          }
+        ],
+        "tool_names": [
+          "get_verified_ruling"
+        ],
+        "usage": {
+          "run_id": "e78977ee-6a47-5ad5-bbd1-24b25dc2bf0c",
+          "reserved_cny": 1.010688,
+          "charged_cny": 0.003586,
+          "estimated": false,
+          "settled": true
+        },
+        "citations_from_current_tool_results": null
+      },
+      {
+        "case": "changed_conditions",
+        "message": "那如果改成仁王盾，而且不喝酒呢？",
+        "run_id": "b8e47e16-c04a-5e28-9185-929fb5a596a8",
+        "status": "completed",
+        "text": "当前未取得与这些前提匹配的已验证裁定，暂不能判断结算结果。请核对或补充以下条件：\n- 攻击者先用酒再使用火杀\n- 首目标装备藤甲且与第二目标连环\n- 第二目标装备白银狮子\n- 没有闪、其他防止伤害或额外增伤",
+        "citations": [],
+        "tool_names": [
+          "get_verified_ruling",
+          "get_verified_ruling"
+        ],
+        "usage": {
+          "run_id": "b8e47e16-c04a-5e28-9185-929fb5a596a8",
+          "reserved_cny": 1.010688,
+          "charged_cny": 0.016956,
+          "estimated": false,
+          "settled": true
+        },
+        "citations_from_current_tool_results": null
+      },
+      {
+        "case": "sunquan",
+        "message": "孙权技能",
+        "run_id": "42460cf9-5d1a-5c60-8cb7-bf4abb4441fe",
+        "status": "completed",
+        "text": "孙权共两个技能，标准包4体力（上限4）。\n\n制衡：出牌阶段限一次，弃置任意张牌，然后摸等量的牌。\n\n救援：主公技，其他吴势力角色使用【桃】令孙权回复体力时，回复值+1。\n\n以上依据来自资料快照 freekill-local-b9dc701220bc 的孙权武将词条及制衡、救援中文说明；本轮未沿用此前SC记录的结算前提。",
+        "citations": [
+          {
+            "id": "ffee5a739c14d257877c",
+            "title": "孙权",
+            "path": "runtime/packages/standard/pkg/init.lua",
+            "line_start": 28,
+            "line_end": 28,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "implementation",
+            "excerpt": "General:new(extension, \"sunquan\", \"wu\", 4):addSkills { \"zhiheng\", \"jiuyuan\" }",
+            "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+          },
+          {
+            "id": "28ea29addea89cf0b809",
+            "title": "制衡",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 182,
+            "line_end": 182,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "出牌阶段限一次，你可以弃置任意张牌，然后摸等量的牌。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          },
+          {
+            "id": "6ccdd6212289632e9261",
+            "title": "救援",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 187,
+            "line_end": 187,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "主公技，其他吴势力角色使用【桃】令你回复体力时，回复值+1。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        ],
+        "tool_names": [
+          "query_game_data"
+        ],
+        "usage": {
+          "run_id": "42460cf9-5d1a-5c60-8cb7-bf4abb4441fe",
+          "reserved_cny": 1.010688,
+          "charged_cny": 0.009964,
+          "estimated": false,
+          "settled": true
+        },
+        "citations_from_current_tool_results": true
+      },
+      {
+        "case": "liubei",
+        "message": "刘备技能",
+        "run_id": "a83e4a89-8c09-512f-9431-4c2a09a4c1c1",
+        "status": "completed",
+        "text": "刘备是标准包4体力（上限4）的蜀势力男性武将，共两个技能：仁德、激将。\n\n仁德：出牌阶段，你可以将至少一张手牌任意分配给其他角色。你于本阶段内以此法给出的手牌首次达到两张或更多后，你回复1点体力。\n\n激将：主公技，当你需要使用或打出【杀】时，你可以令其他蜀势力角色选择是否打出一张【杀】（视为由你使用或打出）。\n\n依据：资料快照 freekill-local-b9dc701220bc 中刘备武将词条（含体力、势力、技能列表）及仁德、激将的中文说明。",
+        "citations": [
+          {
+            "id": "2602e4f1c8a9a379a95b",
+            "title": "刘备",
+            "path": "runtime/packages/standard/pkg/init.lua",
+            "line_start": 20,
+            "line_end": 20,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "implementation",
+            "excerpt": "General:new(extension, \"liubei\", \"shu\", 4):addSkills { \"rende\", \"jijiang\" }",
+            "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+          },
+          {
+            "id": "15c9aa0928cdfaf7b074",
+            "title": "仁德",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 103,
+            "line_end": 103,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "出牌阶段，你可以将至少一张手牌任意分配给其他角色。你于本阶段内以此法给出的手牌首次达到两张或更多后，你回复1点体力。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          },
+          {
+            "id": "2ad1b74478e23e5cdc33",
+            "title": "激将",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 108,
+            "line_end": 108,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "主公技，当你需要使用或打出【杀】时，你可以令其他蜀势力角色选择是否打出一张【杀】（视为由你使用或打出）。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        ],
+        "tool_names": [
+          "query_game_data",
+          "query_game_data"
+        ],
+        "usage": {
+          "run_id": "a83e4a89-8c09-512f-9431-4c2a09a4c1c1",
+          "reserved_cny": 1.010688,
+          "charged_cny": 0.012516,
+          "estimated": false,
+          "settled": true
+        },
+        "citations_from_current_tool_results": true
+      },
+      {
+        "case": "caocao",
+        "message": "曹操技能",
+        "run_id": "b0eb218c-7391-5f3d-9933-cd53301eec2c",
+        "status": "completed",
+        "text": "曹操是标准包4体力（上限4）的魏势力男性武将，共两个技能：奸雄、护驾。\n\n奸雄：当你受到伤害后，你可以获得对你造成伤害的牌。\n\n护驾：主公技，当你需要使用或打出【闪】时，你可以令其他魏势力角色选择是否打出一张【闪】（视为由你使用或打出）。\n\n依据：资料快照 freekill-local-b9dc701220bc 中曹操武将词条（含体力、势力、技能列表）及奸雄、护驾的中文说明。",
+        "citations": [
+          {
+            "id": "79e971341655b73203f6",
+            "title": "曹操",
+            "path": "runtime/packages/standard/pkg/init.lua",
+            "line_start": 12,
+            "line_end": 12,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "implementation",
+            "excerpt": "General:new(extension, \"caocao\", \"wei\", 4):addSkills { \"jianxiong\", \"hujia\" }",
+            "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+          },
+          {
+            "id": "96bba9031035d3b9b12e",
+            "title": "奸雄",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 17,
+            "line_end": 17,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "当你受到伤害后，你可以获得对你造成伤害的牌。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          },
+          {
+            "id": "a183bcd191b6c83b6a6c",
+            "title": "护驾",
+            "path": "runtime/packages/standard/i18n/zh_CN.lua",
+            "line_start": 21,
+            "line_end": 21,
+            "snapshot_id": "freekill-local-b9dc701220bc",
+            "evidence_type": "skill_description",
+            "excerpt": "主公技，当你需要使用或打出【闪】时，你可以令其他魏势力角色选择是否打出一张【闪】（视为由你使用或打出）。",
+            "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+          }
+        ],
+        "tool_names": [
+          "query_game_data",
+          "query_game_data",
+          "query_game_data"
+        ],
+        "usage": {
+          "run_id": "b0eb218c-7391-5f3d-9933-cd53301eec2c",
+          "reserved_cny": 1.010688,
+          "charged_cny": 0.013074,
+          "estimated": false,
+          "settled": true
+        },
+        "citations_from_current_tool_results": true
+      }
+    ]
+  },
+  "browser": {
+    "generating": {
+      "isGenerating": true,
+      "disabled": false,
+      "hint": "正在回答，可编辑下一条，完成后再发送"
+    },
+    "edited": {
+      "isGenerating": true,
+      "draft": "下一条草稿：孙权技能\n",
+      "submissions": 1
+    },
+    "completed": {
+      "draft": "下一条草稿：孙权技能\n",
+      "submissions": [
+        {
+          "path": "/api/sessions/1d9dd62d-599e-4ef6-8086-7e1980e88437/submissions",
+          "request": {
+            "message": "刘备技能",
+            "request_id": "5afb60ab-f4be-4ba0-8801-8d850b5d6857",
+            "snapshot_id": "freekill-local-b9dc701220bc"
+          }
+        }
+      ],
+      "sendEnabled": true,
+      "lastAnswer": "轻归新月助手刘备是标准包蜀势力男性武将，体力4、体力上限4，技能为仁德和激将。\n\n仁德：出牌阶段，你可以将至少一张手牌任意分配给其他角色。你于本阶段内以此法给出的手牌首次达到两张或更多后，你回复1点体力。\n\n激将：主公技，当你需要使用或打出【杀】时，你可以令其他蜀势力角色选择是否打出一张【杀】（视为由你使用或打出）。\n\n依据：资料快照 freekill-local-b9dc701220bc 中刘备武将词条的势力、体力、体力上限与技能列表，以及仁德、激将的中文说明。参考来源 31刘备实现代码2仁德技能说明3激将技能说明复制回答"
+    },
+    "persisted_run": {
+      "id": "587cb664-7d60-565d-950f-6afafa655a74",
+      "status": "completed",
+      "text": "刘备是标准包蜀势力男性武将，体力4、体力上限4，技能为仁德和激将。\n\n仁德：出牌阶段，你可以将至少一张手牌任意分配给其他角色。你于本阶段内以此法给出的手牌首次达到两张或更多后，你回复1点体力。\n\n激将：主公技，当你需要使用或打出【杀】时，你可以令其他蜀势力角色选择是否打出一张【杀】（视为由你使用或打出）。\n\n依据：资料快照 freekill-local-b9dc701220bc 中刘备武将词条的势力、体力、体力上限与技能列表，以及仁德、激将的中文说明。",
+      "citations": [
+        {
+          "id": "2602e4f1c8a9a379a95b",
+          "title": "刘备",
+          "path": "runtime/packages/standard/pkg/init.lua",
+          "line_start": 20,
+          "line_end": 20,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "evidence_type": "implementation",
+          "excerpt": "General:new(extension, \"liubei\", \"shu\", 4):addSkills { \"rende\", \"jijiang\" }",
+          "sha256": "057c2ca423f90264133c8fdd058a8fc0d8b13466c794d69b49395a5d45f4a728"
+        },
+        {
+          "id": "15c9aa0928cdfaf7b074",
+          "title": "仁德",
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "line_start": 103,
+          "line_end": 103,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "evidence_type": "skill_description",
+          "excerpt": "出牌阶段，你可以将至少一张手牌任意分配给其他角色。你于本阶段内以此法给出的手牌首次达到两张或更多后，你回复1点体力。",
+          "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+        },
+        {
+          "id": "2ad1b74478e23e5cdc33",
+          "title": "激将",
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "line_start": 108,
+          "line_end": 108,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "evidence_type": "skill_description",
+          "excerpt": "主公技，当你需要使用或打出【杀】时，你可以令其他蜀势力角色选择是否打出一张【杀】（视为由你使用或打出）。",
+          "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+        }
+      ],
+      "usage": {
+        "run_id": "587cb664-7d60-565d-950f-6afafa655a74",
+        "reserved_cny": 1.010688,
+        "charged_cny": 0.0119,
+        "estimated": false,
+        "settled": true
+      },
+      "snapshot_id": "freekill-local-b9dc701220bc"
+    }
+  },
+  "serving_manifest_matches": true,
+  "verified_artifacts": [
+    "assets/feedback-Bp0U4Ubh.js",
+    "assets/index-BaFzdQdY.css",
+    "assets/index-Rz_KBKI2.js",
+    "assets/jobs-Bc4af4LQ.js",
+    "assets/jsx-runtime-Wy9s6hX0.js",
+    "assets/library-C6dAWWt1.js",
+    "assets/source-excerpt-ZZvQrne9.js",
+    "assets/status-tag-BXGQ0zWw.js",
+    "assets/tab-navigation-5M9ZGyq5.js",
+    "assets/workspace-DFLQTKGf.js",
+    "index.html",
+    "moon.svg"
+  ],
+  "deployed_backend_sha256": {
+    "backend/app/runtime.py": "0e38bb4d2f70941cc0f515901ac9fcb51115f4b5282cfd4427f36bb122dd6827",
+    "backend/app/ruling_policy.py": "1357e70f4670949d0d918eab2e8150cc13aa5ffe7c9f037e963f68ba53250ad8"
+  }
+}

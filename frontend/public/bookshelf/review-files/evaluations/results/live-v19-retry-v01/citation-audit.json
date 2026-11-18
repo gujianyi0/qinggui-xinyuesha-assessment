@@ -1,0 +1,55 @@
+{
+  "scope": "Citation file/hash/line/tool-binding integrity only; semantic review is separate",
+  "case_count": 1,
+  "citation_count": 7,
+  "issues_count": 0,
+  "cases": [
+    {
+      "case_id": "V01",
+      "turns": [
+        {
+          "run_id": "4f3d27fd-51dc-4792-8177-2d5b864edf5e",
+          "run_status": "completed",
+          "citations": [
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:3",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:chunk:1:passage:standard:text:aaa_role_mode:3:chunk:1",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:chunk:0:passage:standard:text:aaa_role_mode:3:chunk:0",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "ffc20dde4c7914c9521c:passage:known-conflict:role-player-count",
+              "path": "runtime/packages/standard/pkg/init.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:1",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:4",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "issues": []
+            }
+          ],
+          "issues": []
+        }
+      ]
+    }
+  ]
+}

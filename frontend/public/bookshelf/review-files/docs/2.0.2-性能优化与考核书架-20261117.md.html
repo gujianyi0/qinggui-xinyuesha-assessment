@@ -1,0 +1,72 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2.0.2-性能优化与考核书架-20261117.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>2.0.2 性能优化与考核书架</h1>
+<p>日期：2026-11-17，版本<code>2.0.2-local.1</code>，本地内测。当前变更没有部署v2公网前端，也没有改动原知识书架的Cloudflare服务或D1掌握记录。</p>
+<h2>本轮问题、改动与来源</h2>
+<p>用户实际问“闪”时出现较长等待。原Run <code>e728d8f4-8992-58df-8e95-c09032522019</code>总耗时32.705秒，结构化查询4毫秒，额外检索27.301秒；该检索是API重启后的首次向量检索。此前只能推断冷启动占主要开销，本轮新增加载计时后，观察到一次本地BGE加载为51.898秒，不能将两个不同运行窗口的数字混作同一测量。</p>
+<p>具体修改：</p>
+<ul>
+<li>只对完整、唯一的单个卡牌名提供直接资料查询，例如“闪”“杀”“桃”“【闪】”。使用固定快照中的原始说明、直接引用和工具审计，运行记录标记<code>catalog-card-fast-v1</code>，0 token、0费用、已结算。不调用模型，也不写成真实模型生成。复杂句、反馈、故障注入和裁定继续走原约束；取消、身份与终态保护保留。</li>
+<li>API已有发布索引时，后台预热同一个本地BGE实例，复用编码锁，不阻塞基本API启动；health公开ready、warmup和加载毫秒数。预热尚未结束就提交需要RAG的问题，仍可能等待；预热失败可观察，检索仍会报告实际错误。</li>
+<li>网页显示当前阶段和独立计时，生成期间继续允许编辑下一条草稿。没有伪造完成百分比或增加模型重试。</li>
+<li>工作区“后台任务”下增加“知识书架”，复用既有书架的阅读、目录、搜索、收藏和字号功能，新增08文档导航QA及11份导航/测试记录。副本只读，不导出管理凭据、不连接D1。证据源码以文本供检阅，不作为前端执行代码。</li>
+<li>纠正“没有真人反馈”的旧表述。实际参与者为用户本人，多轮使用、截图反馈、修改和复测已经形成闭环；取消的是额外招募。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md">试用与改进记录</a>。</li>
+<li>原书架缺少7-07《从使用者角度验证交互》，本轮补齐并收录；原7方向49条目标现在对应49篇正文，新增08另计，不篡改原学习目标数量。</li>
+</ul>
+<h2>同组性能与答案核对</h2>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Flatency-cases-v202.json">固定4条规格</a>，SHA-256：<code>1431fbfceaffba094adaa56def2c773bf4f02ee9037b3db2ad555fabd6dc8f2f</code>。三轮保留相同问题及顺序，所有12条运行均完成；<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv202-latency-regression-20261117.json">原始运行、工具、引用、token、用量及核对</a>。</p>
+<p>下表为客户端完整请求耗时；不是模型首token时间。</p>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>修改前，既有热服务</th>
+<th>修改后，重启预热中</th>
+<th>修改后，预热完成</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>闪</td>
+<td>7281ms</td>
+<td>274ms</td>
+<td>105ms</td>
+</tr>
+<tr>
+<td>杀</td>
+<td>4507ms</td>
+<td>85ms</td>
+<td>122ms</td>
+</tr>
+<tr>
+<td>桃</td>
+<td>4765ms</td>
+<td>85ms</td>
+<td>77ms</td>
+</tr>
+<tr>
+<td>闪的使用时机是什么？</td>
+<td>4188ms</td>
+<td>37942ms</td>
+<td>5434ms</td>
+</tr>
+</tbody></table>
+<p>前三条路径改成确定性的资料库查询，预热完成轮客户端耗时下降约97%～98%；说明中的时机、目标和效果逐项核对直接来源。“闪”未混入闪电，“桃”的濒死目标未被错误限定为自己。直接路径只展示资料字段，不补充未检索的例外或次数规则。</p>
+<p>完整问句仍经真实<code>deepseek-flash</code>。冷启动轮较慢的记录保留；热服务轮5.434秒也高于修改前4.188秒，不能声称所有问句都变快。热轮实际调用数据与检索两类工具，答案的基本时机与直接说明一致，但返回引用仍含无关闪电/牌堆条目，并有未询问的装备扩展，列为后续引用精简问题。文件哈希和行号完整性0错误，不等于相关性全部通过。</p>
+<p>本轮六次实际模型请求合计已结算0.088452元；另外六次静态资料查询费用为0。原始失败/冷启动结果不删除。没有重跑完整32条真实模型评测，原1.9完整回归仍按历史版本解释。</p>
+<h2>验证与运行边界</h2>
+<ul>
+<li>后端243项通过：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv202-pytest-20261117.log">日志</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv202-pytest-20261117.xml">JUnit</a>。新增覆盖准确匹配、闪与闪电歧义、错误快照、复合问题不走直查、零费用、取消终态和预热失败；原反馈、裁定、恢复、身份、并发与Worker测试一并通过。</li>
+<li>前端50项通过，Lint、架构、TypeScript、Knip和生产构建通过：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv202-frontend-check-20261117.log">日志</a>。为真正由HTML加载的书架脚本增加Knip入口，未扩大忽略范围；导出的证据源码转换为<code>.txt</code>，避免被误执行或当成前端测试扫描。</li>
+<li>原知识书架构建、原文哈希、49条映射、目录锚点及类型检查通过，缺项0；本地副本另核对08原文哈希、证据链接和本机实际私有值，不把云端发布写成已完成。</li>
+<li>API仅更新catalog/main/runtime三文件，<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv202-api-deployment-20261117.json">镜像与源文件哈希、部署前后账本</a>已留存。Worker、15174原前端和数据卷未重建，部署时没有在途请求或预留费用。</li>
+<li>书架本地静态副本与网页交互检查见本轮进度及证据。Storybook、Lighthouse、当前v2新一小时稳定性和完整32条真实重跑未执行。</li>
+</ul>
+<h2>复核命令</h2>
+<pre><code class="language-powershell">.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m scripts.verify_bookshelf
+npm --prefix frontend run check
+pwsh -File scripts/start_v2_local.ps1
+</code></pre>
+<p>本地书架入口：<code>http://127.0.0.1:15180/?page=bookshelf</code>。同组性能原始记录供检阅，真实模型重跑会产生费用；不把它放入默认CI。需回退API时使用本机备份镜像<code>qinggui-assessment-api:v202-parent-20261117</code>，保留主库及账本，不启动旧原生实例覆盖当前Docker主库。</p>
+<h2>最后实际网页核对</h2>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv202-browser-review-20261117.json">真实浏览器记录</a>：知识书架在后台任务之后，08的11篇可读；补齐的7-07可读，并能接续到08。实际鼠标滚轮将下方记录滚入视口后打开；1085px与390px视口均无横向页面溢出。这里是DOM、点击与滚轮验证，没有截图视觉验收或实体手机测试。</p>
+<p>另发1次真实模型完整问句，观察到等待1秒提示，回答过程中输入框可编辑、新草稿在完成后保留，实际只提交1次；完成后计时消失。此次额外浏览器问答已结算0.018642元，独立于配对样例0.088452元。模型回答仍有冗余引用，保留在原始记录。</p>
+</article></body></html>

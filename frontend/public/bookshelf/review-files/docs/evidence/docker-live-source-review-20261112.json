@@ -1,0 +1,43 @@
+{
+  "at": "2026-11-11T20:37:23.797573+00:00",
+  "reviewer": "Codex，逐条核对冻结来源；不是独立真人或公司验收",
+  "label": "live-docker-v1.5-20261112-01",
+  "scope": "固定32条中的4条/5轮子集；不是完整32条重跑",
+  "citation_count": 30,
+  "citation_issues": 0,
+  "cases": [
+    {
+      "case_id": "R05",
+      "conclusion": "matches_expectation_with_stated_scope",
+      "note": "通常出牌阶段仅一次杀，依据身份模式规则；没有把咆哮例外当通常规则。",
+      "run_ids": [
+        "fdd45d67-0852-4985-b284-f8637fcce4b0"
+      ]
+    },
+    {
+      "case_id": "D02",
+      "conclusion": "matches_expectation_with_stated_scope",
+      "note": "蜀3、观星与空城和定义/中文描述一致，没有混入其他标准武将技能。",
+      "run_ids": [
+        "24781b2e-5738-4ccf-9235-59614c7af5c0"
+      ]
+    },
+    {
+      "case_id": "J03",
+      "conclusion": "matches_expectation_with_stated_scope",
+      "note": "固定SC03首3/传1，解除连环在扣体力前；完整前提与fake_backend离线边界明确。",
+      "run_ids": [
+        "a82f3bdf-59ff-4ea3-bb95-ac6987e7d584"
+      ]
+    },
+    {
+      "case_id": "M02",
+      "conclusion": "matches_expectation_with_stated_scope",
+      "note": "濒死酒仅自救，不能给其他濒死者使用；与桃的目标说明区分，多轮条件承接正确。",
+      "run_ids": [
+        "c418346f-cafc-49d2-837c-32e1bbfd06b1",
+        "62ae4872-cc37-4131-8467-667994703997"
+      ]
+    }
+  ]
+}

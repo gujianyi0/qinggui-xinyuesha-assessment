@@ -1,0 +1,723 @@
+<h1 id="section-1">消息队列与后台任务可靠性（五）：同分区并发处理、连续完成水位与安全 Offset 提交</h1>
+<blockquote>
+<p>对应学习目标：<strong>同分区并发处理时，后完成的消息不能越过尚未完成的较早消息，导致重启后漏处理。</strong><br />知识范围：Apache Kafka 消费组、aiokafka 手动提交、异步 Worker、故障恢复、数据库幂等。<br />示例环境：Python 3.13；教学代码仅使用 Python 标准库和 SQLite；Kafka 客户端代码展示集成模式，未进行真实 Broker 验证。</p>
+</blockquote>
+<h2 id="section-2">1. 一句话理解问题</h2>
+<p>Kafka 一个分区内的日志是按 Offset 排列的，但一个 Worker 可以把同一分区的多条消息交给多个协程同时处理。此时<strong>消息的读取顺序、完成顺序、提交顺序是不同的</strong>：</p>
+<ul>
+<li>读取顺序：通常是分区日志顺序，例如 100、101、102。</li>
+<li>完成顺序：可能是 102、100、101，因为各消息耗时不同。</li>
+<li>提交进度：必须保守地表示“该 Offset 之前需要处理的消息已经得到可持久化的处理结论”，不能直接取“已完成的最大 Offset + 1”。</li>
+</ul>
+<p><strong>核心不变量：任何一个提交给 Kafka 的下一消费位置 C，都不能越过当前仍需恢复、且尚未持久化完成的已消费消息。</strong></p>
+<p>Kafka 记录的 committed offset 是<strong>重启后下一条要读取的位置</strong>，不是“最近成功执行的消息编号”。在常规手动提交模式下，提交 103 表示从 103 开始恢复，默认不再从 100、101、102 恢复。参见 <a href="https://aiokafka.readthedocs.io/en/stable/consumer.html">aiokafka Consumer 文档</a> 和 <a href="https://kafka.apache.org/44/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html">Kafka 4.4 Consumer API</a>。</p>
+<h2 id="section-3">2. 为什么分区有序，处理结果仍可能乱序</h2>
+<p>单个 Kafka Partition 的记录具有日志顺序，但异步消费者经常使用以下结构：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Partition P0
+  offset=100  ──────┐  模型调用耗时 2 秒 ─────────────→ 完成时刻 T=2.0
+  offset=101  ──────┼  模型调用耗时 8 秒 ───────────────────────→ 完成时刻 T=8.0
+  offset=102  ──────┘  缓存命中耗时 0.2 秒 ──→ 完成时刻 T=0.2</code></pre></div><p>消费者可以按 <code>100 → 101 → 102</code> 取出记录，并使用 <code>asyncio.create_task(...)</code> 调度并发处理。然而 <code>asyncio</code> 不保证执行完成顺序等于创建 Task 的顺序。<strong>有序消费不代表有序完成，更不代表有序提交。</strong></p>
+<p>在批量 Embedding、外部模型 API、文档解析等 I/O 耗时不一致的业务中，这种乱序很常见。</p>
+<h2 id="section-4">3. 一个会导致漏处理的具体时间线</h2>
+<p>假设该 Consumer Group 当前已提交 Offset 为 <strong>100</strong>，分区内有三条待处理记录。</p>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>Offset 100</th>
+<th>Offset 101</th>
+<th>Offset 102</th>
+<th>错误操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>T0</td>
+<td>处理中</td>
+<td>处理中</td>
+<td>处理中</td>
+<td>无</td>
+</tr>
+<tr>
+<td>T1</td>
+<td>处理中</td>
+<td>处理中</td>
+<td>成功</td>
+<td>按最大完成号提交 <code>103</code></td>
+</tr>
+<tr>
+<td>T2</td>
+<td>处理中</td>
+<td>处理中</td>
+<td>已完成</td>
+<td>进程崩溃</td>
+</tr>
+<tr>
+<td>T3</td>
+<td>—</td>
+<td><strong>未完成且未恢复</strong></td>
+<td>—</td>
+<td>重启后从 <code>103</code> 读取</td>
+</tr>
+</tbody></table>
+<p>T1 的错误提交等价于“宣布 100、101、102 都可以跳过”。但事实上只有 102 完成。Kafka 只保存一条线性提交位置，通常不会替应用记住“101 未完成、102 已完成”。</p>
+<p><strong>结果：Offset 101 对应的业务可能被永久跳过。</strong> 如果消息仍留在 Kafka，仍可以通过人工调整 Offset 补救；但系统不会自动发现这个遗漏，且消息保留期与补偿条件可能使修复变困难。</p>
+<h3 id="section-5">3.1 错误实现</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 错误：仅看本次完成的最高 offset</span>
+latest_done = <span class="hljs-built_in">max</span>(completed_offsets)       <span class="hljs-comment"># 例如 102</span>
+<span class="hljs-keyword">await</span> consumer.commit({tp: latest_done + <span class="hljs-number">1</span>})  <span class="hljs-comment"># 提交 103：越过了未完成的 101</span></code></pre></div><p>另一个常见错误是：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 错误：fetch 已经推进到 103，但业务任务可能还没完成</span>
+next_position = <span class="hljs-keyword">await</span> consumer.position(tp)
+<span class="hljs-keyword">await</span> consumer.commit({tp: next_position})</code></pre></div><p><code>position()</code> 表示消费者<strong>读取位置</strong>，不能作为业务完成证明。</p>
+<h2 id="section-6">4. 正确原则：按“已处理前缀”推进水位</h2>
+<p>解决办法是为<strong>每个 TopicPartition</strong>维护独立的消息处理状态，按读取顺序记录消息，然后只推进到“前面的消息均已完成”的位置。这一位置称为：</p>
+<ul>
+<li><strong>安全提交水位（safe commit frontier）</strong></li>
+<li><strong>连续完成水位（contiguous completion watermark）</strong></li>
+<li><strong>Highest committable offset</strong></li>
+</ul>
+<p>其中“连续”指<strong>按本消费者实际交付的记录序列，前面的待处理项没有空洞</strong>，不是强制 Kafka Offset 数值每次都相差 1。</p>
+<p>例如：</p>
+<table>
+<thead>
+<tr>
+<th>记录</th>
+<th>处理状态</th>
+<th>是否允许提交到该记录之后</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>100</td>
+<td>成功</td>
+<td>是：可以提交 101</td>
+</tr>
+<tr>
+<td>101</td>
+<td>处理中</td>
+<td>否</td>
+</tr>
+<tr>
+<td>102</td>
+<td>成功</td>
+<td>否：不能单独提交 103</td>
+</tr>
+<tr>
+<td>103</td>
+<td>成功</td>
+<td>否：仍被 101 阻挡</td>
+</tr>
+</tbody></table>
+<p>当 101 随后成功时，如果 102、103 已经持久化成功，水位可以一次前进到 104。</p>
+<h3 id="section-7">4.1 操作时序</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">初始 committed=100
+   ↓
+读取 100、101、102
+   ↓
+102 成功        → safe_next=100（不能推进）
+   ↓
+100 成功        → safe_next=101（可提交 101）
+   ↓
+101 成功        → safe_next=103（100..102 均完成）
+   ↓
+Kafka 确认 commit(103)</code></pre></div><p>注意：如果 100 先完成、101 未完成、102 已完成，提交 <strong>101</strong> 是安全的。重启后 Kafka 将从 101 重新读取；102 可能被重复消费，因此<strong>下游业务必须幂等</strong>。</p>
+<h2 id="section-8">5. Kafka 的 Offset 数值可能有空洞</h2>
+<p>Kafka Offset 单调递增，但在日志压缩、事务可见性等情况下，消费者实际收到的记录可能是：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">offset=10
+（没有交付 offset=11）
+offset=12
+（没有交付 offset=13、14）
+offset=15</code></pre></div><p>因此下面这种实现并不通用：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 不够通用：假设每条消息的 offset 数字都连续</span>
+<span class="hljs-keyword">while</span> next_offset <span class="hljs-keyword">in</span> finished_offsets:
+    next_offset += <span class="hljs-number">1</span></code></pre></div><p>它可能永远等待本就不可能收到的物理 Offset。</p>
+<p>更稳妥的教学算法维护<strong>实际按顺序接收到的记录列表</strong>。当这些记录的前缀都完成时，将安全位置设为最后一条完成记录的 <code>offset + 1</code>。此处依赖同一分区的消费端按顺序交付记录，且不能在未处理未知中间记录的情况下擅自跳跃。</p>
+<p>例如已收到 <code>[10,12,15]</code>：10 和 12 完成，15 未完成，可以提交 <code>13</code>。15 完成后可以提交 <code>16</code>。由于已经读取到 12，11 没有在该消费视图中作为一条需要处理的可见记录被交付。</p>
+<p>Kafka 对事务与压缩等情况的处理应以具体消费隔离级别、日志配置和官方客户端行为为准。不要把 Offset 差值当成实际消息条数。</p>
+<h2 id="section-9">6. 三种处理策略的取舍</h2>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>是否允许同分区并发</th>
+<th>结果顺序</th>
+<th>提交难度</th>
+<th>适用情况</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>同分区串行处理</td>
+<td>否</td>
+<td>可按消费顺序完成</td>
+<td>低</td>
+<td>必须逐条按顺序修改业务状态</td>
+</tr>
+<tr>
+<td>同分区并发、提交有序</td>
+<td>是</td>
+<td>结果可能乱序</td>
+<td>中</td>
+<td>相互独立的文档、图片、模型请求</td>
+</tr>
+<tr>
+<td>按消息 Key 顺序并发</td>
+<td>不同 Key 可以并行，同 Key 串行</td>
+<td>同 Key 有序</td>
+<td>较高</td>
+<td>订单、用户、同一资料版本的更新</td>
+</tr>
+</tbody></table>
+<p><strong>注意：提交顺序有序，不代表业务副作用有序。</strong> 如果消息 100 表示“设置余额为 10”，101 表示“设置余额为 20”，即使按安全水位提交，若 101 的数据库写入先于 100，也可能留下错误的余额 10。此类业务需要同 Key 串行执行、数据库版本检查或事件序列控制，不能仅靠提交水位解决。</p>
+<h2 id="section-10">7. 核心数据结构与算法</h2>
+<p>在一个分区里维护四类状态：</p>
+<ol>
+<li><code>safe_next_offset</code>：从已收到且已持久化完成的消息前缀计算出的安全提交目标。</li>
+<li><code>acknowledged_offset</code>：Kafka 已确认保存的 Offset（教学代码中的本地镜像）。</li>
+<li><code>ordered</code>：按该分区读取顺序登记、尚未越过水位的消息记录。</li>
+<li><code>done</code>：某条消息对应的业务结果已经完成<strong>持久化</strong>，而不是“协程不再运行”。</li>
+</ol>
+<p>简化伪代码：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">on_message(msg):
+    partition_state.register(msg.offset)
+    schedule_async_business_task(msg)
+
+on_business_durably_finished(msg):
+    partition_state.mark_done(msg.offset)
+
+    <span class="hljs-comment"># 从队头开始，只弹出已完成的前缀</span>
+    <span class="hljs-keyword">while</span> first_registered_message_is_done():
+        completed = remove_first_registered_message()
+        safe_next_offset = completed.offset + <span class="hljs-number">1</span>
+
+    <span class="hljs-keyword">if</span> safe_next_offset &gt; last_confirmed_commit:
+        serialize_commit(safe_next_offset)</code></pre></div><p><strong>关键条件：</strong> 必须在数据库事务提交成功、幂等重放被确认已完成，或失败消息已被可靠地转入可追踪的终态之后，才能把消息标为 <code>done</code>。单纯捕获异常、打印日志，或者把消息交给一个尚未确认持久化的队列，不能算完成。</p>
+<h2 id="section-11">8. 安全提交和数据库事务之间的边界</h2>
+<p>以下阶段不能混为一谈：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Kafka 消息交付
+      ↓
+异步业务处理
+      ↓
+数据库事务执行
+      ↓
+COMMIT 成功
+      ↓
+标记该记录 done
+      ↓
+推进安全前缀
+      ↓
+Kafka commit(offset)
+      ↓
+Broker 确认</code></pre></div><ul>
+<li>若数据库事务尚未成功，不能认定 <code>done</code>。</li>
+<li>若数据库成功、Kafka Commit 失败，消息可能重投，因此业务结果要有<strong>幂等键、唯一约束或等效的重复识别机制</strong>。</li>
+<li>若 Kafka Commit 被错误推进到未完成记录之后，数据库幂等机制无法让这条<strong>尚未执行过的业务</strong>凭空补回来。</li>
+<li>Kafka Commit 失败不应推进本地 <code>acknowledged_offset</code>；可以保留安全候选值并之后重试提交，但不能把未确认提交当成已持久化进度。</li>
+</ul>
+<h3 id="section-12">8.1 业务结果重复与顺序控制是不同目标</h3>
+<p><code>UNIQUE(event_id)</code> 允许重复消费后不重复创建结果，但它不能阻止用户 101 的更新先于 100 执行。对于有序业务，可能需要 <code>(resource_id, event_version)</code> 的条件更新规则、数据库锁或同 Key 串行处理。</p>
+<h2 id="section-13">9. 有一个更难的场景：前面的消息失败，后面的都成功</h2>
+<p>假设 100 因模型服务持续失败，101–130 已处理完毕：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">100 FAIL/RETRYING
+101 DONE
+102 DONE
+...
+130 DONE</code></pre></div><p>安全提交水位依然不能越过 100。否则重启后 100 被跳过。</p>
+<p>有三种常见策略：</p>
+<ol>
+<li><strong>重试并阻塞推进</strong>：保留 100，按有限次数和退避重试；适合确实必须成功的任务。</li>
+<li><strong>可靠失败终态 / DLQ</strong>：将 100 的失败原因和必要上下文持久化，确认死信记录已可靠保存，再将它视为“已经得到最终处理结论”。适合允许单条任务失败但不阻断整体吞吐的场景。</li>
+<li><strong>暂停或重新分配该分区</strong>：在故障或资源不足时，不再继续接收该分区的新工作，控制内存积压。</li>
+</ol>
+<p><strong>不能</strong>为了让 Offset 前进而简单把失败记录标成成功。业务侧应区分 <code>SUCCEEDED</code>、<code>FAILED</code>、<code>RETRYING</code>、<code>CANCELLED</code> 等状态。</p>
+<h2 id="section-14">10. Head-of-Line Blocking 与内存压力</h2>
+<p>当最早未完成消息很慢时，后面完成的结果无法推进提交位置，这称为提交层面的 <strong>Head-of-Line Blocking</strong>（队头阻塞）。</p>
+<p>它可能造成：</p>
+<ul>
+<li>持续积累在途任务、内存、工具连接和缓存结果；</li>
+<li>Broker committed offset 长时间不前进，消费组 Lag 看上去很大；</li>
+<li>发生重启时大量已成功但尚未提交进度的消息重新投递；</li>
+<li>重复处理费用上升，甚至再次对外部模型收费。</li>
+</ul>
+<p>典型缓解：</p>
+<ul>
+<li>为每个分区设置最大 <code>in_flight</code> 数；</li>
+<li>根据未完成队列长度 <code>pause(tp)</code> / <code>resume(tp)</code>；</li>
+<li>缩小获取批量 <code>max_records</code>；</li>
+<li>对模型请求设置有限超时与业务幂等；</li>
+<li>在允许的情况下使用 Key 顺序并发、分区扩展或独立任务队列；</li>
+<li>对长期失败的记录实施可审计的终态处理。</li>
+</ul>
+<p>注意：<code>pause()</code> 通常暂停后续获取，并不会自动取消已经投递给业务的任务。需要显式追踪、回收在途任务。</p>
+<h2 id="section-15">11. Consumer Group Rebalance 时必须重新确认所有权</h2>
+<p>当 Consumer Group 发生重新平衡，某个分区可能从 Worker A 转移到 Worker B。此时，A 内部还可能有尚未完成的协程。</p>
+<p>如果旧 Worker 在分区已撤销后仍提交 Offset，或把结果覆盖到新 Worker 的业务状态，就可能造成进度、结果和权限问题。推荐处理顺序：</p>
+<ol>
+<li>收到分区撤销信号后，不再为撤销分区创建新的业务任务。</li>
+<li>尽量在允许的关闭时间内等待该分区在途任务完成。</li>
+<li>对<strong>已经真正持久化完成的前缀</strong>尝试最后一次安全提交。</li>
+<li>停止、取消或失效该分区的旧异步任务，清理本地分区状态。</li>
+<li>新 Worker 从其被分配后的 committed offset 恢复，并使用幂等约束处理可能的重投。</li>
+</ol>
+<p>aiokafka 文档明确建议手动提交的批处理消费者配合 <code>ConsumerRebalanceListener</code>，处理撤销前的在途数据；分区重新分配期间提交也可能失败。见 <a href="https://aiokafka.readthedocs.io/en/stable/consumer.html">aiokafka Consumer 文档</a>。</p>
+<p>对于 <strong>数据库已经被旧 Worker 修改</strong>的问题，还可能需要租约代际或 Fencing Token、条件更新等机制；仅靠消费者提交前判断分区归属，不足以撤销已经发生的外部副作用。</p>
+<h2 id="section-16">12. 优雅停机与强制终止</h2>
+<p>正常关闭时：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">停止接收新消息
+  → 暂停/限制新任务入队
+  → 等待在途任务在截止时间前完成
+  → 保存成功结果和失败终态
+  → 按分区提交安全水位
+  → 关闭 Consumer、HTTP 客户端、数据库池</code></pre></div><p>若 Worker 收到 <code>SIGKILL</code>、进程崩溃或机器断电，以上步骤可能无法执行。因此<strong>不能把优雅停机当作唯一的可靠性机制</strong>。必须预期：已完成数据库写入却没有提交 Kafka Offset、未完成任务被重新交付，以及已处理消息的重放。</p>
+<h2 id="section-17">13. aiokafka 的集成思路：批内并发、分区内有序提交</h2>
+<p>下面代码展示核心编排形态，前提是实现 <code>process_business_durably()</code>：它必须以数据库事务或等效机制完成持久化和幂等保护，且只有成功之后才返回。此示例用于解释 API 与处理边界，<strong>未连接真实 Kafka 服务执行</strong>，也不是完善的生产级恢复框架。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> logging
+<span class="hljs-keyword">from</span> aiokafka <span class="hljs-keyword">import</span> AIOKafkaConsumer
+<span class="hljs-keyword">from</span> offset_tracker <span class="hljs-keyword">import</span> PartitionCommitTracker
+
+log = logging.getLogger(__name__)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">process_business_durably</span>(<span class="hljs-params">msg</span>):
+    <span class="hljs-string">"""业务层自行实现：数据库事务提交、唯一约束、结果恢复等。"""</span>
+    <span class="hljs-keyword">raise</span> NotImplementedError
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">consume</span>():
+    consumer = AIOKafkaConsumer(
+        <span class="hljs-string">"document-tasks"</span>,
+        bootstrap_servers=<span class="hljs-string">"localhost:9092"</span>,
+        group_id=<span class="hljs-string">"document-workers"</span>,
+        enable_auto_commit=<span class="hljs-literal">False</span>,
+        auto_offset_reset=<span class="hljs-string">"earliest"</span>,
+    )
+    trackers = {}
+    <span class="hljs-keyword">await</span> consumer.start()
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
+            batches = <span class="hljs-keyword">await</span> consumer.getmany(timeout_ms=<span class="hljs-number">500</span>, max_records=<span class="hljs-number">24</span>)
+            <span class="hljs-keyword">for</span> tp, messages <span class="hljs-keyword">in</span> batches.items():
+                <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> messages:
+                    <span class="hljs-keyword">continue</span>
+                <span class="hljs-keyword">if</span> tp <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> trackers:
+                    <span class="hljs-comment"># 演示在当前分区最初接收到的消息位置建立局部水位；</span>
+                    <span class="hljs-comment"># 真正系统还需管理分区初次分配、撤销及提交位置。</span>
+                    trackers[tp] = PartitionCommitTracker(messages[<span class="hljs-number">0</span>].offset)
+                tracker = trackers[tp]
+                <span class="hljs-keyword">for</span> msg <span class="hljs-keyword">in</span> messages:
+                    tracker.register(msg.offset)
+
+                <span class="hljs-comment"># 只并发执行本批消息，等待本批任务全部给出结果。</span>
+                results = <span class="hljs-keyword">await</span> asyncio.gather(
+                    *(process_business_durably(msg) <span class="hljs-keyword">for</span> msg <span class="hljs-keyword">in</span> messages),
+                    return_exceptions=<span class="hljs-literal">True</span>,
+                )
+                failed = <span class="hljs-literal">False</span>
+                <span class="hljs-keyword">for</span> msg, result <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(messages, results):
+                    <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(result, BaseException):
+                        failed = <span class="hljs-literal">True</span>
+                        log.error(<span class="hljs-string">"business failed partition=%s offset=%s error=%r"</span>,
+                                  tp, msg.offset, result)
+                    <span class="hljs-keyword">else</span>:
+                        tracker.mark_done(msg.offset)  <span class="hljs-comment"># 仅成功持久化后</span>
+
+                <span class="hljs-keyword">if</span> tracker.needs_commit():
+                    candidate = tracker.safe_next_offset
+                    <span class="hljs-comment"># 同一消费者中的提交操作要保持串行；</span>
+                    <span class="hljs-comment"># 分区撤销后也必须阻止旧 Worker 再发出提交。</span>
+                    <span class="hljs-keyword">await</span> consumer.commit({tp: candidate})
+                    tracker.commit_success(candidate)
+
+                <span class="hljs-keyword">if</span> failed:
+                    <span class="hljs-comment"># 教学实现故意 fail-fast：停止消费，让未提交的</span>
+                    <span class="hljs-comment"># 消息在故障恢复后重放，而不是积累无界失败空洞。</span>
+                    <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"batch failed; restart with idempotent replay"</span>)
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> consumer.stop()
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(consume())</code></pre></div><p>这段代码的局限需要明确：</p>
+<ul>
+<li>未提供真正的 <code>process_business_durably()</code>，不可直接当成完整应用运行；</li>
+<li>没有实现 <code>ConsumerRebalanceListener</code> 与分区撤销时的任务处理；</li>
+<li>没有持久化或管理跨批次的重试/失败终态，只通过 fail-fast 保守恢复；</li>
+<li>一个批次会等待该批全部处理完成，可能造成队头阻塞；</li>
+<li>没有完整的背压、运行监控、锁代际和终止信号管理；</li>
+<li>在复杂分区切换、Kafka 提交失败和进程中断情形下，需要端到端集成测试验证。</li>
+</ul>
+<p>在真实系统中，建议进一步将消费循环、工作调度、完成事件收集、提交协调器与分区生命周期管理拆分为独立模块。</p>
+<h2 id="section-18">14. 常见实现错误清单</h2>
+<table>
+<thead>
+<tr>
+<th>错误</th>
+<th>可能造成的结果</th>
+<th>正确处理方向</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>任何 Task 完成就提交其 offset+1</td>
+<td>越过更早的未完成任务</td>
+<td>按分区维护连续完成前缀</td>
+</tr>
+<tr>
+<td>使用 <code>consumer.position()</code> 作为完成水位</td>
+<td>读取进度领先于业务持久化</td>
+<td>业务完成后独立计算安全水位</td>
+</tr>
+<tr>
+<td>以最大成功 Offset 为提交目标</td>
+<td>未完成消息被跳过</td>
+<td>检查所有更早的已交付消息</td>
+</tr>
+<tr>
+<td>只记录成功，不记录失败和重试</td>
+<td>消息长期堵塞且不可解释</td>
+<td>持久化任务状态、有限重试与失败终态</td>
+</tr>
+<tr>
+<td>成功结果只存在内存</td>
+<td>崩溃后丢失业务完成证明</td>
+<td>数据库事务、持久化业务结果</td>
+</tr>
+<tr>
+<td>Kafka Commit 成功才写业务结果</td>
+<td>重启可能漏业务</td>
+<td>先持久化业务，再提交 Offset</td>
+</tr>
+<tr>
+<td>同时有多个未协调的提交协程</td>
+<td>后到达的旧提交可能回退位置</td>
+<td>单分区串行化提交并验证成功</td>
+</tr>
+<tr>
+<td>同分区乱序修改同一资源</td>
+<td>状态更新顺序错乱</td>
+<td>同 Key 串行或版本条件更新</td>
+</tr>
+<tr>
+<td>Rebalance 后旧任务继续提交</td>
+<td>旧 Worker 污染新分区进度</td>
+<td>撤销处理与代际保护</td>
+</tr>
+<tr>
+<td>用 Redis 锁替代幂等约束</td>
+<td>锁失效后仍可能重复写入</td>
+<td>唯一约束、事务、Fencing</td>
+</tr>
+<tr>
+<td>默认 Offset 一定数值连续</td>
+<td>压缩或事务空洞导致水位卡死</td>
+<td>按实际交付的有序记录推进</td>
+</tr>
+</tbody></table>
+<h2 id="section-19">15. 诊断与指标</h2>
+<p>建议记录以下字段：<code>topic</code>、<code>partition</code>、<code>offset</code>、<code>consumer_group</code>、<code>run_id</code>、<code>event_id</code>、<code>business_idempotency_key</code>、<code>processing_status</code>、<code>attempt_count</code>、<code>start_time</code>、<code>finished_at</code>、<code>safe_next_offset</code>、<code>committed_offset</code>、<code>assignment_generation</code>、<code>last_error</code>。</p>
+<p>核心观测指标：</p>
+<ul>
+<li><strong>In-flight Count</strong>：每分区尚未完成的业务任务数。</li>
+<li><strong>Completion Gap Count</strong>：已经完成但受更早消息阻挡、尚不能推进水位的数量。</li>
+<li><strong>Commit Frontier Lag</strong>：客户端安全水位与最高已完成 Offset 之间的差距（并非 Kafka 标准 Lag）。</li>
+<li><strong>Kafka Consumer Lag</strong>：通常基于 Broker 末端位置与已提交消费进度计算，需要注意日志空洞、事务与管理工具的差异。</li>
+<li><strong>Commit Failure Count</strong>：Kafka 提交失败次数。</li>
+<li><strong>Replay/Duplicate Count</strong>：重启或重平衡后的重复消费次数。</li>
+<li><strong>Old Owner Rejected Count</strong>：旧执行者被拒绝提交或更新的次数。</li>
+</ul>
+<p>当某分区 <code>in_flight</code> 增多而 <code>safe_next_offset</code> 长时间不变，应优先查找最早未完成 Offset 的真实错误，而不是盲目提高并发。</p>
+<h2 id="section-20">16. 故障注入实验矩阵</h2>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>操作</th>
+<th>期望结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>乱序完成</td>
+<td>102 → 100 → 101</td>
+<td>水位从 100 → 100 → 101 → 103</td>
+</tr>
+<tr>
+<td>最早消息失败</td>
+<td>101、102 成功，100 失败</td>
+<td>不允许提交越过 100</td>
+</tr>
+<tr>
+<td>Kafka 提交失败</td>
+<td>业务结果已持久化</td>
+<td>保留安全候选，Broker 仍使用旧位点；重放幂等</td>
+</tr>
+<tr>
+<td>提交前崩溃</td>
+<td>100、102 已持久化，101 未完成</td>
+<td>重启从旧位点恢复，数据库不重复写入</td>
+</tr>
+<tr>
+<td>不同分区</td>
+<td>P0 阻塞，P1 成功</td>
+<td>P1 独立推进提交水位</td>
+</tr>
+<tr>
+<td>日志存在空洞</td>
+<td>收到 10、12、15</td>
+<td>不要求虚构的 11、13、14 执行</td>
+</tr>
+<tr>
+<td>Rebalance</td>
+<td>A 的分区转交 B</td>
+<td>A 停止提交；B 重放未提交消息</td>
+</tr>
+<tr>
+<td>数据库写入失败</td>
+<td>101 事务回滚</td>
+<td>101 不能标记 done</td>
+</tr>
+<tr>
+<td>失败终态</td>
+<td>101 进入持久化 DLQ</td>
+<td>确认 DLQ 成功后才可继续推进</td>
+</tr>
+</tbody></table>
+<h2 id="section-21">17. 可运行的安全水位示例</h2>
+<p>下面的文件 <code>offset_tracker.py</code> 只实现<strong>单分区</strong>的内存水位追踪；它不直接与 Kafka 通信。使用者需要在业务持久化完成后调用 <code>mark_done()</code>，并在 Kafka 真正确认 Commit 后调用 <code>commit_success()</code>。源码作为文档的一部分完整列出。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Pure-Python teaching example: per-partition safe commit frontier.
+
+Only mark_done() AFTER business results have been committed durably.
+Does not speak to a Kafka broker; a real consumer must serialize commits.
+"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+<span class="hljs-keyword">from</span> collections <span class="hljs-keyword">import</span> deque
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+
+
+<span class="hljs-meta">@dataclass</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Entry</span>:
+    offset: <span class="hljs-built_in">int</span>
+    done: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">PartitionCommitTracker</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, start_offset: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> start_offset &lt; <span class="hljs-number">0</span>:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"start_offset must be nonnegative"</span>)
+        <span class="hljs-variable language_">self</span>.safe_next_offset = start_offset
+        <span class="hljs-variable language_">self</span>.acknowledged_offset = start_offset
+        <span class="hljs-variable language_">self</span>._last_registered = start_offset - <span class="hljs-number">1</span>
+        <span class="hljs-variable language_">self</span>._ordered: deque[Entry] = deque()
+        <span class="hljs-variable language_">self</span>._by_offset: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">int</span>, Entry] = {}
+
+<span class="hljs-meta">    @property</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">outstanding</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">int</span>, ...]:
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">tuple</span>(entry.offset <span class="hljs-keyword">for</span> entry <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>._ordered <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> entry.done)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">register</span>(<span class="hljs-params">self, offset: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> offset &lt; <span class="hljs-variable language_">self</span>.safe_next_offset:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"offset already past safe frontier"</span>)
+        <span class="hljs-keyword">if</span> offset &lt;= <span class="hljs-variable language_">self</span>._last_registered:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"fetched offsets must be registered in increasing order"</span>)
+        entry = Entry(offset)
+        <span class="hljs-variable language_">self</span>._ordered.append(entry)
+        <span class="hljs-variable language_">self</span>._by_offset[offset] = entry
+        <span class="hljs-variable language_">self</span>._last_registered = offset
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">mark_done</span>(<span class="hljs-params">self, offset: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">int</span>:
+        <span class="hljs-string">"""Call after durable business work, or durable DLQ resolution."""</span>
+        <span class="hljs-keyword">if</span> offset &lt; <span class="hljs-variable language_">self</span>.safe_next_offset:
+            <span class="hljs-comment"># A late duplicate completion after the frontier moved is safe.</span>
+            <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.safe_next_offset
+        entry = <span class="hljs-variable language_">self</span>._by_offset.get(offset)
+        <span class="hljs-keyword">if</span> entry <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"unknown offset; cannot claim it succeeded"</span>)
+        entry.done = <span class="hljs-literal">True</span>
+        <span class="hljs-keyword">while</span> <span class="hljs-variable language_">self</span>._ordered <span class="hljs-keyword">and</span> <span class="hljs-variable language_">self</span>._ordered[<span class="hljs-number">0</span>].done:
+            completed = <span class="hljs-variable language_">self</span>._ordered.popleft()
+            <span class="hljs-keyword">del</span> <span class="hljs-variable language_">self</span>._by_offset[completed.offset]
+            <span class="hljs-variable language_">self</span>.safe_next_offset = completed.offset + <span class="hljs-number">1</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.safe_next_offset
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">commit_success</span>(<span class="hljs-params">self, submitted_next_offset: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-string">"""Update local ack only after Kafka confirms commit; do not overlap commits."""</span>
+        <span class="hljs-keyword">if</span> submitted_next_offset &gt; <span class="hljs-variable language_">self</span>.safe_next_offset:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"attempt to commit beyond durable prefix"</span>)
+        <span class="hljs-keyword">if</span> submitted_next_offset &lt; <span class="hljs-variable language_">self</span>.acknowledged_offset:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"stale commit acknowledgement"</span>)
+        <span class="hljs-variable language_">self</span>.acknowledged_offset = submitted_next_offset
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">needs_commit</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.safe_next_offset &gt; <span class="hljs-variable language_">self</span>.acknowledged_offset
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    tracker = PartitionCommitTracker(<span class="hljs-number">10</span>)
+    <span class="hljs-keyword">for</span> off <span class="hljs-keyword">in</span> (<span class="hljs-number">10</span>, <span class="hljs-number">11</span>, <span class="hljs-number">12</span>):
+        tracker.register(off)
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"done 12 -&gt; next"</span>, tracker.mark_done(<span class="hljs-number">12</span>))
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"done 10 -&gt; next"</span>, tracker.mark_done(<span class="hljs-number">10</span>))
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"done 11 -&gt; next"</span>, tracker.mark_done(<span class="hljs-number">11</span>))
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"safe commit:"</span>, tracker.safe_next_offset)</code></pre></div><p>教学运行输出：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"> done 12 -&gt; next 10
+ done 10 -&gt; next 11
+ done 11 -&gt; next 13
+ safe commit: 13</code></pre></div><h2 id="section-22">18. 自动化测试源码</h2>
+<p>下面是 <code>test_offset_tracker.py</code> 的完整源码，覆盖完成乱序、提交确认、Offset 空洞、多分区独立、崩溃重放和 SQLite 幂等性。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> sqlite3
+<span class="hljs-keyword">import</span> unittest
+<span class="hljs-keyword">from</span> concurrent.futures <span class="hljs-keyword">import</span> ThreadPoolExecutor
+<span class="hljs-keyword">from</span> offset_tracker <span class="hljs-keyword">import</span> PartitionCommitTracker
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">TrackerTests</span>(unittest.TestCase):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">setup_three</span>(<span class="hljs-params">self</span>):
+        t = PartitionCommitTracker(<span class="hljs-number">10</span>)
+        <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> (<span class="hljs-number">10</span>,<span class="hljs-number">11</span>,<span class="hljs-number">12</span>): t.register(x)
+        <span class="hljs-keyword">return</span> t
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_initial_frontier</span>(<span class="hljs-params">self</span>):
+        t = PartitionCommitTracker(<span class="hljs-number">10</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(t.safe_next_offset, <span class="hljs-number">10</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_negative_start_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): PartitionCommitTracker(-<span class="hljs-number">1</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_later_first_no_progress</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three()
+        <span class="hljs-variable language_">self</span>.assertEqual(t.mark_done(<span class="hljs-number">12</span>), <span class="hljs-number">10</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_old_first_gated_by_next</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three()
+        t.mark_done(<span class="hljs-number">12</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(t.mark_done(<span class="hljs-number">10</span>), <span class="hljs-number">11</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_gap_fills_frontier</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three()
+        t.mark_done(<span class="hljs-number">12</span>); t.mark_done(<span class="hljs-number">10</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(t.mark_done(<span class="hljs-number">11</span>), <span class="hljs-number">13</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_missing_physical_offsets_not_stall</span>(<span class="hljs-params">self</span>):
+        t = PartitionCommitTracker(<span class="hljs-number">5</span>)
+        <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> (<span class="hljs-number">5</span>,<span class="hljs-number">7</span>,<span class="hljs-number">10</span>): t.register(x)
+        t.mark_done(<span class="hljs-number">10</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(t.mark_done(<span class="hljs-number">5</span>), <span class="hljs-number">6</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(t.mark_done(<span class="hljs-number">7</span>), <span class="hljs-number">11</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_duplicate_completion_safe</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three()
+        t.mark_done(<span class="hljs-number">10</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(t.mark_done(<span class="hljs-number">10</span>), <span class="hljs-number">11</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_unknown_cannot_complete</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three()
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): t.mark_done(<span class="hljs-number">100</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_duplicate_registration_rejected</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three()
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): t.register(<span class="hljs-number">12</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_out_of_order_registration_rejected</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three()
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): t.register(<span class="hljs-number">11</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_stale_fetch_rejected</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three()
+        t.mark_done(<span class="hljs-number">10</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): t.register(<span class="hljs-number">9</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_needs_commit_after_progress</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three()
+        t.mark_done(<span class="hljs-number">10</span>)
+        <span class="hljs-variable language_">self</span>.assertTrue(t.needs_commit())
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_ack_success_updates_position</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three(); t.mark_done(<span class="hljs-number">10</span>)
+        t.commit_success(<span class="hljs-number">11</span>)
+        <span class="hljs-variable language_">self</span>.assertFalse(t.needs_commit())
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_failed_commit_keeps_ack_old</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three(); t.mark_done(<span class="hljs-number">10</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(t.acknowledged_offset, <span class="hljs-number">10</span>)
+        <span class="hljs-variable language_">self</span>.assertTrue(t.needs_commit())
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cannot_ack_beyond_frontier</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three()
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): t.commit_success(<span class="hljs-number">13</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_stale_ack_rejected</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three(); t.mark_done(<span class="hljs-number">10</span>); t.commit_success(<span class="hljs-number">11</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): t.commit_success(<span class="hljs-number">10</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_partition_independence</span>(<span class="hljs-params">self</span>):
+        a = <span class="hljs-variable language_">self</span>.setup_three(); b = PartitionCommitTracker(<span class="hljs-number">20</span>)
+        b.register(<span class="hljs-number">20</span>); b.mark_done(<span class="hljs-number">20</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(a.safe_next_offset, <span class="hljs-number">10</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(b.safe_next_offset, <span class="hljs-number">21</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_pending_failure_not_completed</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three(); t.mark_done(<span class="hljs-number">11</span>); t.mark_done(<span class="hljs-number">12</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(t.safe_next_offset, <span class="hljs-number">10</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(t.outstanding, (<span class="hljs-number">10</span>,))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_crash_replay_with_db_dedupe</span>(<span class="hljs-params">self</span>):
+        con=sqlite3.connect(<span class="hljs-string">':memory:'</span>)
+        con.execute(<span class="hljs-string">'create table results (partition int, offset int, primary key(partition,offset))'</span>)
+        t = <span class="hljs-variable language_">self</span>.setup_three()
+        <span class="hljs-comment"># 12 completes, then 10 completes, but 11 is still processing.</span>
+        <span class="hljs-keyword">for</span> o <span class="hljs-keyword">in</span> (<span class="hljs-number">12</span>,<span class="hljs-number">10</span>):
+            con.execute(<span class="hljs-string">'insert or ignore into results values (0,?)'</span>, (o,))
+            con.commit()
+            t.mark_done(o)
+        <span class="hljs-variable language_">self</span>.assertEqual(t.safe_next_offset, <span class="hljs-number">11</span>)
+        <span class="hljs-comment"># Crash before committing frontier, restart starts at 10.</span>
+        r = PartitionCommitTracker(<span class="hljs-number">10</span>)
+        <span class="hljs-keyword">for</span> o <span class="hljs-keyword">in</span> (<span class="hljs-number">10</span>,<span class="hljs-number">11</span>,<span class="hljs-number">12</span>):
+            r.register(o)
+            con.execute(<span class="hljs-string">'insert or ignore into results values (0,?)'</span>, (o,))
+            con.commit()
+            r.mark_done(o)
+        <span class="hljs-variable language_">self</span>.assertEqual(r.safe_next_offset, <span class="hljs-number">13</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(con.execute(<span class="hljs-string">'select count(*) from results'</span>).fetchone()[<span class="hljs-number">0</span>],<span class="hljs-number">3</span>)
+        con.close()
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_commit_safe_prefix_even_if_later_done</span>(<span class="hljs-params">self</span>):
+        t = <span class="hljs-variable language_">self</span>.setup_three()
+        t.mark_done(<span class="hljs-number">11</span>); t.mark_done(<span class="hljs-number">12</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(t.safe_next_offset, <span class="hljs-number">10</span>)
+        t.mark_done(<span class="hljs-number">10</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(t.safe_next_offset, <span class="hljs-number">13</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_only_actual_completion_advances</span>(<span class="hljs-params">self</span>):
+        t = PartitionCommitTracker(<span class="hljs-number">100</span>)
+        t.register(<span class="hljs-number">100</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(t.safe_next_offset, <span class="hljs-number">100</span>)
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">'__main__'</span>:
+    unittest.main()</code></pre></div><p>运行方式（Python 3.11+）：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python offset_tracker.py
+python -m unittest -v test_offset_tracker.py</code></pre></div><p>验证结果：<strong>21 项离线单元测试通过</strong>。测试使用真实的 Python 标准库与 SQLite 内存数据库，但<strong>没有连接 Kafka Broker</strong>；它证明本示例的水位算法及模拟数据库重放行为符合所写断言，不能替代 Kafka 集群端到端故障测试。</p>
+<h2 id="section-23">19. 进一步的高级问题：能否越过失败消息但不丢失？</h2>
+<p>传统 Kafka Consumer Group 只持久记录每个分区的一个线性提交位置。如果想在同一分区高度并发地处理许多消息，又避免重启后重复消费已经完成的后续消息，可能需要额外记录<strong>每条消息的完成状态图（completion / offset map）</strong>，并在恢复时重新构造这些状态。Confluent 的 <a href="https://github.com/confluentinc/parallel-consumer">Parallel Consumer</a> 提供这种思路的实现。</p>
+<p>但是：</p>
+<ul>
+<li>扩展完成状态图并不会自动保证外部数据库或 API 的 Exactly-once 业务效果；</li>
+<li>恢复元数据本身也存在大小、持久化和版本兼容问题；</li>
+<li>单分区必须严格按业务顺序执行的场景，仍然不能通过乱序并发来满足业务不变量。</li>
+</ul>
+<p>因此，在学习阶段先掌握<strong>连续完成水位 + 业务幂等 + 有界并发</strong>，是更容易分析和验证的方案。</p>
+<h2 id="section-24">20. 本节核心结论</h2>
+<ol>
+<li><strong>分区日志有序 ≠ 异步执行完成有序。</strong></li>
+<li><strong>Kafka Committed Offset 是恢复起点，不是最大已完成消息编号。</strong></li>
+<li><strong>只能提交已经持久化完成的消息前缀之后的位置；后完成的消息不能越过更早的未完成消息。</strong></li>
+<li><strong>前面的消息失败时，可以重试、暂停或可靠地记录失败终态，但不能凭空跳过。</strong></li>
+<li><strong>安全提交水位防止漏处理，业务幂等负责处理必要的重复消费；两者缺一不可。</strong></li>
+<li><strong>同分区按序提交不保证业务副作用按序发生；涉及顺序依赖的资源，应采取同 Key 串行或事务级版本控制。</strong></li>
+<li><strong>重启、Rebalance、提交失败、日志 Offset 空洞和无界积压，都是生产系统必须明确设计的边界。</strong></li>
+</ol>
+<h2 id="section-25">参考资料</h2>
+<ul>
+<li><a href="https://kafka.apache.org/44/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html">Apache Kafka 4.4 — KafkaConsumer API：Position、Committed Position 与并发处理</a></li>
+<li><a href="https://aiokafka.readthedocs.io/en/stable/consumer.html">aiokafka — Consumer：Offset、手动提交与 Rebalance</a></li>
+<li><a href="https://aiokafka.readthedocs.io/en/stable/examples/manual_commit.html">aiokafka — Manual Commit</a></li>
+<li><a href="https://aiokafka.readthedocs.io/en/stable/api.html">aiokafka — API Documentation</a></li>
+<li><a href="https://github.com/confluentinc/parallel-consumer">Confluent Parallel Consumer：分区/Key 并行与 Offset Map</a></li>
+<li><a href="https://kafka.apache.org/documentation/">Apache Kafka — Kafka Documentation</a></li>
+</ul>
+<hr />
+<p><em>本文件独立对应《消息队列与后台任务可靠性》的第五条学习目标。</em></p>

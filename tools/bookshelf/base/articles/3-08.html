@@ -1,0 +1,1003 @@
+<h1 id="section-1">Agent、工具调用与执行边界（八）：Agno 模型接入、工具调用、异步运行与流式事件</h1>
+<blockquote>
+<p>对应学习目标：<strong>使用 Agno 接入模型与工具、发起异步运行、处理流式事件。弄清框架提供了什么，业务代码负责什么，先用熟这一套框架。</strong></p>
+<p>文档基于 2026 年 11 月核对的 Agno 官方文档。Agno 的接口会演进，示例执行前应核对已安装版本并固定依赖。</p>
+</blockquote>
+<h2 id="section-2">目录</h2>
+<ol>
+<li>Agno 的定位与基本概念</li>
+<li>Agno 的 Agent 执行模型</li>
+<li>环境、依赖与模型接入</li>
+<li>将 Python 函数注册为工具</li>
+<li>同步与异步执行语义</li>
+<li>流式事件：从 Token 到工具生命周期</li>
+<li>完整的异步工具 Agent 示例</li>
+<li>在 FastAPI 中交付流式结果</li>
+<li>会话、Run、工具状态与存储</li>
+<li>框架能力和业务责任的严格分界</li>
+<li>权限、参数与副作用治理</li>
+<li>超时、取消与生命周期</li>
+<li>日志、监测、用量与测试</li>
+<li>常见错误与排障</li>
+<li>渐进架构：何时使用其他 Agno 组件</li>
+<li>离线验证与真实集成的区别</li>
+<li>专业术语表</li>
+<li>官方参考资料</li>
+</ol>
+<hr />
+<h2 id="section-3">1. Agno 的定位与基本概念</h2>
+<p><strong>Agno 是用于构建 AI Agent、工具调用、会话与执行编排的 Python 框架。</strong> 它封装模型提供商差异，并组织“模型生成工具调用意图 → 执行工具 → 将结果交回模型 → 生成答案或继续调用”的循环。</p>
+<p>在应用代码中，最常见的对象如下：</p>
+<table>
+<thead>
+<tr>
+<th>对象/概念</th>
+<th>作用</th>
+<th>常见 API</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Agent</code></td>
+<td>组合模型、指令、工具及运行配置</td>
+<td><code>Agent(...)</code></td>
+</tr>
+<tr>
+<td>Model adapter</td>
+<td>对接具体模型提供商</td>
+<td><code>DeepSeek(...)</code>、<code>OpenAIResponses(...)</code></td>
+</tr>
+<tr>
+<td>Python tool</td>
+<td>暴露给模型选择调用的函数</td>
+<td><code>tools=[lookup_rule]</code></td>
+</tr>
+<tr>
+<td><code>RunOutput</code></td>
+<td>一次非流式执行的结果与元信息</td>
+<td><code>result.content</code>, <code>result.status</code></td>
+</tr>
+<tr>
+<td><code>RunOutputEvent</code></td>
+<td>流式模式下的事件</td>
+<td><code>event.event</code>, <code>event.content</code></td>
+</tr>
+<tr>
+<td><code>RunEvent</code></td>
+<td>事件类型的枚举</td>
+<td><code>RunEvent.run_content</code></td>
+</tr>
+<tr>
+<td><code>RunContext</code></td>
+<td>当前运行的上下文与已解析依赖</td>
+<td><code>run_context.user_id</code></td>
+</tr>
+<tr>
+<td>Session</td>
+<td>多个 Run 所属的同一会话</td>
+<td><code>session_id</code></td>
+</tr>
+<tr>
+<td>Database backend</td>
+<td>持久化执行、会话和消息</td>
+<td><code>SqliteDb</code> 等</td>
+</tr>
+<tr>
+<td>AgentOS</td>
+<td>将 Agent 暴露成服务、提供相关运行能力</td>
+<td>REST/SSE；需单独配置</td>
+</tr>
+</tbody></table>
+<p>Agno <strong>不是模型本身</strong>、不是 Python 的事件循环、不是数据库，也不自动替代业务服务。模型选工具的准确性仍需测试，业务接口仍需权限和事实校验。</p>
+<h3 id="section-4">Agent 与框架之间的关系</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">                 应用 API / 用户界面
+                         │
+              业务入口（认证与校验）
+                         │
+                    Agno Agent
+       ┌─────────────────┼─────────────────┐
+       │                 │                 │
+ 模型适配器          工具定义            会话/运行状态
+       │                 │                 │
+   大模型 API    业务 Service / Repository    DB
+                         │
+              数据库、外部 API、检索系统</code></pre></div><p>这里的箭头代表调用关系，<strong>不是权限继承关系</strong>。模型可以要求调用工具，真正的工具代码仍然必须判断是否允许执行。</p>
+<h2 id="section-5">2. Agno 的 Agent 执行模型</h2>
+<p>官方对单次 Run 的过程描述为：</p>
+<ol>
+<li>构造模型上下文：系统要求、用户输入、按配置提供的历史和状态；</li>
+<li>发给模型；</li>
+<li>若模型直接回复，返回最终结果；</li>
+<li>若模型提出工具调用，则解析参数并执行工具；</li>
+<li>将工具结果返回模型；</li>
+<li>继续直到模型给出最终回复、运行暂停、取消、失败或触发停止条件。</li>
+</ol>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">用户：“某角色在 V1.2 的生命值是多少？”
+         │
+         ▼
+Agent 调用模型（包含 lookup_character 工具定义）
+         │
+         ▼
+模型提出：lookup_character(name="角色A", version="1.2")
+         │
+         ▼
+Agno 调用工具函数
+         │
+         ▼
+业务代码校验版本与访问范围、查询真实数据
+         │
+         ▼
+实际结果：{"hp":4,"source":"rules-v1.2"}
+         │
+         ▼
+结果回到模型上下文 → 模型输出说明
+         │
+         ▼
+Agno 返回 RunOutput / 流式事件</code></pre></div><p>模型<strong>没有直接拥有数据库连接的权限</strong>，除非应用将对应能力暴露给它。这里的业务代码查出的 <code>hp=4</code> 是确定性事实，模型最后的自然语言回答仍有可能说错，必要时需再次检验。</p>
+<h3 id="section-6">为什么先使用单个 Agent</h3>
+<p>多个 Agent、Team、Workflow 可以增强系统，但也增加状态、事件和失败路径。对于“查询规则 + 查询结构化游戏数据 + 输出说明”，先采用<strong>一个 Agent + 两个只读工具</strong>足以验证框架的关键能力。</p>
+<h2 id="section-7">3. 环境、依赖与模型接入</h2>
+<h3 id="section-8">3.1 Windows PowerShell 安装</h3>
+<p>项目可以使用 Python 3.12 或符合当前依赖要求的版本；具体以团队锁定版本为准。</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">py <span class="hljs-literal">-3</span>.<span class="hljs-number">12</span> <span class="hljs-literal">-m</span> venv .venv
+.\.venv\Scripts\python.exe <span class="hljs-literal">-m</span> pip install <span class="hljs-literal">-U</span> pip
+.\.venv\Scripts\python.exe <span class="hljs-literal">-m</span> pip install <span class="hljs-literal">-U</span> agno openai httpx
+.\.venv\Scripts\python.exe <span class="hljs-literal">-m</span> pip show agno</code></pre></div><p>此处 <code>openai</code> 是为 Agno 某些兼容 OpenAI SDK 的模型适配器提供依赖，<strong>不意味着调用 DeepSeek 就一定需要 OpenAI 的 API 密钥</strong>。</p>
+<p>配置 DeepSeek 密钥：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-variable">$Env:DEEPSEEK_API_KEY</span> = <span class="hljs-string">"你的密钥"</span></code></pre></div><p>注意：密钥不得写入仓库、演示日志或文档的真实样例。部署时使用安全的环境配置或密钥管理服务。</p>
+<h3 id="section-9">3.2 最小接入代码</h3>
+<p><code>minimal_agent.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> agno.agent <span class="hljs-keyword">import</span> Agent
+<span class="hljs-keyword">from</span> agno.models.deepseek <span class="hljs-keyword">import</span> DeepSeek
+
+agent = Agent(
+    model=DeepSeek(<span class="hljs-built_in">id</span>=<span class="hljs-string">"deepseek-v4-flash"</span>),
+    instructions=<span class="hljs-string">"请使用中文回答。信息不足时明确说明。"</span>,
+)
+
+response = agent.run(<span class="hljs-string">"简要解释 asyncio.Task 的作用。"</span>)
+<span class="hljs-built_in">print</span>(response.content)
+<span class="hljs-built_in">print</span>(response.status)</code></pre></div><p>说明：<code>deepseek-v4-flash</code> 是核对时 Agno DeepSeek 官方示例所使用的模型 ID；<strong>实际可调用性取决于对应账号、提供商与 API 产品</strong>，不能把示例模型 ID 当作永远可用的常量。</p>
+<h3 id="section-10">3.3 正常运行的结果如何理解</h3>
+<p><code>RunOutput</code> 中值得读取的字段包括：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>content</code></td>
+<td>本次最终回答，或结构化结果</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>执行状态，如 completed / paused / cancelled / error</td>
+</tr>
+<tr>
+<td><code>run_id</code></td>
+<td>单次运行唯一标识</td>
+</tr>
+<tr>
+<td><code>session_id</code></td>
+<td>会话标识</td>
+</tr>
+<tr>
+<td><code>user_id</code></td>
+<td>与运行关联的用户标识</td>
+</tr>
+<tr>
+<td><code>model</code> / <code>model_provider</code></td>
+<td>实际模型信息</td>
+</tr>
+<tr>
+<td><code>messages</code></td>
+<td>保留的消息及工具往来</td>
+</tr>
+<tr>
+<td><code>tools</code></td>
+<td>本次工具执行记录</td>
+</tr>
+<tr>
+<td><code>metrics</code></td>
+<td>运行用量等指标</td>
+</tr>
+</tbody></table>
+<p><strong>检查 <code>content</code> 非空不足以认定任务成功</strong>。必须进一步结合 <code>status</code> 和业务校验。即使运行成功，事实准确性仍需证据。</p>
+<h2 id="section-11">4. 将 Python 函数注册为工具</h2>
+<h3 id="section-12">4.1 函数工具最小示例</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> agno.agent <span class="hljs-keyword">import</span> Agent
+<span class="hljs-keyword">from</span> agno.models.deepseek <span class="hljs-keyword">import</span> DeepSeek
+
+RULES = {
+    (<span class="hljs-string">"角色A"</span>, <span class="hljs-string">"1.2"</span>): {<span class="hljs-string">"hp"</span>: <span class="hljs-number">4</span>, <span class="hljs-string">"source"</span>: <span class="hljs-string">"rules-v1.2/hero-a"</span>},
+    (<span class="hljs-string">"角色A"</span>, <span class="hljs-string">"1.3"</span>): {<span class="hljs-string">"hp"</span>: <span class="hljs-number">3</span>, <span class="hljs-string">"source"</span>: <span class="hljs-string">"rules-v1.3/hero-a"</span>},
+}
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">lookup_character</span>(<span class="hljs-params">name: <span class="hljs-built_in">str</span>, version: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">dict</span>:
+    <span class="hljs-string">"""按明确的游戏版本查询角色基础数据。
+
+    Args:
+        name: 游戏角色名称。
+        version: 游戏规则版本，如 1.2。
+    """</span>
+    record = RULES.get((name, version))
+    <span class="hljs-keyword">if</span> record <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">"found"</span>: <span class="hljs-literal">False</span>, <span class="hljs-string">"reason"</span>: <span class="hljs-string">"未找到对应版本的角色数据"</span>}
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"found"</span>: <span class="hljs-literal">True</span>, <span class="hljs-string">"name"</span>: name, <span class="hljs-string">"version"</span>: version, **record}
+
+agent = Agent(
+    model=DeepSeek(<span class="hljs-built_in">id</span>=<span class="hljs-string">"deepseek-v4-flash"</span>),
+    tools=[lookup_character],
+    tool_call_limit=<span class="hljs-number">4</span>,
+    instructions=<span class="hljs-string">"涉及角色属性时，必须按用户版本查询工具，不要猜测数值。"</span>,
+)
+
+agent.print_response(<span class="hljs-string">"角色A在1.2版本的生命值是多少？"</span>)</code></pre></div><p>Agno 会使用<strong>函数名、类型标注、docstring</strong>生成工具描述供模型选择。模型有机会选错工具或传错参数；框架执行前的基本参数处理<strong>不等于业务鉴权</strong>。</p>
+<h3 id="section-13">4.2 如何设计高质量工具</h3>
+<p>工具应尽量满足：</p>
+<ul>
+<li>名称是动作与对象的组合，例如 <code>lookup_character</code>，而不是模糊的 <code>get_data</code>；</li>
+<li>docstring 描述用途和必要前提；</li>
+<li>参数明确（版本、对象 ID、可选筛选项），避免让模型猜参数；</li>
+<li>结果结构稳定，例如 <code>found</code>、<code>data</code>、<code>source</code>、<code>version</code>、<code>error_code</code>；</li>
+<li>没有结果、版本冲突和权限拒绝是<strong>不同错误</strong>；</li>
+<li>尽量避免一次工具暴露“任意 SQL 执行”等过强能力。</li>
+</ul>
+<h3 id="section-14">4.3 同步工具与异步工具</h3>
+<p>只访问本地字典或做轻量计算的工具可以同步实现。涉及数据库、HTTP 调用等 I/O 的工具通常更适合异步：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> httpx
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">fetch_rule_summary</span>(<span class="hljs-params">rule_id: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">dict</span>:
+    <span class="hljs-string">"""从只读规则服务获取特定规则摘要。"""</span>
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> httpx.AsyncClient(timeout=<span class="hljs-number">10.0</span>) <span class="hljs-keyword">as</span> client:
+        r = <span class="hljs-keyword">await</span> client.get(<span class="hljs-string">"https://example.com/api/rules"</span>, params={<span class="hljs-string">"id"</span>: rule_id})
+        r.raise_for_status()
+        <span class="hljs-keyword">return</span> r.json()</code></pre></div><p>这个例子用于说明异步形态：URL 为演示地址，并非真实业务 API。实际服务应在应用生命周期内复用 <code>AsyncClient</code>，并校验请求目标、权限和响应 Schema。</p>
+<p>Agno 官方说明：异步运行会优先使用异步工具（如果有），并且在模型支持时可以执行并行工具调用。<strong>不能因为使用了 <code>arun()</code> 就假定同步网络或 CPU 密集工具自动非阻塞</strong>。</p>
+<h2 id="section-15">5. 同步与异步执行语义</h2>
+<h3 id="section-16">5.1 四种常见调用方式</h3>
+<table>
+<thead>
+<tr>
+<th>写法</th>
+<th>用途</th>
+<th>返回/消费方式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>agent.run(prompt)</code></td>
+<td>同步、非流式</td>
+<td>直接得到 <code>RunOutput</code></td>
+</tr>
+<tr>
+<td><code>agent.run(prompt, stream=True)</code></td>
+<td>同步、流式</td>
+<td>普通 <code>for</code> 迭代事件</td>
+</tr>
+<tr>
+<td><code>await agent.arun(prompt)</code></td>
+<td>异步、非流式</td>
+<td><code>await</code> 得到 <code>RunOutput</code></td>
+</tr>
+<tr>
+<td><code>agent.arun(prompt, stream=True)</code></td>
+<td>异步、流式</td>
+<td><code>async for</code> 迭代事件</td>
+</tr>
+</tbody></table>
+<p><strong>异步流式最易犯错的是用 <code>await</code> 等待整个流对象，然后再遍历。</strong> 当前官方示例的正常用法是直接对流执行 <code>async for</code>。</p>
+<h3 id="section-17">5.2 异步非流式</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">from</span> agno.agent <span class="hljs-keyword">import</span> Agent
+<span class="hljs-keyword">from</span> agno.models.deepseek <span class="hljs-keyword">import</span> DeepSeek
+
+agent = Agent(model=DeepSeek(<span class="hljs-built_in">id</span>=<span class="hljs-string">"deepseek-v4-flash"</span>))
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:
+    result = <span class="hljs-keyword">await</span> agent.arun(<span class="hljs-string">"解释 Python 的事件循环。"</span>)
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"状态："</span>, result.status)
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"答案："</span>, result.content)
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(main())</code></pre></div><h3 id="section-18">5.3 Async ≠ 自动并行</h3>
+<p><code>await agent.arun(...)</code> 的意义是当前任务在等待合适的异步 I/O 时允许事件循环调度其他任务。<code>asyncio.gather()</code> 或创建 <code>Task</code> 可以安排多个运行重叠执行，但必须配合并发限额、超时、资源复用和取消控制。</p>
+<p>如模型后端限制并发为 5，启动 500 个 Agent Run 不会自动提高真实吞吐；可能造成大量排队、429、内存增长或额外费用。</p>
+<h2 id="section-19">6. 流式事件：从文本增量到工具生命周期</h2>
+<h3 id="section-20">6.1 <code>stream</code> 与 <code>stream_events</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">stream=<span class="hljs-literal">True</span>           <span class="hljs-comment"># 让 Agent 按事件增量输出</span>
+stream_events=<span class="hljs-literal">True</span>    <span class="hljs-comment"># 进一步暴露工具及生命周期等中间事件</span></code></pre></div><p>默认的流并不保证每个事件都是文本；暂停、取消和错误也可能以事件出现。启用完整事件后，处理程序应按事件<strong>类型</strong>分派，而不是把所有 <code>content</code> 拼接成回答。</p>
+<h3 id="section-21">6.2 重要事件</h3>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>事件</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>运行</td>
+<td><code>RunStarted</code></td>
+<td>Run 已开始</td>
+</tr>
+<tr>
+<td>文本</td>
+<td><code>RunContent</code></td>
+<td>文本增量</td>
+</tr>
+<tr>
+<td>文本</td>
+<td><code>RunContentCompleted</code></td>
+<td>内容流结束，不等于整个运行成功</td>
+</tr>
+<tr>
+<td>工具</td>
+<td><code>ToolCallStarted</code></td>
+<td>开始调用工具</td>
+</tr>
+<tr>
+<td>工具</td>
+<td><code>ToolCallCompleted</code></td>
+<td>工具完成，附带结果</td>
+</tr>
+<tr>
+<td>工具</td>
+<td><code>ToolCallError</code></td>
+<td>工具调用失败</td>
+</tr>
+<tr>
+<td>控制</td>
+<td><code>RunPaused</code></td>
+<td>等待确认或其他恢复条件</td>
+</tr>
+<tr>
+<td>控制</td>
+<td><code>RunContinued</code></td>
+<td>暂停后继续</td>
+</tr>
+<tr>
+<td>终态</td>
+<td><code>RunError</code></td>
+<td>运行出错</td>
+</tr>
+<tr>
+<td>终态</td>
+<td><code>RunCancelled</code></td>
+<td>运行取消</td>
+</tr>
+<tr>
+<td>终态</td>
+<td><code>RunCompleted</code></td>
+<td>运行完成事件，仍需识别先前取消状态</td>
+</tr>
+<tr>
+<td>用量</td>
+<td><code>ModelRequestCompleted</code></td>
+<td>一次模型请求完成，可携带指标</td>
+</tr>
+</tbody></table>
+<p>不同功能配置和模型提供商会影响可见事件的范围。不能假设每次执行都有全部事件。</p>
+<p><strong>重要细节：</strong> Agno 文档特别指出：取消时可能先发出 <code>RunCancelled</code>，之后仍有 <code>RunCompleted</code> 事件。因此 <code>RunCompleted</code> 不能脱离先前的取消、失败与暂停状态单独判断为业务成功。</p>
+<h3 id="section-22">6.3 异步事件最小消费器</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">from</span> agno.agent <span class="hljs-keyword">import</span> Agent, RunEvent
+<span class="hljs-keyword">from</span> agno.models.deepseek <span class="hljs-keyword">import</span> DeepSeek
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:
+    agent = Agent(model=DeepSeek(<span class="hljs-built_in">id</span>=<span class="hljs-string">"deepseek-v4-flash"</span>))
+    status = <span class="hljs-string">"incomplete"</span>
+    pieces = []
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">for</span> event <span class="hljs-keyword">in</span> agent.arun(
+        <span class="hljs-string">"一句话解释 asyncio。"</span>,
+        stream=<span class="hljs-literal">True</span>,
+        stream_events=<span class="hljs-literal">True</span>,
+    ):
+        <span class="hljs-keyword">if</span> event.event == RunEvent.run_content <span class="hljs-keyword">and</span> event.content:
+            pieces.append(event.content)
+            <span class="hljs-built_in">print</span>(event.content, end=<span class="hljs-string">""</span>, flush=<span class="hljs-literal">True</span>)
+        <span class="hljs-keyword">elif</span> event.event == RunEvent.run_cancelled:
+            status = <span class="hljs-string">"cancelled"</span>
+        <span class="hljs-keyword">elif</span> event.event == RunEvent.run_error:
+            status = <span class="hljs-string">"error"</span>
+        <span class="hljs-keyword">elif</span> event.event == RunEvent.run_paused:
+            status = <span class="hljs-string">"paused"</span>
+        <span class="hljs-keyword">elif</span> event.event == RunEvent.run_completed <span class="hljs-keyword">and</span> status == <span class="hljs-string">"incomplete"</span>:
+            status = <span class="hljs-string">"completed"</span>
+
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"\n最终状态："</span>, status)
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"已收到文本："</span>, <span class="hljs-string">""</span>.join(pieces))
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(main())</code></pre></div><p>这是<strong>运行事件消费者</strong>，并不是生产级重连协议；客户端断网与应用进程异常时，可能没有机会收到终态事件。因此无终态必须保留为 <code>incomplete</code> 或 <code>disconnected</code>，并通过持久化运行状态核查。</p>
+<h3 id="section-23">6.4 事件处理的关键规则</h3>
+<ol>
+<li><code>RunContent</code> 的每一片是<strong>增量</strong>，不要拿最后一片当完整答案。</li>
+<li>工具事件是<strong>状态信息</strong>，不能当作助手自然语言答案直接展示。</li>
+<li>事件有 <code>run_id</code>、<code>session_id</code> 等身份字段；必须按当前运行关联。</li>
+<li>输出已开始并不意味着最终成功，状态应由终态/持久化记录决定。</li>
+<li>SSE / WebSocket / HTTPX 只是把事件送给前端的<strong>传输层</strong>，Agno 的事件对象还需要由 API 层编码。</li>
+<li>不能默认展示模型的内部推理内容；事件可能包含提供商显式开放的推理数据，但那并不等于完整内部推理过程。</li>
+</ol>
+<h2 id="section-24">7. 完整的异步工具 Agent 示例</h2>
+<p>本示例使用<strong>只读游戏规则工具</strong>，不要求数据库，也不会改变真实业务数据；能演示 Agno 模型 → 工具 → 结果 → 事件流的闭环。真实运行需要有效 DeepSeek API Key。</p>
+<p>文件 <code>agno_rule_agent.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">from</span> agno.agent <span class="hljs-keyword">import</span> Agent, RunEvent
+<span class="hljs-keyword">from</span> agno.models.deepseek <span class="hljs-keyword">import</span> DeepSeek
+
+GAME_DATA = {
+    (<span class="hljs-string">"角色A"</span>, <span class="hljs-string">"1.2"</span>): {<span class="hljs-string">"hp"</span>: <span class="hljs-number">4</span>, <span class="hljs-string">"source"</span>: <span class="hljs-string">"demo/rules/v1.2/hero-a"</span>},
+    (<span class="hljs-string">"角色A"</span>, <span class="hljs-string">"1.3"</span>): {<span class="hljs-string">"hp"</span>: <span class="hljs-number">3</span>, <span class="hljs-string">"source"</span>: <span class="hljs-string">"demo/rules/v1.3/hero-a"</span>},
+}
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">lookup_character</span>(<span class="hljs-params">name: <span class="hljs-built_in">str</span>, version: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">dict</span>:
+    <span class="hljs-string">"""读取指定版本的游戏角色数值。
+
+    Args:
+        name: 角色名称。
+        version: 游戏规则版本，例如 1.2。
+    """</span>
+    found = GAME_DATA.get((name, version))
+    <span class="hljs-keyword">if</span> found <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">"ok"</span>: <span class="hljs-literal">False</span>, <span class="hljs-string">"code"</span>: <span class="hljs-string">"NOT_FOUND"</span>, <span class="hljs-string">"version"</span>: version}
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"ok"</span>: <span class="hljs-literal">True</span>, <span class="hljs-string">"name"</span>: name, <span class="hljs-string">"version"</span>: version, **found}
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">make_agent</span>() -&gt; Agent:
+    <span class="hljs-keyword">return</span> Agent(
+        name=<span class="hljs-string">"RuleAssistant"</span>,
+        model=DeepSeek(<span class="hljs-built_in">id</span>=<span class="hljs-string">"deepseek-v4-flash"</span>),
+        tools=[lookup_character],
+        tool_call_limit=<span class="hljs-number">3</span>,
+        instructions=(
+            <span class="hljs-string">"你是游戏规则助手。涉及角色数值必须调用工具并依据返回值回答。"</span>
+            <span class="hljs-string">"没有数据时说明未知，不得编造角色属性。"</span>
+        ),
+    )
+
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:
+    agent = make_agent()
+    outcome = <span class="hljs-string">"incomplete"</span>
+    answer_parts: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">for</span> event <span class="hljs-keyword">in</span> agent.arun(
+        <span class="hljs-string">"角色A在1.2版本的生命值是多少？说明资料来源。"</span>,
+        user_id=<span class="hljs-string">"demo-user"</span>,
+        session_id=<span class="hljs-string">"demo-session-001"</span>,
+        stream=<span class="hljs-literal">True</span>,
+        stream_events=<span class="hljs-literal">True</span>,
+    ):
+        <span class="hljs-keyword">if</span> event.event == RunEvent.run_content <span class="hljs-keyword">and</span> <span class="hljs-built_in">isinstance</span>(event.content, <span class="hljs-built_in">str</span>):
+            answer_parts.append(event.content)
+            <span class="hljs-built_in">print</span>(event.content, end=<span class="hljs-string">""</span>, flush=<span class="hljs-literal">True</span>)
+        <span class="hljs-keyword">elif</span> event.event == RunEvent.tool_call_started:
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">"\n[工具开始]"</span>, flush=<span class="hljs-literal">True</span>)
+        <span class="hljs-keyword">elif</span> event.event == RunEvent.tool_call_completed:
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">"\n[工具结束]"</span>, flush=<span class="hljs-literal">True</span>)
+        <span class="hljs-keyword">elif</span> event.event == RunEvent.tool_call_error:
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">"\n[工具失败]"</span>, flush=<span class="hljs-literal">True</span>)
+        <span class="hljs-keyword">elif</span> event.event == RunEvent.run_cancelled:
+            outcome = <span class="hljs-string">"cancelled"</span>
+        <span class="hljs-keyword">elif</span> event.event == RunEvent.run_error:
+            outcome = <span class="hljs-string">"error"</span>
+        <span class="hljs-keyword">elif</span> event.event == RunEvent.run_paused:
+            outcome = <span class="hljs-string">"paused"</span>
+        <span class="hljs-keyword">elif</span> event.event == RunEvent.run_completed <span class="hljs-keyword">and</span> outcome == <span class="hljs-string">"incomplete"</span>:
+            outcome = <span class="hljs-string">"completed"</span>
+
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"\n\n运行状态："</span>, outcome)
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"最终回答："</span>, <span class="hljs-string">""</span>.join(answer_parts))
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(main())</code></pre></div><p>说明：这里的 <code>demo-user</code> / <code>demo-session-001</code> 是单人演示标签。<strong>真实多用户系统不能让客户端自行指定另一个用户的 <code>user_id</code> 或复用他人的 <code>session_id</code></strong>；必须从已认证会话派生用户身份，并检查会话归属。</p>
+<h3 id="section-25">成功与异常情况下的预期行为</h3>
+<ul>
+<li><strong>成功：</strong> 工具找到记录 → 模型根据返回值解释 → 运行完成。</li>
+<li><strong>资料缺失：</strong> 工具返回 <code>NOT_FOUND</code> → 模型说明未知或请求补充版本。</li>
+<li><strong>模型错误使用工具：</strong> 模型返回的最终文字仍可能不准确，应用可将回答中的关键数值与工具结果复核。</li>
+<li><strong>API 超时/限流：</strong> Run 可能触发错误事件或抛出异常；调用层应有明确错误与重试政策。</li>
+<li><strong>用户断开：</strong> 不应把已收到的部分文本标为最终成功。</li>
+</ul>
+<h2 id="section-26">8. 在 FastAPI 中交付流式结果</h2>
+<p>Agno 事件与浏览器 SSE 是两个层次：</p>
+<ol>
+<li>Agno 产生<strong>内部 Python 事件对象</strong>；</li>
+<li>FastAPI 将经筛选的事件转换为 SSE 格式；</li>
+<li>前端按事件类型更新 UI。</li>
+</ol>
+<h3 id="section-27">8.1 SSE 事件编码</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> json
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">encode_sse</span>(<span class="hljs-params">event_name: <span class="hljs-built_in">str</span>, payload: <span class="hljs-built_in">dict</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> (
+        <span class="hljs-string">f"event: <span class="hljs-subst">{event_name}</span>\n"</span>
+        <span class="hljs-string">f"data: <span class="hljs-subst">{json.dumps(payload, ensure_ascii=<span class="hljs-literal">False</span>)}</span>\n\n"</span>
+    )</code></pre></div><p>每条事件由事件名与 JSON 数据组成。<code>json.dumps</code> 会对换行符等特殊字符进行转义，减少 SSE 帧被非预期拆分的风险。</p>
+<h3 id="section-28">8.2 FastAPI 简化接口</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI, Request
+<span class="hljs-keyword">from</span> fastapi.responses <span class="hljs-keyword">import</span> StreamingResponse
+<span class="hljs-keyword">from</span> agno.agent <span class="hljs-keyword">import</span> RunEvent
+
+app = FastAPI()
+agent = make_agent()   <span class="hljs-comment"># 使用上一个示例的 make_agent</span>
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">"/chat/stream"</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">stream_chat</span>(<span class="hljs-params">request: Request, question: <span class="hljs-built_in">str</span></span>):
+    <span class="hljs-comment"># 演示用途。生产环境必须从认证组件获取 user_id/session_id，</span>
+    <span class="hljs-comment"># 并给共享 Agent、数据库与模型请求配置容量/资源控制。</span>
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">events</span>():
+        status = <span class="hljs-string">"incomplete"</span>
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">async</span> <span class="hljs-keyword">for</span> ev <span class="hljs-keyword">in</span> agent.arun(
+                question,
+                user_id=<span class="hljs-string">"demo-user"</span>,
+                session_id=<span class="hljs-string">"demo-session-001"</span>,
+                stream=<span class="hljs-literal">True</span>,
+                stream_events=<span class="hljs-literal">True</span>,
+            ):
+                <span class="hljs-keyword">if</span> <span class="hljs-keyword">await</span> request.is_disconnected():
+                    <span class="hljs-keyword">return</span>
+                <span class="hljs-keyword">if</span> ev.event == RunEvent.run_content <span class="hljs-keyword">and</span> ev.content:
+                    <span class="hljs-keyword">yield</span> encode_sse(<span class="hljs-string">"text_delta"</span>, {<span class="hljs-string">"text"</span>: <span class="hljs-built_in">str</span>(ev.content)})
+                <span class="hljs-keyword">elif</span> ev.event == RunEvent.tool_call_started:
+                    <span class="hljs-keyword">yield</span> encode_sse(<span class="hljs-string">"tool_started"</span>, {<span class="hljs-string">"run_id"</span>: ev.run_id})
+                <span class="hljs-keyword">elif</span> ev.event == RunEvent.tool_call_completed:
+                    <span class="hljs-keyword">yield</span> encode_sse(<span class="hljs-string">"tool_finished"</span>, {<span class="hljs-string">"run_id"</span>: ev.run_id})
+                <span class="hljs-keyword">elif</span> ev.event == RunEvent.run_cancelled:
+                    status = <span class="hljs-string">"cancelled"</span>
+                <span class="hljs-keyword">elif</span> ev.event == RunEvent.run_error:
+                    status = <span class="hljs-string">"error"</span>
+                <span class="hljs-keyword">elif</span> ev.event == RunEvent.run_paused:
+                    status = <span class="hljs-string">"paused"</span>
+                <span class="hljs-keyword">elif</span> ev.event == RunEvent.run_completed <span class="hljs-keyword">and</span> status == <span class="hljs-string">"incomplete"</span>:
+                    status = <span class="hljs-string">"completed"</span>
+        <span class="hljs-keyword">except</span> Exception:
+            status = <span class="hljs-string">"error"</span>
+            <span class="hljs-comment"># 不把底层异常和密钥直接送给用户</span>
+        <span class="hljs-keyword">yield</span> encode_sse(<span class="hljs-string">"run_status"</span>, {<span class="hljs-string">"status"</span>: status})
+
+    <span class="hljs-keyword">return</span> StreamingResponse(events(), media_type=<span class="hljs-string">"text/event-stream"</span>)</code></pre></div><p>该代码是<strong>协议边界教学简化版</strong>，不代表完整生产部署。需要另外处理：请求认证、运行 ID 与会话所有权、入口限流、长连接心跳、取消策略、工具输出脱敏、流式错误响应、事件持久化与重连策略。<code>is_disconnected()</code> 仅检测可观测的断开情形，并不能保证及时取消远端模型计算。</p>
+<h3 id="section-29">8.3 前端消费语义</h3>
+<table>
+<thead>
+<tr>
+<th>后端 SSE 事件</th>
+<th>前端动作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>text_delta</code></td>
+<td>将文本追加到当前答案</td>
+</tr>
+<tr>
+<td><code>tool_started</code></td>
+<td>展示“正在查询数据”</td>
+</tr>
+<tr>
+<td><code>tool_finished</code></td>
+<td>结束工具等待提示</td>
+</tr>
+<tr>
+<td><code>run_status=completed</code></td>
+<td>标记回答完成</td>
+</tr>
+<tr>
+<td><code>run_status=error</code></td>
+<td>显示失败和可重试提示</td>
+</tr>
+<tr>
+<td><code>run_status=cancelled</code></td>
+<td>标记取消</td>
+</tr>
+<tr>
+<td>连接丢失且无终态</td>
+<td>标记不完整，向持久化记录查询</td>
+</tr>
+</tbody></table>
+<p>前端显示内容不应该把工具执行日志直接混入用户可见文本；工具结果可能包含敏感字段。</p>
+<h2 id="section-30">9. 会话、Run、工具状态与存储</h2>
+<h3 id="section-31">9.1 四个不同维度</h3>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>标识</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>用户</td>
+<td><code>user_id</code></td>
+<td>应用认证得到的身份</td>
+</tr>
+<tr>
+<td>会话</td>
+<td><code>session_id</code></td>
+<td>多个 Run 的共同上下文</td>
+</tr>
+<tr>
+<td>执行</td>
+<td><code>run_id</code></td>
+<td>一次模型/工具执行过程</td>
+</tr>
+<tr>
+<td>工具调用</td>
+<td>每次调用的调用 ID</td>
+<td>对应参数与真实执行结果</td>
+</tr>
+</tbody></table>
+<h3 id="section-32">9.2 持久化不等于自动加入上下文</h3>
+<p>Agno 支持把 Session、Run 和消息保存至数据库，但要把历史消息带入下一次模型请求，仍需要显式的历史配置，例如 <code>add_history_to_context=True</code>。可以通过 <code>num_history_runs</code> 或 <code>num_history_messages</code> 控制引入范围。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> agno.agent <span class="hljs-keyword">import</span> Agent
+<span class="hljs-keyword">from</span> agno.db.sqlite <span class="hljs-keyword">import</span> SqliteDb
+<span class="hljs-keyword">from</span> agno.models.deepseek <span class="hljs-keyword">import</span> DeepSeek
+
+agent = Agent(
+    model=DeepSeek(<span class="hljs-built_in">id</span>=<span class="hljs-string">"deepseek-v4-flash"</span>),
+    db=SqliteDb(db_file=<span class="hljs-string">"tmp/rules.db"</span>),
+    add_history_to_context=<span class="hljs-literal">True</span>,
+    num_history_runs=<span class="hljs-number">3</span>,
+)</code></pre></div><p>SQLite 适合本地学习；并发、可靠性、迁移和生产部署需要进一步选择数据库与连接管理方案。</p>
+<h3 id="section-33">9.3 为何不能共享默认 Session ID</h3>
+<p>如果一个长寿命的共享 <code>Agent</code> 实例自动生成默认 <code>session_id</code>，之后又在多个用户请求中复用，可能意外把不同用户的数据关联到同一会话。多用户系统应<strong>明确传入各自的 session_id 和 user_id，并在业务层验证归属</strong>，不能把 ID 当作权限凭证。</p>
+<h3 id="section-34">9.4 Session State 和真正的业务存储</h3>
+<p>Session State 可保存运行间需要的小型上下文状态，如用户选择的规则版本。但订单、交易、已确认反馈等真实业务状态，应该存储在有独立权限和事务保证的业务数据库中。不能依赖模型记忆或无约束的 Session 字典来保障金融、订单等关键数据的一致性。</p>
+<h2 id="section-35">10. 框架能力与业务责任：严格分界</h2>
+<h3 id="section-36">10.1 Agno 已提供的能力</h3>
+<ul>
+<li>模型提供商适配、模型请求组织；</li>
+<li>Agent 执行循环与模型/工具往返；</li>
+<li>Python 函数和 Toolkit 注册工具；</li>
+<li>非流式/流式运行接口；</li>
+<li>工具与运行生命周期事件；</li>
+<li>运行状态、会话与可配置的存储；</li>
+<li>部分工具控制：调用次数限制、确认暂停、工具钩子；</li>
+<li>与 AgentOS 组合时提供服务、追踪和其他运行基础设施。</li>
+</ul>
+<p>这些能力有配置和版本前提，不能理解成“引用 <code>agno</code> 就自动全部启用”。</p>
+<h3 id="section-37">10.2 业务代码必须承担的责任</h3>
+<table>
+<thead>
+<tr>
+<th>责任</th>
+<th>为什么不能完全交给框架/模型</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>身份认证</td>
+<td>只有业务系统知道真实登录用户与组织关系</td>
+</tr>
+<tr>
+<td>对象级授权</td>
+<td>模型传来的对象 ID 不是访问授权</td>
+</tr>
+<tr>
+<td>规则计算</td>
+<td>数值要由确定性代码或数据库提供</td>
+</tr>
+<tr>
+<td>资料版本</td>
+<td>需要业务方定义来源与有效期</td>
+</tr>
+<tr>
+<td>工具副作用</td>
+<td>写入、删除、发送必须满足确认与幂等</td>
+</tr>
+<tr>
+<td>数据库事务</td>
+<td>业务跨表原子性由持久化层保证</td>
+</tr>
+<tr>
+<td>费用/配额</td>
+<td>模型调用可能造成真实成本，需要服务级配额</td>
+</tr>
+<tr>
+<td>多租户隔离</td>
+<td>要按认证身份限制数据库查询范围</td>
+</tr>
+<tr>
+<td>输出校验</td>
+<td>运行成功不保证内容真实或符合业务约束</td>
+</tr>
+<tr>
+<td>SLA/降级</td>
+<td>后端应有超时、熔断与备用策略</td>
+</tr>
+<tr>
+<td>审计与隐私</td>
+<td>工具结果、日志和用户数据需脱敏与分级访问</td>
+</tr>
+<tr>
+<td>测试与部署</td>
+<td>单机示例不代表服务重启、扩容和故障恢复可靠</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>设计原则：<strong>Agno 负责 AI 编排，不承诺替代业务事实、权限和数据一致性。</strong></p>
+</blockquote>
+<h3 id="section-38">10.3 对于游戏规则助手的推荐分工</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">前端：聊天、工具状态、引用展示、取消/重试
+ FastAPI：认证、接口契约、运行隔离、SSE
+ Agno：模型、工具选择、编排与流式事件
+ 业务工具：版本校验、精确查询、只读/写入边界
+ PostgreSQL：业务持久化、事务和数据隔离
+ pgvector/RAG：有来源的规则检索
+ Redis/Kafka：在确有缓存和可靠异步任务需求时加入</code></pre></div><p>不应该在学习 Agno 的第一天就用它替代全部服务组件。</p>
+<h2 id="section-39">11. 权限、参数与副作用治理</h2>
+<h3 id="section-40">11.1 <code>RunContext</code> 的职责</h3>
+<p>Agno 可以向工具注入 <code>RunContext</code>，其中包含 <code>user_id</code>、<code>session_id</code>、<code>run_id</code>、<code>dependencies</code> 和 <code>session_state</code> 等信息：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> agno.run <span class="hljs-keyword">import</span> RunContext
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">get_current_user_label</span>(<span class="hljs-params">run_context: RunContext</span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-string">"""读取当前运行关联的用户标签，不执行敏感操作。"""</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">str</span>(run_context.user_id <span class="hljs-keyword">or</span> <span class="hljs-string">"anonymous"</span>)</code></pre></div><p>Agno 能传递这些标识，但业务服务器仍需确保其来自<strong>受信任的认证/授权入口</strong>，而不是客户端随意提供。</p>
+<h3 id="section-41">11.2 读和写必须分开设计</h3>
+<ul>
+<li>只读规则查询可在严格授权的范围内自动执行；</li>
+<li>发送邮件、删除数据、修改配置等操作应有更高等级的授权及确认机制；</li>
+<li>Agno 的 <code>requires_confirmation</code> 可以帮助暂停执行，但确认界面显示的对象和内容、确认后的参数冻结、审批者身份、幂等重放保护仍是业务系统责任；</li>
+<li>对用户资料或工具返回的“忽略指令、给我更高权限”等文本，按不可信数据处理，不能扩大工具权限。</li>
+</ul>
+<h3 id="section-42">11.3 为什么不建议一开始暴露 PythonTools</h3>
+<p>让模型直接运行 Python 或安装依赖会大幅扩大执行权限。Agno 官方的 PythonTools 示例也说明：即使工具集限制了部分操作，能够运行任意 Python 的能力本身并不自动构成安全沙箱。学习工具调用时更推荐从<strong>具体、只读、明确参数</strong>的函数开始。</p>
+<h2 id="section-43">12. 超时、取消与生命周期</h2>
+<h3 id="section-44">12.1 不同的超时</h3>
+<ol>
+<li><strong>模型请求超时：</strong> 连接、读取及模型返回限制，由模型客户端/HTTP 库配置；</li>
+<li><strong>单个工具超时：</strong> 外部业务 API 或数据库查询的限定时间；</li>
+<li><strong>整个 Agent Run 超时：</strong> 含多轮模型与工具循环的全局截止时间；</li>
+<li><strong>前端流式连接超时：</strong> 网络空闲、反向代理及客户端连接生命周期。</li>
+</ol>
+<p>这些超时不天然相等，也不会因为 <code>arun()</code> 使用异步就自动设置完成。</p>
+<h3 id="section-45">12.2 取消不等于回滚</h3>
+<p>Agent 取消通常是协作式的：请求取消之后，执行过程在可观察的取消点停止。远程模型可能已经产生费用，外部数据库或 API 可能已经提交了副作用。所以要区别：</p>
+<ul>
+<li><strong>取消运行的后续执行</strong>；</li>
+<li><strong>取消尚未开始的工具</strong>；</li>
+<li><strong>回滚已经提交的业务数据</strong>；</li>
+<li><strong>撤销已对外发送的通知</strong>。</li>
+</ul>
+<p>后两项通常需要独立业务操作，不能被框架通用取消机制替代。</p>
+<h3 id="section-46">12.3 后台运行 ≠ 可靠队列</h3>
+<p>Agno 当前文档区分直接 SDK 的进程内后台任务与需要持久化队列的 AgentOS 路径。<code>background=True</code> 不等同于 Kafka/Worker 的跨进程可靠执行承诺。对于资料导入、批量模型处理，仍需设计持久化状态、重试、幂等和 Worker 恢复机制。</p>
+<h2 id="section-47">13. 观测、用量与测试</h2>
+<h3 id="section-48">13.1 应记录的基础字段</h3>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"run_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"run-demo-001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"session_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"session-demo-001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"user_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"user-demo-001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"agent_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"rule-agent-v1"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"model_requested"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"deepseek-v4-flash"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"prompt_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"rules-prompt-v1"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"completed"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"tool_calls"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"duration_ms"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">850</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"usage"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"input_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"output_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span>
+  <span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>此 JSON 完全是<strong>结构示例</strong>，不是实际模型调用日志。指标不可得时使用 <code>null</code>，不能猜测用量；不得把真实用户隐私、密钥或未脱敏工具结果直接写入日志。</p>
+<h3 id="section-49">13.2 测试需要分成两层</h3>
+<p><strong>模型隔离测试</strong>：使用假模型/假工具，验证程序如何分派事件、处理超时、保存调用状态、隔离数据。</p>
+<p><strong>真实集成测试</strong>：使用可用的 Agno 版本和模型账号，记录真实的 <code>RunOutput</code>、工具调用记录和 Token 用量，验证模型是否正确选择工具。</p>
+<p>只通过 Python 语法检查，不等于 Agno 实际执行已经成功。即使离线模拟运行通过，也不能据此断言模型选择正确率。</p>
+<h3 id="section-50">13.3 事件消费者的可验证不变量</h3>
+<ul>
+<li>文本必须按顺序拼接；</li>
+<li>只有 <code>RunContent</code> 产生文本增量；</li>
+<li>工具事件不能被计入答案正文；</li>
+<li>已取消或出错的 Run 不得因为后续 <code>RunCompleted</code> 被标为成功；</li>
+<li>未观察到终态的流不得被标为成功；</li>
+<li>事件必须关联同一个 <code>run_id</code>，不同会话记录不得混合。</li>
+</ul>
+<h2 id="section-51">14. 常见错误与排障</h2>
+<table>
+<thead>
+<tr>
+<th>症状</th>
+<th>常见原因</th>
+<th>处理方向</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ModuleNotFoundError: agno</code></td>
+<td>环境未安装 / 解释器不对</td>
+<td>检查 venv 与 <code>python -m pip show agno</code></td>
+</tr>
+<tr>
+<td>模型返回认证错误</td>
+<td>API Key 未配置或无权限</td>
+<td>检查密钥与提供商、模型授权</td>
+</tr>
+<tr>
+<td>工具从未被调用</td>
+<td>描述不清、模型不支持、工具未注册</td>
+<td>先用简化工具对照验证</td>
+</tr>
+<tr>
+<td><code>arun()</code> 流无法迭代</td>
+<td>流式和非流式语义混淆</td>
+<td><code>stream=True</code> 用 <code>async for</code></td>
+</tr>
+<tr>
+<td>只有文字没有工具事件</td>
+<td>没有 <code>stream_events=True</code></td>
+<td>启用中间事件并按类型分派</td>
+</tr>
+<tr>
+<td><code>RunCompleted</code> 被误判成功</td>
+<td>忽略取消/错误/暂停</td>
+<td>使用终态状态机</td>
+</tr>
+<tr>
+<td>两个用户共享对话</td>
+<td>复用默认 <code>session_id</code></td>
+<td>每会话 ID + 服务端归属校验</td>
+</tr>
+<tr>
+<td>异步接口仍然卡顿</td>
+<td>同步工具阻塞事件循环</td>
+<td>使用异步客户端或受控卸载</td>
+</tr>
+<tr>
+<td>重复提交数据</td>
+<td>工具写入没有幂等性</td>
+<td>数据库唯一约束与确认绑定</td>
+</tr>
+<tr>
+<td>运行结束但答案数值错误</td>
+<td>模型误用工具结果</td>
+<td>程序复核重要数值</td>
+</tr>
+<tr>
+<td>流断开就无任务记录</td>
+<td>只使用连接内状态</td>
+<td>持久化运行及明确恢复策略</td>
+</tr>
+</tbody></table>
+<p>排查原则：先确认<strong>模型调用是否成功</strong>，再确认<strong>工具是否被选中</strong>，再检查<strong>工具实际输入输出</strong>，最后核对<strong>最终回答</strong>。不要把所有失败归因于提示词。</p>
+<h2 id="section-52">15. 渐进架构：何时引入其他 Agno 组件</h2>
+<p><strong>第一层：Agent + Python 工具。</strong> 适合掌握模型与工具往返机制。</p>
+<p><strong>第二层：Session/DB + 结构化输出。</strong> 适合多轮问答、状态恢复和结果保存。</p>
+<p><strong>第三层：Agno Knowledge / RAG。</strong> 适合大量文档检索，但来源/版本管理和事实校验仍然独立。</p>
+<p><strong>第四层：Workflow。</strong> 当执行顺序可以预定义、需要可靠节点边界时使用。</p>
+<p><strong>第五层：Team / 多 Agent。</strong> 只有在子任务角色分工确实改善质量、成本或可维护性时引入。</p>
+<p><strong>第六层：AgentOS。</strong> 需要统一 REST/SSE API、追踪、身份验证或部署层能力时考虑；仍需按具体版本配置服务鉴权和可靠后台任务。</p>
+<p>不要因为 Agno 支持某个组件就假定实际项目必须使用它。</p>
+<h2 id="section-53">16. 离线验证与真实集成的区别</h2>
+<p>本节示例分为两类：</p>
+<ol>
+<li><strong>框架示例：</strong> 导入 <code>agno</code> 的示例，用于展示当前官方接口；需要安装 Agno 和可用模型凭据才能执行真实调用。</li>
+<li><strong>离线状态机示例：</strong> 不依赖 Agno 的事件对象，实现同样的状态转移原则，用于本地验证错误、取消、内容增量与终态判定。</li>
+</ol>
+<p>离线验证可证明教学状态机的逻辑，但<strong>不能证明模型提供商可用、Agno 包版本兼容或真实流式连接稳定</strong>。</p>
+<p>以下离线示例可以单独保存为 <code>stream_state.py</code> 并运行：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+
+<span class="hljs-meta">@dataclass</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">SimpleEvent</span>:
+    kind: <span class="hljs-built_in">str</span>
+    content: <span class="hljs-built_in">str</span> = <span class="hljs-string">""</span>
+    run_id: <span class="hljs-built_in">str</span> = <span class="hljs-string">"run-1"</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">reduce_events</span>(<span class="hljs-params">events: <span class="hljs-built_in">list</span>[SimpleEvent]</span>) -&gt; <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">str</span>]:
+    text: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []
+    state = <span class="hljs-string">"incomplete"</span>
+    expected_id = events[<span class="hljs-number">0</span>].run_id <span class="hljs-keyword">if</span> events <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>
+    <span class="hljs-keyword">for</span> item <span class="hljs-keyword">in</span> events:
+        <span class="hljs-keyword">if</span> item.run_id != expected_id:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"混入了不同 run_id 的事件"</span>)
+        <span class="hljs-keyword">if</span> item.kind == <span class="hljs-string">"RunContent"</span>:
+            text.append(item.content)
+        <span class="hljs-keyword">elif</span> item.kind == <span class="hljs-string">"RunCancelled"</span>:
+            state = <span class="hljs-string">"cancelled"</span>
+        <span class="hljs-keyword">elif</span> item.kind == <span class="hljs-string">"RunError"</span>:
+            state = <span class="hljs-string">"error"</span>
+        <span class="hljs-keyword">elif</span> item.kind == <span class="hljs-string">"RunPaused"</span>:
+            state = <span class="hljs-string">"paused"</span>
+        <span class="hljs-keyword">elif</span> item.kind == <span class="hljs-string">"RunCompleted"</span> <span class="hljs-keyword">and</span> state == <span class="hljs-string">"incomplete"</span>:
+            state = <span class="hljs-string">"completed"</span>
+    <span class="hljs-keyword">return</span> state, <span class="hljs-string">""</span>.join(text)
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    <span class="hljs-keyword">assert</span> reduce_events([
+        SimpleEvent(<span class="hljs-string">"RunContent"</span>, <span class="hljs-string">"你"</span>),
+        SimpleEvent(<span class="hljs-string">"ToolCallCompleted"</span>),
+        SimpleEvent(<span class="hljs-string">"RunContent"</span>, <span class="hljs-string">"好"</span>),
+        SimpleEvent(<span class="hljs-string">"RunCompleted"</span>),
+    ]) == (<span class="hljs-string">"completed"</span>, <span class="hljs-string">"你好"</span>)
+    <span class="hljs-keyword">assert</span> reduce_events([
+        SimpleEvent(<span class="hljs-string">"RunCancelled"</span>), SimpleEvent(<span class="hljs-string">"RunCompleted"</span>)
+    ])[<span class="hljs-number">0</span>] == <span class="hljs-string">"cancelled"</span>
+    <span class="hljs-keyword">assert</span> reduce_events([SimpleEvent(<span class="hljs-string">"RunContent"</span>, <span class="hljs-string">"部分"</span>)])[<span class="hljs-number">0</span>] == <span class="hljs-string">"incomplete"</span>
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"离线事件状态测试通过"</span>)</code></pre></div><h2 id="section-54">17. 专业术语表</h2>
+<table>
+<thead>
+<tr>
+<th>术语</th>
+<th>中文解释</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Agent</td>
+<td>使用模型参与步骤或工具决策的执行组件</td>
+</tr>
+<tr>
+<td>Toolkit</td>
+<td>一组可供模型调用的工具的封装</td>
+</tr>
+<tr>
+<td>Tool Call</td>
+<td>模型提出的结构化工具调用意图</td>
+</tr>
+<tr>
+<td>Run</td>
+<td>一次 Agent 执行</td>
+</tr>
+<tr>
+<td>Session</td>
+<td>多次 Run 所属的对话线程</td>
+</tr>
+<tr>
+<td>RunOutput</td>
+<td>一次执行的结果对象</td>
+</tr>
+<tr>
+<td>RunEvent</td>
+<td>事件类别标识</td>
+</tr>
+<tr>
+<td>Async Iterator</td>
+<td>可通过 <code>async for</code> 逐步获取内容的异步迭代器</td>
+</tr>
+<tr>
+<td>SSE</td>
+<td>Server-Sent Events，服务端向客户端单向推送事件的 HTTP 机制</td>
+</tr>
+<tr>
+<td>RunContext</td>
+<td>当前运行的上下文与依赖集合</td>
+</tr>
+<tr>
+<td>HITL</td>
+<td>Human-in-the-loop，人工审核/确认</td>
+</tr>
+<tr>
+<td>Tool Call Limit</td>
+<td>单次运行可执行工具调用数量限制</td>
+</tr>
+<tr>
+<td>Idempotency</td>
+<td>同一业务操作重复执行仍保持正确业务效果</td>
+</tr>
+<tr>
+<td>Prompt Injection</td>
+<td>将非可信数据中的指令尝试提升为执行权限的攻击</td>
+</tr>
+</tbody></table>
+<h2 id="section-55">18. 官方参考资料</h2>
+<p>以下资料在文档编写时进行了在线核对。不同 Agno 版本可能改变具体类型、字段或默认行为：</p>
+<ol>
+<li><a href="https://docs.agno.com/agents/running-agents">Agno — Running Agents</a>：<code>run</code>、<code>arun</code>、流式运行、事件类型与状态。</li>
+<li><a href="https://docs.agno.com/reference/agents/agent">Agno — Agent API Reference</a>：<code>Agent</code> 参数、<code>tool_call_limit</code>、<code>stream_events</code>、<code>background</code>、异步返回类型。</li>
+<li><a href="https://docs.agno.com/reference/agents/run-response">Agno — RunOutput</a>：执行结果字段、事件对象属性和运行状态。</li>
+<li><a href="https://docs.agno.com/tools/overview">Agno — Tools Overview</a>：Python 工具、工具 Schema、<code>RunContext</code>、权限确认选项。</li>
+<li><a href="https://docs.agno.com/tools/creating-tools/python-functions">Agno — Python Functions as Tools</a>：函数工具、docstring、<code>@tool</code>、同步/异步工具。</li>
+<li><a href="https://docs.agno.com/tools/creating-tools/toolkits">Agno — Custom Toolkits</a>：如何为 Toolkit 添加异步方法。</li>
+<li><a href="https://docs.agno.com/sessions/overview">Agno — Sessions</a>：<code>session_id</code>、<code>user_id</code>、历史与持久化。</li>
+<li><a href="https://docs.agno.com/reference/run/run-context">Agno — RunContext</a>：RunContext 的身份、状态与依赖字段。</li>
+<li><a href="https://docs.agno.com/models/providers/native/deepseek/usage/tool-use">Agno — DeepSeek Agent with Tools</a>：DeepSeek 模型适配及异步运行示例。</li>
+<li><a href="https://docs.agno.com/tutorials/agents-as-api">Agno — AgentOS as API</a>：AgentOS 的 HTTP / SSE 服务形式。</li>
+<li><a href="https://docs.agno.com/run-cancellation/agent-cancel-run">Agno — Agent Run Cancellation</a>：协作式取消与终态判定。</li>
+<li><a href="https://docs.agno.com/examples/tools/python-tools">Agno — PythonTools</a>：执行任意 Python 的安全边界警示。</li>
+</ol>
+<hr />
+<p><strong>本节结论：</strong> 学习 Agno 的重点不是记住所有构造参数，而是掌握一个闭环：<strong>构建 Agent → 注册有边界的工具 → <code>arun()</code> 异步执行 → <code>stream=True</code> 输出事件 → 根据事件和运行状态判定结果 → 由业务程序维护真实权限、事实、持久化和恢复。</strong></p>

@@ -1,0 +1,144 @@
+{
+  "version": "2.0.0-local.1",
+  "recorded_at": "2026-11-14T12:33:55.943729+00:00",
+  "method": "Ego real browser DOM, geometry and native input; not screenshot approval",
+  "paid_model_calls": 0,
+  "long_source_cases": [
+    {
+      "viewport": {
+        "width": 1084,
+        "height": 713,
+        "mobile": false
+      },
+      "before": {
+        "x": 310.66668701171875,
+        "y": 400.6458435058594,
+        "scroll": 400
+      },
+      "expanded": {
+        "x": 310.66668701171875,
+        "y": 400.6458435058594,
+        "scroll": 400,
+        "pane": {
+          "x": 235,
+          "y": 148.6666717529297,
+          "width": 849,
+          "height": 366.66668701171875,
+          "top": 148.6666717529297,
+          "right": 1084,
+          "bottom": 515.3333587646484,
+          "left": 235
+        },
+        "length": 4733,
+        "innerOwners": 0
+      },
+      "end": {
+        "scroll": 3871.333251953125,
+        "max": 3871,
+        "documentScroll": 0,
+        "horizontalOverflow": 0,
+        "composerBottom": 644.6667098999023,
+        "viewportHeight": 713
+      }
+    },
+    {
+      "viewport": {
+        "width": 1084,
+        "height": 500,
+        "mobile": false
+      },
+      "before": {
+        "x": 310.66668701171875,
+        "y": 187.3125,
+        "scroll": 613.3333129882812
+      },
+      "expanded": {
+        "x": 310.66668701171875,
+        "y": 187.3125,
+        "scroll": 613.3333129882812,
+        "pane": {
+          "x": 235,
+          "y": 148.6666717529297,
+          "width": 849,
+          "height": 153.33334350585938,
+          "top": 148.6666717529297,
+          "right": 1084,
+          "bottom": 302.00001525878906,
+          "left": 235
+        },
+        "length": 4733,
+        "innerOwners": 0
+      },
+      "end": {
+        "scroll": 4084.666748046875,
+        "max": 4085,
+        "documentScroll": 0,
+        "horizontalOverflow": 0,
+        "composerBottom": 431.33333587646484,
+        "viewportHeight": 500
+      }
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "mobile": true
+      },
+      "before": {
+        "x": 65.66667175292969,
+        "y": 509.41668701171875,
+        "scroll": 430
+      },
+      "expanded": {
+        "x": 65.66667175292969,
+        "y": 509.41668701171875,
+        "scroll": 430,
+        "pane": {
+          "x": 0,
+          "y": 123.66667175292969,
+          "width": 390,
+          "height": 540.6666870117188,
+          "top": 123.66667175292969,
+          "right": 390,
+          "bottom": 664.3333587646484,
+          "left": 0
+        },
+        "length": 4733,
+        "innerOwners": 0
+      },
+      "end": {
+        "scroll": 5050.66650390625,
+        "max": 5051,
+        "documentScroll": 0,
+        "horizontalOverflow": 0,
+        "composerBottom": 780.6667098999023,
+        "viewportHeight": 844
+      }
+    }
+  ],
+  "other_observations": {
+    "existing_sessions": 356,
+    "rendered_first_batch": 30,
+    "history_more_control": true,
+    "library_search_reload": "诸葛亮 restored; session query preserved",
+    "mobile_drawer": {
+      "viewport": [
+        390,
+        844
+      ],
+      "width": 310,
+      "horizontal_overflow": 0,
+      "initial_focus": "关闭导航",
+      "escape_restored_focus": "打开导航"
+    },
+    "existing_job_records": 21,
+    "active_jobs": 0
+  },
+  "screenshot_attempts": 2,
+  "screenshot_result": "both captureScreenshot requests timed out; no visual screenshot pass claimed",
+  "additional_mock_browser_write_fixture": "launch rejected by automatic approval: blocked by policy; not started",
+  "storybook": "not configured or run",
+  "lighthouse": "not configured or run",
+  "new_full_playwright_e2e": "not run",
+  "frontend_tests_total": 44
+}

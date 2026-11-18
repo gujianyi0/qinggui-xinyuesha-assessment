@@ -1,0 +1,315 @@
+{
+  "exit_code": 0,
+  "stdout": "\r2026-11-12 15:43:52.058 Main[I] [ModManager] Loading extensions...\r\n\r2026-11-12 15:43:52.059 Main[I] [ModManager] Loaded 4 extension(s):\r\n - standard, standard_cards, maneuvering, test\r\n\r2026-11-12 15:43:52.063 Main[I] [LunarLtk] Loaded 29 generals.\r\n\r2026-11-12 15:43:52.063 Main[I] [LunarLtk] Loaded 121 skills.\r\n\r2026-11-12 15:43:52.063 Main[I] [LunarLtk] Loaded 43 card types.\r\n\r2026-11-12 15:43:52.063 Main[I] [Core] Loaded 1 boardgame(s).\r\n\r2026-11-12 15:43:52.063 Main[I] [Core] Loaded 1 game mode(s).\r\n\r\n███████╗██████╗ ███████╗███████╗██╗  ██╗██╗██╗     ██╗     \r\n██╔════╝██╔══██╗██╔════╝██╔════╝██║ ██╔╝██║██║     ██║     \r\n█████╗  ██████╔╝█████╗  █████╗  █████╔╝ ██║██║     ██║     \r\n██╔══╝  ██╔══██╗██╔══╝  ██╔══╝  ██╔═██╗ ██║██║     ██║     \r\n██║     ██║  ██║███████╗███████╗██║  ██╗██║███████╗███████╗\r\n╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝\r\n\r\n        Free          Open         Flexible\r\n\r\n   Git: <https://github.com/Qsgs-Fans/FreeKill>\r\n   Doc: <https://fkbook-all-in-one.readthedocs.io>\r\n\r\n.\r\nRan 1 tests in 0.021 seconds, 1 success, 0 failures\r\nOK\r\n",
+  "stderr": "",
+  "label": "SC08",
+  "arguments": [
+    "--testfile",
+    "assessment_scenes/SC08.lua"
+  ],
+  "cwd": ".local/engine",
+  "executed_at": "2026-11-12T07:43:52.113955+00:00",
+  "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+  "server_log": "2026-11-12 15:43:52.058 Main[I] [ModManager] Loading extensions...\n2026-11-12 15:43:52.059 Main[I] [ModManager] Loaded 4 extension(s):\n - standard, standard_cards, maneuvering, test\n2026-11-12 15:43:52.063 Main[I] [LunarLtk] Loaded 29 generals.\n2026-11-12 15:43:52.063 Main[I] [LunarLtk] Loaded 121 skills.\n2026-11-12 15:43:52.063 Main[I] [LunarLtk] Loaded 43 card types.\n2026-11-12 15:43:52.063 Main[I] [Core] Loaded 1 boardgame(s).\n2026-11-12 15:43:52.063 Main[I] [Core] Loaded 1 game mode(s).\n",
+  "tests_run": 1,
+  "successes": 1,
+  "failures": 0,
+  "passed": true,
+  "trace": {
+    "scene_id": "SC08",
+    "passed": true,
+    "final_players": [
+      {
+        "hp": 4,
+        "hand": [
+          {
+            "name": "peach",
+            "id": -3,
+            "number": 7,
+            "suit": 3
+          }
+        ],
+        "id": 1,
+        "equip": [
+          {
+            "name": "crossbow",
+            "id": -2
+          }
+        ],
+        "chained": false,
+        "max_hp": 4,
+        "general": "guanyu"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 2,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "sunquan"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 3,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "liubei"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 4,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "zhangfei"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 5,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "ganning"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 6,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "guanyu"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 7,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "xuchu"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 8,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "lvbu"
+      }
+    ],
+    "assertions": [
+      {
+        "actual": true,
+        "label": "已用一次杀仍可借连弩把红色手牌当杀",
+        "passed": true,
+        "expected": true
+      },
+      {
+        "actual": false,
+        "label": "把唯一连弩作为转化子牌时不再绕过次数",
+        "passed": true,
+        "expected": false
+      },
+      {
+        "actual": true,
+        "label": "本阶段尚未用杀时可将红色连弩转化为杀",
+        "passed": true,
+        "expected": true
+      }
+    ],
+    "summary": "已用过杀时，武圣红色手牌可借装备中的连弩绕过次数；若把唯一连弩本身转化为杀，则该牌不再提供次数绕过。未用杀的对照局面可用。",
+    "actions": [
+      {
+        "card": "crossbow",
+        "action": "equip",
+        "player": 1
+      }
+    ],
+    "events": [
+      {
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.PreparingGeneral",
+        "before_hp": 4
+      },
+      {
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.EventAcquireSkill",
+        "before_hp": 4
+      },
+      {
+        "card": "crossbow",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.PreCardUse"
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "card": "crossbow",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.AfterCardUseDeclared"
+      },
+      {
+        "card": "crossbow",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.AfterCardTargetDeclared"
+      },
+      {
+        "card": "crossbow",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.CardUsing"
+      },
+      {
+        "card": "crossbow",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.TargetSpecifying"
+      },
+      {
+        "card": "crossbow",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.TargetConfirming"
+      },
+      {
+        "card": "crossbow",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.TargetSpecified"
+      },
+      {
+        "card": "crossbow",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.TargetConfirmed"
+      },
+      {
+        "card": "crossbow",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.BeforeCardUseEffect"
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "card": "crossbow",
+        "before_hp": 4,
+        "after_hp": 4,
+        "target": 1,
+        "event": "fk.CardUseFinished"
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      }
+    ],
+    "initial_players": [
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 1,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "caocao"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 2,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "sunquan"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 3,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "liubei"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 4,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "zhangfei"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 5,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "ganning"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 6,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "guanyu"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 7,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "xuchu"
+      },
+      {
+        "hp": 4,
+        "hand": [],
+        "id": 8,
+        "equip": [],
+        "chained": false,
+        "max_hp": 4,
+        "general": "lvbu"
+      }
+    ],
+    "scope": "fixed-snapshot Lua rules / fake_backend"
+  },
+  "scenario_sha256": "0a0a0e4887c9921413c8c7da165a9c841b427fcd289c031337318428f8b856c4",
+  "common_sha256": "36798d608cfcf75ac91db1e372ac99e9abbf178f8487be4bd9f5b4b73edee96e"
+}

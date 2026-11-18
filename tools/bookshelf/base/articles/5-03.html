@@ -1,0 +1,1289 @@
+<h1 id="section-1">HTTP 服务、SQL、数据库与缓存（三）</h1>
+<h1 id="section-2">PostgreSQL 数据持久化、SQLAlchemy 2.x 异步访问与 Alembic 迁移</h1>
+<blockquote>
+<p><strong>对应学习目标</strong>：PostgreSQL 保存会话、消息、资料版本、工具执行和最终结果；SQLAlchemy 异步访问与 Alembic 迁移。</p>
+<p><strong>适用范围</strong>：Python 3.11+、SQLAlchemy 2.x、PostgreSQL、asyncpg、Alembic、FastAPI。文中的核心示例基于 SQLAlchemy 2.0 语法；由于不同版本 API 可能变化，以实际锁定版本的官方文档为准。</p>
+<p><strong>内容定位</strong>：独立知识讲解，不依赖本系列其他章节。代码示例为教学用途，生产环境还需要结合实际权限、日志脱敏、备份、监控和部署策略。</p>
+</blockquote>
+<h2 id="section-3">目录</h2>
+<ol>
+<li>数据持久化的目标和边界</li>
+<li>PostgreSQL 数据结构与类型选择</li>
+<li>会话、消息、执行和知识版本的关系</li>
+<li>数据库表设计：九张核心表</li>
+<li>为什么需要联合唯一约束和复合外键</li>
+<li>会话及多轮消息的写入与读取</li>
+<li>资料原文与版本的不可变性</li>
+<li>Agent Run、工具执行记录和最终结果</li>
+<li>JSONB 与结构化字段的分工</li>
+<li>SQLAlchemy 2.x ORM 基本工作原理</li>
+<li>异步 Engine、Session 工厂与连接池</li>
+<li>asyncpg 与 AsyncSession 实际使用</li>
+<li>完整异步事务、commit、rollback、flush</li>
+<li>FastAPI lifespan 和请求级数据库访问</li>
+<li>并发序列号、幂等键与终态保护</li>
+<li>多租户与用户级权限隔离</li>
+<li>Alembic 的工作原理和迁移版本链</li>
+<li>初始化异步迁移环境与 env.py</li>
+<li>autogenerate、审查迁移与数据回填</li>
+<li>线上迁移、兼容性和故障恢复</li>
+<li>查询性能、索引和连接池容量</li>
+<li>常见错误及排查定位</li>
+<li>端到端操作顺序与检查点</li>
+<li>代码附录：完整 ORM 模型与离线测试</li>
+<li>验证范围与官方参考资料</li>
+</ol>
+<hr />
+<h2 id="section-4">1. 数据持久化的目标和边界</h2>
+<p>一个 AI 服务内可能同时出现四类数据：用户交互数据、知识资料、执行过程数据、最终业务结果。它们的保留时间、权限、索引及更新方式都不同。将全部内容放进一个巨大的 <code>history_json</code> 字段，虽然初期容易开发，但后续很难实现精确查询、唯一约束、事务一致性和审计。</p>
+<p><strong>持久化</strong>意味着数据写入具有持久化保证的存储系统，在应用进程退出、请求断开之后，仍能够重新获取。PostgreSQL 提供关系型约束、事务及 WAL 等基础能力；但这不等于“永不丢失”：实际持久性还受到磁盘故障、复制配置、备份、恢复点目标、运维误操作等因素影响。</p>
+<p>需要区分：</p>
+<ul>
+<li><strong>状态记录</strong>：系统知道某个任务曾经被创建、当前是什么状态。</li>
+<li><strong>执行快照</strong>：能看到当时的模型、参数、资料版本和工具返回值。</li>
+<li><strong>可恢复任务</strong>：系统有机制把未完成任务重新领取并继续执行。仅有数据库记录并不自动具有重新调度机制。</li>
+<li><strong>事实依据</strong>：知识文件的版本、内容哈希及引用定位使回答能够被复核；并不表示文本本身一定真实。</li>
+</ul>
+<p>推荐把高价值的结构化记录放在 PostgreSQL；体积很大的原始文件可以放对象存储，而 PostgreSQL 存储对象键、版本、哈希及元数据。不要把数据库当成不受限制的日志或文件存储。</p>
+<h2 id="section-5">2. PostgreSQL 数据结构与类型选择</h2>
+<table>
+<thead>
+<tr>
+<th>数据</th>
+<th>推荐类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>主键</td>
+<td><code>uuid</code> 或 bigint</td>
+<td>UUID 适合跨服务生成；bigint 更紧凑，顺序写入特性不同</td>
+</tr>
+<tr>
+<td>租户与用户 ID</td>
+<td>与对应主键同类型</td>
+<td>必须与授权上下文关联，不能以客户端声明为准</td>
+</tr>
+<tr>
+<td>会话/消息文本</td>
+<td><code>text</code></td>
+<td>长度不限的可变文本；仍应在应用层设置合理长度上限</td>
+</tr>
+<tr>
+<td>时间</td>
+<td><code>timestamptz</code></td>
+<td>表示绝对时间点；展示时转换为用户所在时区</td>
+</tr>
+<tr>
+<td>状态</td>
+<td><code>text/varchar + CHECK</code> 或 PostgreSQL Enum</td>
+<td>状态增删频繁时 CHECK 有时更易演进；并非唯一方案</td>
+</tr>
+<tr>
+<td>可变结构化元数据</td>
+<td><code>jsonb</code></td>
+<td>适合工具参数、已脱敏返回值、引用列表</td>
+</tr>
+<tr>
+<td>Token 用量</td>
+<td><code>integer/bigint</code></td>
+<td>需要注意 NULL 与零的区别</td>
+</tr>
+<tr>
+<td>内容哈希</td>
+<td><code>char(64)</code> / <code>varchar(64)</code> / <code>bytea</code></td>
+<td>例如 SHA-256 的十六进制文本或原始字节</td>
+</tr>
+<tr>
+<td>金额</td>
+<td><code>numeric(p,s)</code></td>
+<td>不用二进制浮点保存精确金额</td>
+</tr>
+<tr>
+<td>版本标签</td>
+<td><code>varchar</code></td>
+<td>与资料内容哈希、创建时间、生效时间分别保存</td>
+</tr>
+</tbody></table>
+<p><code>timestamp with time zone</code> 在 PostgreSQL 中也称 <code>timestamptz</code>。它保存可解释为时间点的值；不会保存最初输入的时区名称。若业务需要“原定于亚洲/上海当地 9 点”的日程语义，可能还须单独保存 IANA 时区标识。</p>
+<p>在 SQLAlchemy 中常见写法：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> DateTime, String, Text, Uuid, func
+<span class="hljs-keyword">from</span> sqlalchemy.orm <span class="hljs-keyword">import</span> Mapped, mapped_column
+
+<span class="hljs-built_in">id</span>: Mapped[UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), primary_key=<span class="hljs-literal">True</span>)
+created_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=<span class="hljs-literal">True</span>), server_default=func.now(), nullable=<span class="hljs-literal">False</span>
+)
+body: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(Text, nullable=<span class="hljs-literal">False</span>)</code></pre></div><p><code>server_default=func.now()</code> 是数据库侧默认值；<code>default=datetime.now(...)</code> 是 Python 侧默认值，两者发生的时机和依赖不同。跨 PostgreSQL 与 SQLite 运行时，日期时间类型的行为也可能不同，不应把 SQLite 测试当作 PostgreSQL 时区行为的证明。</p>
+<h2 id="section-6">3. 数据关系：五种基本身份</h2>
+<p>理解数据表之前，先确认这些标识的含义：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Tenant（租户）
+  └── User（用户）
+       └── Conversation / Session（会话）
+            ├── ChatMessage（按顺序排列的消息）
+            └── AgentRun（某次执行）
+                 ├── ToolExecution（每个调用及每次尝试）
+                 └── FinalResult（可对外提供的最终结果）
+
+Tenant（租户）
+  └── KnowledgeDocument（逻辑资料）
+       └── DocumentVersion（资料内容的某个具体版本）</code></pre></div><ul>
+<li><code>tenant_id</code>：资源归属的组织或隔离域。</li>
+<li><code>user_id</code>：经过认证的实际操作者。</li>
+<li><code>conversation_id</code>：同一主题下的一组消息。</li>
+<li><code>run_id</code>：一次模型/Agent 执行，其结果不一定成功。</li>
+<li><code>call_id</code>：运行中的一次工具调用意图，应与实际工具记录关联。</li>
+<li><code>document_id</code>：逻辑文档身份；<code>version_id</code> 才能指向不可变资料快照。</li>
+</ul>
+<p><strong>会话 ID 不等于访问凭证</strong>。即使用户猜中某个 UUID，也必须通过后端认证和资源所有权检查。执行过程数据与对话内容应能彼此关联，但不必混存在同一张表里。</p>
+<h2 id="section-7">4. 九张核心表</h2>
+<p>本章附录的演示定义了以下九张表：</p>
+<table>
+<thead>
+<tr>
+<th>表名</th>
+<th>核心字段</th>
+<th>主要用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>tenants</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>租户隔离域</td>
+</tr>
+<tr>
+<td><code>app_users</code></td>
+<td><code>id</code>, <code>tenant_id</code></td>
+<td>租户内的用户主体</td>
+</tr>
+<tr>
+<td><code>conversations</code></td>
+<td><code>id</code>, <code>tenant_id</code>, <code>owner_id</code>, <code>next_message_seq</code></td>
+<td>会话身份及有序消息分配</td>
+</tr>
+<tr>
+<td><code>chat_messages</code></td>
+<td><code>conversation_id</code>, <code>seq</code>, <code>role</code>, <code>content</code></td>
+<td>持久化消息</td>
+</tr>
+<tr>
+<td><code>knowledge_documents</code></td>
+<td><code>id</code>, <code>tenant_id</code>, <code>slug</code></td>
+<td>逻辑资料和可读名称</td>
+</tr>
+<tr>
+<td><code>document_versions</code></td>
+<td><code>document_id</code>, <code>label</code>, <code>content_sha256</code>, <code>body</code></td>
+<td>具体资料版本、来源和原文</td>
+</tr>
+<tr>
+<td><code>agent_runs</code></td>
+<td><code>conversation_id</code>, <code>request_key</code>, <code>status</code></td>
+<td>每次执行的状态、模型和用量</td>
+</tr>
+<tr>
+<td><code>tool_executions</code></td>
+<td><code>run_id</code>, <code>call_id</code>, <code>attempt</code>, <code>tool_name</code>, <code>status</code></td>
+<td>工具调用和重试记录</td>
+</tr>
+<tr>
+<td><code>final_results</code></td>
+<td><code>run_id</code>, <code>answer</code>, <code>citations</code></td>
+<td>一次执行的最终回答与引用</td>
+</tr>
+</tbody></table>
+<p>这是兼顾学习与可扩展性的最小逻辑结构，并非对所有企业系统都最优。例如真实平台往往需要独立的认证体系、事件流、附件表、资料分块表、审计日志表、任务队列表或对象存储。<strong>本章没有把知识分块和向量索引额外纳入九张表</strong>，因为这里的学习重点是持久化实体关系和迁移；RAG 分块可追加表并关联具体 <code>document_version_id</code>。</p>
+<h3 id="section-8">4.1 会话</h3>
+<p>会话需要至少保存创建者、租户、创建时间和排序所需信息。</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE TABLE</span> conversations (
+  id uuid <span class="hljs-keyword">PRIMARY KEY</span>,
+  tenant_id uuid <span class="hljs-keyword">NOT NULL</span>,
+  owner_id uuid <span class="hljs-keyword">NOT NULL</span>,
+  title text <span class="hljs-keyword">NOT NULL</span>,
+  next_message_seq <span class="hljs-type">integer</span> <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> <span class="hljs-number">1</span>,
+  created_at timestamptz <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> now(),
+  <span class="hljs-keyword">CONSTRAINT</span> ck_conv_next_seq <span class="hljs-keyword">CHECK</span> (next_message_seq <span class="hljs-operator">&gt;=</span> <span class="hljs-number">1</span>),
+  <span class="hljs-keyword">UNIQUE</span> (tenant_id, id)
+);</code></pre></div><p>此处是用于说明字段的简化 SQL，完整模型还含外键与索引；<strong>不要在实际系统中单独执行此简化 DDL，再认为已经建立完整约束</strong>。</p>
+<h3 id="section-9">4.2 消息</h3>
+<p>一条消息不仅包含 <code>role</code> 和 <code>content</code>，还应具有稳定 <code>id</code> 与会话内递增的 <code>seq</code>。</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">SELECT</span> seq, role, content
+<span class="hljs-keyword">FROM</span> chat_messages
+<span class="hljs-keyword">WHERE</span> tenant_id <span class="hljs-operator">=</span> :tenant_id
+  <span class="hljs-keyword">AND</span> conversation_id <span class="hljs-operator">=</span> :conversation_id
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> seq <span class="hljs-keyword">ASC</span>;</code></pre></div><p>时间戳不能充当严格消息顺序：并发请求可能拥有相同或接近的写入时间；正确顺序应该由明确的序号或者可证明有序的事件位置表示。</p>
+<h3 id="section-10">4.3 资料版本</h3>
+<p><code>knowledge_documents</code> 保存逻辑文档；<code>document_versions</code> 保存实际版本：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">rules-character-A（逻辑资料）
+  ├── version 1.0 | sha256=a... | 2026-08-01 生效
+  ├── version 1.1 | sha256=b... | 2026-09-10 生效
+  └── version 2.0 | sha256=c... | 草案，尚未发布</code></pre></div><p>历史回答应能指回<strong>当时使用的那个版本</strong>，而不只是指向“规则文档最新页”。否则文档更新后，旧回答的证据可能无法重现。</p>
+<h3 id="section-11">4.4 工具执行与最终结果</h3>
+<p>工具执行需要区分“模型意图”和“程序真的做了什么”。至少保留：</p>
+<ul>
+<li><code>run_id / call_id / attempt</code>：哪个执行产生了哪次工具尝试。</li>
+<li>工具名和脱敏后的有效参数。</li>
+<li>实际结果或结构化错误码。</li>
+<li>执行时间、耗时、状态及可用的来源标识。</li>
+<li>对外回答与其引用的具体版本/位置。</li>
+</ul>
+<p>失败调用也需要记录。失败不是一条可随意覆盖的“空结果”；如果某个调用重试了两次，可以保留相同 <code>call_id</code> 下的 <code>attempt=1,2</code> 记录。这比只保存最后一次返回值更适合排障。</p>
+<h2 id="section-12">5. 联合唯一约束和复合外键</h2>
+<p>单独存一个 <code>tenant_id</code> 字段并不天然实现租户隔离。比如：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">messages.tenant_id = tenant_B
+messages.conversation_id = tenant_A 的会话</code></pre></div><p>如果只对 <code>conversation_id</code> 做外键，数据库无法保证消息的 <code>tenant_id</code> 与会话所属租户相同。</p>
+<p>可以用<strong>复合外键</strong>做关系一致性保护：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">ALTER TABLE</span> chat_messages
+<span class="hljs-keyword">ADD CONSTRAINT</span> fk_msg_tenant_conv
+<span class="hljs-keyword">FOREIGN KEY</span> (tenant_id, conversation_id)
+<span class="hljs-keyword">REFERENCES</span> conversations (tenant_id, id);</code></pre></div><p>被引用的 <code>(tenant_id, id)</code> 必须存在唯一约束或满足 PostgreSQL 相应唯一性要求。复合外键能够阻止跨租户错误关联，但<strong>不能代替用户级授权</strong>：同租户的普通用户也不一定有权查看他人的会话。</p>
+<p>典型数据库约束分工：</p>
+<ul>
+<li><code>PRIMARY KEY</code>：表内唯一记录身份。</li>
+<li><code>UNIQUE (tenant_id, request_key)</code>：租户内幂等请求标识。</li>
+<li><code>UNIQUE (tenant_id, conversation_id, seq)</code>：消息顺序唯一。</li>
+<li><code>FOREIGN KEY</code>：父子数据关系完整性。</li>
+<li><code>CHECK</code>：限定状态值、重试次数等基本规则。</li>
+<li><code>NOT NULL</code>：区分必填与真正未知的数据。</li>
+</ul>
+<p>应用应在写入前进行可理解的错误校验，但数据库约束必须作为并发下的最后一道一致性防线。</p>
+<h2 id="section-13">6. 有序消息写入与读取</h2>
+<h3 id="section-14">6.1 普通 <code>max(seq)+1</code> 为什么有竞态</h3>
+<p>两个请求并发执行：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">请求 A：SELECT MAX(seq) → 7
+请求 B：SELECT MAX(seq) → 7
+请求 A：INSERT seq=8
+请求 B：INSERT seq=8 → 冲突</code></pre></div><p>唯一约束能防止两个消息都插入，但程序仍需要决定重试或采用不会冲突的分配方式。</p>
+<h3 id="section-15">6.2 通过锁住会话行分配序号</h3>
+<p>在 PostgreSQL 中，可以锁定对应会话行，获取并增加 <code>next_message_seq</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> select
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">append_message</span>(<span class="hljs-params">db, tenant_id, owner_id, conversation_id, role, text</span>):
+    stmt = (
+        select(Conversation)
+        .where(
+            Conversation.<span class="hljs-built_in">id</span> == conversation_id,
+            Conversation.tenant_id == tenant_id,
+            Conversation.owner_id == owner_id,
+        )
+        .with_for_update()
+    )
+    conversation = (<span class="hljs-keyword">await</span> db.scalars(stmt)).one_or_none()
+    <span class="hljs-keyword">if</span> conversation <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">raise</span> PermissionError(<span class="hljs-string">"会话不存在或无访问权限"</span>)
+
+    seq = conversation.next_message_seq
+    conversation.next_message_seq += <span class="hljs-number">1</span>
+    message = ChatMessage(
+        tenant_id=tenant_id,
+        conversation_id=conversation_id,
+        seq=seq,
+        role=role,
+        content=text,
+    )
+    db.add(message)
+    <span class="hljs-keyword">await</span> db.flush()
+    <span class="hljs-keyword">return</span> message</code></pre></div><p>这段函数需要被调用方置于数据库事务中；<code>SELECT ... FOR UPDATE</code> 在 PostgreSQL 中提供对行的锁定，锁一般在事务结束时释放。SQLite 对 <code>FOR UPDATE</code> 的处理不同，不能用 SQLite 测试结果证明真实的 PostgreSQL 并发锁语义。</p>
+<h3 id="section-16">6.3 保存内容之前先判断授权</h3>
+<p>读取时不仅检查 <code>conversation_id</code>，还要检查认证来源的 <code>tenant_id</code> 和 <code>owner_id</code>。后者不能直接取前端 JSON 中声称的 <code>user_id</code>。列表接口、单条查询、导出功能与后台任务均应遵守同样规则。</p>
+<h2 id="section-17">7. 资料版本与不可变性</h2>
+<p>资料更新有两种完全不同的操作：</p>
+<ol>
+<li>修改可变的逻辑资料展示属性，例如标题、当前生效版本指针。</li>
+<li>创建新的内容版本，保留旧版本的原始文本、来源、哈希和版本标签。</li>
+</ol>
+<p>对需要引用复核的知识，推荐采用<strong>不可变内容快照</strong>：发布新规则时插入 <code>document_versions</code> 新行，不覆盖旧 <code>body</code> 和 <code>content_sha256</code>。演示模型允许状态列变化（例如草案变为发布），但应避免修改已引用版本的内容。若生产系统要求数据库层强制内容不可变，还需要触发器、不可变版本对象或受限写入权限，单纯的应用约定不等于技术保证。</p>
+<p>文本哈希示例：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> hashlib
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">content_sha256</span>(<span class="hljs-params">text: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> hashlib.sha256(text.encode(<span class="hljs-string">"utf-8"</span>)).hexdigest()</code></pre></div><p>哈希能用于发现内容被修改或验证快照一致性，但不证明资料来源可靠；应同时保留原始来源、发布时间、适用版本和权限范围。</p>
+<h2 id="section-18">8. Agent 执行、工具记录与最终结果</h2>
+<p>一次完整运行通常经历：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">创建 AgentRun(PENDING)
+    ↓
+领取任务，更新 RUNNING
+    ↓
+模型输出 Tool Call
+    ↓
+ToolExecution(call_id, attempt=1, status=...)
+    ↓
+模型继续 / 工具可能重试
+    ↓
+结束前写入 FinalResult 和 Run 终态</code></pre></div><p><code>agent_runs</code> 中的 <code>request_key</code> 可以帮助处理重复提交。数据库唯一约束保护“同一租户的同一请求标识不会创建两条 Run”，但不能自动防止外部工具被执行两遍。</p>
+<p>工具日志不等于对话历史。应记录<strong>程序真正执行的工具请求及返回</strong>，用于检查“模型最后的回答是否忠实于工具数据”。</p>
+<p>结束时必须区分 <code>SUCCEEDED</code>、<code>FAILED</code>、<code>CANCELLED</code>。不能在取消已经确认后让较晚返回的模型结果覆盖取消终态。</p>
+<p>另外，将回答保存为 <code>FinalResult</code> 并不自动在消息表生成助手消息。业务应明确决定是否把最终答复也写入 <code>chat_messages</code>，若两个记录必须同时出现，应在同一事务中写入，避免只保存了其中一项。</p>
+<h2 id="section-19">9. JSONB、结构字段与证据关联</h2>
+<p>适合用 JSONB 的内容：</p>
+<ul>
+<li>已脱敏的工具参数与部分结果。</li>
+<li>附带不同字段的结构化错误详情。</li>
+<li><code>[{"document_version_id":"...", "chunk_id":"...", "start":20, "end":62}]</code> 形式的引用集合。</li>
+</ul>
+<p>不适合简单丢进 JSONB 的内容：</p>
+<ul>
+<li>需要严格唯一约束、外键关系或高频 JOIN 的字段。</li>
+<li><code>tenant_id</code>、<code>status</code>、<code>run_id</code>、<code>created_at</code> 等高频过滤条件。</li>
+<li>含密钥、密码、敏感信息的大量原始工具返回值。</li>
+</ul>
+<p>例如：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> JSON
+<span class="hljs-keyword">from</span> sqlalchemy.dialects.postgresql <span class="hljs-keyword">import</span> JSONB
+
+JSON_VALUE = JSON().with_variant(JSONB, <span class="hljs-string">"postgresql"</span>)</code></pre></div><p>以上能使同一教学 ORM 模型在 PostgreSQL 使用 JSONB，在 SQLite 使用通用 JSON；不意味着两个数据库的 JSON 查询语义完全相同。</p>
+<p>PostgreSQL 可对适合的 JSONB 查询建立 GIN 索引，但只有常用查询形式能够从中获益。不同 GIN operator class 支持的操作符与效率存在差异，不应该盲目为每个 JSONB 列加索引。</p>
+<h2 id="section-20">10. SQLAlchemy ORM 的工作机制</h2>
+<p>SQLAlchemy ORM 的关键组成：</p>
+<ul>
+<li><code>DeclarativeBase</code>：所有 ORM 映射模型的共同基类。</li>
+<li><code>mapped_column()</code> / <code>Mapped[T]</code>：声明数据库列及 Python 类型信息。</li>
+<li><code>relationship()</code>：ORM 对象级关系，可帮助加载相关记录，但并不取代实际外键。</li>
+<li><code>Session</code> / <code>AsyncSession</code>：Identity Map、Unit of Work 与事务管理。</li>
+<li><code>select()</code> / <code>update()</code>：使用 SQLAlchemy 表达式构造 SQL。</li>
+<li>Dialect / Driver：将表达式适配 PostgreSQL、SQLite 等数据库以及相应驱动。</li>
+</ul>
+<p><strong>ORM 不等于数据库。</strong> 例如 <code>session.add(x)</code> 通常只是将对象纳入工作单元。<code>flush()</code> 把待同步修改写成 SQL 交给数据库，但尚未提交事务；<code>commit()</code> 则提交事务。若事务失败，仍需处理回滚和 Session 状态。</p>
+<p>ORM 还不能在用户无权限时自动拒绝某条记录。对象级授权应在业务层或数据库 RLS 等受控机制中实现。</p>
+<h2 id="section-21">11. 异步 Engine、连接池与 Session 工厂</h2>
+<p>典型初始化过程如下：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">from</span> sqlalchemy.ext.asyncio <span class="hljs-keyword">import</span> create_async_engine, async_sessionmaker
+
+DATABASE_URL = os.environ[<span class="hljs-string">"DATABASE_URL"</span>]
+<span class="hljs-comment"># 例如 postgresql+asyncpg://app_user:&lt;url-encoded-password&gt;@127.0.0.1:5432/agent_db</span>
+
+engine = create_async_engine(
+    DATABASE_URL,
+    pool_size=<span class="hljs-number">5</span>,
+    max_overflow=<span class="hljs-number">5</span>,
+    pool_pre_ping=<span class="hljs-literal">True</span>,
+    pool_timeout=<span class="hljs-number">15</span>,
+)
+SessionFactory = async_sessionmaker(
+    engine,
+    expire_on_commit=<span class="hljs-literal">False</span>,
+)</code></pre></div><p>解释：</p>
+<table>
+<thead>
+<tr>
+<th>对象</th>
+<th>生命周期</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>AsyncEngine</code></td>
+<td>每个服务进程一般创建一个</td>
+<td>维护数据库方言、驱动和连接池</td>
+</tr>
+<tr>
+<td>连接池</td>
+<td>与 Engine 关联</td>
+<td>复用实际数据库连接、限制同时借出的连接数</td>
+</tr>
+<tr>
+<td><code>async_sessionmaker</code></td>
+<td>与 Engine 同生命周期</td>
+<td>创建配置一致的 <code>AsyncSession</code></td>
+</tr>
+<tr>
+<td><code>AsyncSession</code></td>
+<td>一次独立请求/任务/事务</td>
+<td>保存 ORM 状态与事务上下文</td>
+</tr>
+<tr>
+<td>事务</td>
+<td>一次业务原子操作</td>
+<td>约束提交或回滚范围</td>
+</tr>
+</tbody></table>
+<p><code>pool_size=5, max_overflow=5</code> 表示单个 Engine 对应池在相应条件下最多可借出约 10 条连接；多进程、多个服务实例还需要叠加计算，不能假设这是全系统上限。</p>
+<p><code>pool_pre_ping=True</code> 有助于在借出连接时检查失效连接，但不能保证网络在事务执行中途永远不出错，也不能无条件自动重试整个业务事务。</p>
+<h3 id="section-22">11.1 AsyncSession 不是线程安全/任务安全的共享对象</h3>
+<p><strong>错误</strong>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">session = SessionFactory()
+<span class="hljs-keyword">await</span> asyncio.gather(job_a(session), job_b(session))  <span class="hljs-comment"># 两个任务共享同一 Session</span></code></pre></div><p><strong>正确方向</strong>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">job_a</span>():
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> SessionFactory.begin() <span class="hljs-keyword">as</span> session:
+        <span class="hljs-comment"># 独立事务</span>
+        ...
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">job_b</span>():
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> SessionFactory.begin() <span class="hljs-keyword">as</span> session:
+        <span class="hljs-comment"># 独立事务</span>
+        ...
+
+<span class="hljs-keyword">await</span> asyncio.gather(job_a(), job_b())</code></pre></div><p>同一个 Engine 和 Session 工厂可以复用；同一个 <code>AsyncSession</code> 不应同时交给多个并发任务。<code>expire_on_commit=False</code> 能减少提交后读取已加载属性的意外隐式 I/O，但不代表所有关系属性都能不经显式加载而直接访问。</p>
+<h2 id="section-23">12. asyncpg、AsyncSession 与查询代码</h2>
+<p><code>asyncpg</code> 是 PostgreSQL 异步驱动，SQLAlchemy 的 URL 可以采用 <code>postgresql+asyncpg://</code>。实际程序大多通过 <code>AsyncSession</code> 调用 ORM，而不是手写底层驱动操作。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> select
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_conversation_messages</span>(<span class="hljs-params">
+    session,
+    tenant_id,
+    current_user_id,
+    conversation_id,
+</span>):
+    conversation = (
+        <span class="hljs-keyword">await</span> session.scalars(
+            select(Conversation.<span class="hljs-built_in">id</span>).where(
+                Conversation.<span class="hljs-built_in">id</span> == conversation_id,
+                Conversation.tenant_id == tenant_id,
+                Conversation.owner_id == current_user_id,
+            )
+        )
+    ).one_or_none()
+    <span class="hljs-keyword">if</span> conversation <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">raise</span> PermissionError(<span class="hljs-string">"无权访问此会话"</span>)
+
+    <span class="hljs-keyword">return</span> (
+        <span class="hljs-keyword">await</span> session.scalars(
+            select(ChatMessage)
+            .where(
+                ChatMessage.tenant_id == tenant_id,
+                ChatMessage.conversation_id == conversation_id,
+            )
+            .order_by(ChatMessage.seq.asc())
+        )
+    ).<span class="hljs-built_in">all</span>()</code></pre></div><p><code>await session.execute(...)</code> 与 <code>await session.scalars(...)</code> 的区别在于获取结果的方式；后者适合获取 ORM 对象或单列标量。需要处理大量消息时，通常还要设计分页、最大返回数量和读取范围，不能一次性加载所有历史。</p>
+<h2 id="section-24">13. 事务：保存、提交与回滚什么</h2>
+<h3 id="section-25">13.1 推荐明确一次业务事务的边界</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> SessionFactory.begin() <span class="hljs-keyword">as</span> session:
+    <span class="hljs-keyword">await</span> append_message(
+        session,
+        tenant_id=tenant_id,
+        owner_id=current_user_id,
+        conv_id=conversation_id,
+        role=<span class="hljs-string">"user"</span>,
+        text=<span class="hljs-string">"查询角色规则"</span>,
+    )
+<span class="hljs-comment"># 代码块正常退出：提交事务；异常退出：回滚并关闭 Session</span></code></pre></div><p><code>SessionFactory.begin()</code> 是会创建 Session、开始事务并在退出时完成提交/回滚及关闭的上下文管理器。对需要精确处理异常的场景可捕获数据库异常，再进行领域错误映射。</p>
+<h3 id="section-26">13.2 flush 与 commit</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> SessionFactory.begin() <span class="hljs-keyword">as</span> session:
+    session.add(AgentRun(...))
+    <span class="hljs-keyword">await</span> session.flush()   <span class="hljs-comment"># SQL 已发送到数据库，仍处于事务中</span>
+<span class="hljs-comment"># 正常退出后自动 commit</span></code></pre></div><p>在 PostgreSQL 的默认 <code>READ COMMITTED</code> 隔离下，其他事务通常看不到尚未提交的修改；同一事务能够看到自己已经做出的修改。</p>
+<h3 id="section-27">13.3 错误时能回滚哪些内容</h3>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>PostgreSQL 事务回滚可以撤销吗？</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>当前事务插入的消息</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>当前事务更新的 Run 状态</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>当前事务插入的工具执行记录</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>已提交的上一事务</td>
+<td>不可以</td>
+</tr>
+<tr>
+<td>已经发给外部模型 API 的请求</td>
+<td>不可以</td>
+</tr>
+<tr>
+<td>已经实际发送的邮件或消息</td>
+<td>不可以</td>
+</tr>
+<tr>
+<td>PostgreSQL sequence 已分配的编号</td>
+<td>通常不会因事务回滚而收回</td>
+</tr>
+</tbody></table>
+<p>尤其要避免让数据库事务跨越耗时很长的模型调用：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 不推荐：事务和数据库锁可能被模型网络等待长期占用</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> SessionFactory.begin() <span class="hljs-keyword">as</span> session:
+    run = ...
+    response = <span class="hljs-keyword">await</span> external_model_call(...)  <span class="hljs-comment"># 可能等待 30 秒以上</span>
+    ...</code></pre></div><p>更可靠的设计：短事务创建 PENDING/RUNNING 记录 → 事务结束 → 外部模型调用 → 新事务保存执行结果与最终状态。若外部调用中断，应通过数据库状态和补偿/重试策略处理，而不是指望数据库回滚外部副作用。</p>
+<h2 id="section-28">14. FastAPI lifespan 与数据库访问</h2>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> contextlib <span class="hljs-keyword">import</span> asynccontextmanager
+<span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI, Request, Depends
+<span class="hljs-keyword">from</span> sqlalchemy.ext.asyncio <span class="hljs-keyword">import</span> create_async_engine, async_sessionmaker
+
+<span class="hljs-meta">@asynccontextmanager</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">lifespan</span>(<span class="hljs-params">app: FastAPI</span>):
+    engine = create_async_engine(
+        os.environ[<span class="hljs-string">"DATABASE_URL"</span>],
+        pool_pre_ping=<span class="hljs-literal">True</span>,
+    )
+    app.state.db_session_factory = async_sessionmaker(
+        engine, expire_on_commit=<span class="hljs-literal">False</span>
+    )
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">yield</span>
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> engine.dispose()
+
+app = FastAPI(lifespan=lifespan)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_db</span>(<span class="hljs-params">request: Request</span>):
+    factory = request.app.state.db_session_factory
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> factory() <span class="hljs-keyword">as</span> session:
+        <span class="hljs-keyword">yield</span> session
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">"/health/db"</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">db_health</span>(<span class="hljs-params">db=Depends(<span class="hljs-params">get_db</span>)</span>):
+    <span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> text
+    <span class="hljs-keyword">await</span> db.execute(text(<span class="hljs-string">"SELECT 1"</span>))
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"database"</span>: <span class="hljs-string">"reachable"</span>}</code></pre></div><p>注意：</p>
+<ol>
+<li><code>get_db()</code> 只是创建和关闭 Session，<strong>并未自动提交业务事务</strong>。</li>
+<li>写入接口应该明确使用 <code>async with session.begin()</code> 或在服务层管理事务，而不是假设 FastAPI 自动 commit。</li>
+<li>关闭应用时，应在资源仍可用的情况下结束在途任务，再释放 Engine。<code>lifespan</code> 的最终清理不等于所有自建后台 Task 都已被可靠处理。</li>
+<li><code>/health/db</code> 是演示；生产环境的健康检查应根据依赖类型和探针目的决定是否探测数据库，避免故障时大量健康检查进一步加压。</li>
+</ol>
+<h2 id="section-29">15. 并发、幂等和终态保护</h2>
+<h3 id="section-30">15.1 请求幂等键</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">UNIQUE</span> INDEX uq_run_request_key
+<span class="hljs-keyword">ON</span> agent_runs (tenant_id, request_key);</code></pre></div><p>相同请求标识重复到达时，应返回此前任务或一个明确的冲突状态，而不是盲目再创建任务。唯一约束能够解决并发重复插入的一致性问题；客户端请求标识的定义、作用域和有效期应由业务设计明确规定。</p>
+<h3 id="section-31">15.2 最终结果唯一性</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">UNIQUE</span> INDEX uq_result_per_run
+<span class="hljs-keyword">ON</span> final_results (tenant_id, run_id);</code></pre></div><p>它防止某次 Run 生成两条最终结果记录，但不能保证答案符合事实，也不保证工具只执行一次。</p>
+<h3 id="section-32">15.3 原子化终态写入</h3>
+<p>需要在同一个事务中“检查 Run 当前状态 → 标记完成 → 创建最终结果”。可以采用 PostgreSQL 的条件更新：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> update
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> SessionFactory.begin() <span class="hljs-keyword">as</span> db:
+    <span class="hljs-comment"># 生产系统还应根据登录用户和该 Run 对应的会话检查授权</span>
+    result = <span class="hljs-keyword">await</span> db.execute(
+        update(AgentRun)
+        .where(
+            AgentRun.<span class="hljs-built_in">id</span> == run_id,
+            AgentRun.tenant_id == tenant_id,
+            AgentRun.status == <span class="hljs-string">"RUNNING"</span>,
+        )
+        .values(status=<span class="hljs-string">"SUCCEEDED"</span>)
+        .returning(AgentRun.<span class="hljs-built_in">id</span>)
+    )
+    updated_id = result.scalar_one_or_none()
+    <span class="hljs-keyword">if</span> updated_id <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"任务已结束或状态不允许完成"</span>)
+
+    db.add(FinalResult(
+        tenant_id=tenant_id,
+        run_id=run_id,
+        answer=answer,
+        citations=citations,
+    ))</code></pre></div><p>这利用单条 SQL 的条件更新保护状态前置条件，并将终态与最终结果纳入同一个事务。如果执行失败，二者一起回滚。真实应用要定义哪个 Worker 有资格提交结果，以及超时任务是否仍属于合法拥有者；可能需要 <code>lease_token</code> 或版本号防止过期 Worker 写回。</p>
+<h2 id="section-33">16. 多租户与用户级授权</h2>
+<p>数据库中的租户隔离需要多层防护：</p>
+<ul>
+<li>通过认证中间件或可信身份系统获得 <code>tenant_id</code>、<code>user_id</code>，而非相信用户上传字段。</li>
+<li>查询会话时同时验证租户及所有者。</li>
+<li>子表通过复合外键阻止关联到其他租户的父记录。</li>
+<li>关键访问可以增加 PostgreSQL RLS（Row Level Security）作为第二道防线。</li>
+<li>工具执行器也必须独立校验当前 Run 是否属于用户可访问的会话。</li>
+</ul>
+<p>RLS 的一个极简示例（仅为原理展示）：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">ALTER TABLE</span> conversations ENABLE <span class="hljs-type">ROW</span> LEVEL SECURITY;
+
+<span class="hljs-keyword">CREATE</span> POLICY tenant_conversations <span class="hljs-keyword">ON</span> conversations
+<span class="hljs-keyword">USING</span> (tenant_id <span class="hljs-operator">=</span> current_setting(<span class="hljs-string">'app.tenant_id'</span>, <span class="hljs-literal">true</span>)::uuid)
+<span class="hljs-keyword">WITH</span> <span class="hljs-keyword">CHECK</span> (tenant_id <span class="hljs-operator">=</span> current_setting(<span class="hljs-string">'app.tenant_id'</span>, <span class="hljs-literal">true</span>)::uuid);</code></pre></div><p>使用连接池时，不能把租户身份作为跨请求长期保留的连接全局状态。可以在每个事务中使用 transaction-local 设置，并确认连接池复用、权限角色和失败回滚都不会泄漏上下文。PostgreSQL 的表拥有者及具备 <code>BYPASSRLS</code> 权限的角色有特殊行为，生产使用需要专门审查；<strong>仅凭这段示例 SQL 不构成完整租户安全方案</strong>。</p>
+<p>即使实现 RLS，也仍需单独处理租户内的用户级授权、管理角色和数据共享策略。</p>
+<h2 id="section-34">17. Alembic 的作用：结构版本管理</h2>
+<p>ORM 定义了“程序期望的表结构”，数据库中则存在“实际已经部署的结构”。二者随时间可能不一致：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">应用版本 V1 → 表结构 Rev 001
+应用版本 V2 → 表结构 Rev 002
+应用版本 V3 → 表结构 Rev 003</code></pre></div><p>Alembic 使用迁移文件组织这个演进过程。每份 Revision 通常包含：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">revision = <span class="hljs-string">"002_add_field"</span>
+down_revision = <span class="hljs-string">"001_initial"</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">upgrade</span>():
+    ...
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">downgrade</span>():
+    ...</code></pre></div><p>它在数据库中维护 <code>alembic_version</code> 表以追踪当前迁移位置。<code>revision</code> 是迁移标识，<code>down_revision</code> 指向迁移依赖；它们与业务资料的 <code>document_versions.label</code> 完全不同。</p>
+<p>注意：在生产中直接调用 <code>Base.metadata.create_all()</code> 通常不能替代迁移管理，因为 <code>create_all()</code> 并不会自动完成已有表的复杂修改、数据回填、索引构建和历史版本管理。</p>
+<h2 id="section-35">18. 异步 Alembic 环境</h2>
+<p>安装依赖（具体版本应在项目中锁定）：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pip install <span class="hljs-string">"SQLAlchemy[asyncio]"</span> asyncpg alembic fastapi uvicorn</code></pre></div><p>初始化异步迁移模板：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">alembic init -t async alembic</code></pre></div><p>该命令生成 <code>alembic.ini</code>、<code>alembic/env.py</code>、<code>alembic/versions/</code> 等文件。<code>async</code> 模板并不意味着 Alembic 的所有迁移操作都会变成 Python <code>async def</code>；它使用异步 Engine 获得连接，再通过 <code>run_sync()</code> 执行传统迁移逻辑。</p>
+<h3 id="section-36">18.1 env.py 的核心改造</h3>
+<p>以下是适用于新项目的教学示例，省略了生成模板中的一些注释和日志配置：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># alembic/env.py</span>
+<span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> os
+
+<span class="hljs-keyword">from</span> alembic <span class="hljs-keyword">import</span> context
+<span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> pool
+<span class="hljs-keyword">from</span> sqlalchemy.engine <span class="hljs-keyword">import</span> Connection
+<span class="hljs-keyword">from</span> sqlalchemy.ext.asyncio <span class="hljs-keyword">import</span> create_async_engine
+<span class="hljs-keyword">from</span> app.db.models <span class="hljs-keyword">import</span> Base  <span class="hljs-comment"># 必须导入包含全部表的 metadata</span>
+
+DATABASE_URL = os.environ[<span class="hljs-string">"DATABASE_URL"</span>]
+target_metadata = Base.metadata
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">run_migrations_offline</span>():
+    context.configure(
+        url=DATABASE_URL,
+        target_metadata=target_metadata,
+        literal_binds=<span class="hljs-literal">True</span>,
+        dialect_opts={<span class="hljs-string">"paramstyle"</span>: <span class="hljs-string">"named"</span>},
+    )
+    <span class="hljs-keyword">with</span> context.begin_transaction():
+        context.run_migrations()
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">do_run_migrations</span>(<span class="hljs-params">connection: Connection</span>):
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=<span class="hljs-literal">True</span>,
+    )
+    <span class="hljs-keyword">with</span> context.begin_transaction():
+        context.run_migrations()
+
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">run_async_migrations</span>():
+    engine = create_async_engine(DATABASE_URL, poolclass=pool.NullPool)
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> engine.connect() <span class="hljs-keyword">as</span> connection:
+            <span class="hljs-keyword">await</span> connection.run_sync(do_run_migrations)
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> engine.dispose()
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">run_migrations_online</span>():
+    asyncio.run(run_async_migrations())
+
+
+<span class="hljs-keyword">if</span> context.is_offline_mode():
+    run_migrations_offline()
+<span class="hljs-keyword">else</span>:
+    run_migrations_online()</code></pre></div><p><strong>重要</strong>：上述 <code>run_migrations_online()</code> 预期由 Alembic CLI 在不运行事件循环的顶层环境调用。在已有事件循环内部直接调用 <code>asyncio.run()</code> 会报错，需要使用 Alembic 官方程序化迁移相关模式，不能直接复制 CLI 模板到任意异步函数里执行。</p>
+<h2 id="section-37">19. 自动生成迁移与审查</h2>
+<p>常用命令：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 查看当前数据库的迁移版本</span>
+alembic current
+
+<span class="hljs-comment"># 生成候选迁移文件</span>
+alembic revision --autogenerate -m <span class="hljs-string">"create chat and agent tables"</span>
+
+<span class="hljs-comment"># 审查新生成的 alembic/versions/*.py 后再执行</span>
+alembic upgrade <span class="hljs-built_in">head</span>
+
+<span class="hljs-comment"># 查看历史与当前最新版本</span>
+alembic <span class="hljs-built_in">history</span>
+alembic heads
+
+<span class="hljs-comment"># 在 CI 中检查 ORM 与数据库是否还存在未生成的差异</span>
+alembic check</code></pre></div><p><code>autogenerate</code> 通过比较目标 <code>MetaData</code> 和当前数据库结构发现候选变更。它通常能检测表/字段增删、可空性变化、许多索引与约束变更。但通常不能准确理解“改名”，因此可能把重命名错误生成成“删除旧列 + 新增列”。<strong>如果直接应用，就可能丢失历史数据。</strong></p>
+<h3 id="section-38">19.1 需要回填的新字段</h3>
+<p>假设现有 <code>document_versions</code> 尚无 <code>source_checksum_algo</code> 字段，现计划增加且要求非空。不能直接添加不带默认值的非空列，因为已有数据不满足约束。较稳妥的迁移：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> alembic <span class="hljs-keyword">import</span> op
+<span class="hljs-keyword">import</span> sqlalchemy <span class="hljs-keyword">as</span> sa
+
+<span class="hljs-comment"># 仅展示 upgrade/downgrade；真实 revision 还需要 revision、down_revision</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">upgrade</span>():
+    op.add_column(
+        <span class="hljs-string">"document_versions"</span>,
+        sa.Column(<span class="hljs-string">"source_checksum_algo"</span>, sa.String(<span class="hljs-number">20</span>), nullable=<span class="hljs-literal">True</span>),
+    )
+    op.execute(<span class="hljs-string">"""
+        UPDATE document_versions
+        SET source_checksum_algo = 'sha256'
+        WHERE source_checksum_algo IS NULL
+    """</span>)
+    op.alter_column(<span class="hljs-string">"document_versions"</span>, <span class="hljs-string">"source_checksum_algo"</span>, nullable=<span class="hljs-literal">False</span>)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">downgrade</span>():
+    op.drop_column(<span class="hljs-string">"document_versions"</span>, <span class="hljs-string">"source_checksum_algo"</span>)</code></pre></div><p>这只是一个<strong>明确知道所有已有哈希都来自 SHA-256</strong> 的示例。如果旧数据并不全部符合这个事实，不能简单用 <code>'sha256'</code> 回填，而应根据真实数据校正或另行标记未知状态。完成数据库迁移后，还应同步修改 ORM 模型及读写代码。</p>
+<h3 id="section-39">19.2 为什么不能随意 downgrade</h3>
+<ul>
+<li>删除字段可能不可逆地丢掉数据。</li>
+<li>某些迁移涉及大量后台数据回填或应用层协议变更。</li>
+<li>多个服务版本并存时，回退到旧结构可能让仍在运行的新代码报错。</li>
+<li>PostgreSQL 的普通 DDL 具有事务特性，但并非所有操作都能放在普通事务内，例如 <code>CREATE INDEX CONCURRENTLY</code> 需要特殊执行方式。</li>
+</ul>
+<p>迁移前应有备份、演练和明确的回滚/前进修复预案。</p>
+<h2 id="section-40">20. 线上数据库升级与兼容性</h2>
+<p>在持续运行的系统中，推荐遵循 <strong>Expand → Migrate → Contract</strong>：</p>
+<ol>
+<li><strong>Expand</strong>：先添加兼容新旧应用的可选字段或新表。</li>
+<li><strong>Migrate</strong>：发布能够兼容两种结构的代码，按批次回填旧数据。</li>
+<li><strong>Contract</strong>：确认所有实例使用新结构后，移除旧字段或施加最终约束。</li>
+</ol>
+<p>原因在于数据库迁移和应用部署不一定在同一瞬间完成。若旧代码还在使用某个字段，先删字段就会直接导致旧实例失败。</p>
+<p>注意数据库锁：长时间执行的 <code>ALTER TABLE</code>、大规模更新或索引操作可能阻塞线上流量。要关注锁等待、锁超时、事务存活时间、复制延迟和维护窗口。</p>
+<p>建议把 <code>alembic upgrade head</code> 作为受控发布步骤，而不是让每个 FastAPI Worker 启动时都自动跑迁移。多实例同时自动迁移可能产生竞态和不必要的锁争用。</p>
+<h3 id="section-41">20.1 迁移文件如何验收</h3>
+<ul>
+<li>对空数据库执行 <code>upgrade head</code> 成功。</li>
+<li>对有历史数据的旧数据库升级成功且原数据保持正确。</li>
+<li><code>alembic current</code> 指向预期版本。</li>
+<li><code>alembic check</code> 不存在未预期的差异（仍受自动生成限制）。</li>
+<li>关键业务查询、约束、索引和权限规则正常。</li>
+<li>回滚或前进修复的操作和风险已验证。</li>
+</ul>
+<h2 id="section-42">21. 查询性能和连接池容量</h2>
+<p>最常见查询：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment">-- 某用户最近会话</span>
+<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> conversations
+<span class="hljs-keyword">WHERE</span> tenant_id <span class="hljs-operator">=</span> :tenant <span class="hljs-keyword">AND</span> owner_id <span class="hljs-operator">=</span> :<span class="hljs-keyword">user</span>
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> created_at <span class="hljs-keyword">DESC</span>
+LIMIT <span class="hljs-number">20</span>;
+
+<span class="hljs-comment">-- 某会话最近消息：实际应按应用分页边界调整</span>
+<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> chat_messages
+<span class="hljs-keyword">WHERE</span> tenant_id <span class="hljs-operator">=</span> :tenant <span class="hljs-keyword">AND</span> conversation_id <span class="hljs-operator">=</span> :conv
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> seq <span class="hljs-keyword">DESC</span>
+LIMIT <span class="hljs-number">50</span>;
+
+<span class="hljs-comment">-- 某运行的工具轨迹</span>
+<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> tool_executions
+<span class="hljs-keyword">WHERE</span> tenant_id <span class="hljs-operator">=</span> :tenant <span class="hljs-keyword">AND</span> run_id <span class="hljs-operator">=</span> :run
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> executed_at <span class="hljs-keyword">ASC</span>;</code></pre></div><p>应根据这些查询模式考虑复合索引，而不是机械地为每列创建单列索引。例如 <code>(tenant_id, conversation_id, seq)</code> 可以帮助按会话读取有序消息。值得注意的是，唯一约束通常已经由数据库建立支持它的唯一索引；重复创建完全等价的索引会浪费空间和写入开销。附录模型同时定义了部分演示性组合索引，实际部署应通过 <code>EXPLAIN (ANALYZE, BUFFERS)</code> 和真实负载检查并删除冗余索引。</p>
+<p>连接池容量近似取决于每个进程的池参数、进程数量、服务实例数量以及其他程序消耗的数据库连接。若 PostgreSQL <code>max_connections</code> 不足，程序再增加 API 并发并不会提高数据库吞吐，反而可能加剧排队或出现连接池超时。</p>
+<p>读写耗时还受到：数据量、索引命中率、事务持续时间、锁竞争、网络 RTT、查询计划、磁盘 I/O、连接池等待等因素影响。</p>
+<h2 id="section-43">22. 常见故障及正确归因</h2>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>可能原因</th>
+<th>检查方向</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>程序启动时报 <code>ModuleNotFoundError: asyncpg</code></td>
+<td>未安装驱动</td>
+<td>环境依赖与解释器</td>
+</tr>
+<tr>
+<td><code>MissingGreenlet</code></td>
+<td>在异步 ORM 中触发隐式 lazy load 等</td>
+<td>显式预加载、避免隐式 I/O</td>
+</tr>
+<tr>
+<td><code>PendingRollbackError</code></td>
+<td>前一个数据库错误后未回滚</td>
+<td>捕获异常、事务清理</td>
+</tr>
+<tr>
+<td><code>IntegrityError</code></td>
+<td>外键、唯一约束、非空或检查约束失败</td>
+<td>原始 SQL 错误码、违反的约束</td>
+</tr>
+<tr>
+<td>同一次反馈重复入库</td>
+<td>缺幂等键或业务唯一约束</td>
+<td>唯一约束 + 并发处理</td>
+</tr>
+<tr>
+<td>同租户不同会话混入历史</td>
+<td>查询没有限定 conversation_id</td>
+<td>所有查询的作用域过滤</td>
+</tr>
+<tr>
+<td>跨租户能读记录</td>
+<td>缺对象级授权、缓存键不带作用域等</td>
+<td>认证身份与查询条件、RLS</td>
+</tr>
+<tr>
+<td>开发环境正常，部署后找不到字段</td>
+<td>未执行 Alembic 迁移</td>
+<td>当前 DB schema 和 migration 版本</td>
+</tr>
+<tr>
+<td>迁移检测到删除一列、新增一列</td>
+<td>实际是重命名，autogenerate 不识别</td>
+<td>手工改为 rename</td>
+</tr>
+<tr>
+<td>任务状态一直 RUNNING</td>
+<td>Worker 崩溃、缺恢复机制</td>
+<td>租约、后台任务、状态重试</td>
+</tr>
+<tr>
+<td>API 很慢</td>
+<td>长事务、锁竞争、连接池等待、SQL 不佳</td>
+<td>DB 日志、慢查询、EXPLAIN、指标</td>
+</tr>
+<tr>
+<td>关闭服务仍有连接</td>
+<td>Engine 未 dispose 或后台任务仍使用</td>
+<td>lifespan、任务管理、连接池指标</td>
+</tr>
+</tbody></table>
+<p><strong>不要仅根据一次 HTTP 500 就推断数据库故障</strong>：要结合异常链、数据库错误码、请求 ID、事务 ID、Run ID 等证据确定失败层次。</p>
+<h2 id="section-44">23. 一条端到端执行流程</h2>
+<p>以下是一个相对合理的会话问答持久化流程：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">请求到达 FastAPI
+    ↓
+认证用户身份 → 获取可信 tenant_id / user_id
+    ↓
+短事务 A：检查会话权限 → 写用户消息 → 创建 Run(PENDING)
+    ↓ 事务提交
+调用模型 / 检索知识 / 受控执行工具（避免长期持有数据库事务）
+    ↓
+短事务 B：保存实际工具结果、失败信息或进度状态
+    ↓ 事务提交
+结束时：短事务 C 将 Run 状态更新为终态，并写 FinalResult
+    ↓ 事务提交
+前端查询完成结果，引用指向具体资料版本和可核验位置</code></pre></div><p>网络断开、进程重启或其他依赖故障发生时，数据库能保留先前已提交的状态；但要让未完成任务得到恢复，需要额外的 Worker 调度、幂等保障与超时状态清理机制。</p>
+<p><strong>一句话概括</strong>：PostgreSQL 保证持久数据与关系约束，SQLAlchemy 负责 Python 程序与数据库之间的读写工作单元，Alembic 负责结构的可追踪演进；用户数据隔离、业务正确性和任务可靠恢复仍需要应用层明确设计。</p>
+<hr />
+<h2 id="section-45">24. 代码附录</h2>
+<p>下面两个代码块是本节实际用于离线验证的教学代码。第一个文件定义 ORM 模型，并提供 <code>append_message</code> 与 <code>messages_for_user</code> 的异步业务函数；第二个文件通过 SQLAlchemy 同步 SQLite 连接验证模型关系和约束，并将部分 SQL 编译为 PostgreSQL 方言。</p>
+<p><strong>重要限制</strong>：SQLite 的 <code>FOR UPDATE</code>、事务隔离、并发锁语义及 JSON 查询行为与 PostgreSQL 存在差异。这里的测试只能证明所列的离线行为，不等于真正运行了 PostgreSQL 或 asyncpg。</p>
+<h3 id="section-46">附录 A：<code>models_demo.py</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Educational SQLAlchemy 2.x persistence model (Postgres-first, SQLite-testable).
+
+This module deliberately does not establish a DB connection at import time.
+In production, import the same Base.metadata from Alembic env.py.
+"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">import</span> hashlib
+<span class="hljs-keyword">import</span> uuid
+<span class="hljs-keyword">from</span> datetime <span class="hljs-keyword">import</span> datetime
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> <span class="hljs-type">Any</span>
+
+<span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> (
+    CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index,
+    Integer, JSON, String, Text, UniqueConstraint, Uuid, func, select,
+)
+<span class="hljs-keyword">from</span> sqlalchemy.dialects.postgresql <span class="hljs-keyword">import</span> JSONB
+<span class="hljs-keyword">from</span> sqlalchemy.orm <span class="hljs-keyword">import</span> DeclarativeBase, Mapped, mapped_column
+
+JSON_VALUE = JSON().with_variant(JSONB, <span class="hljs-string">"postgresql"</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Base</span>(<span class="hljs-title class_ inherited__">DeclarativeBase</span>):
+    <span class="hljs-keyword">pass</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Tenant</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"tenants"</span>
+    <span class="hljs-built_in">id</span>: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), primary_key=<span class="hljs-literal">True</span>, default=uuid.uuid4)
+    name: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">120</span>), unique=<span class="hljs-literal">True</span>, nullable=<span class="hljs-literal">False</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AppUser</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"app_users"</span>
+    <span class="hljs-built_in">id</span>: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), primary_key=<span class="hljs-literal">True</span>, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), ForeignKey(<span class="hljs-string">"tenants.id"</span>), nullable=<span class="hljs-literal">False</span>)
+    display_name: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">120</span>), nullable=<span class="hljs-literal">False</span>)
+    __table_args__ = (UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"id"</span>, name=<span class="hljs-string">"uq_users_tenant_id"</span>),)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Conversation</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"conversations"</span>
+    <span class="hljs-built_in">id</span>: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), primary_key=<span class="hljs-literal">True</span>, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), ForeignKey(<span class="hljs-string">"tenants.id"</span>), nullable=<span class="hljs-literal">False</span>)
+    owner_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), nullable=<span class="hljs-literal">False</span>)
+    title: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">200</span>), nullable=<span class="hljs-literal">False</span>)
+    next_message_seq: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(Integer, nullable=<span class="hljs-literal">False</span>, default=<span class="hljs-number">1</span>)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=<span class="hljs-literal">True</span>), server_default=func.now(), nullable=<span class="hljs-literal">False</span>)
+    __table_args__ = (
+        ForeignKeyConstraint([<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"owner_id"</span>], [<span class="hljs-string">"app_users.tenant_id"</span>, <span class="hljs-string">"app_users.id"</span>], name=<span class="hljs-string">"fk_conv_tenant_owner"</span>),
+        UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"id"</span>, name=<span class="hljs-string">"uq_conv_tenant_id"</span>),
+        CheckConstraint(<span class="hljs-string">"next_message_seq &gt;= 1"</span>, name=<span class="hljs-string">"ck_conv_next_seq"</span>),
+        Index(<span class="hljs-string">"ix_conv_owner_created"</span>, <span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"owner_id"</span>, <span class="hljs-string">"created_at"</span>),
+    )
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ChatMessage</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"chat_messages"</span>
+    <span class="hljs-built_in">id</span>: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), primary_key=<span class="hljs-literal">True</span>, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), nullable=<span class="hljs-literal">False</span>)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), nullable=<span class="hljs-literal">False</span>)
+    seq: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(Integer, nullable=<span class="hljs-literal">False</span>)
+    role: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">16</span>), nullable=<span class="hljs-literal">False</span>)
+    content: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(Text, nullable=<span class="hljs-literal">False</span>)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=<span class="hljs-literal">True</span>), server_default=func.now(), nullable=<span class="hljs-literal">False</span>)
+    __table_args__ = (
+        ForeignKeyConstraint([<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"conversation_id"</span>], [<span class="hljs-string">"conversations.tenant_id"</span>, <span class="hljs-string">"conversations.id"</span>], name=<span class="hljs-string">"fk_msg_tenant_conv"</span>),
+        UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"conversation_id"</span>, <span class="hljs-string">"seq"</span>, name=<span class="hljs-string">"uq_msg_per_conversation_seq"</span>),
+        CheckConstraint(<span class="hljs-string">"role IN ('system','user','assistant','tool')"</span>, name=<span class="hljs-string">"ck_msg_role"</span>),
+        Index(<span class="hljs-string">"ix_msg_conversation_seq"</span>, <span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"conversation_id"</span>, <span class="hljs-string">"seq"</span>),
+    )
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">KnowledgeDocument</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"knowledge_documents"</span>
+    <span class="hljs-built_in">id</span>: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), primary_key=<span class="hljs-literal">True</span>, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), ForeignKey(<span class="hljs-string">"tenants.id"</span>), nullable=<span class="hljs-literal">False</span>)
+    slug: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">140</span>), nullable=<span class="hljs-literal">False</span>)
+    title: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">200</span>), nullable=<span class="hljs-literal">False</span>)
+    __table_args__ = (
+        UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"slug"</span>, name=<span class="hljs-string">"uq_document_slug_per_tenant"</span>),
+        UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"id"</span>, name=<span class="hljs-string">"uq_document_tenant_id"</span>),
+    )
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">DocumentVersion</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"document_versions"</span>
+    <span class="hljs-built_in">id</span>: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), primary_key=<span class="hljs-literal">True</span>, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), nullable=<span class="hljs-literal">False</span>)
+    document_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), nullable=<span class="hljs-literal">False</span>)
+    label: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">60</span>), nullable=<span class="hljs-literal">False</span>)
+    source_uri: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(Text, nullable=<span class="hljs-literal">False</span>)
+    section_path: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(Text, nullable=<span class="hljs-literal">False</span>, default=<span class="hljs-string">""</span>)
+    content_sha256: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">64</span>), nullable=<span class="hljs-literal">False</span>)
+    body: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(Text, nullable=<span class="hljs-literal">False</span>)
+    status: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">16</span>), nullable=<span class="hljs-literal">False</span>, default=<span class="hljs-string">"draft"</span>)
+    published_at: Mapped[datetime | <span class="hljs-literal">None</span>] = mapped_column(DateTime(timezone=<span class="hljs-literal">True</span>))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=<span class="hljs-literal">True</span>), server_default=func.now(), nullable=<span class="hljs-literal">False</span>)
+    __table_args__ = (
+        ForeignKeyConstraint([<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"document_id"</span>], [<span class="hljs-string">"knowledge_documents.tenant_id"</span>, <span class="hljs-string">"knowledge_documents.id"</span>], name=<span class="hljs-string">"fk_version_tenant_document"</span>),
+        UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"document_id"</span>, <span class="hljs-string">"label"</span>, name=<span class="hljs-string">"uq_version_label"</span>),
+        CheckConstraint(<span class="hljs-string">"status IN ('draft','published','retired')"</span>, name=<span class="hljs-string">"ck_version_status"</span>),
+        Index(<span class="hljs-string">"ix_version_status_published"</span>, <span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"status"</span>, <span class="hljs-string">"published_at"</span>),
+    )
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AgentRun</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"agent_runs"</span>
+    <span class="hljs-built_in">id</span>: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), primary_key=<span class="hljs-literal">True</span>, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), nullable=<span class="hljs-literal">False</span>)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), nullable=<span class="hljs-literal">False</span>)
+    request_key: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">120</span>), nullable=<span class="hljs-literal">False</span>)
+    status: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">20</span>), nullable=<span class="hljs-literal">False</span>, default=<span class="hljs-string">"PENDING"</span>)
+    model_id: Mapped[<span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>] = mapped_column(String(<span class="hljs-number">120</span>))
+    prompt_version: Mapped[<span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>] = mapped_column(String(<span class="hljs-number">60</span>))
+    input_tokens: Mapped[<span class="hljs-built_in">int</span> | <span class="hljs-literal">None</span>] = mapped_column(Integer)
+    output_tokens: Mapped[<span class="hljs-built_in">int</span> | <span class="hljs-literal">None</span>] = mapped_column(Integer)
+    error_code: Mapped[<span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>] = mapped_column(String(<span class="hljs-number">80</span>))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=<span class="hljs-literal">True</span>), server_default=func.now(), nullable=<span class="hljs-literal">False</span>)
+    finished_at: Mapped[datetime | <span class="hljs-literal">None</span>] = mapped_column(DateTime(timezone=<span class="hljs-literal">True</span>))
+    __table_args__ = (
+        ForeignKeyConstraint([<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"conversation_id"</span>], [<span class="hljs-string">"conversations.tenant_id"</span>, <span class="hljs-string">"conversations.id"</span>], name=<span class="hljs-string">"fk_run_tenant_conv"</span>),
+        UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"request_key"</span>, name=<span class="hljs-string">"uq_run_request_key"</span>),
+        UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"id"</span>, name=<span class="hljs-string">"uq_run_tenant_id"</span>),
+        CheckConstraint(<span class="hljs-string">"status IN ('PENDING','RUNNING','SUCCEEDED','FAILED','CANCELLED')"</span>, name=<span class="hljs-string">"ck_run_status"</span>),
+        Index(<span class="hljs-string">"ix_run_session_started"</span>, <span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"conversation_id"</span>, <span class="hljs-string">"started_at"</span>),
+    )
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ToolExecution</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"tool_executions"</span>
+    <span class="hljs-built_in">id</span>: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), primary_key=<span class="hljs-literal">True</span>, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), nullable=<span class="hljs-literal">False</span>)
+    run_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), nullable=<span class="hljs-literal">False</span>)
+    call_id: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">120</span>), nullable=<span class="hljs-literal">False</span>)
+    attempt: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(Integer, nullable=<span class="hljs-literal">False</span>, default=<span class="hljs-number">1</span>)
+    tool_name: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">120</span>), nullable=<span class="hljs-literal">False</span>)
+    args_redacted: Mapped[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]] = mapped_column(JSON_VALUE, nullable=<span class="hljs-literal">False</span>)
+    result_redacted: Mapped[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>] | <span class="hljs-literal">None</span>] = mapped_column(JSON_VALUE)
+    status: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(String(<span class="hljs-number">24</span>), nullable=<span class="hljs-literal">False</span>)
+    error_code: Mapped[<span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>] = mapped_column(String(<span class="hljs-number">80</span>))
+    executed_at: Mapped[datetime] = mapped_column(DateTime(timezone=<span class="hljs-literal">True</span>), server_default=func.now(), nullable=<span class="hljs-literal">False</span>)
+    __table_args__ = (
+        ForeignKeyConstraint([<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"run_id"</span>], [<span class="hljs-string">"agent_runs.tenant_id"</span>, <span class="hljs-string">"agent_runs.id"</span>], name=<span class="hljs-string">"fk_tool_tenant_run"</span>),
+        UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"run_id"</span>, <span class="hljs-string">"call_id"</span>, <span class="hljs-string">"attempt"</span>, name=<span class="hljs-string">"uq_tool_call_attempt"</span>),
+        CheckConstraint(<span class="hljs-string">"attempt &gt;= 1"</span>, name=<span class="hljs-string">"ck_tool_attempt"</span>),
+        CheckConstraint(<span class="hljs-string">"status IN ('SUCCEEDED','FAILED','SKIPPED')"</span>, name=<span class="hljs-string">"ck_tool_status"</span>),
+        Index(<span class="hljs-string">"ix_tool_run_time"</span>, <span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"run_id"</span>, <span class="hljs-string">"executed_at"</span>),
+    )
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">FinalResult</span>(<span class="hljs-title class_ inherited__">Base</span>):
+    __tablename__ = <span class="hljs-string">"final_results"</span>
+    <span class="hljs-built_in">id</span>: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), primary_key=<span class="hljs-literal">True</span>, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), nullable=<span class="hljs-literal">False</span>)
+    run_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=<span class="hljs-literal">True</span>), nullable=<span class="hljs-literal">False</span>)
+    answer: Mapped[<span class="hljs-built_in">str</span>] = mapped_column(Text, nullable=<span class="hljs-literal">False</span>)
+    citations: Mapped[<span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]]] = mapped_column(JSON_VALUE, nullable=<span class="hljs-literal">False</span>)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=<span class="hljs-literal">True</span>), server_default=func.now(), nullable=<span class="hljs-literal">False</span>)
+    __table_args__ = (
+        ForeignKeyConstraint([<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"run_id"</span>], [<span class="hljs-string">"agent_runs.tenant_id"</span>, <span class="hljs-string">"agent_runs.id"</span>], name=<span class="hljs-string">"fk_result_tenant_run"</span>),
+        UniqueConstraint(<span class="hljs-string">"tenant_id"</span>, <span class="hljs-string">"run_id"</span>, name=<span class="hljs-string">"uq_result_per_run"</span>),
+    )
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">sha256_text</span>(<span class="hljs-params">content: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> hashlib.sha256(content.encode(<span class="hljs-string">"utf-8"</span>)).hexdigest()
+
+
+<span class="hljs-comment"># Application functions below accept a Session and rely on the caller's transaction.</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">append_message</span>(<span class="hljs-params">session, tenant_id: uuid.UUID, owner_id: uuid.UUID, conv_id: uuid.UUID, role: <span class="hljs-built_in">str</span>, text: <span class="hljs-built_in">str</span></span>):
+    <span class="hljs-string">"""PostgreSQL: SELECT ... FOR UPDATE serializes allocation of seq per conversation."""</span>
+    statement = (select(Conversation)
+                 .where(Conversation.<span class="hljs-built_in">id</span> == conv_id,
+                        Conversation.tenant_id == tenant_id,
+                        Conversation.owner_id == owner_id)
+                 .with_for_update())
+    conv = (<span class="hljs-keyword">await</span> session.scalars(statement)).one_or_none()
+    <span class="hljs-keyword">if</span> conv <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">raise</span> PermissionError(<span class="hljs-string">"conversation not found or not authorized"</span>)
+    number = conv.next_message_seq
+    conv.next_message_seq += <span class="hljs-number">1</span>
+    message = ChatMessage(tenant_id=tenant_id, conversation_id=conv_id, seq=number, role=role, content=text)
+    session.add(message)
+    <span class="hljs-keyword">await</span> session.flush()
+    <span class="hljs-keyword">return</span> message
+
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">messages_for_user</span>(<span class="hljs-params">session, tenant_id: uuid.UUID, owner_id: uuid.UUID, conv_id: uuid.UUID</span>):
+    can_view = (<span class="hljs-keyword">await</span> session.scalars(
+        select(Conversation.<span class="hljs-built_in">id</span>).where(
+            Conversation.<span class="hljs-built_in">id</span> == conv_id,
+            Conversation.tenant_id == tenant_id,
+            Conversation.owner_id == owner_id
+        )
+    )).one_or_none()
+    <span class="hljs-keyword">if</span> can_view <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">raise</span> PermissionError(<span class="hljs-string">"conversation not found or not authorized"</span>)
+    <span class="hljs-keyword">return</span> (<span class="hljs-keyword">await</span> session.scalars(
+        select(ChatMessage)
+        .where(ChatMessage.tenant_id == tenant_id, ChatMessage.conversation_id == conv_id)
+        .order_by(ChatMessage.seq.asc())
+    )).<span class="hljs-built_in">all</span>()
+</code></pre></div><h3 id="section-47">附录 B：<code>test_models_demo.py</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""SQLite/DDL unit tests only. Real PostgreSQL/asyncpg integration NOT executed."""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+<span class="hljs-keyword">import</span> uuid
+<span class="hljs-keyword">import</span> pytest
+<span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> create_engine, event, select
+<span class="hljs-keyword">from</span> sqlalchemy.dialects <span class="hljs-keyword">import</span> postgresql
+<span class="hljs-keyword">from</span> sqlalchemy.exc <span class="hljs-keyword">import</span> IntegrityError
+<span class="hljs-keyword">from</span> sqlalchemy.orm <span class="hljs-keyword">import</span> Session
+<span class="hljs-keyword">from</span> sqlalchemy.schema <span class="hljs-keyword">import</span> CreateTable
+<span class="hljs-keyword">from</span> alembic.migration <span class="hljs-keyword">import</span> MigrationContext
+<span class="hljs-keyword">from</span> alembic.autogenerate <span class="hljs-keyword">import</span> compare_metadata
+<span class="hljs-keyword">from</span> models_demo <span class="hljs-keyword">import</span> (
+    Base,Tenant,AppUser,Conversation,ChatMessage,KnowledgeDocument,
+    DocumentVersion,AgentRun,ToolExecution,FinalResult,sha256_text,
+)
+
+<span class="hljs-meta">@pytest.fixture</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">db</span>():
+    engine = create_engine(<span class="hljs-string">'sqlite+pysqlite:///:memory:'</span>)
+<span class="hljs-meta">    @event.listens_for(<span class="hljs-params">engine, <span class="hljs-string">'connect'</span></span>)</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">enable_foreign_keys</span>(<span class="hljs-params">conn, record</span>):
+        conn.execute(<span class="hljs-string">'PRAGMA foreign_keys=ON'</span>)
+    Base.metadata.create_all(engine)
+    <span class="hljs-keyword">yield</span> engine
+    engine.dispose()
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">seed</span>(<span class="hljs-params">s: Session, tenant_name=<span class="hljs-string">'t'</span></span>):
+    t=Tenant(name=tenant_name);s.add(t);s.flush()
+    u=AppUser(tenant_id=t.<span class="hljs-built_in">id</span>, display_name=<span class="hljs-string">'user'</span>);s.add(u);s.flush()
+    c=Conversation(tenant_id=t.<span class="hljs-built_in">id</span>, owner_id=u.<span class="hljs-built_in">id</span>, title=<span class="hljs-string">'conversation'</span>)
+    s.add(c);s.flush()
+    <span class="hljs-keyword">return</span> t,u,c
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_schema_tables</span>():
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(Base.metadata.tables)==<span class="hljs-number">9</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_pg_jsonb_compilation</span>():
+    ddl=<span class="hljs-built_in">str</span>(CreateTable(ToolExecution.__table__).<span class="hljs-built_in">compile</span>(dialect=postgresql.dialect()))
+    <span class="hljs-keyword">assert</span> <span class="hljs-string">'JSONB'</span> <span class="hljs-keyword">in</span> ddl
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_pg_for_update_compilation</span>():
+    sql=<span class="hljs-built_in">str</span>(select(Conversation).where(Conversation.<span class="hljs-built_in">id</span>==uuid.uuid4()).with_for_update().<span class="hljs-built_in">compile</span>(dialect=postgresql.dialect()))
+    <span class="hljs-keyword">assert</span> <span class="hljs-string">'FOR UPDATE'</span> <span class="hljs-keyword">in</span> sql
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_sha256_utf8</span>():
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(sha256_text(<span class="hljs-string">'资料v1'</span>))==<span class="hljs-number">64</span>
+    <span class="hljs-keyword">assert</span> sha256_text(<span class="hljs-string">'资料v1'</span>) != sha256_text(<span class="hljs-string">'资料v2'</span>)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_create_conversation_and_message</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+        t,u,c=seed(s)
+        s.add(ChatMessage(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,seq=<span class="hljs-number">1</span>,role=<span class="hljs-string">'user'</span>,content=<span class="hljs-string">'hello'</span>))
+    <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s:
+        <span class="hljs-keyword">assert</span> s.scalar(select(ChatMessage.content))==<span class="hljs-string">'hello'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_messages_order</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+        t,u,c=seed(s)
+        s.add_all([ChatMessage(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,seq=i,role=<span class="hljs-string">'user'</span>,content=<span class="hljs-built_in">str</span>(i)) <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> [<span class="hljs-number">2</span>,<span class="hljs-number">1</span>]])
+    <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s:
+        <span class="hljs-keyword">assert</span> s.scalars(select(ChatMessage.content).order_by(ChatMessage.seq)).<span class="hljs-built_in">all</span>()==[<span class="hljs-string">'1'</span>,<span class="hljs-string">'2'</span>]
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_message_unique_sequence</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+            t,u,c=seed(s)
+            s.add_all([ChatMessage(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,seq=<span class="hljs-number">1</span>,role=<span class="hljs-string">'user'</span>,content=<span class="hljs-string">'x'</span>),ChatMessage(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,seq=<span class="hljs-number">1</span>,role=<span class="hljs-string">'user'</span>,content=<span class="hljs-string">'y'</span>)])
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_message_role_constraint</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+            t,u,c=seed(s)
+            s.add(ChatMessage(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,seq=<span class="hljs-number">1</span>,role=<span class="hljs-string">'hacker'</span>,content=<span class="hljs-string">'x'</span>))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cross_tenant_user_fk</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+            t,u,c=seed(s,<span class="hljs-string">'A'</span>)
+            another=Tenant(name=<span class="hljs-string">'B'</span>);s.add(another);s.flush()
+            s.add(Conversation(tenant_id=another.<span class="hljs-built_in">id</span>,owner_id=u.<span class="hljs-built_in">id</span>,title=<span class="hljs-string">'cross-tenant'</span>))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cross_tenant_message_fk</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+            t,u,c=seed(s,<span class="hljs-string">'A'</span>)
+            another=Tenant(name=<span class="hljs-string">'B'</span>);s.add(another);s.flush()
+            s.add(ChatMessage(tenant_id=another.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,seq=<span class="hljs-number">1</span>,role=<span class="hljs-string">'user'</span>,content=<span class="hljs-string">'cross'</span>))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_document_versions_distinct</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+        t,u,c=seed(s)
+        d=KnowledgeDocument(tenant_id=t.<span class="hljs-built_in">id</span>,slug=<span class="hljs-string">'rules'</span>,title=<span class="hljs-string">'Rules'</span>);s.add(d);s.flush()
+        <span class="hljs-keyword">for</span> ver <span class="hljs-keyword">in</span> [<span class="hljs-string">'v1'</span>,<span class="hljs-string">'v2'</span>]:
+            body=<span class="hljs-string">f'Content <span class="hljs-subst">{ver}</span>'</span>
+            s.add(DocumentVersion(tenant_id=t.<span class="hljs-built_in">id</span>,document_id=d.<span class="hljs-built_in">id</span>,label=ver,source_uri=<span class="hljs-string">'https://example.com/rules'</span>,body=body,content_sha256=sha256_text(body)))
+    <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s:
+        <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(s.scalars(select(DocumentVersion)).<span class="hljs-built_in">all</span>())==<span class="hljs-number">2</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_duplicate_document_version_blocked</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+            t,u,c=seed(s)
+            d=KnowledgeDocument(tenant_id=t.<span class="hljs-built_in">id</span>,slug=<span class="hljs-string">'rules'</span>,title=<span class="hljs-string">'Rules'</span>);s.add(d);s.flush()
+            <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">2</span>):
+                s.add(DocumentVersion(tenant_id=t.<span class="hljs-built_in">id</span>,document_id=d.<span class="hljs-built_in">id</span>,label=<span class="hljs-string">'v1'</span>,source_uri=<span class="hljs-string">'x'</span>,body=<span class="hljs-string">'hello'</span>,content_sha256=sha256_text(<span class="hljs-string">'hello'</span>)))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cross_tenant_document_version_blocked</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+            t,u,c=seed(s,<span class="hljs-string">'A'</span>)
+            d=KnowledgeDocument(tenant_id=t.<span class="hljs-built_in">id</span>,slug=<span class="hljs-string">'x'</span>,title=<span class="hljs-string">'X'</span>);s.add(d);s.flush()
+            another=Tenant(name=<span class="hljs-string">'B'</span>);s.add(another);s.flush()
+            s.add(DocumentVersion(tenant_id=another.<span class="hljs-built_in">id</span>,document_id=d.<span class="hljs-built_in">id</span>,label=<span class="hljs-string">'v1'</span>,source_uri=<span class="hljs-string">'x'</span>,body=<span class="hljs-string">'x'</span>,content_sha256=sha256_text(<span class="hljs-string">'x'</span>)))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_request_key_per_tenant_unique</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+            t,u,c=seed(s)
+            s.add_all([AgentRun(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,request_key=<span class="hljs-string">'req-1'</span>),AgentRun(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,request_key=<span class="hljs-string">'req-1'</span>)])
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_invalid_run_status_blocked</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+            t,u,c=seed(s)
+            s.add(AgentRun(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,request_key=<span class="hljs-string">'req-1'</span>,status=<span class="hljs-string">'MAGIC'</span>))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_one_final_result_per_run</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+            t,u,c=seed(s)
+            r=AgentRun(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,request_key=<span class="hljs-string">'req-1'</span>);s.add(r);s.flush()
+            s.add_all([FinalResult(tenant_id=t.<span class="hljs-built_in">id</span>,run_id=r.<span class="hljs-built_in">id</span>,answer=<span class="hljs-string">'a'</span>,citations=[]),FinalResult(tenant_id=t.<span class="hljs-built_in">id</span>,run_id=r.<span class="hljs-built_in">id</span>,answer=<span class="hljs-string">'b'</span>,citations=[])])
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_two_tool_attempts_allowed</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+        t,u,c=seed(s)
+        r=AgentRun(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,request_key=<span class="hljs-string">'req-1'</span>);s.add(r);s.flush()
+        s.add_all([ToolExecution(tenant_id=t.<span class="hljs-built_in">id</span>,run_id=r.<span class="hljs-built_in">id</span>,call_id=<span class="hljs-string">'call_1'</span>,attempt=a,tool_name=<span class="hljs-string">'lookup'</span>,args_redacted={<span class="hljs-string">'query'</span>:<span class="hljs-string">'x'</span>},status=<span class="hljs-string">'FAILED'</span> <span class="hljs-keyword">if</span> a==<span class="hljs-number">1</span> <span class="hljs-keyword">else</span> <span class="hljs-string">'SUCCEEDED'</span>) <span class="hljs-keyword">for</span> a <span class="hljs-keyword">in</span> [<span class="hljs-number">1</span>,<span class="hljs-number">2</span>]])
+    <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s:
+        <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(s.scalars(select(ToolExecution)).<span class="hljs-built_in">all</span>())==<span class="hljs-number">2</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_duplicate_tool_attempt_blocked</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+            t,u,c=seed(s)
+            r=AgentRun(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,request_key=<span class="hljs-string">'req-1'</span>);s.add(r);s.flush()
+            s.add_all([ToolExecution(tenant_id=t.<span class="hljs-built_in">id</span>,run_id=r.<span class="hljs-built_in">id</span>,call_id=<span class="hljs-string">'call_1'</span>,attempt=<span class="hljs-number">1</span>,tool_name=<span class="hljs-string">'lookup'</span>,args_redacted={},status=<span class="hljs-string">'FAILED'</span>) <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">2</span>)])
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cross_tenant_tool_fk</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+            t,u,c=seed(s,<span class="hljs-string">'A'</span>)
+            r=AgentRun(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,request_key=<span class="hljs-string">'req-1'</span>);s.add(r);s.flush()
+            other=Tenant(name=<span class="hljs-string">'B'</span>);s.add(other);s.flush()
+            s.add(ToolExecution(tenant_id=other.<span class="hljs-built_in">id</span>,run_id=r.<span class="hljs-built_in">id</span>,call_id=<span class="hljs-string">'1'</span>,tool_name=<span class="hljs-string">'lookup'</span>,args_redacted={},status=<span class="hljs-string">'SUCCEEDED'</span>))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_rollback_after_failure</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> pytest.raises(IntegrityError):
+        <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+            t,u,c=seed(s)
+            s.add(ChatMessage(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,seq=<span class="hljs-number">1</span>,role=<span class="hljs-string">'user'</span>,content=<span class="hljs-string">'one'</span>))
+            s.add(ChatMessage(tenant_id=t.<span class="hljs-built_in">id</span>,conversation_id=c.<span class="hljs-built_in">id</span>,seq=<span class="hljs-number">1</span>,role=<span class="hljs-string">'user'</span>,content=<span class="hljs-string">'duplicate'</span>))
+    <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s:
+        <span class="hljs-keyword">assert</span> s.scalar(select(ChatMessage.<span class="hljs-built_in">id</span>)) <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>
+        <span class="hljs-keyword">assert</span> s.scalar(select(Conversation.<span class="hljs-built_in">id</span>)) <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_metadata_matches_created_db</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> db.connect() <span class="hljs-keyword">as</span> con:
+        diff=compare_metadata(MigrationContext.configure(con),Base.metadata)
+    <span class="hljs-keyword">assert</span> <span class="hljs-keyword">not</span> diff, <span class="hljs-built_in">repr</span>(diff)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_metadata_detects_missing_table</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> db.begin() <span class="hljs-keyword">as</span> con:
+        FinalResult.__table__.drop(con)
+        diff=compare_metadata(MigrationContext.configure(con),Base.metadata)
+    <span class="hljs-keyword">assert</span> diff
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_same_request_key_different_tenants_allowed</span>(<span class="hljs-params">db</span>):
+    <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s, s.begin():
+        ta,ua,ca=seed(s,<span class="hljs-string">'A'</span>)
+        tb,ub,cb=seed(s,<span class="hljs-string">'B'</span>)
+        s.add(AgentRun(tenant_id=ta.<span class="hljs-built_in">id</span>,conversation_id=ca.<span class="hljs-built_in">id</span>,request_key=<span class="hljs-string">'same'</span>))
+        s.add(AgentRun(tenant_id=tb.<span class="hljs-built_in">id</span>,conversation_id=cb.<span class="hljs-built_in">id</span>,request_key=<span class="hljs-string">'same'</span>))
+    <span class="hljs-keyword">with</span> Session(db) <span class="hljs-keyword">as</span> s:
+        <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(s.scalars(select(AgentRun)).<span class="hljs-built_in">all</span>())==<span class="hljs-number">2</span>
+</code></pre></div><h3 id="section-48">附录 C：如何运行离线测试</h3>
+<p>将上面两个代码块分别保存为 <code>models_demo.py</code> 和 <code>test_models_demo.py</code>，放在同一个目录：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pip install <span class="hljs-string">"SQLAlchemy&gt;=2.0,&lt;2.1"</span> <span class="hljs-string">"alembic&gt;=1.18,&lt;2"</span> <span class="hljs-string">"pytest&gt;=9,&lt;10"</span>
+python -m pytest -q test_models_demo.py</code></pre></div><p>测试涵盖数据表创建、PostgreSQL SQL 编译、复合外键阻止错误关联、消息顺序、资料版本唯一性、Run 幂等键、工具调用尝试、最终结果唯一性、事务回滚，以及 Alembic 元数据差异检查。</p>
+<p>若要升级为真实 PostgreSQL 异步集成测试，需要另外启动 PostgreSQL、安装 <code>asyncpg</code>，通过 <code>create_async_engine</code> 建立连接，并在独立的测试数据库上测试并发、行锁、事务隔离、连接池和 Alembic 的 upgrade/downgrade。不能用本节离线通过率替代这一步。</p>
+<hr />
+<h2 id="section-49">25. 验证范围与官方参考资料</h2>
+<h3 id="section-50">25.1 本次实际验证</h3>
+<ul>
+<li><strong>23 项 SQLite + SQLAlchemy 2.x + pytest 离线测试通过。</strong></li>
+<li>ORM 定义的 9 张表均可创建，<code>Base.metadata</code> 与创建结果之间的差异检查为空。</li>
+<li>PostgreSQL 方言 DDL 编译通过，JSON 字段编译为 JSONB，<code>SELECT ... FOR UPDATE</code> 编译结果包含相关锁语句。</li>
+<li>跨租户的复合外键、幂等键、消息顺序唯一性、资料版本唯一性、工具调用重试尝试记录、结果唯一性和事务回滚均进行了实际测试。</li>
+<li><strong>未执行真实 PostgreSQL 服务、asyncpg 异步驱动、Alembic CLI upgrade/downgrade、FastAPI 端到端服务或多进程并发集成测试。</strong> 对应片段根据官方 API 编写，属于实现参考，而非已完成的真实环境验证。</li>
+</ul>
+<h3 id="section-51">25.2 主要官方资料</h3>
+<ol>
+<li>SQLAlchemy 2.0 AsyncIO：<a href="https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html">https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html</a></li>
+<li>SQLAlchemy Session Basics（含并发注意事项）：<a href="https://docs.sqlalchemy.org/en/20/orm/session_basics.html">https://docs.sqlalchemy.org/en/20/orm/session_basics.html</a></li>
+<li>Alembic Cookbook（异步迁移）：<a href="https://alembic.sqlalchemy.org/en/latest/cookbook.html">https://alembic.sqlalchemy.org/en/latest/cookbook.html</a></li>
+<li>Alembic Autogenerate（自动生成能力及限制）：<a href="https://alembic.sqlalchemy.org/en/latest/autogenerate.html">https://alembic.sqlalchemy.org/en/latest/autogenerate.html</a></li>
+<li>Alembic Tutorial：<a href="https://alembic.sqlalchemy.org/en/latest/tutorial.html">https://alembic.sqlalchemy.org/en/latest/tutorial.html</a></li>
+<li>PostgreSQL Transaction Isolation：<a href="https://www.postgresql.org/docs/current/transaction-iso.html">https://www.postgresql.org/docs/current/transaction-iso.html</a></li>
+<li>PostgreSQL GIN Indexes：<a href="https://www.postgresql.org/docs/current/gin.html">https://www.postgresql.org/docs/current/gin.html</a></li>
+<li>PostgreSQL JSON Types：<a href="https://www.postgresql.org/docs/current/datatype-json.html">https://www.postgresql.org/docs/current/datatype-json.html</a></li>
+<li>PostgreSQL Constraints：<a href="https://www.postgresql.org/docs/current/ddl-constraints.html">https://www.postgresql.org/docs/current/ddl-constraints.html</a></li>
+<li>PostgreSQL Row Security Policies：<a href="https://www.postgresql.org/docs/current/ddl-rowsecurity.html">https://www.postgresql.org/docs/current/ddl-rowsecurity.html</a></li>
+</ol>
+<hr />
+<p><strong>对应学习目标已覆盖</strong>：PostgreSQL 保存会话、消息、资料版本、工具执行和最终结果；SQLAlchemy 异步访问与 Alembic 迁移。</p>

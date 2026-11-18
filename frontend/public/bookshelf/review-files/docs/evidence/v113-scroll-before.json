@@ -1,0 +1,17 @@
+{
+  "scope": "Actual 1.12 owner UI; source set to its bottom then real wheel input, no paid requests",
+  "start": {
+    "outer": 609.3333129882812,
+    "outerMax": 758,
+    "inner": 44.66666793823242,
+    "innerMax": 45,
+    "overscroll": "contain",
+    "x": 572.6666870117188,
+    "y": 341.72396087646484
+  },
+  "end": {
+    "outer": 609.3333129882812,
+    "inner": 44.66666793823242
+  },
+  "blocked": true
+}

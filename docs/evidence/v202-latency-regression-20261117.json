@@ -1,0 +1,3873 @@
+{
+  "version": "2.0.2-local.1",
+  "cases_sha256": "1431fbfceaffba094adaa56def2c773bf4f02ee9037b3db2ad555fabd6dc8f2f",
+  "scope": "Same four questions. before=warm existing API, after=immediately after API restart during BGE warmup, after-warm=warmup ready. Exact-card path is catalog-only, not model generation.",
+  "rounds": [
+    {
+      "phase": "before",
+      "cases_sha256": "1431fbfceaffba094adaa56def2c773bf4f02ee9037b3db2ad555fabd6dc8f2f",
+      "cases": [
+        {
+          "id": "2a40d6a0-a56a-58de-aada-e9a553309b01",
+          "message": "闪",
+          "expected": "基本牌；杀对你生效时抵消此杀效果；引用闪的直接来源",
+          "session_id": "002d3d40-09a9-46f7-bb97-8eced6a302c9",
+          "wall_ms": 7280.92,
+          "status": "completed",
+          "text": "闪是一张基本牌，作用是在【杀】对你生效时抵消这张【杀】的效果。\n\n依据（资料快照 freekill-local-b9dc701220bc）：\n- 中文说明：基本牌，时机为【杀】对你生效时，目标为此【杀】，效果为抵消此【杀】的效果。\n- 牌堆配置：共15张，红桃2、红桃2、红桃13，以及方块2、2、3、4、5、6、7、8、9、10、11、11。\n\n必要前提：只有在【杀】已经指定你并进入对你生效的时机时，才能用【闪】响应；若技能或效果使你不能使用【闪】，则不能响应。",
+          "citations": [
+            {
+              "id": "473a28e92b12d98fe363",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 18,
+              "line_end": 23,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  type = Card.TypeBasic,\n  name = \"jink\",\n  skill = \"jink_skill\",\n  is_passive = true,\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "34034dde99373473c693",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 91,
+              "line_end": 91,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：【杀】对你生效时<br /><b>目标</b>：此【杀】<br /><b>效果</b>：抵消此【杀】的效果。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "473a28e92b12d98fe363:deck-spec",
+              "title": "闪牌堆配置",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 288,
+              "line_end": 302,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "extension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 13)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 3)\nextension:addCardSpec(\"jink\", Card.Diamond, 4)\nextension:addCardSpec(\"jink\", Card.Diamond, 5)\nextension:addCardSpec(\"jink\", Card.Diamond, 6)\nextension:addCardSpec(\"jink\", Card.Diamond, 7)\nextension:addCardSpec(\"jink\", Card.Diamond, 8)\nextension:addCardSpec(\"jink\", Card.Diamond, 9)\nextension:addCardSpec(\"jink\", Card.Diamond, 10)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "f5bab80055ed9c6e9aee",
+              "title": "闪电",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 102,
+              "line_end": 108,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  name = \"lightning\",\n  type = Card.TypeTrick,\n  sub_type = Card.SubtypeDelayedTrick,\n  damage_type = fk.ThunderDamage,\n  skill = \"lightning_skill\",\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "0fe86bbd86ca08d57de7",
+              "title": "闪电",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 149,
+              "line_end": 149,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "延时锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：你<br /><b>效果</b>：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "f5bab80055ed9c6e9aee:deck-spec",
+              "title": "闪电牌堆配置",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 354,
+              "line_end": 355,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "extension:addCardSpec(\"lightning\", Card.Spade, 1)\nextension:addCardSpec(\"lightning\", Card.Heart, 12)",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:4",
+              "title": "身份模式",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 365,
+              "line_end": 529,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "rule_text",
+              "excerpt": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            },
+            {
+              "id": "34034dde99373473c693:passage:standard_cards:text:jink:0",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 91,
+              "line_end": 91,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "fe3fbf39ca9a626bf08a:passage:standard:text:tieqi:0",
+              "title": "铁骑",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 162,
+              "line_end": 162,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            },
+            {
+              "id": "f69a9a532f88173b0c2f:passage:standard:text:longdan:0",
+              "title": "龙胆",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 150,
+              "line_end": 150,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            },
+            {
+              "id": "6202a17afab3d2c9fd58:passage:standard:text:wushuang:0",
+              "title": "无双",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 296,
+              "line_end": 296,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "锁定技，当你使用【杀】指定目标后，其使用【闪】抵消此【杀】的方式改为需连续使用两张【闪】；当你使用【决斗】指定目标后，或当你成为【决斗】的目标后，你令其打出【杀】响应此【决斗】的方式改为需连续打出两张【杀】。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          ],
+          "tool_calls": [
+            {
+              "id": "135ffdd2-bde3-4fbb-9b6c-6f5b8a5dc74d",
+              "run_id": "2a40d6a0-a56a-58de-aada-e9a553309b01",
+              "name": "query_game_data",
+              "arguments": {
+                "query": "闪",
+                "kind": "card"
+              },
+              "result": {
+                "items": [
+                  {
+                    "id": "standard_cards:card:jink",
+                    "kind": "card",
+                    "name": "闪",
+                    "package": "standard_cards",
+                    "description": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                    "attributes": {
+                      "internal_id": "jink",
+                      "type": "Card.TypeBasic",
+                      "skill": "jink_skill",
+                      "is_passive": true,
+                      "deck_specs": [
+                        {
+                          "suit": "Heart",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 13
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 3
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 5
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 11
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "473a28e92b12d98fe363",
+                      "title": "闪",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 18,
+                      "line_end": 23,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  type = Card.TypeBasic,\n  name = \"jink\",\n  skill = \"jink_skill\",\n  is_passive = true,\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "34034dde99373473c693",
+                        "title": "闪",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 91,
+                        "line_end": 91,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "基本牌<br /><b>时机</b>：【杀】对你生效时<br /><b>目标</b>：此【杀】<br /><b>效果</b>：抵消此【杀】的效果。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "473a28e92b12d98fe363:deck-spec",
+                        "title": "闪牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 288,
+                        "line_end": 302,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 13)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 3)\nextension:addCardSpec(\"jink\", Card.Diamond, 4)\nextension:addCardSpec(\"jink\", Card.Diamond, 5)\nextension:addCardSpec(\"jink\", Card.Diamond, 6)\nextension:addCardSpec(\"jink\", Card.Diamond, 7)\nextension:addCardSpec(\"jink\", Card.Diamond, 8)\nextension:addCardSpec(\"jink\", Card.Diamond, 9)\nextension:addCardSpec(\"jink\", Card.Diamond, 10)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "standard_cards:card:lightning",
+                    "kind": "card",
+                    "name": "闪电",
+                    "package": "standard_cards",
+                    "description": "延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+                    "attributes": {
+                      "internal_id": "lightning",
+                      "type": "Card.TypeTrick",
+                      "sub_type": "Card.SubtypeDelayedTrick",
+                      "damage_type": "fk.ThunderDamage",
+                      "skill": "lightning_skill",
+                      "deck_specs": [
+                        {
+                          "suit": "Spade",
+                          "number": 1
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 12
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "f5bab80055ed9c6e9aee",
+                      "title": "闪电",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 102,
+                      "line_end": 108,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  name = \"lightning\",\n  type = Card.TypeTrick,\n  sub_type = Card.SubtypeDelayedTrick,\n  damage_type = fk.ThunderDamage,\n  skill = \"lightning_skill\",\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "0fe86bbd86ca08d57de7",
+                        "title": "闪电",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 149,
+                        "line_end": 149,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "延时锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：你<br /><b>效果</b>：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "f5bab80055ed9c6e9aee:deck-spec",
+                        "title": "闪电牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 354,
+                        "line_end": 355,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"lightning\", Card.Spade, 1)\nextension:addCardSpec(\"lightning\", Card.Heart, 12)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 7,
+              "created_at": "2026-11-17T10:20:35.404989"
+            },
+            {
+              "id": "c5adaf5a-8693-4171-85bd-33a2f6008fcf",
+              "run_id": "2a40d6a0-a56a-58de-aada-e9a553309b01",
+              "name": "search_knowledge",
+              "arguments": {
+                "query": "闪 使用时机 抵消杀",
+                "snapshot_id": "freekill-local-b9dc701220bc"
+              },
+              "result": {
+                "mode": "pgvector",
+                "snapshot_id": "freekill-local-b9dc701220bc",
+                "items": [
+                  {
+                    "id": "standard:text:aaa_role_mode:4",
+                    "title": "身份模式",
+                    "text": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+                    "source": {
+                      "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:4",
+                      "title": "身份模式",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 365,
+                      "line_end": 529,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "rule_text",
+                      "excerpt": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  },
+                  {
+                    "id": "standard_cards:text:jink:0",
+                    "title": "闪",
+                    "text": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                    "source": {
+                      "id": "34034dde99373473c693:passage:standard_cards:text:jink:0",
+                      "title": "闪",
+                      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                      "line_start": 91,
+                      "line_end": 91,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                    }
+                  },
+                  {
+                    "id": "standard:text:tieqi:0",
+                    "title": "铁骑",
+                    "text": "当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。",
+                    "source": {
+                      "id": "fe3fbf39ca9a626bf08a:passage:standard:text:tieqi:0",
+                      "title": "铁骑",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 162,
+                      "line_end": 162,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  },
+                  {
+                    "id": "standard:text:longdan:0",
+                    "title": "龙胆",
+                    "text": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+                    "source": {
+                      "id": "f69a9a532f88173b0c2f:passage:standard:text:longdan:0",
+                      "title": "龙胆",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 150,
+                      "line_end": 150,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  },
+                  {
+                    "id": "standard:text:wushuang:0",
+                    "title": "无双",
+                    "text": "锁定技，当你使用【杀】指定目标后，其使用【闪】抵消此【杀】的方式改为需连续使用两张【闪】；当你使用【决斗】指定目标后，或当你成为【决斗】的目标后，你令其打出【杀】响应此【决斗】的方式改为需连续打出两张【杀】。",
+                    "source": {
+                      "id": "6202a17afab3d2c9fd58:passage:standard:text:wushuang:0",
+                      "title": "无双",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 296,
+                      "line_end": 296,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "锁定技，当你使用【杀】指定目标后，其使用【闪】抵消此【杀】的方式改为需连续使用两张【闪】；当你使用【决斗】指定目标后，或当你成为【决斗】的目标后，你令其打出【杀】响应此【决斗】的方式改为需连续打出两张【杀】。",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 1387,
+              "created_at": "2026-11-17T10:20:36.786028"
+            }
+          ],
+          "usage": {
+            "run_id": "2a40d6a0-a56a-58de-aada-e9a553309b01",
+            "reserved_cny": 1.010688,
+            "charged_cny": 0.014534,
+            "estimated": false,
+            "settled": true
+          },
+          "elapsed_ms": 7102,
+          "input_tokens": 6287,
+          "output_tokens": 245,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "model_id": "deepseek-flash",
+          "prompt_version": "grounded-27133eb1e92170f2"
+        },
+        {
+          "id": "39d4b4fa-e952-5ea7-9e27-1d717340ca82",
+          "message": "杀",
+          "expected": "基本牌；出牌阶段、攻击范围内一名角色、1点伤害；不混用火杀或雷杀",
+          "session_id": "38aa5212-5323-48d8-96cb-970da3d75306",
+          "wall_ms": 4507.43,
+          "status": "completed",
+          "text": "你要问的“杀”具体属于哪一种情况？我先给出资料中【杀】本身的定义。\n\n结论：【杀】是基本牌，在出牌阶段使用，对攻击范围内的一名角色造成1点伤害。\n\n依据：\n1. 《杀》的说明：基本牌；时机为出牌阶段；目标为攻击范围内的一名角色；效果是对目标角色造成1点伤害。\n2. 《身份模式》出牌阶段规则：每个出牌阶段限使用一次【杀】。\n3. 对手可用【闪】响应：《闪》的时机为【杀】对你生效时，效果是抵消此【杀】的效果。\n\n必要前提：以上是【杀】牌本身的基础说明，不含特定武将技能的修改；同一出牌阶段使用【杀】的次数上限为一次，除非另有技能影响。\n\n如果你想问的是某张具体杀牌（火杀、雷杀）的花色点数，或某技能与【杀】的交互，请说明具体场景和技能，我会再查。",
+          "citations": [
+            {
+              "id": "909046b2af81ec7ef6ad",
+              "title": "杀",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 10,
+              "line_end": 16,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  name = \"slash\",\n  type = Card.TypeBasic,\n  is_damage_card = true,\n  damage_type = fk.NormalDamage,\n  skill = \"slash_skill\",\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "e0b7102762a209f980de",
+              "title": "杀",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 84,
+              "line_end": 84,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：攻击范围内的一名角色<br /><b>效果</b>：对目标角色造成1点伤害。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "909046b2af81ec7ef6ad:deck-spec",
+              "title": "杀牌堆配置",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 257,
+              "line_end": 286,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "extension:addCardSpec(\"slash\", Card.Spade, 7)\nextension:addCardSpec(\"slash\", Card.Spade, 8)\nextension:addCardSpec(\"slash\", Card.Spade, 8)\nextension:addCardSpec(\"slash\", Card.Spade, 9)\nextension:addCardSpec(\"slash\", Card.Spade, 9)\nextension:addCardSpec(\"slash\", Card.Spade, 10)\nextension:addCardSpec(\"slash\", Card.Spade, 10)\nextension:addCardSpec(\"slash\", Card.Club, 2)\nextension:addCardSpec(\"slash\", Card.Club, 3)\nextension:addCardSpec(\"slash\", Card.Club, 4)\nextension:addCardSpec(\"slash\", Card.Club, 5)\nextension:addCardSpec(\"slash\", Card.Club, 6)\nextension:addCardSpec(\"slash\", Card.Club, 7)\nextension:addCardSpec(\"slash\", Card.Club, 8)\nextension:addCardSpec(\"slash\", Card.Club, 8)\nextension:addCardSpec(\"slash\", Card.Club, 9)\nextension:addCardSpec(\"slash\", Card.Club, 9)\nextension:addCardSpec(\"slash\", Card.Club, 10)\nextension:addCardSpec(\"slash\", Card.Club, 10)\nextension:addCardSpec(\"slash\", Card.Club, 11)\nextension:addCardSpec(\"slash\", Card.Club, 11)\nextension:addCardSpec(\"slash\", Card.Heart, 10)\nextension:addCardSpec(\"slash\", Card.Heart, 10)\nextension:addCardSpec(\"slash\", Card.Heart, 11)\nextension:addCardSpec(\"slash\", Card.Diamond, 6)\nextension:addCardSpec(\"slash\", Card.Diamond, 7)\nextension:addCardSpec(\"slash\", Card.Diamond, 8)\nextension:addCardSpec(\"slash\", Card.Diamond, 9)\nextension:addCardSpec(\"slash\", Card.Diamond, 10)\nextension:addCardSpec(\"slash\", Card.Diamond, 13)",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "67c0cc5bedd662e0274f",
+              "title": "借刀杀人",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 51,
+              "line_end": 55,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  name = \"collateral\",\n  type = Card.TypeTrick,\n  skill = \"collateral_skill\",\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "a4297d5579610f138b1e",
+              "title": "借刀杀人",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 114,
+              "line_end": 114,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：装备区里有武器牌且攻击范围内有【杀】的合法目标的一名其他角色A（你需要选择一名A攻击范围内的【杀】的合法目标B）<br /><b>效果</b>：A需对B使用一张【杀】，否则将装备区里的武器牌交给你。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "67c0cc5bedd662e0274f:deck-spec",
+              "title": "借刀杀人牌堆配置",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 330,
+              "line_end": 331,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "extension:addCardSpec(\"collateral\", Card.Club, 12)\nextension:addCardSpec(\"collateral\", Card.Club, 13)",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "3fdd6a546188888d7c90",
+              "title": "雷杀",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "line_start": 12,
+              "line_end": 18,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  name = \"thunder__slash\",\n  type = Card.TypeBasic,\n  is_damage_card = true,\n  damage_type = fk.ThunderDamage,\n  skill = \"thunder__slash_skill\",\n}",
+              "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+            },
+            {
+              "id": "1c809285fbb18e112a60",
+              "title": "雷杀",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "line_start": 168,
+              "line_end": 168,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br/><b>时机</b>：出牌阶段<br/><b>目标</b>：攻击范围内的一名角色<br/><b>效果</b>：对目标角色造成1点雷电伤害。",
+              "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+            },
+            {
+              "id": "3fdd6a546188888d7c90:deck-spec",
+              "title": "雷杀牌堆配置",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "line_start": 100,
+              "line_end": 108,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "extension:addCardSpec(\"thunder__slash\", Card.Club, 5)\nextension:addCardSpec(\"thunder__slash\", Card.Club, 6)\nextension:addCardSpec(\"thunder__slash\", Card.Club, 7)\nextension:addCardSpec(\"thunder__slash\", Card.Club, 8)\nextension:addCardSpec(\"thunder__slash\", Card.Spade, 4)\nextension:addCardSpec(\"thunder__slash\", Card.Spade, 5)\nextension:addCardSpec(\"thunder__slash\", Card.Spade, 6)\nextension:addCardSpec(\"thunder__slash\", Card.Spade, 7)\nextension:addCardSpec(\"thunder__slash\", Card.Spade, 8)",
+              "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+            },
+            {
+              "id": "7a0fd44bb9be47112f31",
+              "title": "火杀",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "line_start": 20,
+              "line_end": 26,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  name = \"fire__slash\",\n  type = Card.TypeBasic,\n  is_damage_card = true,\n  damage_type = fk.FireDamage,\n  skill = \"fire__slash_skill\",\n}",
+              "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+            },
+            {
+              "id": "8f886232827e326bf63f",
+              "title": "火杀",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "line_start": 173,
+              "line_end": 173,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br/><b>时机</b>：出牌阶段<br/><b>目标</b>：攻击范围内的一名角色<br/><b>效果</b>：对目标角色造成1点火焰伤害。",
+              "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+            },
+            {
+              "id": "7a0fd44bb9be47112f31:deck-spec",
+              "title": "火杀牌堆配置",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "line_start": 110,
+              "line_end": 114,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "extension:addCardSpec(\"fire__slash\", Card.Heart, 4)\nextension:addCardSpec(\"fire__slash\", Card.Heart, 7)\nextension:addCardSpec(\"fire__slash\", Card.Heart, 10)\nextension:addCardSpec(\"fire__slash\", Card.Diamond, 4)\nextension:addCardSpec(\"fire__slash\", Card.Diamond, 5)",
+              "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:6",
+              "title": "身份模式",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 365,
+              "line_end": 529,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "rule_text",
+              "excerpt": "## 回合流程\n\n将游戏牌洗混，随机分给每个玩家4张，此为起始手牌（手牌：拿在手里的牌）。\n\n将剩余游戏牌放在桌子中央，作为牌堆（玩家在游戏中弃置的牌放在一旁，组成弃牌堆，弃牌堆里的牌全部正面朝上放置）。\n\n进行游戏时，由主公开始，按逆时针方向以回合的方式进行。\n\n即：每名玩家有一个自己的回合，一名玩家回合结束后，其右边玩家的回合开始，依次轮流进行。\n\n每个玩家的回合可以分为六个阶段：\n\n1. 准备阶段\n\n2. 判定阶段\n\n3. 摸牌阶段\n\n4. 出牌阶段\n\n5. 弃牌阶段\n\n6. 结束阶段\n\n下面对这几个阶段进行描述：\n\n### 准备阶段\n\n通常可以跳过，有些武将可以使用此阶段的技能。\n\n### 判定阶段\n\n若你的面前横置着延时类锦囊，你必须依次对这些延时类锦囊进行判定。\n\n*若你的面前横置有两种或更多的延时类锦囊，你从最后一个施加给你的锦囊开始判定（最早放置的最后判定）。*\n\n### 摸牌阶段\n\n你从牌堆顶摸两张牌。\n\n*在游戏里，若没有特殊说明，“摸…张牌”指的就是从牌堆最上方摸牌。*\n\n*当需要摸牌或将要对牌堆产生影响时，牌堆没牌，则立即将弃牌堆洗混后形成新的摸牌堆。*\n\n### 出牌阶段\n\n你可以使用0到任意张牌，加强自己或攻击他人，但必须遵守以下两条规则：\n\n1. 每个出牌阶段仅限使用一次【杀】。\n\n2. 任何一个玩家面前的判定区或装备区里不能放有两张同名的牌。\n\n每使用一张牌，即执行该牌之效果，详见“游戏牌详解”。如无特殊说明，游戏牌在使用后均需弃置（放入弃牌堆）。\n\n### 弃牌阶段\n\n在出牌阶段中，不想出或没法出牌时，就进入弃牌阶段，此时检查你的手牌数是否超出你当前的体力值（你的手牌上限等于你当前的体力值），每超出一张，需要弃一张手牌。\n\n### 结束阶段\n\n通常可以跳过，有些武将可以使用此阶段的技能。\n\n___",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            },
+            {
+              "id": "e0b7102762a209f980de:passage:standard_cards:text:slash:0",
+              "title": "杀",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 84,
+              "line_end": 84,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点伤害。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "19c317c0215d757be97c:passage:standard:text:liuli:0",
+              "title": "流离",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 244,
+              "line_end": 244,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            },
+            {
+              "id": "fe3fbf39ca9a626bf08a:passage:standard:text:tieqi:0",
+              "title": "铁骑",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 162,
+              "line_end": 162,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            },
+            {
+              "id": "34034dde99373473c693:passage:standard_cards:text:jink:0",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 91,
+              "line_end": 91,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          ],
+          "tool_calls": [
+            {
+              "id": "2e7cabae-98dd-4ee1-a3c5-d096052f27d0",
+              "run_id": "39d4b4fa-e952-5ea7-9e27-1d717340ca82",
+              "name": "query_game_data",
+              "arguments": {
+                "query": "杀",
+                "kind": "card"
+              },
+              "result": {
+                "items": [
+                  {
+                    "id": "standard_cards:card:slash",
+                    "kind": "card",
+                    "name": "杀",
+                    "package": "standard_cards",
+                    "description": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点伤害。",
+                    "attributes": {
+                      "internal_id": "slash",
+                      "type": "Card.TypeBasic",
+                      "damage_type": "fk.NormalDamage",
+                      "skill": "slash_skill",
+                      "is_damage_card": true,
+                      "deck_specs": [
+                        {
+                          "suit": "Spade",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 3
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 5
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 13
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "909046b2af81ec7ef6ad",
+                      "title": "杀",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 10,
+                      "line_end": 16,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  name = \"slash\",\n  type = Card.TypeBasic,\n  is_damage_card = true,\n  damage_type = fk.NormalDamage,\n  skill = \"slash_skill\",\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "e0b7102762a209f980de",
+                        "title": "杀",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 84,
+                        "line_end": 84,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "基本牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：攻击范围内的一名角色<br /><b>效果</b>：对目标角色造成1点伤害。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "909046b2af81ec7ef6ad:deck-spec",
+                        "title": "杀牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 257,
+                        "line_end": 286,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"slash\", Card.Spade, 7)\nextension:addCardSpec(\"slash\", Card.Spade, 8)\nextension:addCardSpec(\"slash\", Card.Spade, 8)\nextension:addCardSpec(\"slash\", Card.Spade, 9)\nextension:addCardSpec(\"slash\", Card.Spade, 9)\nextension:addCardSpec(\"slash\", Card.Spade, 10)\nextension:addCardSpec(\"slash\", Card.Spade, 10)\nextension:addCardSpec(\"slash\", Card.Club, 2)\nextension:addCardSpec(\"slash\", Card.Club, 3)\nextension:addCardSpec(\"slash\", Card.Club, 4)\nextension:addCardSpec(\"slash\", Card.Club, 5)\nextension:addCardSpec(\"slash\", Card.Club, 6)\nextension:addCardSpec(\"slash\", Card.Club, 7)\nextension:addCardSpec(\"slash\", Card.Club, 8)\nextension:addCardSpec(\"slash\", Card.Club, 8)\nextension:addCardSpec(\"slash\", Card.Club, 9)\nextension:addCardSpec(\"slash\", Card.Club, 9)\nextension:addCardSpec(\"slash\", Card.Club, 10)\nextension:addCardSpec(\"slash\", Card.Club, 10)\nextension:addCardSpec(\"slash\", Card.Club, 11)\nextension:addCardSpec(\"slash\", Card.Club, 11)\nextension:addCardSpec(\"slash\", Card.Heart, 10)\nextension:addCardSpec(\"slash\", Card.Heart, 10)\nextension:addCardSpec(\"slash\", Card.Heart, 11)\nextension:addCardSpec(\"slash\", Card.Diamond, 6)\nextension:addCardSpec(\"slash\", Card.Diamond, 7)\nextension:addCardSpec(\"slash\", Card.Diamond, 8)\nextension:addCardSpec(\"slash\", Card.Diamond, 9)\nextension:addCardSpec(\"slash\", Card.Diamond, 10)\nextension:addCardSpec(\"slash\", Card.Diamond, 13)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "standard_cards:card:collateral",
+                    "kind": "card",
+                    "name": "借刀杀人",
+                    "package": "standard_cards",
+                    "description": "锦囊牌\n时机：出牌阶段\n目标：装备区里有武器牌且攻击范围内有【杀】的合法目标的一名其他角色A（你需要选择一名A攻击范围内的【杀】的合法目标B）\n效果：A需对B使用一张【杀】，否则将装备区里的武器牌交给你。",
+                    "attributes": {
+                      "internal_id": "collateral",
+                      "type": "Card.TypeTrick",
+                      "skill": "collateral_skill",
+                      "deck_specs": [
+                        {
+                          "suit": "Club",
+                          "number": 12
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 13
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "67c0cc5bedd662e0274f",
+                      "title": "借刀杀人",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 51,
+                      "line_end": 55,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  name = \"collateral\",\n  type = Card.TypeTrick,\n  skill = \"collateral_skill\",\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "a4297d5579610f138b1e",
+                        "title": "借刀杀人",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 114,
+                        "line_end": 114,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：装备区里有武器牌且攻击范围内有【杀】的合法目标的一名其他角色A（你需要选择一名A攻击范围内的【杀】的合法目标B）<br /><b>效果</b>：A需对B使用一张【杀】，否则将装备区里的武器牌交给你。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "67c0cc5bedd662e0274f:deck-spec",
+                        "title": "借刀杀人牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 330,
+                        "line_end": 331,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"collateral\", Card.Club, 12)\nextension:addCardSpec(\"collateral\", Card.Club, 13)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maneuvering:card:thunder__slash",
+                    "kind": "card",
+                    "name": "雷杀",
+                    "package": "maneuvering",
+                    "description": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点雷电伤害。",
+                    "attributes": {
+                      "internal_id": "thunder__slash",
+                      "type": "Card.TypeBasic",
+                      "damage_type": "fk.ThunderDamage",
+                      "skill": "thunder__slash_skill",
+                      "is_damage_card": true,
+                      "deck_specs": [
+                        {
+                          "suit": "Club",
+                          "number": 5
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 5
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 8
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "3fdd6a546188888d7c90",
+                      "title": "雷杀",
+                      "path": "runtime/packages/maneuvering/pkg/init.lua",
+                      "line_start": 12,
+                      "line_end": 18,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  name = \"thunder__slash\",\n  type = Card.TypeBasic,\n  is_damage_card = true,\n  damage_type = fk.ThunderDamage,\n  skill = \"thunder__slash_skill\",\n}",
+                      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "1c809285fbb18e112a60",
+                        "title": "雷杀",
+                        "path": "runtime/packages/maneuvering/pkg/init.lua",
+                        "line_start": 168,
+                        "line_end": 168,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "基本牌<br/><b>时机</b>：出牌阶段<br/><b>目标</b>：攻击范围内的一名角色<br/><b>效果</b>：对目标角色造成1点雷电伤害。",
+                        "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "3fdd6a546188888d7c90:deck-spec",
+                        "title": "雷杀牌堆配置",
+                        "path": "runtime/packages/maneuvering/pkg/init.lua",
+                        "line_start": 100,
+                        "line_end": 108,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"thunder__slash\", Card.Club, 5)\nextension:addCardSpec(\"thunder__slash\", Card.Club, 6)\nextension:addCardSpec(\"thunder__slash\", Card.Club, 7)\nextension:addCardSpec(\"thunder__slash\", Card.Club, 8)\nextension:addCardSpec(\"thunder__slash\", Card.Spade, 4)\nextension:addCardSpec(\"thunder__slash\", Card.Spade, 5)\nextension:addCardSpec(\"thunder__slash\", Card.Spade, 6)\nextension:addCardSpec(\"thunder__slash\", Card.Spade, 7)\nextension:addCardSpec(\"thunder__slash\", Card.Spade, 8)",
+                        "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maneuvering:card:fire__slash",
+                    "kind": "card",
+                    "name": "火杀",
+                    "package": "maneuvering",
+                    "description": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点火焰伤害。",
+                    "attributes": {
+                      "internal_id": "fire__slash",
+                      "type": "Card.TypeBasic",
+                      "damage_type": "fk.FireDamage",
+                      "skill": "fire__slash_skill",
+                      "is_damage_card": true,
+                      "deck_specs": [
+                        {
+                          "suit": "Heart",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 5
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "7a0fd44bb9be47112f31",
+                      "title": "火杀",
+                      "path": "runtime/packages/maneuvering/pkg/init.lua",
+                      "line_start": 20,
+                      "line_end": 26,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  name = \"fire__slash\",\n  type = Card.TypeBasic,\n  is_damage_card = true,\n  damage_type = fk.FireDamage,\n  skill = \"fire__slash_skill\",\n}",
+                      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "8f886232827e326bf63f",
+                        "title": "火杀",
+                        "path": "runtime/packages/maneuvering/pkg/init.lua",
+                        "line_start": 173,
+                        "line_end": 173,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "基本牌<br/><b>时机</b>：出牌阶段<br/><b>目标</b>：攻击范围内的一名角色<br/><b>效果</b>：对目标角色造成1点火焰伤害。",
+                        "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "7a0fd44bb9be47112f31:deck-spec",
+                        "title": "火杀牌堆配置",
+                        "path": "runtime/packages/maneuvering/pkg/init.lua",
+                        "line_start": 110,
+                        "line_end": 114,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"fire__slash\", Card.Heart, 4)\nextension:addCardSpec(\"fire__slash\", Card.Heart, 7)\nextension:addCardSpec(\"fire__slash\", Card.Heart, 10)\nextension:addCardSpec(\"fire__slash\", Card.Diamond, 4)\nextension:addCardSpec(\"fire__slash\", Card.Diamond, 5)",
+                        "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 1,
+              "created_at": "2026-11-17T10:20:40.849372"
+            },
+            {
+              "id": "36ec2d34-d18e-4f84-ae87-e980b733d76e",
+              "run_id": "39d4b4fa-e952-5ea7-9e27-1d717340ca82",
+              "name": "search_knowledge",
+              "arguments": {
+                "query": "杀 使用规则",
+                "snapshot_id": "freekill-local-b9dc701220bc"
+              },
+              "result": {
+                "mode": "pgvector",
+                "snapshot_id": "freekill-local-b9dc701220bc",
+                "items": [
+                  {
+                    "id": "standard:text:aaa_role_mode:6",
+                    "title": "身份模式",
+                    "text": "## 回合流程\n\n将游戏牌洗混，随机分给每个玩家4张，此为起始手牌（手牌：拿在手里的牌）。\n\n将剩余游戏牌放在桌子中央，作为牌堆（玩家在游戏中弃置的牌放在一旁，组成弃牌堆，弃牌堆里的牌全部正面朝上放置）。\n\n进行游戏时，由主公开始，按逆时针方向以回合的方式进行。\n\n即：每名玩家有一个自己的回合，一名玩家回合结束后，其右边玩家的回合开始，依次轮流进行。\n\n每个玩家的回合可以分为六个阶段：\n\n1. 准备阶段\n\n2. 判定阶段\n\n3. 摸牌阶段\n\n4. 出牌阶段\n\n5. 弃牌阶段\n\n6. 结束阶段\n\n下面对这几个阶段进行描述：\n\n### 准备阶段\n\n通常可以跳过，有些武将可以使用此阶段的技能。\n\n### 判定阶段\n\n若你的面前横置着延时类锦囊，你必须依次对这些延时类锦囊进行判定。\n\n*若你的面前横置有两种或更多的延时类锦囊，你从最后一个施加给你的锦囊开始判定（最早放置的最后判定）。*\n\n### 摸牌阶段\n\n你从牌堆顶摸两张牌。\n\n*在游戏里，若没有特殊说明，“摸…张牌”指的就是从牌堆最上方摸牌。*\n\n*当需要摸牌或将要对牌堆产生影响时，牌堆没牌，则立即将弃牌堆洗混后形成新的摸牌堆。*\n\n### 出牌阶段\n\n你可以使用0到任意张牌，加强自己或攻击他人，但必须遵守以下两条规则：\n\n1. 每个出牌阶段仅限使用一次【杀】。\n\n2. 任何一个玩家面前的判定区或装备区里不能放有两张同名的牌。\n\n每使用一张牌，即执行该牌之效果，详见“游戏牌详解”。如无特殊说明，游戏牌在使用后均需弃置（放入弃牌堆）。\n\n### 弃牌阶段\n\n在出牌阶段中，不想出或没法出牌时，就进入弃牌阶段，此时检查你的手牌数是否超出你当前的体力值（你的手牌上限等于你当前的体力值），每超出一张，需要弃一张手牌。\n\n### 结束阶段\n\n通常可以跳过，有些武将可以使用此阶段的技能。\n\n___",
+                    "source": {
+                      "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:6",
+                      "title": "身份模式",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 365,
+                      "line_end": 529,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "rule_text",
+                      "excerpt": "## 回合流程\n\n将游戏牌洗混，随机分给每个玩家4张，此为起始手牌（手牌：拿在手里的牌）。\n\n将剩余游戏牌放在桌子中央，作为牌堆（玩家在游戏中弃置的牌放在一旁，组成弃牌堆，弃牌堆里的牌全部正面朝上放置）。\n\n进行游戏时，由主公开始，按逆时针方向以回合的方式进行。\n\n即：每名玩家有一个自己的回合，一名玩家回合结束后，其右边玩家的回合开始，依次轮流进行。\n\n每个玩家的回合可以分为六个阶段：\n\n1. 准备阶段\n\n2. 判定阶段\n\n3. 摸牌阶段\n\n4. 出牌阶段\n\n5. 弃牌阶段\n\n6. 结束阶段\n\n下面对这几个阶段进行描述：\n\n### 准备阶段\n\n通常可以跳过，有些武将可以使用此阶段的技能。\n\n### 判定阶段\n\n若你的面前横置着延时类锦囊，你必须依次对这些延时类锦囊进行判定。\n\n*若你的面前横置有两种或更多的延时类锦囊，你从最后一个施加给你的锦囊开始判定（最早放置的最后判定）。*\n\n### 摸牌阶段\n\n你从牌堆顶摸两张牌。\n\n*在游戏里，若没有特殊说明，“摸…张牌”指的就是从牌堆最上方摸牌。*\n\n*当需要摸牌或将要对牌堆产生影响时，牌堆没牌，则立即将弃牌堆洗混后形成新的摸牌堆。*\n\n### 出牌阶段\n\n你可以使用0到任意张牌，加强自己或攻击他人，但必须遵守以下两条规则：\n\n1. 每个出牌阶段仅限使用一次【杀】。\n\n2. 任何一个玩家面前的判定区或装备区里不能放有两张同名的牌。\n\n每使用一张牌，即执行该牌之效果，详见“游戏牌详解”。如无特殊说明，游戏牌在使用后均需弃置（放入弃牌堆）。\n\n### 弃牌阶段\n\n在出牌阶段中，不想出或没法出牌时，就进入弃牌阶段，此时检查你的手牌数是否超出你当前的体力值（你的手牌上限等于你当前的体力值），每超出一张，需要弃一张手牌。\n\n### 结束阶段\n\n通常可以跳过，有些武将可以使用此阶段的技能。\n\n___",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  },
+                  {
+                    "id": "standard_cards:text:slash:0",
+                    "title": "杀",
+                    "text": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点伤害。",
+                    "source": {
+                      "id": "e0b7102762a209f980de:passage:standard_cards:text:slash:0",
+                      "title": "杀",
+                      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                      "line_start": 84,
+                      "line_end": 84,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点伤害。",
+                      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                    }
+                  },
+                  {
+                    "id": "standard:text:liuli:0",
+                    "title": "流离",
+                    "text": "当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。",
+                    "source": {
+                      "id": "19c317c0215d757be97c:passage:standard:text:liuli:0",
+                      "title": "流离",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 244,
+                      "line_end": 244,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  },
+                  {
+                    "id": "standard:text:tieqi:0",
+                    "title": "铁骑",
+                    "text": "当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。",
+                    "source": {
+                      "id": "fe3fbf39ca9a626bf08a:passage:standard:text:tieqi:0",
+                      "title": "铁骑",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 162,
+                      "line_end": 162,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  },
+                  {
+                    "id": "standard_cards:text:jink:0",
+                    "title": "闪",
+                    "text": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                    "source": {
+                      "id": "34034dde99373473c693:passage:standard_cards:text:jink:0",
+                      "title": "闪",
+                      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                      "line_start": 91,
+                      "line_end": 91,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                    }
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 96,
+              "created_at": "2026-11-17T10:20:40.943117"
+            }
+          ],
+          "usage": {
+            "run_id": "39d4b4fa-e952-5ea7-9e27-1d717340ca82",
+            "reserved_cny": 1.010688,
+            "charged_cny": 0.020646,
+            "estimated": false,
+            "settled": true
+          },
+          "elapsed_ms": 4447,
+          "input_tokens": 9067,
+          "output_tokens": 314,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "model_id": "deepseek-flash",
+          "prompt_version": "grounded-27133eb1e92170f2"
+        },
+        {
+          "id": "deacbb06-6c0b-5737-868b-e5294d063683",
+          "message": "桃",
+          "expected": "回复体力的使用时机、目标及效果以固定牌说明为准；有直接来源",
+          "session_id": "be2881bb-eaa6-4dc6-b06b-f92bdb8834e1",
+          "wall_ms": 4765.26,
+          "status": "completed",
+          "text": "桃是基本牌：目标角色回复1点体力。\n\n使用时机与目标：\n- 出牌阶段：对自己使用，目标须是已受伤的你。\n- 一名角色处于濒死状态时：对处于濒死状态的角色使用（可为自己或他人）。\n\n依据：桃的中文说明写“时机：出牌阶段/一名角色处于濒死状态时；目标：已受伤的你/处于濒死状态的角色；效果：目标角色回复1点体力”；牌堆配置为红桃3、4、6、7、8、9、Q和方块Q，共8张。\n\n必要前提：资料为当前快照标准包的桃；具体能否选到某个目标，仍取决于其是否已受伤或处于濒死。",
+          "citations": [
+            {
+              "id": "b8fbecdebbbf2474d800",
+              "title": "桃",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 25,
+              "line_end": 29,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  name = \"peach\",\n  type = Card.TypeBasic,\n  skill = \"peach_skill\",\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "e2cbeccb91d0a5126cc4",
+              "title": "桃",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 94,
+              "line_end": 94,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：出牌阶段/一名角色处于濒死状态时<br /><b>目标</b>：已受伤的你/处于濒死状态的角色<br /><b>效果</b>：目标角色回复1点体力。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "b8fbecdebbbf2474d800:deck-spec",
+              "title": "桃牌堆配置",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 304,
+              "line_end": 311,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "extension:addCardSpec(\"peach\", Card.Heart, 3)\nextension:addCardSpec(\"peach\", Card.Heart, 4)\nextension:addCardSpec(\"peach\", Card.Heart, 6)\nextension:addCardSpec(\"peach\", Card.Heart, 7)\nextension:addCardSpec(\"peach\", Card.Heart, 8)\nextension:addCardSpec(\"peach\", Card.Heart, 9)\nextension:addCardSpec(\"peach\", Card.Heart, 12)\nextension:addCardSpec(\"peach\", Card.Diamond, 12)",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "a9a4cc82c22f223bcbef",
+              "title": "桃园结义",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 88,
+              "line_end": 93,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  name = \"god_salvation\",\n  type = Card.TypeTrick,\n  skill = \"god_salvation_skill\",\n  multiple_targets = true,\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "a54a580407a189897d97",
+              "title": "桃园结义",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 138,
+              "line_end": 138,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：所有角色<br /><b>效果</b>：每名目标角色回复1点体力。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "a9a4cc82c22f223bcbef:deck-spec",
+              "title": "桃园结义牌堆配置",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 349,
+              "line_end": 349,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "extension:addCardSpec(\"god_salvation\", Card.Heart, 1)",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:4",
+              "title": "身份模式",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 365,
+              "line_end": 529,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "rule_text",
+              "excerpt": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            },
+            {
+              "id": "e2cbeccb91d0a5126cc4:passage:standard_cards:text:peach:0",
+              "title": "桃",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 94,
+              "line_end": 94,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌\n时机：出牌阶段/一名角色处于濒死状态时\n目标：已受伤的你/处于濒死状态的角色\n效果：目标角色回复1点体力。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "6ccdd6212289632e9261:passage:standard:text:jiuyuan:0",
+              "title": "救援",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 187,
+              "line_end": 187,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "主公技，其他吴势力角色使用【桃】令你回复体力时，回复值+1。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            },
+            {
+              "id": "ddffe297bb863c850d7f:passage:maneuvering:text:analeptic:0",
+              "title": "酒",
+              "path": "runtime/packages/maneuvering/pkg/init.lua",
+              "line_start": 178,
+              "line_end": 178,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌\n时机：出牌阶段/你处于濒死状态时\n目标：你\n效果：目标角色本回合使用的下一张【杀】将要造成的伤害+1/目标角色回复1点体力。",
+              "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:8",
+              "title": "身份模式",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 365,
+              "line_end": 529,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "rule_text",
+              "excerpt": "## 武将死亡\n\n当一个武将的体力降到0或更低时，即进入濒死状态，除非自己或他人在此时用【桃】来挽救该武将，否则该武将死亡。武将死亡后，弃置该武将所有牌及判定区里的牌，并亮出身份牌。\n\n任何人杀死一名反贼（即凶手也是反贼），立即摸三张牌。\n\n若主公杀死了忠臣，主公需要立即弃掉所有手牌和已装备的牌。\n\n___",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          ],
+          "tool_calls": [
+            {
+              "id": "e216bf8d-52eb-4593-afef-dca3e07b8a5b",
+              "run_id": "deacbb06-6c0b-5737-868b-e5294d063683",
+              "name": "query_game_data",
+              "arguments": {
+                "query": "桃",
+                "kind": "card"
+              },
+              "result": {
+                "items": [
+                  {
+                    "id": "standard_cards:card:peach",
+                    "kind": "card",
+                    "name": "桃",
+                    "package": "standard_cards",
+                    "description": "基本牌\n时机：出牌阶段/一名角色处于濒死状态时\n目标：已受伤的你/处于濒死状态的角色\n效果：目标角色回复1点体力。",
+                    "attributes": {
+                      "internal_id": "peach",
+                      "type": "Card.TypeBasic",
+                      "skill": "peach_skill",
+                      "deck_specs": [
+                        {
+                          "suit": "Heart",
+                          "number": 3
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 12
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 12
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "b8fbecdebbbf2474d800",
+                      "title": "桃",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 25,
+                      "line_end": 29,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  name = \"peach\",\n  type = Card.TypeBasic,\n  skill = \"peach_skill\",\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "e2cbeccb91d0a5126cc4",
+                        "title": "桃",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 94,
+                        "line_end": 94,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "基本牌<br /><b>时机</b>：出牌阶段/一名角色处于濒死状态时<br /><b>目标</b>：已受伤的你/处于濒死状态的角色<br /><b>效果</b>：目标角色回复1点体力。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "b8fbecdebbbf2474d800:deck-spec",
+                        "title": "桃牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 304,
+                        "line_end": 311,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"peach\", Card.Heart, 3)\nextension:addCardSpec(\"peach\", Card.Heart, 4)\nextension:addCardSpec(\"peach\", Card.Heart, 6)\nextension:addCardSpec(\"peach\", Card.Heart, 7)\nextension:addCardSpec(\"peach\", Card.Heart, 8)\nextension:addCardSpec(\"peach\", Card.Heart, 9)\nextension:addCardSpec(\"peach\", Card.Heart, 12)\nextension:addCardSpec(\"peach\", Card.Diamond, 12)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "standard_cards:card:god_salvation",
+                    "kind": "card",
+                    "name": "桃园结义",
+                    "package": "standard_cards",
+                    "description": "锦囊牌\n时机：出牌阶段\n目标：所有角色\n效果：每名目标角色回复1点体力。",
+                    "attributes": {
+                      "internal_id": "god_salvation",
+                      "type": "Card.TypeTrick",
+                      "skill": "god_salvation_skill",
+                      "deck_specs": [
+                        {
+                          "suit": "Heart",
+                          "number": 1
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "a9a4cc82c22f223bcbef",
+                      "title": "桃园结义",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 88,
+                      "line_end": 93,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  name = \"god_salvation\",\n  type = Card.TypeTrick,\n  skill = \"god_salvation_skill\",\n  multiple_targets = true,\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "a54a580407a189897d97",
+                        "title": "桃园结义",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 138,
+                        "line_end": 138,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：所有角色<br /><b>效果</b>：每名目标角色回复1点体力。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "a9a4cc82c22f223bcbef:deck-spec",
+                        "title": "桃园结义牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 349,
+                        "line_end": 349,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"god_salvation\", Card.Heart, 1)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 0,
+              "created_at": "2026-11-17T10:20:45.519060"
+            },
+            {
+              "id": "1c49fe8b-ede1-4766-b227-318f01b6bb6a",
+              "run_id": "deacbb06-6c0b-5737-868b-e5294d063683",
+              "name": "search_knowledge",
+              "arguments": {
+                "query": "桃 使用时机 回复体力 濒死",
+                "snapshot_id": "freekill-local-b9dc701220bc"
+              },
+              "result": {
+                "mode": "pgvector",
+                "snapshot_id": "freekill-local-b9dc701220bc",
+                "items": [
+                  {
+                    "id": "standard:text:aaa_role_mode:4",
+                    "title": "身份模式",
+                    "text": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+                    "source": {
+                      "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:4",
+                      "title": "身份模式",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 365,
+                      "line_end": 529,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "rule_text",
+                      "excerpt": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  },
+                  {
+                    "id": "standard_cards:text:peach:0",
+                    "title": "桃",
+                    "text": "基本牌\n时机：出牌阶段/一名角色处于濒死状态时\n目标：已受伤的你/处于濒死状态的角色\n效果：目标角色回复1点体力。",
+                    "source": {
+                      "id": "e2cbeccb91d0a5126cc4:passage:standard_cards:text:peach:0",
+                      "title": "桃",
+                      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                      "line_start": 94,
+                      "line_end": 94,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "基本牌\n时机：出牌阶段/一名角色处于濒死状态时\n目标：已受伤的你/处于濒死状态的角色\n效果：目标角色回复1点体力。",
+                      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                    }
+                  },
+                  {
+                    "id": "standard:text:jiuyuan:0",
+                    "title": "救援",
+                    "text": "主公技，其他吴势力角色使用【桃】令你回复体力时，回复值+1。",
+                    "source": {
+                      "id": "6ccdd6212289632e9261:passage:standard:text:jiuyuan:0",
+                      "title": "救援",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 187,
+                      "line_end": 187,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "主公技，其他吴势力角色使用【桃】令你回复体力时，回复值+1。",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  },
+                  {
+                    "id": "maneuvering:text:analeptic:0",
+                    "title": "酒",
+                    "text": "基本牌\n时机：出牌阶段/你处于濒死状态时\n目标：你\n效果：目标角色本回合使用的下一张【杀】将要造成的伤害+1/目标角色回复1点体力。",
+                    "source": {
+                      "id": "ddffe297bb863c850d7f:passage:maneuvering:text:analeptic:0",
+                      "title": "酒",
+                      "path": "runtime/packages/maneuvering/pkg/init.lua",
+                      "line_start": 178,
+                      "line_end": 178,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "基本牌\n时机：出牌阶段/你处于濒死状态时\n目标：你\n效果：目标角色本回合使用的下一张【杀】将要造成的伤害+1/目标角色回复1点体力。",
+                      "sha256": "ff232fafa0ab4683435feb66845078882f894f4ec892a609ee1556d7a6684b53"
+                    }
+                  },
+                  {
+                    "id": "standard:text:aaa_role_mode:8",
+                    "title": "身份模式",
+                    "text": "## 武将死亡\n\n当一个武将的体力降到0或更低时，即进入濒死状态，除非自己或他人在此时用【桃】来挽救该武将，否则该武将死亡。武将死亡后，弃置该武将所有牌及判定区里的牌，并亮出身份牌。\n\n任何人杀死一名反贼（即凶手也是反贼），立即摸三张牌。\n\n若主公杀死了忠臣，主公需要立即弃掉所有手牌和已装备的牌。\n\n___",
+                    "source": {
+                      "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:8",
+                      "title": "身份模式",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 365,
+                      "line_end": 529,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "rule_text",
+                      "excerpt": "## 武将死亡\n\n当一个武将的体力降到0或更低时，即进入濒死状态，除非自己或他人在此时用【桃】来挽救该武将，否则该武将死亡。武将死亡后，弃置该武将所有牌及判定区里的牌，并亮出身份牌。\n\n任何人杀死一名反贼（即凶手也是反贼），立即摸三张牌。\n\n若主公杀死了忠臣，主公需要立即弃掉所有手牌和已装备的牌。\n\n___",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 112,
+              "created_at": "2026-11-17T10:20:45.630831"
+            }
+          ],
+          "usage": {
+            "run_id": "deacbb06-6c0b-5737-868b-e5294d063683",
+            "reserved_cny": 1.010688,
+            "charged_cny": 0.01409,
+            "estimated": false,
+            "settled": true
+          },
+          "elapsed_ms": 4708,
+          "input_tokens": 6049,
+          "output_tokens": 249,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "model_id": "deepseek-flash",
+          "prompt_version": "grounded-27133eb1e92170f2"
+        },
+        {
+          "id": "00f987c1-4650-5496-95d3-752afdf29507",
+          "message": "闪的使用时机是什么？",
+          "expected": "仍使用普通模型问答链路；核对杀对你生效时的直接资料和引用",
+          "session_id": "c0e57121-82a7-47e0-8385-7bcb11e3a411",
+          "wall_ms": 4188.42,
+          "status": "completed",
+          "text": "闪的时机是【杀】对你生效时，目标为该【杀】，效果是抵消此【杀】的效果。\n\n依据：标准牌资料中“闪”的说明为：基本牌；时机：【杀】对你生效时；目标：此【杀】；效果：抵消此【杀】的效果。\n\n前提：这张【闪】需要由该【杀】指向的你使用；若涉及把其他牌当【闪】使用，则需另有相应技能或效果允许。",
+          "citations": [
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:4",
+              "title": "身份模式",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 365,
+              "line_end": 529,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "rule_text",
+              "excerpt": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            },
+            {
+              "id": "34034dde99373473c693:passage:standard_cards:text:jink:0",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 91,
+              "line_end": 91,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "0fe86bbd86ca08d57de7:passage:standard_cards:text:lightning:0",
+              "title": "闪电",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 149,
+              "line_end": 149,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "cd67b74184a4bf506afc:passage:standard_cards:text:eight_diagram:0",
+              "title": "八卦阵",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 198,
+              "line_end": 198,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "装备牌·防具\n防具技能：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "f69a9a532f88173b0c2f:passage:standard:text:longdan:0",
+              "title": "龙胆",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 150,
+              "line_end": 150,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          ],
+          "tool_calls": [
+            {
+              "id": "dfea1fb2-e463-4e74-83ed-5bf2a7d6eaa5",
+              "run_id": "00f987c1-4650-5496-95d3-752afdf29507",
+              "name": "search_knowledge",
+              "arguments": {
+                "query": "闪 使用时机",
+                "snapshot_id": "freekill-local-b9dc701220bc"
+              },
+              "result": {
+                "mode": "pgvector",
+                "snapshot_id": "freekill-local-b9dc701220bc",
+                "items": [
+                  {
+                    "id": "standard:text:aaa_role_mode:4",
+                    "title": "身份模式",
+                    "text": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+                    "source": {
+                      "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:4",
+                      "title": "身份模式",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 365,
+                      "line_end": 529,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "rule_text",
+                      "excerpt": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  },
+                  {
+                    "id": "standard_cards:text:jink:0",
+                    "title": "闪",
+                    "text": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                    "source": {
+                      "id": "34034dde99373473c693:passage:standard_cards:text:jink:0",
+                      "title": "闪",
+                      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                      "line_start": 91,
+                      "line_end": 91,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                    }
+                  },
+                  {
+                    "id": "standard_cards:text:lightning:0",
+                    "title": "闪电",
+                    "text": "延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+                    "source": {
+                      "id": "0fe86bbd86ca08d57de7:passage:standard_cards:text:lightning:0",
+                      "title": "闪电",
+                      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                      "line_start": 149,
+                      "line_end": 149,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+                      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                    }
+                  },
+                  {
+                    "id": "standard_cards:text:eight_diagram:0",
+                    "title": "八卦阵",
+                    "text": "装备牌·防具\n防具技能：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+                    "source": {
+                      "id": "cd67b74184a4bf506afc:passage:standard_cards:text:eight_diagram:0",
+                      "title": "八卦阵",
+                      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                      "line_start": 198,
+                      "line_end": 198,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "装备牌·防具\n防具技能：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+                      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                    }
+                  },
+                  {
+                    "id": "standard:text:longdan:0",
+                    "title": "龙胆",
+                    "text": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+                    "source": {
+                      "id": "f69a9a532f88173b0c2f:passage:standard:text:longdan:0",
+                      "title": "龙胆",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 150,
+                      "line_end": 150,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 75,
+              "created_at": "2026-11-17T10:20:50.248960"
+            }
+          ],
+          "usage": {
+            "run_id": "00f987c1-4650-5496-95d3-752afdf29507",
+            "reserved_cny": 1.010688,
+            "charged_cny": 0.010118,
+            "estimated": false,
+            "settled": true
+          },
+          "elapsed_ms": 4121,
+          "input_tokens": 4419,
+          "output_tokens": 160,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "model_id": "deepseek-flash",
+          "prompt_version": "grounded-27133eb1e92170f2"
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "cases_sha256": "1431fbfceaffba094adaa56def2c773bf4f02ee9037b3db2ad555fabd6dc8f2f",
+      "cases": [
+        {
+          "id": "df5d6abf-9d64-5cea-b17f-6eb912677cb8",
+          "message": "闪",
+          "expected": "基本牌；杀对你生效时抵消此杀效果；引用闪的直接来源",
+          "session_id": "6530fcc5-e80d-4548-83b0-bdc78dbd4f8b",
+          "wall_ms": 273.5,
+          "status": "completed",
+          "text": "闪\n\n基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。\n\n资料快照：freekill-local-b9dc701220bc\n资料库直接查询，未调用模型。",
+          "citations": [
+            {
+              "id": "473a28e92b12d98fe363",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 18,
+              "line_end": 23,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  type = Card.TypeBasic,\n  name = \"jink\",\n  skill = \"jink_skill\",\n  is_passive = true,\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "34034dde99373473c693",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 91,
+              "line_end": 91,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：【杀】对你生效时<br /><b>目标</b>：此【杀】<br /><b>效果</b>：抵消此【杀】的效果。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          ],
+          "tool_calls": [
+            {
+              "id": "f3eb6287-2b26-459c-a65f-1b9abf3fbef8",
+              "run_id": "df5d6abf-9d64-5cea-b17f-6eb912677cb8",
+              "name": "query_game_data",
+              "arguments": {
+                "query": "闪",
+                "kind": "card",
+                "exact": true
+              },
+              "result": {
+                "mode": "exact_card",
+                "model_called": false,
+                "items": [
+                  {
+                    "id": "standard_cards:card:jink",
+                    "kind": "card",
+                    "name": "闪",
+                    "package": "standard_cards",
+                    "description": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                    "attributes": {
+                      "internal_id": "jink",
+                      "type": "Card.TypeBasic",
+                      "skill": "jink_skill",
+                      "is_passive": true,
+                      "deck_specs": [
+                        {
+                          "suit": "Heart",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 13
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 3
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 5
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 11
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "473a28e92b12d98fe363",
+                      "title": "闪",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 18,
+                      "line_end": 23,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  type = Card.TypeBasic,\n  name = \"jink\",\n  skill = \"jink_skill\",\n  is_passive = true,\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "34034dde99373473c693",
+                        "title": "闪",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 91,
+                        "line_end": 91,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "基本牌<br /><b>时机</b>：【杀】对你生效时<br /><b>目标</b>：此【杀】<br /><b>效果</b>：抵消此【杀】的效果。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "473a28e92b12d98fe363:deck-spec",
+                        "title": "闪牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 288,
+                        "line_end": 302,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 13)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 3)\nextension:addCardSpec(\"jink\", Card.Diamond, 4)\nextension:addCardSpec(\"jink\", Card.Diamond, 5)\nextension:addCardSpec(\"jink\", Card.Diamond, 6)\nextension:addCardSpec(\"jink\", Card.Diamond, 7)\nextension:addCardSpec(\"jink\", Card.Diamond, 8)\nextension:addCardSpec(\"jink\", Card.Diamond, 9)\nextension:addCardSpec(\"jink\", Card.Diamond, 10)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 0,
+              "created_at": "2026-11-17T10:47:25.076756"
+            }
+          ],
+          "usage": {
+            "run_id": "df5d6abf-9d64-5cea-b17f-6eb912677cb8",
+            "reserved_cny": 0.0,
+            "charged_cny": 0.0,
+            "estimated": false,
+            "settled": true
+          },
+          "elapsed_ms": 77,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "model_id": "deepseek-flash",
+          "prompt_version": "catalog-card-fast-v1"
+        },
+        {
+          "id": "dc04e946-89cf-5952-9d59-6b59bf22e4e3",
+          "message": "杀",
+          "expected": "基本牌；出牌阶段、攻击范围内一名角色、1点伤害；不混用火杀或雷杀",
+          "session_id": "f7772996-2e1a-42fa-8dc4-dce8a8f103e2",
+          "wall_ms": 84.8,
+          "status": "completed",
+          "text": "杀\n\n基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点伤害。\n\n资料快照：freekill-local-b9dc701220bc\n资料库直接查询，未调用模型。",
+          "citations": [
+            {
+              "id": "909046b2af81ec7ef6ad",
+              "title": "杀",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 10,
+              "line_end": 16,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  name = \"slash\",\n  type = Card.TypeBasic,\n  is_damage_card = true,\n  damage_type = fk.NormalDamage,\n  skill = \"slash_skill\",\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "e0b7102762a209f980de",
+              "title": "杀",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 84,
+              "line_end": 84,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：攻击范围内的一名角色<br /><b>效果</b>：对目标角色造成1点伤害。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          ],
+          "tool_calls": [
+            {
+              "id": "4281fc5a-a8c2-4579-9c3f-b3d514458994",
+              "run_id": "dc04e946-89cf-5952-9d59-6b59bf22e4e3",
+              "name": "query_game_data",
+              "arguments": {
+                "query": "杀",
+                "kind": "card",
+                "exact": true
+              },
+              "result": {
+                "mode": "exact_card",
+                "model_called": false,
+                "items": [
+                  {
+                    "id": "standard_cards:card:slash",
+                    "kind": "card",
+                    "name": "杀",
+                    "package": "standard_cards",
+                    "description": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点伤害。",
+                    "attributes": {
+                      "internal_id": "slash",
+                      "type": "Card.TypeBasic",
+                      "damage_type": "fk.NormalDamage",
+                      "skill": "slash_skill",
+                      "is_damage_card": true,
+                      "deck_specs": [
+                        {
+                          "suit": "Spade",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 3
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 5
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 13
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "909046b2af81ec7ef6ad",
+                      "title": "杀",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 10,
+                      "line_end": 16,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  name = \"slash\",\n  type = Card.TypeBasic,\n  is_damage_card = true,\n  damage_type = fk.NormalDamage,\n  skill = \"slash_skill\",\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "e0b7102762a209f980de",
+                        "title": "杀",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 84,
+                        "line_end": 84,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "基本牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：攻击范围内的一名角色<br /><b>效果</b>：对目标角色造成1点伤害。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "909046b2af81ec7ef6ad:deck-spec",
+                        "title": "杀牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 257,
+                        "line_end": 286,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"slash\", Card.Spade, 7)\nextension:addCardSpec(\"slash\", Card.Spade, 8)\nextension:addCardSpec(\"slash\", Card.Spade, 8)\nextension:addCardSpec(\"slash\", Card.Spade, 9)\nextension:addCardSpec(\"slash\", Card.Spade, 9)\nextension:addCardSpec(\"slash\", Card.Spade, 10)\nextension:addCardSpec(\"slash\", Card.Spade, 10)\nextension:addCardSpec(\"slash\", Card.Club, 2)\nextension:addCardSpec(\"slash\", Card.Club, 3)\nextension:addCardSpec(\"slash\", Card.Club, 4)\nextension:addCardSpec(\"slash\", Card.Club, 5)\nextension:addCardSpec(\"slash\", Card.Club, 6)\nextension:addCardSpec(\"slash\", Card.Club, 7)\nextension:addCardSpec(\"slash\", Card.Club, 8)\nextension:addCardSpec(\"slash\", Card.Club, 8)\nextension:addCardSpec(\"slash\", Card.Club, 9)\nextension:addCardSpec(\"slash\", Card.Club, 9)\nextension:addCardSpec(\"slash\", Card.Club, 10)\nextension:addCardSpec(\"slash\", Card.Club, 10)\nextension:addCardSpec(\"slash\", Card.Club, 11)\nextension:addCardSpec(\"slash\", Card.Club, 11)\nextension:addCardSpec(\"slash\", Card.Heart, 10)\nextension:addCardSpec(\"slash\", Card.Heart, 10)\nextension:addCardSpec(\"slash\", Card.Heart, 11)\nextension:addCardSpec(\"slash\", Card.Diamond, 6)\nextension:addCardSpec(\"slash\", Card.Diamond, 7)\nextension:addCardSpec(\"slash\", Card.Diamond, 8)\nextension:addCardSpec(\"slash\", Card.Diamond, 9)\nextension:addCardSpec(\"slash\", Card.Diamond, 10)\nextension:addCardSpec(\"slash\", Card.Diamond, 13)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 0,
+              "created_at": "2026-11-17T10:47:25.234549"
+            }
+          ],
+          "usage": {
+            "run_id": "dc04e946-89cf-5952-9d59-6b59bf22e4e3",
+            "reserved_cny": 0.0,
+            "charged_cny": 0.0,
+            "estimated": false,
+            "settled": true
+          },
+          "elapsed_ms": 32,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "model_id": "deepseek-flash",
+          "prompt_version": "catalog-card-fast-v1"
+        },
+        {
+          "id": "316e5422-d2ca-5422-9cf2-605764e2b65e",
+          "message": "桃",
+          "expected": "回复体力的使用时机、目标及效果以固定牌说明为准；有直接来源",
+          "session_id": "fef8b9ad-c9c2-4a55-8adb-eeefb82071b8",
+          "wall_ms": 85.46,
+          "status": "completed",
+          "text": "桃\n\n基本牌\n时机：出牌阶段/一名角色处于濒死状态时\n目标：已受伤的你/处于濒死状态的角色\n效果：目标角色回复1点体力。\n\n资料快照：freekill-local-b9dc701220bc\n资料库直接查询，未调用模型。",
+          "citations": [
+            {
+              "id": "b8fbecdebbbf2474d800",
+              "title": "桃",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 25,
+              "line_end": 29,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  name = \"peach\",\n  type = Card.TypeBasic,\n  skill = \"peach_skill\",\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "e2cbeccb91d0a5126cc4",
+              "title": "桃",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 94,
+              "line_end": 94,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：出牌阶段/一名角色处于濒死状态时<br /><b>目标</b>：已受伤的你/处于濒死状态的角色<br /><b>效果</b>：目标角色回复1点体力。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          ],
+          "tool_calls": [
+            {
+              "id": "047a0b2b-dfdb-4f66-b6ce-886be83bd216",
+              "run_id": "316e5422-d2ca-5422-9cf2-605764e2b65e",
+              "name": "query_game_data",
+              "arguments": {
+                "query": "桃",
+                "kind": "card",
+                "exact": true
+              },
+              "result": {
+                "mode": "exact_card",
+                "model_called": false,
+                "items": [
+                  {
+                    "id": "standard_cards:card:peach",
+                    "kind": "card",
+                    "name": "桃",
+                    "package": "standard_cards",
+                    "description": "基本牌\n时机：出牌阶段/一名角色处于濒死状态时\n目标：已受伤的你/处于濒死状态的角色\n效果：目标角色回复1点体力。",
+                    "attributes": {
+                      "internal_id": "peach",
+                      "type": "Card.TypeBasic",
+                      "skill": "peach_skill",
+                      "deck_specs": [
+                        {
+                          "suit": "Heart",
+                          "number": 3
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 12
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 12
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "b8fbecdebbbf2474d800",
+                      "title": "桃",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 25,
+                      "line_end": 29,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  name = \"peach\",\n  type = Card.TypeBasic,\n  skill = \"peach_skill\",\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "e2cbeccb91d0a5126cc4",
+                        "title": "桃",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 94,
+                        "line_end": 94,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "基本牌<br /><b>时机</b>：出牌阶段/一名角色处于濒死状态时<br /><b>目标</b>：已受伤的你/处于濒死状态的角色<br /><b>效果</b>：目标角色回复1点体力。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "b8fbecdebbbf2474d800:deck-spec",
+                        "title": "桃牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 304,
+                        "line_end": 311,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"peach\", Card.Heart, 3)\nextension:addCardSpec(\"peach\", Card.Heart, 4)\nextension:addCardSpec(\"peach\", Card.Heart, 6)\nextension:addCardSpec(\"peach\", Card.Heart, 7)\nextension:addCardSpec(\"peach\", Card.Heart, 8)\nextension:addCardSpec(\"peach\", Card.Heart, 9)\nextension:addCardSpec(\"peach\", Card.Heart, 12)\nextension:addCardSpec(\"peach\", Card.Diamond, 12)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 0,
+              "created_at": "2026-11-17T10:47:25.356078"
+            }
+          ],
+          "usage": {
+            "run_id": "316e5422-d2ca-5422-9cf2-605764e2b65e",
+            "reserved_cny": 0.0,
+            "charged_cny": 0.0,
+            "estimated": false,
+            "settled": true
+          },
+          "elapsed_ms": 36,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "model_id": "deepseek-flash",
+          "prompt_version": "catalog-card-fast-v1"
+        },
+        {
+          "id": "6245635a-bdce-5b13-83ab-10348d848d09",
+          "message": "闪的使用时机是什么？",
+          "expected": "仍使用普通模型问答链路；核对杀对你生效时的直接资料和引用",
+          "session_id": "e23a9f56-9029-4bdb-948b-ba87456e3835",
+          "wall_ms": 37941.85,
+          "status": "completed",
+          "text": "结论：【闪】的时机是【杀】对你生效时，目标是此【杀】，效果是抵消此【杀】的效果。\n\n依据：\n1. 卡牌说明（standard_cards，【闪】）：时机为“【杀】对你生效时”，目标为“此【杀】”，效果为“抵消此【杀】的效果”。\n2. 实体定义（standard_cards，jink）：【闪】是一张基本牌。\n\n必要前提：这里指以【闪】本身的牌面效果应对指向你的【杀】；若涉及将其他牌当【闪】使用或打出（如【八卦阵】、龙胆等），其可用时机由相应技能说明单独规定。",
+          "citations": [
+            {
+              "id": "473a28e92b12d98fe363",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 18,
+              "line_end": 23,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  type = Card.TypeBasic,\n  name = \"jink\",\n  skill = \"jink_skill\",\n  is_passive = true,\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "34034dde99373473c693",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 91,
+              "line_end": 91,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：【杀】对你生效时<br /><b>目标</b>：此【杀】<br /><b>效果</b>：抵消此【杀】的效果。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "473a28e92b12d98fe363:deck-spec",
+              "title": "闪牌堆配置",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 288,
+              "line_end": 302,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "extension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 13)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 3)\nextension:addCardSpec(\"jink\", Card.Diamond, 4)\nextension:addCardSpec(\"jink\", Card.Diamond, 5)\nextension:addCardSpec(\"jink\", Card.Diamond, 6)\nextension:addCardSpec(\"jink\", Card.Diamond, 7)\nextension:addCardSpec(\"jink\", Card.Diamond, 8)\nextension:addCardSpec(\"jink\", Card.Diamond, 9)\nextension:addCardSpec(\"jink\", Card.Diamond, 10)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "f5bab80055ed9c6e9aee",
+              "title": "闪电",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 102,
+              "line_end": 108,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  name = \"lightning\",\n  type = Card.TypeTrick,\n  sub_type = Card.SubtypeDelayedTrick,\n  damage_type = fk.ThunderDamage,\n  skill = \"lightning_skill\",\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "0fe86bbd86ca08d57de7",
+              "title": "闪电",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 149,
+              "line_end": 149,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "延时锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：你<br /><b>效果</b>：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "f5bab80055ed9c6e9aee:deck-spec",
+              "title": "闪电牌堆配置",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 354,
+              "line_end": 355,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "extension:addCardSpec(\"lightning\", Card.Spade, 1)\nextension:addCardSpec(\"lightning\", Card.Heart, 12)",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:4",
+              "title": "身份模式",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 365,
+              "line_end": 529,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "rule_text",
+              "excerpt": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            },
+            {
+              "id": "34034dde99373473c693:passage:standard_cards:text:jink:0",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 91,
+              "line_end": 91,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "0fe86bbd86ca08d57de7:passage:standard_cards:text:lightning:0",
+              "title": "闪电",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 149,
+              "line_end": 149,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "cd67b74184a4bf506afc:passage:standard_cards:text:eight_diagram:0",
+              "title": "八卦阵",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 198,
+              "line_end": 198,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "装备牌·防具\n防具技能：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "f69a9a532f88173b0c2f:passage:standard:text:longdan:0",
+              "title": "龙胆",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 150,
+              "line_end": 150,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          ],
+          "tool_calls": [
+            {
+              "id": "5df5f849-2424-4267-8d6f-9c8394a6eae8",
+              "run_id": "6245635a-bdce-5b13-83ab-10348d848d09",
+              "name": "query_game_data",
+              "arguments": {
+                "query": "闪",
+                "kind": "card"
+              },
+              "result": {
+                "items": [
+                  {
+                    "id": "standard_cards:card:jink",
+                    "kind": "card",
+                    "name": "闪",
+                    "package": "standard_cards",
+                    "description": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                    "attributes": {
+                      "internal_id": "jink",
+                      "type": "Card.TypeBasic",
+                      "skill": "jink_skill",
+                      "is_passive": true,
+                      "deck_specs": [
+                        {
+                          "suit": "Heart",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 13
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 3
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 5
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 11
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "473a28e92b12d98fe363",
+                      "title": "闪",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 18,
+                      "line_end": 23,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  type = Card.TypeBasic,\n  name = \"jink\",\n  skill = \"jink_skill\",\n  is_passive = true,\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "34034dde99373473c693",
+                        "title": "闪",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 91,
+                        "line_end": 91,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "基本牌<br /><b>时机</b>：【杀】对你生效时<br /><b>目标</b>：此【杀】<br /><b>效果</b>：抵消此【杀】的效果。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "473a28e92b12d98fe363:deck-spec",
+                        "title": "闪牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 288,
+                        "line_end": 302,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 13)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 3)\nextension:addCardSpec(\"jink\", Card.Diamond, 4)\nextension:addCardSpec(\"jink\", Card.Diamond, 5)\nextension:addCardSpec(\"jink\", Card.Diamond, 6)\nextension:addCardSpec(\"jink\", Card.Diamond, 7)\nextension:addCardSpec(\"jink\", Card.Diamond, 8)\nextension:addCardSpec(\"jink\", Card.Diamond, 9)\nextension:addCardSpec(\"jink\", Card.Diamond, 10)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "standard_cards:card:lightning",
+                    "kind": "card",
+                    "name": "闪电",
+                    "package": "standard_cards",
+                    "description": "延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+                    "attributes": {
+                      "internal_id": "lightning",
+                      "type": "Card.TypeTrick",
+                      "sub_type": "Card.SubtypeDelayedTrick",
+                      "damage_type": "fk.ThunderDamage",
+                      "skill": "lightning_skill",
+                      "deck_specs": [
+                        {
+                          "suit": "Spade",
+                          "number": 1
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 12
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "f5bab80055ed9c6e9aee",
+                      "title": "闪电",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 102,
+                      "line_end": 108,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  name = \"lightning\",\n  type = Card.TypeTrick,\n  sub_type = Card.SubtypeDelayedTrick,\n  damage_type = fk.ThunderDamage,\n  skill = \"lightning_skill\",\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "0fe86bbd86ca08d57de7",
+                        "title": "闪电",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 149,
+                        "line_end": 149,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "延时锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：你<br /><b>效果</b>：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "f5bab80055ed9c6e9aee:deck-spec",
+                        "title": "闪电牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 354,
+                        "line_end": 355,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"lightning\", Card.Spade, 1)\nextension:addCardSpec(\"lightning\", Card.Heart, 12)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 7,
+              "created_at": "2026-11-17T10:47:32.568890"
+            },
+            {
+              "id": "ac423e08-6d26-4d19-9641-7beca5f00287",
+              "run_id": "6245635a-bdce-5b13-83ab-10348d848d09",
+              "name": "search_knowledge",
+              "arguments": {
+                "query": "闪 使用时机",
+                "snapshot_id": "freekill-local-b9dc701220bc"
+              },
+              "result": {
+                "mode": "pgvector",
+                "snapshot_id": "freekill-local-b9dc701220bc",
+                "items": [
+                  {
+                    "id": "standard:text:aaa_role_mode:4",
+                    "title": "身份模式",
+                    "text": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+                    "source": {
+                      "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:4",
+                      "title": "身份模式",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 365,
+                      "line_end": 529,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "rule_text",
+                      "excerpt": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  },
+                  {
+                    "id": "standard_cards:text:jink:0",
+                    "title": "闪",
+                    "text": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                    "source": {
+                      "id": "34034dde99373473c693:passage:standard_cards:text:jink:0",
+                      "title": "闪",
+                      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                      "line_start": 91,
+                      "line_end": 91,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                    }
+                  },
+                  {
+                    "id": "standard_cards:text:lightning:0",
+                    "title": "闪电",
+                    "text": "延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+                    "source": {
+                      "id": "0fe86bbd86ca08d57de7:passage:standard_cards:text:lightning:0",
+                      "title": "闪电",
+                      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                      "line_start": 149,
+                      "line_end": 149,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+                      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                    }
+                  },
+                  {
+                    "id": "standard_cards:text:eight_diagram:0",
+                    "title": "八卦阵",
+                    "text": "装备牌·防具\n防具技能：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+                    "source": {
+                      "id": "cd67b74184a4bf506afc:passage:standard_cards:text:eight_diagram:0",
+                      "title": "八卦阵",
+                      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                      "line_start": 198,
+                      "line_end": 198,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "装备牌·防具\n防具技能：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+                      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                    }
+                  },
+                  {
+                    "id": "standard:text:longdan:0",
+                    "title": "龙胆",
+                    "text": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+                    "source": {
+                      "id": "f69a9a532f88173b0c2f:passage:standard:text:longdan:0",
+                      "title": "龙胆",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 150,
+                      "line_end": 150,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 21913,
+              "created_at": "2026-11-17T10:47:54.472718"
+            }
+          ],
+          "usage": {
+            "run_id": "6245635a-bdce-5b13-83ab-10348d848d09",
+            "reserved_cny": 1.010688,
+            "charged_cny": 0.014504,
+            "estimated": false,
+            "settled": true
+          },
+          "elapsed_ms": 37738,
+          "input_tokens": 6316,
+          "output_tokens": 234,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "model_id": "deepseek-flash",
+          "prompt_version": "grounded-27133eb1e92170f2"
+        }
+      ]
+    },
+    {
+      "phase": "after-warm",
+      "cases_sha256": "1431fbfceaffba094adaa56def2c773bf4f02ee9037b3db2ad555fabd6dc8f2f",
+      "cases": [
+        {
+          "case_id": "PERF01",
+          "message": "闪",
+          "expected": "基本牌；杀对你生效时抵消此杀效果；引用闪的直接来源",
+          "session_id": "b173cea6-b92f-48fc-97ff-4e1b80a44c8e",
+          "wall_ms": 105.02,
+          "id": "216820eb-5e34-5793-adb4-35a42eccf265",
+          "status": "completed",
+          "text": "闪\n\n基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。\n\n资料快照：freekill-local-b9dc701220bc\n资料库直接查询，未调用模型。",
+          "citations": [
+            {
+              "id": "473a28e92b12d98fe363",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 18,
+              "line_end": 23,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  type = Card.TypeBasic,\n  name = \"jink\",\n  skill = \"jink_skill\",\n  is_passive = true,\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "34034dde99373473c693",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 91,
+              "line_end": 91,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：【杀】对你生效时<br /><b>目标</b>：此【杀】<br /><b>效果</b>：抵消此【杀】的效果。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          ],
+          "tool_calls": [
+            {
+              "id": "b31dca14-7324-4704-9c50-48cc811270f3",
+              "run_id": "216820eb-5e34-5793-adb4-35a42eccf265",
+              "name": "query_game_data",
+              "arguments": {
+                "query": "闪",
+                "kind": "card",
+                "exact": true
+              },
+              "result": {
+                "mode": "exact_card",
+                "model_called": false,
+                "items": [
+                  {
+                    "id": "standard_cards:card:jink",
+                    "kind": "card",
+                    "name": "闪",
+                    "package": "standard_cards",
+                    "description": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                    "attributes": {
+                      "internal_id": "jink",
+                      "type": "Card.TypeBasic",
+                      "skill": "jink_skill",
+                      "is_passive": true,
+                      "deck_specs": [
+                        {
+                          "suit": "Heart",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 13
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 3
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 5
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 11
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "473a28e92b12d98fe363",
+                      "title": "闪",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 18,
+                      "line_end": 23,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  type = Card.TypeBasic,\n  name = \"jink\",\n  skill = \"jink_skill\",\n  is_passive = true,\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "34034dde99373473c693",
+                        "title": "闪",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 91,
+                        "line_end": 91,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "基本牌<br /><b>时机</b>：【杀】对你生效时<br /><b>目标</b>：此【杀】<br /><b>效果</b>：抵消此【杀】的效果。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "473a28e92b12d98fe363:deck-spec",
+                        "title": "闪牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 288,
+                        "line_end": 302,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 13)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 3)\nextension:addCardSpec(\"jink\", Card.Diamond, 4)\nextension:addCardSpec(\"jink\", Card.Diamond, 5)\nextension:addCardSpec(\"jink\", Card.Diamond, 6)\nextension:addCardSpec(\"jink\", Card.Diamond, 7)\nextension:addCardSpec(\"jink\", Card.Diamond, 8)\nextension:addCardSpec(\"jink\", Card.Diamond, 9)\nextension:addCardSpec(\"jink\", Card.Diamond, 10)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 0,
+              "created_at": "2026-11-17T10:48:46.986310"
+            }
+          ],
+          "usage": {
+            "run_id": "216820eb-5e34-5793-adb4-35a42eccf265",
+            "reserved_cny": 0.0,
+            "charged_cny": 0.0,
+            "estimated": false,
+            "settled": true
+          },
+          "elapsed_ms": 48,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "model_id": "deepseek-flash",
+          "prompt_version": "catalog-card-fast-v1"
+        },
+        {
+          "case_id": "PERF02",
+          "message": "杀",
+          "expected": "基本牌；出牌阶段、攻击范围内一名角色、1点伤害；不混用火杀或雷杀",
+          "session_id": "686a1194-260d-40cb-af49-f9ca01a2c692",
+          "wall_ms": 121.75,
+          "id": "7f65754f-7198-56c2-b71e-d4f39a4546c4",
+          "status": "completed",
+          "text": "杀\n\n基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点伤害。\n\n资料快照：freekill-local-b9dc701220bc\n资料库直接查询，未调用模型。",
+          "citations": [
+            {
+              "id": "909046b2af81ec7ef6ad",
+              "title": "杀",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 10,
+              "line_end": 16,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  name = \"slash\",\n  type = Card.TypeBasic,\n  is_damage_card = true,\n  damage_type = fk.NormalDamage,\n  skill = \"slash_skill\",\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "e0b7102762a209f980de",
+              "title": "杀",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 84,
+              "line_end": 84,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：攻击范围内的一名角色<br /><b>效果</b>：对目标角色造成1点伤害。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          ],
+          "tool_calls": [
+            {
+              "id": "d207f77f-09b3-4711-ab2a-d0205edc0ae8",
+              "run_id": "7f65754f-7198-56c2-b71e-d4f39a4546c4",
+              "name": "query_game_data",
+              "arguments": {
+                "query": "杀",
+                "kind": "card",
+                "exact": true
+              },
+              "result": {
+                "mode": "exact_card",
+                "model_called": false,
+                "items": [
+                  {
+                    "id": "standard_cards:card:slash",
+                    "kind": "card",
+                    "name": "杀",
+                    "package": "standard_cards",
+                    "description": "基本牌\n时机：出牌阶段\n目标：攻击范围内的一名角色\n效果：对目标角色造成1点伤害。",
+                    "attributes": {
+                      "internal_id": "slash",
+                      "type": "Card.TypeBasic",
+                      "damage_type": "fk.NormalDamage",
+                      "skill": "slash_skill",
+                      "is_damage_card": true,
+                      "deck_specs": [
+                        {
+                          "suit": "Spade",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Spade",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 3
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 5
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Club",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 13
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "909046b2af81ec7ef6ad",
+                      "title": "杀",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 10,
+                      "line_end": 16,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  name = \"slash\",\n  type = Card.TypeBasic,\n  is_damage_card = true,\n  damage_type = fk.NormalDamage,\n  skill = \"slash_skill\",\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "e0b7102762a209f980de",
+                        "title": "杀",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 84,
+                        "line_end": 84,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "基本牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：攻击范围内的一名角色<br /><b>效果</b>：对目标角色造成1点伤害。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "909046b2af81ec7ef6ad:deck-spec",
+                        "title": "杀牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 257,
+                        "line_end": 286,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"slash\", Card.Spade, 7)\nextension:addCardSpec(\"slash\", Card.Spade, 8)\nextension:addCardSpec(\"slash\", Card.Spade, 8)\nextension:addCardSpec(\"slash\", Card.Spade, 9)\nextension:addCardSpec(\"slash\", Card.Spade, 9)\nextension:addCardSpec(\"slash\", Card.Spade, 10)\nextension:addCardSpec(\"slash\", Card.Spade, 10)\nextension:addCardSpec(\"slash\", Card.Club, 2)\nextension:addCardSpec(\"slash\", Card.Club, 3)\nextension:addCardSpec(\"slash\", Card.Club, 4)\nextension:addCardSpec(\"slash\", Card.Club, 5)\nextension:addCardSpec(\"slash\", Card.Club, 6)\nextension:addCardSpec(\"slash\", Card.Club, 7)\nextension:addCardSpec(\"slash\", Card.Club, 8)\nextension:addCardSpec(\"slash\", Card.Club, 8)\nextension:addCardSpec(\"slash\", Card.Club, 9)\nextension:addCardSpec(\"slash\", Card.Club, 9)\nextension:addCardSpec(\"slash\", Card.Club, 10)\nextension:addCardSpec(\"slash\", Card.Club, 10)\nextension:addCardSpec(\"slash\", Card.Club, 11)\nextension:addCardSpec(\"slash\", Card.Club, 11)\nextension:addCardSpec(\"slash\", Card.Heart, 10)\nextension:addCardSpec(\"slash\", Card.Heart, 10)\nextension:addCardSpec(\"slash\", Card.Heart, 11)\nextension:addCardSpec(\"slash\", Card.Diamond, 6)\nextension:addCardSpec(\"slash\", Card.Diamond, 7)\nextension:addCardSpec(\"slash\", Card.Diamond, 8)\nextension:addCardSpec(\"slash\", Card.Diamond, 9)\nextension:addCardSpec(\"slash\", Card.Diamond, 10)\nextension:addCardSpec(\"slash\", Card.Diamond, 13)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 0,
+              "created_at": "2026-11-17T10:48:47.189893"
+            }
+          ],
+          "usage": {
+            "run_id": "7f65754f-7198-56c2-b71e-d4f39a4546c4",
+            "reserved_cny": 0.0,
+            "charged_cny": 0.0,
+            "estimated": false,
+            "settled": true
+          },
+          "elapsed_ms": 42,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "model_id": "deepseek-flash",
+          "prompt_version": "catalog-card-fast-v1"
+        },
+        {
+          "case_id": "PERF03",
+          "message": "桃",
+          "expected": "回复体力的使用时机、目标及效果以固定牌说明为准；有直接来源",
+          "session_id": "ca2db116-7b2d-44da-802f-ce55305b60b1",
+          "wall_ms": 76.56,
+          "id": "ecc28fcc-b5e2-5ce6-8999-876e2b4865f8",
+          "status": "completed",
+          "text": "桃\n\n基本牌\n时机：出牌阶段/一名角色处于濒死状态时\n目标：已受伤的你/处于濒死状态的角色\n效果：目标角色回复1点体力。\n\n资料快照：freekill-local-b9dc701220bc\n资料库直接查询，未调用模型。",
+          "citations": [
+            {
+              "id": "b8fbecdebbbf2474d800",
+              "title": "桃",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 25,
+              "line_end": 29,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  name = \"peach\",\n  type = Card.TypeBasic,\n  skill = \"peach_skill\",\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "e2cbeccb91d0a5126cc4",
+              "title": "桃",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 94,
+              "line_end": 94,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：出牌阶段/一名角色处于濒死状态时<br /><b>目标</b>：已受伤的你/处于濒死状态的角色<br /><b>效果</b>：目标角色回复1点体力。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            }
+          ],
+          "tool_calls": [
+            {
+              "id": "e77eaaa8-5313-4dac-a744-b6e91e589bfe",
+              "run_id": "ecc28fcc-b5e2-5ce6-8999-876e2b4865f8",
+              "name": "query_game_data",
+              "arguments": {
+                "query": "桃",
+                "kind": "card",
+                "exact": true
+              },
+              "result": {
+                "mode": "exact_card",
+                "model_called": false,
+                "items": [
+                  {
+                    "id": "standard_cards:card:peach",
+                    "kind": "card",
+                    "name": "桃",
+                    "package": "standard_cards",
+                    "description": "基本牌\n时机：出牌阶段/一名角色处于濒死状态时\n目标：已受伤的你/处于濒死状态的角色\n效果：目标角色回复1点体力。",
+                    "attributes": {
+                      "internal_id": "peach",
+                      "type": "Card.TypeBasic",
+                      "skill": "peach_skill",
+                      "deck_specs": [
+                        {
+                          "suit": "Heart",
+                          "number": 3
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 12
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 12
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "b8fbecdebbbf2474d800",
+                      "title": "桃",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 25,
+                      "line_end": 29,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  name = \"peach\",\n  type = Card.TypeBasic,\n  skill = \"peach_skill\",\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "e2cbeccb91d0a5126cc4",
+                        "title": "桃",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 94,
+                        "line_end": 94,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "基本牌<br /><b>时机</b>：出牌阶段/一名角色处于濒死状态时<br /><b>目标</b>：已受伤的你/处于濒死状态的角色<br /><b>效果</b>：目标角色回复1点体力。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "b8fbecdebbbf2474d800:deck-spec",
+                        "title": "桃牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 304,
+                        "line_end": 311,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"peach\", Card.Heart, 3)\nextension:addCardSpec(\"peach\", Card.Heart, 4)\nextension:addCardSpec(\"peach\", Card.Heart, 6)\nextension:addCardSpec(\"peach\", Card.Heart, 7)\nextension:addCardSpec(\"peach\", Card.Heart, 8)\nextension:addCardSpec(\"peach\", Card.Heart, 9)\nextension:addCardSpec(\"peach\", Card.Heart, 12)\nextension:addCardSpec(\"peach\", Card.Diamond, 12)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 0,
+              "created_at": "2026-11-17T10:48:47.334971"
+            }
+          ],
+          "usage": {
+            "run_id": "ecc28fcc-b5e2-5ce6-8999-876e2b4865f8",
+            "reserved_cny": 0.0,
+            "charged_cny": 0.0,
+            "estimated": false,
+            "settled": true
+          },
+          "elapsed_ms": 31,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "model_id": "deepseek-flash",
+          "prompt_version": "catalog-card-fast-v1"
+        },
+        {
+          "case_id": "PERF04",
+          "message": "闪的使用时机是什么？",
+          "expected": "仍使用普通模型问答链路；核对杀对你生效时的直接资料和引用",
+          "session_id": "c1c0f15d-6155-4a1d-b74a-e05e7acef932",
+          "wall_ms": 5434.4,
+          "id": "cb5cf492-4d1e-5f37-ba51-24281f3f0697",
+          "status": "completed",
+          "text": "结论：【闪】的时机是【杀】对你生效时，目标是这张【杀】，效果是抵消此【杀】的效果。\n\n依据：\n1. 资料中【闪】的说明写明：基本牌，时机为“【杀】对你生效时”，目标为“此【杀】”，效果为“抵消此【杀】的效果”（standard_cards 中文说明，快照 freekill-local-b9dc701220bc）。\n2. 同版本的实体定义中，【闪】是基本牌（Card.TypeBasic）。\n\n必要前提：此说明针对标准包【闪】。若这张【闪】是经由其他技能或装备视为使用或打出（例如八卦阵的判定效果），就按对应技能的条件处理。",
+          "citations": [
+            {
+              "id": "473a28e92b12d98fe363",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 18,
+              "line_end": 23,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  type = Card.TypeBasic,\n  name = \"jink\",\n  skill = \"jink_skill\",\n  is_passive = true,\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "34034dde99373473c693",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 91,
+              "line_end": 91,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌<br /><b>时机</b>：【杀】对你生效时<br /><b>目标</b>：此【杀】<br /><b>效果</b>：抵消此【杀】的效果。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "473a28e92b12d98fe363:deck-spec",
+              "title": "闪牌堆配置",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 288,
+              "line_end": 302,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "extension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 13)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 3)\nextension:addCardSpec(\"jink\", Card.Diamond, 4)\nextension:addCardSpec(\"jink\", Card.Diamond, 5)\nextension:addCardSpec(\"jink\", Card.Diamond, 6)\nextension:addCardSpec(\"jink\", Card.Diamond, 7)\nextension:addCardSpec(\"jink\", Card.Diamond, 8)\nextension:addCardSpec(\"jink\", Card.Diamond, 9)\nextension:addCardSpec(\"jink\", Card.Diamond, 10)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "f5bab80055ed9c6e9aee",
+              "title": "闪电",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 102,
+              "line_end": 108,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "fk.CreateCard{\n  name = \"lightning\",\n  type = Card.TypeTrick,\n  sub_type = Card.SubtypeDelayedTrick,\n  damage_type = fk.ThunderDamage,\n  skill = \"lightning_skill\",\n}",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "0fe86bbd86ca08d57de7",
+              "title": "闪电",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 149,
+              "line_end": 149,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "延时锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：你<br /><b>效果</b>：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "f5bab80055ed9c6e9aee:deck-spec",
+              "title": "闪电牌堆配置",
+              "path": "runtime/packages/standard_cards/pkg/init.lua",
+              "line_start": 354,
+              "line_end": 355,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "implementation",
+              "excerpt": "extension:addCardSpec(\"lightning\", Card.Spade, 1)\nextension:addCardSpec(\"lightning\", Card.Heart, 12)",
+              "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+            },
+            {
+              "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:4",
+              "title": "身份模式",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 365,
+              "line_end": 529,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "rule_text",
+              "excerpt": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            },
+            {
+              "id": "34034dde99373473c693:passage:standard_cards:text:jink:0",
+              "title": "闪",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 91,
+              "line_end": 91,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "0fe86bbd86ca08d57de7:passage:standard_cards:text:lightning:0",
+              "title": "闪电",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 149,
+              "line_end": 149,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "cd67b74184a4bf506afc:passage:standard_cards:text:eight_diagram:0",
+              "title": "八卦阵",
+              "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+              "line_start": 198,
+              "line_end": 198,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "装备牌·防具\n防具技能：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+              "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+            },
+            {
+              "id": "f69a9a532f88173b0c2f:passage:standard:text:longdan:0",
+              "title": "龙胆",
+              "path": "runtime/packages/standard/i18n/zh_CN.lua",
+              "line_start": 150,
+              "line_end": 150,
+              "snapshot_id": "freekill-local-b9dc701220bc",
+              "evidence_type": "skill_description",
+              "excerpt": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+              "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+            }
+          ],
+          "tool_calls": [
+            {
+              "id": "480a2d5e-9e0f-4274-ab06-638f938fd5b7",
+              "run_id": "cb5cf492-4d1e-5f37-ba51-24281f3f0697",
+              "name": "query_game_data",
+              "arguments": {
+                "query": "闪",
+                "kind": "card"
+              },
+              "result": {
+                "items": [
+                  {
+                    "id": "standard_cards:card:jink",
+                    "kind": "card",
+                    "name": "闪",
+                    "package": "standard_cards",
+                    "description": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                    "attributes": {
+                      "internal_id": "jink",
+                      "type": "Card.TypeBasic",
+                      "skill": "jink_skill",
+                      "is_passive": true,
+                      "deck_specs": [
+                        {
+                          "suit": "Heart",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 13
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 2
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 3
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 4
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 5
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 6
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 7
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 8
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 9
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 10
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 11
+                        },
+                        {
+                          "suit": "Diamond",
+                          "number": 11
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "473a28e92b12d98fe363",
+                      "title": "闪",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 18,
+                      "line_end": 23,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  type = Card.TypeBasic,\n  name = \"jink\",\n  skill = \"jink_skill\",\n  is_passive = true,\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "34034dde99373473c693",
+                        "title": "闪",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 91,
+                        "line_end": 91,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "基本牌<br /><b>时机</b>：【杀】对你生效时<br /><b>目标</b>：此【杀】<br /><b>效果</b>：抵消此【杀】的效果。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "473a28e92b12d98fe363:deck-spec",
+                        "title": "闪牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 288,
+                        "line_end": 302,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 2)\nextension:addCardSpec(\"jink\", Card.Heart, 13)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 2)\nextension:addCardSpec(\"jink\", Card.Diamond, 3)\nextension:addCardSpec(\"jink\", Card.Diamond, 4)\nextension:addCardSpec(\"jink\", Card.Diamond, 5)\nextension:addCardSpec(\"jink\", Card.Diamond, 6)\nextension:addCardSpec(\"jink\", Card.Diamond, 7)\nextension:addCardSpec(\"jink\", Card.Diamond, 8)\nextension:addCardSpec(\"jink\", Card.Diamond, 9)\nextension:addCardSpec(\"jink\", Card.Diamond, 10)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)\nextension:addCardSpec(\"jink\", Card.Diamond, 11)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "standard_cards:card:lightning",
+                    "kind": "card",
+                    "name": "闪电",
+                    "package": "standard_cards",
+                    "description": "延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+                    "attributes": {
+                      "internal_id": "lightning",
+                      "type": "Card.TypeTrick",
+                      "sub_type": "Card.SubtypeDelayedTrick",
+                      "damage_type": "fk.ThunderDamage",
+                      "skill": "lightning_skill",
+                      "deck_specs": [
+                        {
+                          "suit": "Spade",
+                          "number": 1
+                        },
+                        {
+                          "suit": "Heart",
+                          "number": 12
+                        }
+                      ]
+                    },
+                    "source": {
+                      "id": "f5bab80055ed9c6e9aee",
+                      "title": "闪电",
+                      "path": "runtime/packages/standard_cards/pkg/init.lua",
+                      "line_start": 102,
+                      "line_end": 108,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "implementation",
+                      "excerpt": "fk.CreateCard{\n  name = \"lightning\",\n  type = Card.TypeTrick,\n  sub_type = Card.SubtypeDelayedTrick,\n  damage_type = fk.ThunderDamage,\n  skill = \"lightning_skill\",\n}",
+                      "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                    },
+                    "description_sources": [
+                      {
+                        "id": "0fe86bbd86ca08d57de7",
+                        "title": "闪电",
+                        "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                        "line_start": 149,
+                        "line_end": 149,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "skill_description",
+                        "excerpt": "延时锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：你<br /><b>效果</b>：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+                        "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                      }
+                    ],
+                    "attribute_sources": [
+                      {
+                        "id": "f5bab80055ed9c6e9aee:deck-spec",
+                        "title": "闪电牌堆配置",
+                        "path": "runtime/packages/standard_cards/pkg/init.lua",
+                        "line_start": 354,
+                        "line_end": 355,
+                        "snapshot_id": "freekill-local-b9dc701220bc",
+                        "evidence_type": "implementation",
+                        "excerpt": "extension:addCardSpec(\"lightning\", Card.Spade, 1)\nextension:addCardSpec(\"lightning\", Card.Heart, 12)",
+                        "sha256": "a430ae0b6d48ea988abff062c5664fb31f3136c6807ebe73de0870480ed3373a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 5,
+              "created_at": "2026-11-17T10:48:48.875394"
+            },
+            {
+              "id": "bc7d304c-1ce9-4798-ac8d-d80dc76096dd",
+              "run_id": "cb5cf492-4d1e-5f37-ba51-24281f3f0697",
+              "name": "search_knowledge",
+              "arguments": {
+                "query": "闪 使用时机",
+                "snapshot_id": "freekill-local-b9dc701220bc"
+              },
+              "result": {
+                "mode": "pgvector",
+                "snapshot_id": "freekill-local-b9dc701220bc",
+                "items": [
+                  {
+                    "id": "standard:text:aaa_role_mode:4",
+                    "title": "身份模式",
+                    "text": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+                    "source": {
+                      "id": "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:4",
+                      "title": "身份模式",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 365,
+                      "line_end": 529,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "rule_text",
+                      "excerpt": "## 挑选武将\n\n带有特殊能力的武将牌为游戏提供了丰富的变化和乐趣，但同时也让游戏变得相对复杂，如果是第一次玩三国杀，建议暂且不使用武将牌。请略过这部分，继续看“分发体力牌”。若对三国杀已经有了大致的了解，可以尝试加入武将进行游戏，按如下的步骤挑选武将。\n\n首先分给获得主公身份的玩家（以下简称主公玩家）“曹操”、“刘备”、“孙权”，和另外随机抽取的2张武将牌，一共5张武将牌。由主公玩家挑选一个武将扮演，并将选好的武将牌展示给其他玩家。\n\n将剩余的24张武将牌洗混，随机发给其余每位玩家各3张（10人游戏时每人发2张）。接着每人从3张牌里挑选一张扣在自己面前，待所有玩家都挑选好后同时亮出。将剩余未选的武将牌洗混，面朝下放在一旁。\n\n___",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  },
+                  {
+                    "id": "standard_cards:text:jink:0",
+                    "title": "闪",
+                    "text": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                    "source": {
+                      "id": "34034dde99373473c693:passage:standard_cards:text:jink:0",
+                      "title": "闪",
+                      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                      "line_start": 91,
+                      "line_end": 91,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "基本牌\n时机：【杀】对你生效时\n目标：此【杀】\n效果：抵消此【杀】的效果。",
+                      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                    }
+                  },
+                  {
+                    "id": "standard_cards:text:lightning:0",
+                    "title": "闪电",
+                    "text": "延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+                    "source": {
+                      "id": "0fe86bbd86ca08d57de7:passage:standard_cards:text:lightning:0",
+                      "title": "闪电",
+                      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                      "line_start": 149,
+                      "line_end": 149,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "延时锦囊牌\n时机：出牌阶段\n目标：你\n效果：将此牌置于目标角色判定区内。其判定阶段进行判定：若结果为♠2-9，其受到3点雷电伤害并将【闪电】置入弃牌堆，否则将【闪电】移动至其下家判定区内。",
+                      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                    }
+                  },
+                  {
+                    "id": "standard_cards:text:eight_diagram:0",
+                    "title": "八卦阵",
+                    "text": "装备牌·防具\n防具技能：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+                    "source": {
+                      "id": "cd67b74184a4bf506afc:passage:standard_cards:text:eight_diagram:0",
+                      "title": "八卦阵",
+                      "path": "runtime/packages/standard_cards/i18n/zh_CN.lua",
+                      "line_start": 198,
+                      "line_end": 198,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "装备牌·防具\n防具技能：当你需要使用或打出一张【闪】时，你可以进行判定：若结果为红色，视为你使用或打出了一张【闪】。",
+                      "sha256": "b367fdf53789e0bd3d4b42d1be882c5af9742c720038fe7fca5237a9316e74b1"
+                    }
+                  },
+                  {
+                    "id": "standard:text:longdan:0",
+                    "title": "龙胆",
+                    "text": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+                    "source": {
+                      "id": "f69a9a532f88173b0c2f:passage:standard:text:longdan:0",
+                      "title": "龙胆",
+                      "path": "runtime/packages/standard/i18n/zh_CN.lua",
+                      "line_start": 150,
+                      "line_end": 150,
+                      "snapshot_id": "freekill-local-b9dc701220bc",
+                      "evidence_type": "skill_description",
+                      "excerpt": "你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。",
+                      "sha256": "6fb16c27feece0c37650195128a0fb9d943e075c75b5e783cf9d5f05606628a5"
+                    }
+                  }
+                ]
+              },
+              "status": "succeeded",
+              "elapsed_ms": 55,
+              "created_at": "2026-11-17T10:48:48.920637"
+            }
+          ],
+          "usage": {
+            "run_id": "cb5cf492-4d1e-5f37-ba51-24281f3f0697",
+            "reserved_cny": 1.010688,
+            "charged_cny": 0.01456,
+            "estimated": false,
+            "settled": true
+          },
+          "elapsed_ms": 5356,
+          "input_tokens": 6316,
+          "output_tokens": 241,
+          "snapshot_id": "freekill-local-b9dc701220bc",
+          "model_id": "deepseek-flash",
+          "prompt_version": "grounded-27133eb1e92170f2"
+        }
+      ]
+    }
+  ],
+  "citation_integrity_review": [
+    {
+      "phase": "before",
+      "case_id": "PERF01",
+      "run_id": "2a40d6a0-a56a-58de-aada-e9a553309b01",
+      "citations_checked": 11,
+      "file_hash_and_line_errors": []
+    },
+    {
+      "phase": "before",
+      "case_id": "PERF02",
+      "run_id": "39d4b4fa-e952-5ea7-9e27-1d717340ca82",
+      "citations_checked": 17,
+      "file_hash_and_line_errors": []
+    },
+    {
+      "phase": "before",
+      "case_id": "PERF03",
+      "run_id": "deacbb06-6c0b-5737-868b-e5294d063683",
+      "citations_checked": 11,
+      "file_hash_and_line_errors": []
+    },
+    {
+      "phase": "before",
+      "case_id": "PERF04",
+      "run_id": "00f987c1-4650-5496-95d3-752afdf29507",
+      "citations_checked": 5,
+      "file_hash_and_line_errors": []
+    },
+    {
+      "phase": "after",
+      "case_id": "PERF01",
+      "run_id": "df5d6abf-9d64-5cea-b17f-6eb912677cb8",
+      "citations_checked": 2,
+      "file_hash_and_line_errors": []
+    },
+    {
+      "phase": "after",
+      "case_id": "PERF02",
+      "run_id": "dc04e946-89cf-5952-9d59-6b59bf22e4e3",
+      "citations_checked": 2,
+      "file_hash_and_line_errors": []
+    },
+    {
+      "phase": "after",
+      "case_id": "PERF03",
+      "run_id": "316e5422-d2ca-5422-9cf2-605764e2b65e",
+      "citations_checked": 2,
+      "file_hash_and_line_errors": []
+    },
+    {
+      "phase": "after",
+      "case_id": "PERF04",
+      "run_id": "6245635a-bdce-5b13-83ab-10348d848d09",
+      "citations_checked": 11,
+      "file_hash_and_line_errors": []
+    },
+    {
+      "phase": "after-warm",
+      "case_id": "PERF01",
+      "run_id": "216820eb-5e34-5793-adb4-35a42eccf265",
+      "citations_checked": 2,
+      "file_hash_and_line_errors": []
+    },
+    {
+      "phase": "after-warm",
+      "case_id": "PERF02",
+      "run_id": "7f65754f-7198-56c2-b71e-d4f39a4546c4",
+      "citations_checked": 2,
+      "file_hash_and_line_errors": []
+    },
+    {
+      "phase": "after-warm",
+      "case_id": "PERF03",
+      "run_id": "ecc28fcc-b5e2-5ce6-8999-876e2b4865f8",
+      "citations_checked": 2,
+      "file_hash_and_line_errors": []
+    },
+    {
+      "phase": "after-warm",
+      "case_id": "PERF04",
+      "run_id": "cb5cf492-4d1e-5f37-ba51-24281f3f0697",
+      "citations_checked": 11,
+      "file_hash_and_line_errors": []
+    }
+  ],
+  "semantic_review": [
+    {
+      "case_id": "PERF01",
+      "conclusion": "闪：基本牌，杀对你生效时抵消此杀效果；精确路径只引用闪的定义和说明，没有混入闪电。"
+    },
+    {
+      "case_id": "PERF02",
+      "conclusion": "杀：出牌阶段、攻击范围内一名角色、1点伤害；精确路径直接显示牌说明，不延伸火杀/雷杀或未显示的次数规则。"
+    },
+    {
+      "case_id": "PERF03",
+      "conclusion": "桃：时机、目标、回复1点体力完整呈现；不把濒死时的目标限定为自己。"
+    },
+    {
+      "case_id": "PERF04",
+      "conclusion": "完整问句仍走Agno及实际数据/检索工具，答案时机与闪的说明核对；模型输出仍会变化，预热不保证任意完整问句更快。"
+    }
+  ],
+  "paid_total_cny": 0.088452
+}

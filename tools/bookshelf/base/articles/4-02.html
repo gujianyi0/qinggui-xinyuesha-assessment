@@ -1,0 +1,844 @@
+<h1 id="section-1">RAG、来源引用与知识更新（二）：分块大小、重叠、Top-K、元数据过滤与分层故障定位</h1>
+<blockquote>
+<p>对应学习目标：<strong>分块大小、重叠、Top-K 和元数据过滤如何影响结果；能区分资料没收进来、检索没找到和模型答错。</strong></p>
+<p>文档性质：知识性技术手册。示例以游戏规则 RAG 为背景，但原理同样适用于企业知识库、政策问答、客服与文档检索。</p>
+<p>技术范围：文档入库、Chunking、Embedding 检索、PostgreSQL/pgvector、查询过滤、Reranking、上下文选择、可观测性与故障归因。更新核对日期：2026-11-11。</p>
+</blockquote>
+<hr />
+<h2 id="section-2">01. 本节的核心问题：RAG 是一条有状态的证据传递链</h2>
+<p>一次 RAG 回答并不等于“把问题交给模型”。它至少经历：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">原始资料
+  ↓ 解析（extract/parse）
+文本、表格、段落、来源位置
+  ↓ 分块（chunking）
+可检索片段 + 文档 ID + 版本 + 权限元数据
+  ↓ Embedding / 索引
+稀疏或稠密检索数据结构
+  ↓ 查询与元数据过滤
+合法且符合版本的候选片段
+  ↓ 排序、Top-K、重排、去重
+用于生成回答的候选证据
+  ↓ 上下文组装（Token 预算）
+模型实际接收到的证据
+  ↓ 生成、引用核验
+最终回答</code></pre></div><p>这里至少有三个性质完全不同的失败：</p>
+<ol>
+<li><strong>资料没有进入可检索系统</strong>：原文件未导入、解析失败、分块遗漏、Embedding 或索引未完成。即使模型能力完美，也无法根据不存在的证据回答。</li>
+<li><strong>资料已经进入系统，但没有被正确检索或送入上下文</strong>：过滤错误、检索语义偏差、Top-K 太小、近似索引召回不足、重排误删、上下文裁剪等。</li>
+<li><strong>正确证据已经进入模型实际输入，但模型输出仍然错误</strong>：数值抄错、忽略限定条件、混淆版本、推断超出证据或引用不支持结论。</li>
+</ol>
+<p>注意“资料导入”与“已可检索”之间还存在中间状态：文件已保存，但其文本可能尚未解析；文档文本已解析，但还没有完成索引。运维上必须分别记录各阶段状态，不能只使用一个模糊的 <code>imported=true</code>。</p>
+<hr />
+<h2 id="section-3">02. 理解 Chunk：它是检索单元，不一定是原始文档的自然段落</h2>
+<p>**Chunk（文档片段）**是检索、Embedding 和提供证据时使用的基本文本单元。常见实现把一份文档切成多个 Chunk，每个 Chunk 关联父文档和位置元数据。分块策略会改变：</p>
+<ul>
+<li>检索粒度：一次检索命中的是一小条事实，还是一整个大章节；</li>
+<li>语义完整性：定义、适用条件和例外情况是否出现在同一片段；</li>
+<li>索引规模：需要向量化和存储多少个片段；</li>
+<li>检索排序：文本混合多个主题时，Embedding 表征可能不够聚焦；</li>
+<li>生成成本：传入模型的总文本量；</li>
+<li>引用精度：能否把答案关联到具体段落，而非宽泛章节。</li>
+</ul>
+<p>Chunk 不是越短越好，也不是越长越好。它要在<strong>能够独立表达事实</strong>与<strong>足够聚焦便于检索</strong>之间取得平衡。不同文档可能需要不同策略，例如 API 文档优先按标题和代码块切分，游戏规则优先保留条款与例外，财务数据优先保留表头及单位。</p>
+<h3 id="section-4">2.1 Chunk 大小的计量单位</h3>
+<ul>
+<li><strong>字符数</strong>：按 Unicode 字符串长度近似控制。实现简单，但不能等同于模型 Token。</li>
+<li><strong>词数</strong>：适合有稳定分词边界的语言，但对中文、代码、混合文本要特别小心。</li>
+<li><strong>Token 数</strong>：使用指定 Tokenizer 计数。更容易与 Embedding 模型或 LLM 的上下文限制对应。</li>
+<li><strong>语义单元</strong>：标题、段落、句子、列表、表格或 AST 节点；长度可变。</li>
+</ul>
+<p>因此 <code>chunk_size=512</code> 的含义必须结合框架与分块器明确确认：<strong>512 Token 不是 512 个汉字</strong>。</p>
+<h3 id="section-5">2.2 Chunk 不宜切断哪些关系</h3>
+<p>对于一条规则：</p>
+<blockquote>
+<p>角色 A 的“火焰术”消耗 3 点法力；<strong>但在沉默状态下不可释放</strong>。本规则适用于 v2.1 及以上版本。</p>
+</blockquote>
+<p>如果切成三个互相独立的片段：</p>
+<ul>
+<li><code>火焰术消耗 3 点法力</code></li>
+<li><code>沉默状态下不可释放</code></li>
+<li><code>适用于 v2.1 及以上</code></li>
+</ul>
+<p>那么模型可能只检索第一条，并给出无条件允许释放的错误回答。更合理的做法是让单个规则原子单元包含主要条件、例外和版本；必要时把父标题（如“v2.1 / 法术规则”）嵌入每个子块。</p>
+<hr />
+<h2 id="section-6">03. Chunk Size 过小与过大分别会发生什么</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>块过小</th>
+<th>块过大</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>语义完整性</td>
+<td>容易切断条件、单位和指代</td>
+<td>上下文通常更完整</td>
+</tr>
+<tr>
+<td>检索聚焦性</td>
+<td>细粒度信息更容易被区分</td>
+<td>多个主题混合，向量可能失焦</td>
+</tr>
+<tr>
+<td>索引体量</td>
+<td>Chunk 数量增加</td>
+<td>Chunk 数量减少</td>
+</tr>
+<tr>
+<td>引用精度</td>
+<td>可精确到小片段，但可能缺上下文</td>
+<td>引用定位宽泛，需要二次精确定位</td>
+</tr>
+<tr>
+<td>生成上下文</td>
+<td>可灵活组合不同证据</td>
+<td>每个结果占用更多 Token</td>
+</tr>
+<tr>
+<td>嵌入开销</td>
+<td>调用次数/片段元数据可能增加</td>
+<td>单片段文本更多，注意模型输入上限</td>
+</tr>
+<tr>
+<td>关键风险</td>
+<td><strong>信息碎片化</strong></td>
+<td><strong>信息稀释</strong></td>
+</tr>
+</tbody></table>
+<p>这只是一般趋势，实际质量受文档类型、分块器、Embedding 模型、检索器和问题分布影响。检索效果必须通过样例集测量，不能从 Chunk Size 单独推断。</p>
+<h3 id="section-7">3.1 示例：短块和长块的差异</h3>
+<p>用户问：<code>角色 A 在沉默状态下能否释放火焰术？</code></p>
+<ul>
+<li>50 Token 块可能检索到“消耗 3 法力”，但丢失“沉默禁止”的限制。</li>
+<li>200 Token 的规则块若包含两个条件，能够直接支持正确回答。</li>
+<li>2000 Token 大块包含十几名角色和多种规则时，“沉默条件”可能被其他内容稀释，甚至检索不到。</li>
+</ul>
+<p><strong>工程含义</strong>：对有强依赖关系的内容，应优先以逻辑边界分块，而非机械地追求固定字数。</p>
+<h3 id="section-8">3.2 一个可解释的初始实验范围</h3>
+<p>对普通中文知识文档，可以试验例如 <code>256 / 512 / 1024 Token</code> 等不同块大小，适当加入语义边界保护；它们是<strong>待评测候选值，而不是行业通用最佳参数</strong>。对规则条款、FAQ、代码片段等结构化资料，应优先按条目、标题和作用域切块。</p>
+<hr />
+<h2 id="section-9">04. Chunk Overlap：为什么相邻片段需要重叠</h2>
+<p><strong>Overlap（重叠）</strong>：相邻 Chunk 之间重复保留一部分文本，降低重要信息刚好落在切分边界时被拆散的概率。</p>
+<p>假设原始 Token 序列为：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">A B C D E F G H I J K L</code></pre></div><p><code>chunk_size=5, overlap=2</code> 时：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Chunk 1: A B C D E
+Chunk 2:       D E F G H
+Chunk 3:             G H I J K
+Chunk 4:                   J K L</code></pre></div><p>在最简单的固定滑动窗口分块中，相邻窗口的步长：</p>
+<p>[
+S = C - O
+]</p>
+<p>其中 C 为块长度，O 为重叠长度，要求 <code>0 ≤ O &lt; C</code>。对于长度 L 的序列，当 <code>L &gt; C</code> 时：</p>
+<p>[
+N = 1 + \left\lceil\frac{L-C}{C-O}\right\rceil
+]</p>
+<p>这里 N 是分块数；<code>L ≤ C</code> 时 N=1。公式适用于固定步长的完整覆盖滑动窗口，实际按段落或语义边界调整的分块器不一定严格遵循该公式。</p>
+<p><strong>例子</strong>：L=1000，C=300，O=60，则步长 S=240，N=1+ceil(700/240)=4。最后一个块往往不足 300 Token。</p>
+<h3 id="section-10">4.1 Overlap 带来的好处</h3>
+<ol>
+<li>保留跨边界的前后语义；</li>
+<li>缓解代词、条件和结论被分开的情况；</li>
+<li>允许同一个关键信息从多个相邻片段命中。</li>
+</ol>
+<h3 id="section-11">4.2 Overlap 的代价</h3>
+<ol>
+<li><strong>重复 Embedding 与索引体量</strong>：同一段文字被多次表示与存储。</li>
+<li><strong>检索结果冗余</strong>：Top-K 可能大部分来自同一段附近，挤占其他证据。</li>
+<li><strong>生成 Token 增加</strong>：不去重直接拼接会重复消费上下文。</li>
+<li><strong>结果相关性偏差</strong>：重复内容可能提高同一文档在排序中的存在感，但不代表增加了独立证据。</li>
+<li><strong>更新代价增加</strong>：修改源文档时，受影响的相邻块可能需要一起重新索引。</li>
+</ol>
+<p>一般应优先通过<strong>语义边界分块、父子块检索、相邻块扩展、去重</strong>减少对大比例 Overlap 的依赖。</p>
+<h3 id="section-12">4.3 为什么 Overlap 不能修复所有错误</h3>
+<p>重叠只能减少相邻边界问题。它无法修复：OCR 识别错误、文档缺页、版本缺失、复杂表格被拆乱、embedding 质量差、错误的权限过滤或生成阶段的事实幻觉。</p>
+<hr />
+<h2 id="section-13">05. Overlap 的选择及重复证据处理</h2>
+<p>常见实验会比较：<code>0% / 10% / 20%</code> 重叠比例，但必须结合原始内容结构和评测结果确定。没有适用于所有资料的最优重叠率。</p>
+<h3 id="section-14">5.1 结果去重的层次</h3>
+<ul>
+<li><strong>完全重复</strong>：相同 <code>document_id + start_offset + end_offset</code>，可直接合并。</li>
+<li><strong>相邻高度重合</strong>：检索后合并重叠范围，避免重复输入模型。</li>
+<li><strong>同一事实的多个副本</strong>：例如转存规则和官方源规则，不应把副本误当成多份独立支持证据。</li>
+<li><strong>同一事实的不同版本</strong>：不能仅因为文本相似就合并，必须保留版本差异。</li>
+</ul>
+<h3 id="section-15">5.2 Parent–Child Retrieval</h3>
+<p>常见改进是对较小的子 Chunk 建立索引，用它进行精确检索；命中后再向上取其父段落或父章节，向模型提供更完整上下文。这将<strong>检索粒度</strong>与<strong>生成证据粒度</strong>解耦。</p>
+<p>但父块扩展必须受版本、权限、长度预算限制。不能因为子块命中就把整篇未经授权的父文档发送给模型。</p>
+<hr />
+<h2 id="section-16">06. Top-K 究竟控制了什么</h2>
+<p><strong>Top-K</strong>通常指按照某个排序标准返回前 K 个候选，但在完整 RAG 管线里可能有多个不同的 K：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">向量/关键词检索：candidate_top_k = 40
+      ↓
+混合检索合并与去重：40 个候选
+      ↓
+Reranker：rerank_top_n = 10
+      ↓
+上下文选择：context_top_n = 4（并受 Token 预算限制）
+      ↓
+模型回答</code></pre></div><p>不能把检索器的 <code>top_k</code>、重排器的 <code>top_n</code>、实际传给模型的片段数混为一谈。</p>
+<h3 id="section-17">6.1 K 太小</h3>
+<ul>
+<li>更快、输入更短；</li>
+<li>但可能漏掉排位靠后的关键证据；</li>
+<li>多跳问题可能缺少另一条必要规则；</li>
+<li>与当前问题相关但排名不够高的来源无法进入上下文。</li>
+</ul>
+<h3 id="section-18">6.2 K 太大</h3>
+<ul>
+<li>初始召回机会通常提高，但会带来更多无关片段；</li>
+<li>如果全部传给 LLM，Token 和延迟增加；</li>
+<li>同类或重叠片段可能占满上下文；</li>
+<li>旧版本和相互冲突资料可能造成生成混淆；</li>
+<li>增加 K 并不能修复索引缺失或错误过滤。</li>
+</ul>
+<p><strong>严格地说</strong>：在同一静态排序列表、过滤条件不变、没有阈值和其他截断的前提下，扩大 K 不会让原先已出现的候选“消失”；但一旦涉及近似检索、重排、上下文预算或特定 API，最终提供给模型的证据集合可能发生变化。</p>
+<h3 id="section-19">6.3 数值案例</h3>
+<p>假设排序结果：</p>
+<table>
+<thead>
+<tr>
+<th>排名</th>
+<th>Chunk</th>
+<th>内容</th>
+<th>是否为正确依据</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>A</td>
+<td>游戏背景介绍</td>
+<td>否</td>
+</tr>
+<tr>
+<td>2</td>
+<td>B</td>
+<td>角色基本介绍</td>
+<td>否</td>
+</tr>
+<tr>
+<td>3</td>
+<td>C</td>
+<td>火焰术法力消耗规则</td>
+<td>是</td>
+</tr>
+<tr>
+<td>4</td>
+<td>D</td>
+<td>旧版本技能规则</td>
+<td>否</td>
+</tr>
+<tr>
+<td>5</td>
+<td>E</td>
+<td>当前版本沉默限制</td>
+<td>是</td>
+</tr>
+</tbody></table>
+<p>问题是“当前版本沉默时能否释放火焰术，消耗多少法力？”</p>
+<ul>
+<li>Top-K=2：两条必要依据都没有进入；</li>
+<li>Top-K=3：只得到消耗数值，缺少沉默限制；</li>
+<li>Top-K=5：有可能得到完整证据，但还需要版本过滤和上下文筛选。</li>
+</ul>
+<p>对于这个问题，两条规则是<strong>联合充分证据</strong>。只看是否命中一条相关 Chunk，会高估实际可回答性。</p>
+<hr />
+<h2 id="section-20">07. 元数据（Metadata）是什么</h2>
+<p>元数据不是文档正文，而是描述文档或 Chunk 的结构化属性。例如：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"tenant_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"tenant-42"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"document_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"rule-2026-v2"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"chunk_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"rule-2026-v2:section-3:part-2"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"title"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"角色 A / 火焰术"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2.1"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"language"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"zh-CN"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"source_type"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"official_rule"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"published"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"effective_from"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2026-10-01T00:00:00Z"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"effective_to"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"section_path"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"角色"</span><span class="hljs-punctuation">,</span> <span class="hljs-string">"角色 A"</span><span class="hljs-punctuation">,</span> <span class="hljs-string">"技能"</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"embedding_model"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"embedding-model-v3"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"content_hash"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"sha256:..."</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>其中字段名和格式仅为推荐示例，不是通用协议。</p>
+<p>元数据最重要的作用是：把<strong>语义相近</strong>与<strong>业务允许且真实适用</strong>分开。即使 v1 和 v2 的技能描述相似，也不代表可以把它们混在一起回答。</p>
+<hr />
+<h2 id="section-21">08. 元数据过滤的五类核心场景</h2>
+<h3 id="section-22">8.1 权限过滤</h3>
+<p>根据经过身份认证的租户、用户、角色、资源 ACL 排除无权访问的资料。不可由模型自行决定是否绕过，也不能仅凭用户在问题里写的 <code>tenant_id</code> 判断身份。</p>
+<h3 id="section-23">8.2 版本过滤</h3>
+<p>游戏规则、API 文档、产品政策往往同时存在多个版本。必须区分：</p>
+<ul>
+<li><code>source_version</code>：源文档版本；</li>
+<li><code>effective_version</code>：问题所在业务版本；</li>
+<li><code>index_version</code>：索引的构建版本；</li>
+<li><code>embedding_model_version</code>：向量生成模型版本。</li>
+</ul>
+<p>这些不是同一概念。重新建立索引不意味着业务规则升级。</p>
+<h3 id="section-24">8.3 发布时间与生效时间</h3>
+<p>一条规则的发布时间和正式生效时间可能不同。用户问历史时点的问题时，要按相关时间区间筛选，且明确时区和闭开区间（如 <code>effective_from &lt;= time &lt; effective_to</code>）。</p>
+<h3 id="section-25">8.4 资料类型和可信等级</h3>
+<p>可按官方公告、玩家攻略、内部反馈等类型过滤或排序。<strong>来源可信度不是指令权限</strong>；即使来源可靠，文档正文中的命令也不具有 Agent 执行权。</p>
+<h3 id="section-26">8.5 文档状态</h3>
+<p>常见状态：<code>draft</code>、<code>published</code>、<code>deprecated</code>、<code>deleted</code>、<code>indexing</code>。已删除或已撤回资料即使残留向量索引，也不应继续出现在普通查询中。</p>
+<hr />
+<h2 id="section-27">09. 过滤顺序：Pre-filter 与 Post-filter 的区别</h2>
+<p>概念上可以分为：</p>
+<p><strong>先过滤后检索（Pre-filter）</strong>：先限制符合权限与版本的候选，再在允许的范围内排序。这是业务语义上的理想条件，但底层数据库是否如此执行取决于查询计划和索引结构。</p>
+<p><strong>先近似扫描后过滤（Post-filter）</strong>：向量索引先产生候选，再把不符合条件的候选剔除。如果符合过滤条件的记录占比小，最终返回结果可能少于 K 条。</p>
+<h3 id="section-28">9.1 pgvector 的实际差异</h3>
+<p>pgvector 官方说明：普通精确最近邻查询能够得到完整候选中的精确排序；HNSW 和 IVFFlat 是近似索引，会以一定召回率换取查询效率。使用近似索引时，过滤条件可能在索引扫描结果上应用，导致返回不足 K 条。</p>
+<p>针对这种问题可评估：</p>
+<ol>
+<li>调整 <code>hnsw.ef_search</code>；</li>
+<li>在适合的版本和场景中使用 iterative index scan；</li>
+<li>对少量常见过滤值建立部分 HNSW 索引；</li>
+<li>使用 PostgreSQL 分区，将数据限制在业务分区内；</li>
+<li>在选择性高的条件下先利用 B-tree 等关系索引，再进行精确向量排序；</li>
+<li>对同一固定测试集比较近似与精确检索的 Recall@K。</li>
+</ol>
+<p>在 pgvector 0.8.0+ 可使用例如：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">SET</span> hnsw.iterative_scan <span class="hljs-operator">=</span> strict_order;</code></pre></div><p>但扫描仍受到参数与资源限制，不能保证任何查询都恰好返回 K 条。</p>
+<p><strong>安全注意</strong>：即使基础 SQL 的 <code>WHERE tenant_id = ...</code> 由数据库执行，仍必须在应用或数据库层实现真正的对象授权。不能把向量过滤器替代身份认证与资源权限检查。</p>
+<hr />
+<h2 id="section-29">10. Chunk Size、Overlap、Top-K 与过滤参数是耦合关系</h2>
+<p>它们不能脱离彼此独立优化。</p>
+<ul>
+<li><strong>Chunk 变小</strong>：相同文档被切成更多片段；要覆盖同等原文范围，可能需要更大的 Top-K，或者采用父子块扩展。</li>
+<li><strong>Overlap 增大</strong>：相邻块更加相似；需要去重、最大同源块数限制，否则 Top-K 容易被重复内容占据。</li>
+<li><strong>Top-K 增大</strong>：候选召回可能改善，但 Reranker、上下文截断和成本必须同步调整。</li>
+<li><strong>Metadata 过滤严格</strong>：减少错误版本与越权片段，但也可能暴露源数据质量不足、索引分区不均、ANN 后过滤不足等问题。</li>
+<li><strong>Index ANN 参数变化</strong>：候选集合可能改变，导致在同样 Top-K 下出现不同命中情况。</li>
+</ul>
+<p>一个常用实验矩阵如下（只作为实验配置，不代表默认推荐）：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>Chunk Size</th>
+<th>Overlap</th>
+<th>候选 Top-K</th>
+<th>重排后上限</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td>256 Token</td>
+<td>0</td>
+<td>20</td>
+<td>5</td>
+</tr>
+<tr>
+<td>B</td>
+<td>512 Token</td>
+<td>64</td>
+<td>20</td>
+<td>5</td>
+</tr>
+<tr>
+<td>C</td>
+<td>512 Token</td>
+<td>64</td>
+<td>40</td>
+<td>5</td>
+</tr>
+<tr>
+<td>D</td>
+<td>1024 Token</td>
+<td>128</td>
+<td>40</td>
+<td>5</td>
+</tr>
+</tbody></table>
+<p>对每个方案都应执行<strong>相同评测问题</strong>，保持数据快照、Embedding 版本、查询逻辑和权限范围可比较；如果不同方案需要重建索引，应明确记录它们不是相同的索引快照。</p>
+<hr />
+<h2 id="section-30">11. 三种错误的严格定义与边界</h2>
+<h3 id="section-31">11.1 资料未收进来（Ingestion / Indexing Failure）</h3>
+<p>问题所需的可信资料在原始知识源中确实存在，但数据链路中丢失或不可检索。</p>
+<p>常见情况：</p>
+<ul>
+<li>文件未被扫描到；</li>
+<li>下载失败或权限受限；</li>
+<li>PDF 某页抽取为空，表格列关系被破坏；</li>
+<li>分块器跳过了附录、标题、图表；</li>
+<li>Embedding 请求失败或索引队列没有消费；</li>
+<li>索引构建任务失败，但 UI 显示“上传成功”；</li>
+<li>向量索引仍指向旧版数据。</li>
+</ul>
+<p><strong>判定证据</strong>：原始文件清单、内容哈希、解析产物、Chunk 数量、Embedding 数量、索引版本、导入任务状态。</p>
+<p>修复方向：重新抽取、重分块、补充缺失页、重建索引、修复导入状态与告警。</p>
+<h3 id="section-32">11.2 检索未找到（Retrieval Failure）</h3>
+<p>需要的证据<strong>已经成功索引且符合查询权限/版本条件</strong>，但没有进入最终可供模型读取的证据集合。</p>
+<p>常见情况：</p>
+<ul>
+<li>Query 用词与文档术语偏差较大；</li>
+<li>Top-K 过小；</li>
+<li>过滤条件错误排除正确版本；</li>
+<li>ANN 召回不足；</li>
+<li>Reranker 错排；</li>
+<li>相邻重复 Chunk 挤占名额；</li>
+<li>Context Builder 将检索到的正确 Chunk 裁掉。</li>
+</ul>
+<p>严格区分：<strong>检索器没有命中</strong>与<strong>检索到了但上下文未包含</strong>。二者都可能导致模型看不到证据，但优化位置不同。</p>
+<p>修复方向：查询改写、术语扩展、Hybrid Search、参数评测、版本过滤修复、重排优化、去重、上下文预算调整。</p>
+<h3 id="section-33">11.3 模型答错（Generation / Grounding Failure）</h3>
+<p>正确而充分的证据已经进入模型实际接收到的上下文，模型仍给出与证据不符或缺乏依据的回答。</p>
+<p>常见情况：</p>
+<ul>
+<li>数值、条件或否定词理解错误；</li>
+<li>把旧规则与现行规则合并；</li>
+<li>将示例内容误当成通用规定；</li>
+<li>引用正确文件，但引用段落不支持结论；</li>
+<li>明明资料不足，却编造一个确定答案。</li>
+</ul>
+<p>修复方向：结构化提取和程序计算、明确引用约束、答案验证、困难样例评测、模型或提示词对比、降低无依据推断。</p>
+<p><strong>另有第四种情况：资料本身错误或过期。</strong> 即使检索和生成完全忠实，也可能产生客观上错误的回答。应单独记录 <code>SOURCE_QUALITY_ERROR</code>，由数据治理修复，不能将它完全归咎于生成模型。</p>
+<hr />
+<h2 id="section-34">12. 用“黄金证据”进行分层定位</h2>
+<p>评测样例不能只有问题和标准答案。为便于定位，还应保存：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"case_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"rule-017"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"question"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"v2.1 中角色 A 沉默时能否释放火焰术？"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"tenant_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"tenant-42"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"business_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2.1"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"gold_source_ids"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"rules-v2.1"</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"gold_spans"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-punctuation">{</span><span class="hljs-attr">"document_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"rules-v2.1"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"start"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1382</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"end"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1467</span><span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"expected_facts"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"沉默时不能释放火焰术"</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"expected_behavior"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"回答禁止释放，并指向支持这一说法的原文"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>建议依据检索链逐项回答：</p>
+<ol>
+<li>黄金源文件是否在 <code>source_manifest</code> 中？</li>
+<li>解析文本是否包含黄金原文？</li>
+<li>黄金原文是否被至少一个 Chunk 覆盖？</li>
+<li>相应 Chunk 是否存在于已生效索引中？</li>
+<li>查询过滤后，这些 Chunk 是否仍是合法候选？</li>
+<li>检索器的 Top-K 是否返回了黄金 Chunk？</li>
+<li>Reranker 是否保留它？</li>
+<li>最终 Prompt 是否实际包含它？</li>
+<li>最终回答是否与证据一致并引用正确位置？</li>
+</ol>
+<p><strong>当某一步首次失败时，优先归因于该步骤或其上游，避免直接用“换更强模型”掩盖问题。</strong></p>
+<hr />
+<h2 id="section-35">13. 排查决策树</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">问：正确资料原文存在吗？
+├─ 否 → SOURCE_MISSING / 数据源本身不完整
+└─ 是
+   ├─ 解析文本和 Chunk 覆盖了该事实吗？
+   │  └─ 否 → INGESTION_FAILURE
+   └─ 是
+      ├─ 相关 Chunk 已完成 Embedding 和索引吗？
+      │  └─ 否 → INDEXING_FAILURE
+      └─ 是
+         ├─ 当前身份、版本、时间允许读取吗？
+         │  └─ 否 → 权限拒绝或过滤范围错误（两者必须区分）
+         └─ 是
+            ├─ 初始 Top-K 命中了吗？
+            │  └─ 否 → RETRIEVAL_MISS
+            └─ 是
+               ├─ 重排后还在吗？
+               │  └─ 否 → RERANKING_DROP
+               └─ 是
+                  ├─ 最终 Prompt 保留了这段证据吗？
+                  │  └─ 否 → CONTEXT_PACKING_DROP
+                  └─ 是
+                     ├─ 证据真实、完整且未过期吗？
+                     │  └─ 否 → SOURCE_QUALITY_ERROR
+                     └─ 是
+                        ├─ 回答得到证据支持吗？
+                        │  └─ 否 → GENERATION_ERROR
+                        └─ 是 → SUCCESS</code></pre></div><p>权限判定不能靠用户提交的资源标识自证。对未授权用户，不应通过外部错误码泄露“某条私有资料是否存在”；精细故障原因仅供有权限的内部诊断系统查看。</p>
+<hr />
+<h2 id="section-36">14. 需要保留哪些日志才能准确定位</h2>
+<p>每次查询建议产生一个受控的 <code>trace_id</code>，把下列字段关联起来：</p>
+<table>
+<thead>
+<tr>
+<th>环节</th>
+<th>推荐记录</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>原始数据</td>
+<td>source_id、checksum、版本、导入时间</td>
+<td>证明原资料身份</td>
+</tr>
+<tr>
+<td>解析</td>
+<td>parser_version、页数、提取字符数、错误页</td>
+<td>识别丢页和解析失败</td>
+</tr>
+<tr>
+<td>分块</td>
+<td>splitter_version、size、overlap、offset、chunk_count</td>
+<td>复现切分</td>
+</tr>
+<tr>
+<td>Embedding</td>
+<td>model_id、dimension、index_version、状态</td>
+<td>识别不一致与漏索引</td>
+</tr>
+<tr>
+<td>查询</td>
+<td>query_id、授权范围、过滤表达式、Top-K</td>
+<td>复现检索条件</td>
+</tr>
+<tr>
+<td>检索</td>
+<td>匿名化 Chunk ID、排名、分数/距离、ANN 参数</td>
+<td>诊断未命中</td>
+</tr>
+<tr>
+<td>重排</td>
+<td>reranker_version、前后排序</td>
+<td>诊断正确证据被丢弃</td>
+</tr>
+<tr>
+<td>上下文</td>
+<td>实际发送的证据 ID、文本哈希、Token 预算</td>
+<td>判定模型是否真正收到证据</td>
+</tr>
+<tr>
+<td>生成</td>
+<td>model_id、prompt_version、输出状态、引用</td>
+<td>比较回答质量</td>
+</tr>
+<tr>
+<td>评价</td>
+<td>gold_source/span、Recall@K、groundedness</td>
+<td>建立持续回归测试</td>
+</tr>
+</tbody></table>
+<p>生产环境不应默认把所有原始用户输入、私人文档和模型全文写入日志。可以保存脱敏摘要、哈希、访问受控的审计引用及短期调试样本，并配置保留期限。</p>
+<hr />
+<h2 id="section-37">15. PostgreSQL + pgvector：最小数据模型</h2>
+<p>下面是说明性 SQL，实际需要根据 PostgreSQL、pgvector 版本与向量维度调整：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE</span> EXTENSION IF <span class="hljs-keyword">NOT</span> <span class="hljs-keyword">EXISTS</span> vector;
+
+<span class="hljs-keyword">CREATE TABLE</span> source_documents (
+    id TEXT <span class="hljs-keyword">PRIMARY KEY</span>,
+    tenant_id TEXT <span class="hljs-keyword">NOT NULL</span>,
+    version TEXT <span class="hljs-keyword">NOT NULL</span>,
+    status TEXT <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> <span class="hljs-string">'active'</span>,
+    source_hash TEXT <span class="hljs-keyword">NOT NULL</span>
+);
+
+<span class="hljs-keyword">CREATE TABLE</span> document_chunks (
+    id TEXT <span class="hljs-keyword">PRIMARY KEY</span>,
+    document_id TEXT <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">REFERENCES</span> source_documents(id),
+    chunk_order <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span>,
+    content TEXT <span class="hljs-keyword">NOT NULL</span>,
+    embedding vector(<span class="hljs-number">3</span>), <span class="hljs-comment">-- 仅为演示；真实维度须与 Embedding 模型一致</span>
+    <span class="hljs-keyword">UNIQUE</span> (document_id, chunk_order)
+);
+
+<span class="hljs-keyword">CREATE</span> INDEX source_docs_tenant_version_idx
+    <span class="hljs-keyword">ON</span> source_documents (tenant_id, version, status);
+
+<span class="hljs-keyword">CREATE</span> INDEX document_chunks_hnsw_idx
+    <span class="hljs-keyword">ON</span> document_chunks <span class="hljs-keyword">USING</span> hnsw (embedding vector_cosine_ops);</code></pre></div><p>在查询时，先通过经过认证的租户、业务版本与状态限制合法资料：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">SELECT</span> c.id, c.content,
+       c.embedding <span class="hljs-operator">&lt;=&gt;</span> <span class="hljs-string">'[0.2,0.3,0.4]'</span>::vector <span class="hljs-keyword">AS</span> cosine_distance
+<span class="hljs-keyword">FROM</span> document_chunks <span class="hljs-keyword">AS</span> c
+<span class="hljs-keyword">JOIN</span> source_documents <span class="hljs-keyword">AS</span> d <span class="hljs-keyword">ON</span> d.id <span class="hljs-operator">=</span> c.document_id
+<span class="hljs-keyword">WHERE</span> d.tenant_id <span class="hljs-operator">=</span> :authenticated_tenant
+  <span class="hljs-keyword">AND</span> d.version <span class="hljs-operator">=</span> :requested_version
+  <span class="hljs-keyword">AND</span> d.status <span class="hljs-operator">=</span> <span class="hljs-string">'active'</span>
+  <span class="hljs-keyword">AND</span> c.embedding <span class="hljs-keyword">IS</span> <span class="hljs-keyword">NOT NULL</span>
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> c.embedding <span class="hljs-operator">&lt;=&gt;</span> <span class="hljs-string">'[0.2,0.3,0.4]'</span>::vector
+LIMIT <span class="hljs-number">5</span>;</code></pre></div><p>这里的 <code>:authenticated_tenant</code> 和 <code>:requested_version</code> 表示由数据库驱动安全绑定的参数；这是概念 SQL，不是可以直接带冒号参数粘贴到 psql 的完整脚本。</p>
+<h3 id="section-38">15.1 索引调优观察</h3>
+<p>对比：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">EXPLAIN (ANALYZE, BUFFERS)
+<span class="hljs-keyword">SELECT</span> ...;</code></pre></div><p>关注实际执行计划、索引使用、扫描成本和结果数量。对于 ANN 还应使用精确检索基线来评估召回差异。<code>pgvector</code> 官方文档特别强调了 ANN 在过滤条件下的结果不足问题及 iterative scan 的选项。</p>
+<h3 id="section-39">15.2 严格区分安全授权和查询优化</h3>
+<p>RAG 的版本/业务标签过滤用于内容正确性，但租户隔离属于安全边界。建议在有必要的系统中使用数据库 Row Level Security（RLS）、明确访问主体、对象级授权及集成测试；不要把仅用于相似度检索的过滤字段作为唯一权限机制。</p>
+<hr />
+<h2 id="section-40">16. 评估检索质量：先看证据能否找到，再看模型能否回答</h2>
+<h3 id="section-41">16.1 Recall@K</h3>
+<p>设针对某查询的黄金证据集合为 G，前 K 个检索结果集合为 R_K：</p>
+<p>[
+Recall@K = \frac{|G \cap R_K|}{|G|}
+]</p>
+<p>如果问题必须联合引用两段规则，G 有 2 条而只找回 1 条，Recall@K = 0.5；虽然有一条相关结果，但仍不足以支持完整答案。</p>
+<h3 id="section-42">16.2 Precision@K</h3>
+<p>[
+Precision@K = \frac{|G \cap R_K|}{K}
+]</p>
+<p>这里使用二元相关性作为简化定义。更真实的检索系统可采用等级相关性指标（如 nDCG），并考虑一条 Chunk 是否完整支持某个事实。</p>
+<h3 id="section-43">16.3 Evidence Coverage / Answerability</h3>
+<p>对于多项事实要求，使用：</p>
+<p>[
+Coverage = \frac{已被检索证据覆盖的必要事实数}{全部必要事实数}
+]</p>
+<p>但有的任务是“所有条件必须同时成立”，单纯平均覆盖率并不足以表示最终是否可回答，应另加 <code>answerable=true/false</code> 判断。</p>
+<h3 id="section-44">16.4 生成质量指标</h3>
+<ul>
+<li><strong>Faithfulness / Groundedness</strong>：答案是否被提供的证据支持；</li>
+<li><strong>Answer Correctness</strong>：答案是否与独立真值一致；</li>
+<li><strong>Citation Support</strong>：引用是否支持其对应结论；</li>
+<li><strong>Abstention Correctness</strong>：信息不足时是否恰当拒绝猜测。</li>
+</ul>
+<p>不要把“返回的相似度分数很高”直接解释成“模型答案一定可信”。向量相似度并不是经过校准的事实正确概率。</p>
+<hr />
+<h2 id="section-45">17. 固定样例的参数比较方法</h2>
+<p>为了知道一次参数修改的收益与代价，固定以下条件：</p>
+<ul>
+<li>同一批问题、黄金来源及必要事实；</li>
+<li>同一份原始资料快照与权限范围；</li>
+<li>同一模型和 Embedding 版本（除非本次实验专门研究其差异）；</li>
+<li>记录被改变的参数：Chunk Size、Overlap、Top-K、过滤表达式等；</li>
+<li>记录检索延迟、索引规模、召回、上下文 Token、最终正确率、引用支持率。</li>
+</ul>
+<p>建议生成配对评测报表：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>配置 A</th>
+<th>配置 B</th>
+<th>解释</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Recall@5</td>
+<td>实测</td>
+<td>实测</td>
+<td>正确证据进入 Top-5 的程度</td>
+</tr>
+<tr>
+<td>Answerability</td>
+<td>实测</td>
+<td>实测</td>
+<td>是否获得完整必要证据</td>
+</tr>
+<tr>
+<td>Citation Support</td>
+<td>实测</td>
+<td>实测</td>
+<td>引用是否支持陈述</td>
+</tr>
+<tr>
+<td>P95 检索延迟</td>
+<td>实测</td>
+<td>实测</td>
+<td>延迟风险</td>
+</tr>
+<tr>
+<td>平均证据 Token</td>
+<td>实测</td>
+<td>实测</td>
+<td>生成成本</td>
+</tr>
+<tr>
+<td>索引片段数</td>
+<td>实测</td>
+<td>实测</td>
+<td>存储和重建成本</td>
+</tr>
+</tbody></table>
+<p>上表不填造假的数值。任何“某个参数一定提高准确率”的结论都必须有同一评测集的实证支持。</p>
+<hr />
+<h2 id="section-46">18. 常见误区与必要澄清</h2>
+<p><strong>误区 1：Chunk 越小，检索越精确。</strong> 小块可能更聚焦，但也可能丢失条件、标题与例外。</p>
+<p><strong>误区 2：Overlap 越大越可靠。</strong> 重叠过大造成冗余，还可能降低有效证据多样性。</p>
+<p><strong>误区 3：Top-K=10 就一定返回 10 条。</strong> 过滤、阈值、数据不足和 ANN 行为均可能使结果少于 10 条。</p>
+<p><strong>误区 4：增加 K 能解决资料缺失。</strong> 不存在于索引中的文本无法通过增大 K 找回。</p>
+<p><strong>误区 5：有引用就说明回答真实。</strong> 引用必须确实存在、版本正确，并支持对应结论。</p>
+<p><strong>误区 6：元数据过滤只是提高准确率。</strong> 权限过滤还涉及信息安全，是不可跳过的后端控制。</p>
+<p><strong>误区 7：提高 Embedding 相似度阈值一定更好。</strong> 阈值可能降低噪音，也可能增加漏检；还需确认分数方向与校准方式（距离越小越近，或相似度越大越近）。</p>
+<p><strong>误区 8：文档导入成功代表检索就绪。</strong> 原文件保存、解析、Chunk、Embedding、索引提交属于不同阶段。</p>
+<p><strong>误区 9：模型答错就应该改 Prompt。</strong> 若证据未到达模型，先修复检索和上下文组装。</p>
+<p><strong>误区 10：对外返回详细故障阶段有助排查。</strong> 内部诊断要详细，但对未授权用户应避免泄露私有资料是否存在、其版本或具体位置。</p>
+<hr />
+<h2 id="section-47">19. 延伸：改变分块参数为什么要重建索引</h2>
+<p>对于普通的文本 Embedding RAG，向量由每个 Chunk 的文本计算得到：</p>
+<p>[
+\mathbf{e}_i = Embed(chunk_i)
+]</p>
+<p>当 Chunk Size 或 Overlap 改变时，<code>chunk_i</code> 的边界与内容通常也发生变化。因此：</p>
+<ul>
+<li>Chunk ID 和文本哈希需要重新计算；</li>
+<li>Embedding 应按新 Chunk 重新生成；</li>
+<li>旧索引需要更新、替换或使用版本化索引切换；</li>
+<li>来源位置元数据与引用索引要重新验证；</li>
+<li>对外查询应避免同时混用不兼容的老、新索引版本。</li>
+</ul>
+<p>一个稳妥的更新模式是：构建新索引 → 固定样例验证 → 进行版本切换 → 保留必要的回滚机制 → 清理旧索引。</p>
+<p><strong>例外</strong>：如果只改变在线检索的 Top-K，不改变向量和索引结构，通常无需重新生成 Embedding；改变元数据过滤的查询条件也不必天然重算向量，但可能需要修复或迁移元数据索引。</p>
+<hr />
+<h2 id="section-48">20. 知识要点总结</h2>
+<ol>
+<li><strong>Chunk Size</strong>决定检索文本单元的粒度与语义完整性。</li>
+<li><strong>Overlap</strong>减少边界割裂，但增加重复、索引和上下文开销。</li>
+<li><strong>Top-K</strong>控制特定检索阶段的候选数量，不能替代证据完整性判断。</li>
+<li><strong>Metadata Filtering</strong>决定哪些候选具有业务资格；权限过滤还承担安全边界责任。</li>
+<li>同一个 RAG 错误可能发生在原始资料、解析、索引、检索、重排、上下文或生成阶段。</li>
+<li><strong>先检查证据有没有入库，再检查有没有被检索和送到模型，最后检查模型是否忠实使用证据。</strong></li>
+<li>每一类问题都应留下可定位、可复现的版本和执行记录。</li>
+<li>参数优化应以固定样例、黄金证据、延迟和成本的共同度量为依据。</li>
+</ol>
+<hr />
+<h2 id="section-49">21. 参考资料与来源</h2>
+<ol>
+<li>LlamaIndex 官方：Vector Retriever API（Top-K 与 MetadataFilters）<br /><a href="https://developers.llamaindex.ai/python/framework-api-reference/retrievers/vector/">https://developers.llamaindex.ai/python/framework-api-reference/retrievers/vector/</a></li>
+<li>LlamaIndex 官方：MetadataFilters 类型<br /><a href="https://developers.llamaindex.ai/python/framework-api-reference/storage/vector_store/">https://developers.llamaindex.ai/python/framework-api-reference/storage/vector_store/</a></li>
+<li>LlamaIndex 官方：Chunk Settings<br /><a href="https://developers.llamaindex.ai/python/framework/module_guides/supporting_modules/settings/">https://developers.llamaindex.ai/python/framework/module_guides/supporting_modules/settings/</a></li>
+<li>Weaviate 官方：RAG 文档分块与来源元数据<br /><a href="https://docs.weaviate.io/weaviate/starter-guides/generative">https://docs.weaviate.io/weaviate/starter-guides/generative</a></li>
+<li>Weaviate：Chunking Strategies for RAG<br /><a href="https://weaviate.io/blog/chunking-strategies-for-rag">https://weaviate.io/blog/chunking-strategies-for-rag</a></li>
+<li>pgvector 官方仓库与 README：精确/近似检索、过滤、HNSW、Iterative Scan<br /><a href="https://github.com/pgvector/pgvector">https://github.com/pgvector/pgvector</a></li>
+<li>pgvector CHANGELOG：0.8.0 引入 Iterative Index Scans<br /><a href="#alignment">https://github.com/pgvector/pgvector/blob/master/CHANGELOG.md</a></li>
+</ol>
+<p><strong>关于参考参数的说明</strong>：LlamaIndex、Weaviate 等公开资料中的默认值、示例值和推荐起点可能随具体模块和版本而变化。本手册不把任何一个固定 Chunk Size、Overlap 或 Top-K 作为普适最优值。</p>
+<hr />
+<h2 id="section-50">附录 A：离线可执行的故障归因示例</h2>
+<p>下面是一段<strong>确定性、教学性质</strong>的 Python 程序。它不调用真实 Embedding 模型或向量数据库，而是通过明确的词项集合模拟候选相关性，以验证分层定位逻辑。不得把这些离线测试结果误当作真实模型 RAG 的检索准确率。</p>
+<p>将以下代码复制为 <code>diagnose.py</code>，使用 Python 3.11+ 执行 <code>python diagnose.py</code>。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""RAG 三类错误的可执行、确定性最小演示（不调用模型和向量数据库）。"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass, replace
+<span class="hljs-keyword">from</span> enum <span class="hljs-keyword">import</span> StrEnum
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Stage</span>(<span class="hljs-title class_ inherited__">StrEnum</span>):
+    SUCCESS = <span class="hljs-string">'SUCCESS'</span>
+    ACCESS_DENIED = <span class="hljs-string">'ACCESS_DENIED'</span>
+    SOURCE_NOT_INGESTED = <span class="hljs-string">'SOURCE_NOT_INGESTED'</span>
+    EXTRACTION_OR_CHUNKING_FAILED = <span class="hljs-string">'EXTRACTION_OR_CHUNKING_FAILED'</span>
+    INDEX_NOT_READY = <span class="hljs-string">'INDEX_NOT_READY'</span>
+    FILTER_EXCLUDED = <span class="hljs-string">'FILTER_EXCLUDED'</span>
+    RETRIEVAL_MISS = <span class="hljs-string">'RETRIEVAL_MISS'</span>
+    GENERATION_ERROR = <span class="hljs-string">'GENERATION_ERROR'</span>
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Document</span>:
+    <span class="hljs-built_in">id</span>: <span class="hljs-built_in">str</span>
+    tenant_id: <span class="hljs-built_in">str</span>
+    version: <span class="hljs-built_in">str</span>
+    status: <span class="hljs-built_in">str</span> = <span class="hljs-string">'active'</span>
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Chunk</span>:
+    <span class="hljs-built_in">id</span>: <span class="hljs-built_in">str</span>
+    document_id: <span class="hljs-built_in">str</span>
+    terms: <span class="hljs-built_in">frozenset</span>[<span class="hljs-built_in">str</span>]
+    text: <span class="hljs-built_in">str</span>
+    indexed: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">True</span>
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Result</span>:
+    stage: Stage
+    retrieved_ids: <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, ...] = ()
+    detail: <span class="hljs-built_in">str</span> = <span class="hljs-string">''</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">diagnose</span>(<span class="hljs-params">
+    docs: <span class="hljs-built_in">list</span>[Document], chunks: <span class="hljs-built_in">list</span>[Chunk], *,
+    tenant_id: <span class="hljs-built_in">str</span>, source_doc_id: <span class="hljs-built_in">str</span>, version: <span class="hljs-built_in">str</span>,
+    gold_chunk_id: <span class="hljs-built_in">str</span>, query_terms: <span class="hljs-built_in">frozenset</span>[<span class="hljs-built_in">str</span>], top_k: <span class="hljs-built_in">int</span>,
+    generated_answer: <span class="hljs-built_in">str</span>, expected_answer: <span class="hljs-built_in">str</span>,
+</span>) -&gt; Result:
+    <span class="hljs-keyword">if</span> top_k &lt; <span class="hljs-number">1</span>:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'top_k must be &gt;= 1'</span>)
+    owned = <span class="hljs-built_in">next</span>((d <span class="hljs-keyword">for</span> d <span class="hljs-keyword">in</span> docs <span class="hljs-keyword">if</span> d.<span class="hljs-built_in">id</span> == source_doc_id <span class="hljs-keyword">and</span> d.tenant_id == tenant_id), <span class="hljs-literal">None</span>)
+    <span class="hljs-keyword">if</span> owned <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">any</span>(d.<span class="hljs-built_in">id</span> == source_doc_id <span class="hljs-keyword">for</span> d <span class="hljs-keyword">in</span> docs):
+            <span class="hljs-keyword">return</span> Result(Stage.ACCESS_DENIED, detail=<span class="hljs-string">'source belongs to another tenant'</span>)
+        <span class="hljs-keyword">return</span> Result(Stage.SOURCE_NOT_INGESTED)
+
+    source_chunks = [c <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> chunks <span class="hljs-keyword">if</span> c.document_id == source_doc_id]
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> source_chunks:
+        <span class="hljs-keyword">return</span> Result(Stage.EXTRACTION_OR_CHUNKING_FAILED)
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">any</span>(c.indexed <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> source_chunks):
+        <span class="hljs-keyword">return</span> Result(Stage.INDEX_NOT_READY)
+
+    <span class="hljs-comment"># 先依据已认证租户、版本与启用状态限定可见候选；不能先全库选 Top-K 再做权限过滤。</span>
+    allowed_docs = {d.<span class="hljs-built_in">id</span> <span class="hljs-keyword">for</span> d <span class="hljs-keyword">in</span> docs <span class="hljs-keyword">if</span> d.tenant_id == tenant_id <span class="hljs-keyword">and</span> d.version == version <span class="hljs-keyword">and</span> d.status == <span class="hljs-string">'active'</span>}
+    eligible = [c <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> chunks <span class="hljs-keyword">if</span> c.document_id <span class="hljs-keyword">in</span> allowed_docs <span class="hljs-keyword">and</span> c.indexed]
+    <span class="hljs-keyword">if</span> gold_chunk_id <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> {c.<span class="hljs-built_in">id</span> <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> eligible}:
+        <span class="hljs-keyword">return</span> Result(Stage.FILTER_EXCLUDED)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">score</span>(<span class="hljs-params">c: Chunk</span>) -&gt; <span class="hljs-built_in">int</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">len</span>(query_terms &amp; c.terms)
+
+    ranked = <span class="hljs-built_in">sorted</span>((c <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> eligible <span class="hljs-keyword">if</span> score(c) &gt; <span class="hljs-number">0</span>), key=<span class="hljs-keyword">lambda</span> c: (-score(c), c.<span class="hljs-built_in">id</span>))
+    retrieved = <span class="hljs-built_in">tuple</span>(c.<span class="hljs-built_in">id</span> <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> ranked[:top_k])
+    <span class="hljs-keyword">if</span> gold_chunk_id <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> retrieved:
+        <span class="hljs-keyword">return</span> Result(Stage.RETRIEVAL_MISS, retrieved)
+    <span class="hljs-keyword">if</span> generated_answer != expected_answer:
+        <span class="hljs-keyword">return</span> Result(Stage.GENERATION_ERROR, retrieved)
+    <span class="hljs-keyword">return</span> Result(Stage.SUCCESS, retrieved)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">fixture</span>():
+    docs = [Document(<span class="hljs-string">'rule-v2'</span>, <span class="hljs-string">'tenant-A'</span>, <span class="hljs-string">'v2'</span>), Document(<span class="hljs-string">'decoy'</span>, <span class="hljs-string">'tenant-A'</span>, <span class="hljs-string">'v2'</span>)]
+    chunks = [
+        Chunk(<span class="hljs-string">'support'</span>, <span class="hljs-string">'rule-v2'</span>, <span class="hljs-built_in">frozenset</span>({<span class="hljs-string">'火焰术'</span>}), <span class="hljs-string">'火焰术消耗 3 法力。'</span>),
+        Chunk(<span class="hljs-string">'decoy-1'</span>, <span class="hljs-string">'decoy'</span>, <span class="hljs-built_in">frozenset</span>({<span class="hljs-string">'火焰术'</span>, <span class="hljs-string">'法力'</span>}), <span class="hljs-string">'火焰术的法力相关背景说明。'</span>),
+    ]
+    args = <span class="hljs-built_in">dict</span>(tenant_id=<span class="hljs-string">'tenant-A'</span>, source_doc_id=<span class="hljs-string">'rule-v2'</span>, version=<span class="hljs-string">'v2'</span>,
+                gold_chunk_id=<span class="hljs-string">'support'</span>, query_terms=<span class="hljs-built_in">frozenset</span>({<span class="hljs-string">'火焰术'</span>,<span class="hljs-string">'法力'</span>}),
+                top_k=<span class="hljs-number">2</span>, generated_answer=<span class="hljs-string">'3'</span>, expected_answer=<span class="hljs-string">'3'</span>)
+    <span class="hljs-keyword">return</span> docs, chunks, args
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">'__main__'</span>:
+    <span class="hljs-keyword">import</span> unittest
+
+    <span class="hljs-keyword">class</span> <span class="hljs-title class_">Tests</span>(unittest.TestCase):
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">setUp</span>(<span class="hljs-params">self</span>):
+            <span class="hljs-variable language_">self</span>.docs, <span class="hljs-variable language_">self</span>.chunks, <span class="hljs-variable language_">self</span>.args = fixture()
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">check</span>(<span class="hljs-params">self, expected, docs=<span class="hljs-literal">None</span>, chunks=<span class="hljs-literal">None</span>, **kw</span>):
+            params = <span class="hljs-variable language_">self</span>.args | kw
+            result = diagnose(<span class="hljs-variable language_">self</span>.docs <span class="hljs-keyword">if</span> docs <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> docs,
+                              <span class="hljs-variable language_">self</span>.chunks <span class="hljs-keyword">if</span> chunks <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> chunks, **params)
+            <span class="hljs-variable language_">self</span>.assertEqual(result.stage, expected)
+            <span class="hljs-keyword">return</span> result
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_success</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.check(Stage.SUCCESS)
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_source_absent</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.check(Stage.SOURCE_NOT_INGESTED, docs=[])
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cross_tenant_refused</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.check(Stage.ACCESS_DENIED, tenant_id=<span class="hljs-string">'tenant-B'</span>)
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_chunks</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.check(Stage.EXTRACTION_OR_CHUNKING_FAILED, chunks=[])
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_not_indexed</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.check(Stage.INDEX_NOT_READY, chunks=[replace(c,indexed=<span class="hljs-literal">False</span>) <span class="hljs-keyword">for</span> c <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.chunks])
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_version_mismatch</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.check(Stage.FILTER_EXCLUDED, version=<span class="hljs-string">'v1'</span>)
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_disabled_source</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.check(Stage.FILTER_EXCLUDED, docs=[replace(<span class="hljs-variable language_">self</span>.docs[<span class="hljs-number">0</span>],status=<span class="hljs-string">'deleted'</span>),<span class="hljs-variable language_">self</span>.docs[<span class="hljs-number">1</span>]])
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_top_one_miss</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.check(Stage.RETRIEVAL_MISS, top_k=<span class="hljs-number">1</span>)
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_top_two_hit</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.check(Stage.SUCCESS, top_k=<span class="hljs-number">2</span>)
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_matching_query</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.check(Stage.RETRIEVAL_MISS, query_terms=<span class="hljs-built_in">frozenset</span>({<span class="hljs-string">'冰霜'</span>}))
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_model_error</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.check(Stage.GENERATION_ERROR, generated_answer=<span class="hljs-string">'5'</span>)
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_target_unindexed_but_other_indexed</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.check(Stage.INDEX_NOT_READY, chunks=[replace(<span class="hljs-variable language_">self</span>.chunks[<span class="hljs-number">0</span>],indexed=<span class="hljs-literal">False</span>),<span class="hljs-variable language_">self</span>.chunks[<span class="hljs-number">1</span>]])
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_topk_invalid</span>(<span class="hljs-params">self</span>):
+            <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+                diagnose(<span class="hljs-variable language_">self</span>.docs,<span class="hljs-variable language_">self</span>.chunks,**(<span class="hljs-variable language_">self</span>.args|{<span class="hljs-string">'top_k'</span>:<span class="hljs-number">0</span>}))
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_source_in_other_version</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.check(Stage.FILTER_EXCLUDED, docs=[replace(<span class="hljs-variable language_">self</span>.docs[<span class="hljs-number">0</span>],version=<span class="hljs-string">'v1'</span>),<span class="hljs-variable language_">self</span>.docs[<span class="hljs-number">1</span>]])
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_retrieved_order</span>(<span class="hljs-params">self</span>):
+            r = <span class="hljs-variable language_">self</span>.check(Stage.SUCCESS)
+            <span class="hljs-variable language_">self</span>.assertEqual(r.retrieved_ids, (<span class="hljs-string">'decoy-1'</span>,<span class="hljs-string">'support'</span>))
+    unittest.main(verbosity=<span class="hljs-number">2</span>)
+</code></pre></div><h3 id="section-51">运行验证说明</h3>
+<p>已在当前离线 Python 环境中执行 <code>python diagnose.py</code>：<strong>15 项单元测试全部通过</strong>。测试验证了源文件不存在、租户隔离、分块缺失、索引未完成、版本过滤、Top-K 命中与未命中、证据已检索但回答错误等情况。</p>
+<p>该示例用于展示<strong>故障分类</strong>，不是完整生产系统：真实工程仍需验证 PDF 解析、Embedding、ANN、Reranker、上下文组装、真实模型生成与 PostgreSQL 权限控制。</p>
+<hr />
+<h2 id="section-52">附录 B：问题定位记录模板</h2>
+<div class="code-wrap"><div class="code-label"><span>yaml</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-attr">case_id:</span> <span class="hljs-string">rule-017</span>
+<span class="hljs-attr">trace_id:</span> <span class="hljs-string">example-trace</span>
+<span class="hljs-attr">source_document:</span> <span class="hljs-string">rules-v2.1</span>
+<span class="hljs-attr">source_hash:</span> <span class="hljs-string">sha256:...</span>
+<span class="hljs-attr">parser_version:</span> <span class="hljs-string">parser-v1</span>
+<span class="hljs-attr">chunker_version:</span> <span class="hljs-string">splitter-v3</span>
+<span class="hljs-attr">chunk_size_tokens:</span> <span class="hljs-number">512</span>
+<span class="hljs-attr">chunk_overlap_tokens:</span> <span class="hljs-number">64</span>
+<span class="hljs-attr">embedding_model:</span> <span class="hljs-string">embedding-model-v3</span>
+<span class="hljs-attr">index_version:</span> <span class="hljs-string">rules-index-2026-11</span>
+<span class="hljs-attr">tenant_scope:</span> <span class="hljs-string">tenant-42</span>
+<span class="hljs-attr">business_version:</span> <span class="hljs-string">"2.1"</span>
+<span class="hljs-attr">retriever_top_k:</span> <span class="hljs-number">20</span>
+<span class="hljs-attr">reranker_top_n:</span> <span class="hljs-number">5</span>
+<span class="hljs-attr">context_chunk_ids:</span> [<span class="hljs-string">chunk-101</span>, <span class="hljs-string">chunk-102</span>]
+<span class="hljs-attr">gold_chunk_ids:</span> [<span class="hljs-string">chunk-102</span>]
+<span class="hljs-attr">first_failing_stage:</span> <span class="hljs-literal">null</span>
+<span class="hljs-attr">observed_answer:</span> <span class="hljs-literal">null</span>
+<span class="hljs-attr">expected_facts:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-string">"沉默状态下不能释放火焰术"</span>
+<span class="hljs-attr">root_cause:</span> <span class="hljs-literal">null</span>
+<span class="hljs-attr">fix:</span> <span class="hljs-literal">null</span>
+<span class="hljs-attr">regression_test:</span> <span class="hljs-literal">null</span></code></pre></div><p>注意：日志中的身份、资料正文与内部路径应遵守脱敏及访问控制要求。</p>

@@ -1,0 +1,994 @@
+<h1 id="section-1">大模型原理、API 与输出校验（一）</h1>
+<h1 id="section-2">Token、上下文窗口、输入输出用量、自回归生成、模型幻觉与可靠记忆</h1>
+<blockquote>
+<p><strong>知识目标</strong>：理解 Token、上下文窗口、输入与输出用量、自回归生成的基本含义；解释大语言模型为什么可能编造事实，以及为什么很长的上下文窗口不等于可靠的记忆能力。<br /><strong>范围</strong>：以文本生成式大语言模型及其 API 为主；涉及不同供应商时区分通用原理和接口特定行为。<br /><strong>编写日期</strong>：2026-11-11。具体模型的上下文上限、计费倍率及 API 字段可能变化，应以所用模型的最新文档为准。</p>
+</blockquote>
+<hr />
+<h2 id="section-3">1. 先建立一张概念地图</h2>
+<p>一次典型的大语言模型请求可以概括为：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">应用构造请求
+  ├── 系统/开发者指令
+  ├── 当前用户消息
+  ├── 选择性加入的历史消息
+  ├── 工具定义、检索资料、工具返回结果
+  └── 输出格式与其他参数
+         │
+         ▼
+   文本编码 / Tokenization
+         │
+         ▼
+   Token ID 序列（输入 Token）
+         │
+         ▼
+  模型处理输入（通常称 Prefill）
+         │
+         ▼
+  自回归逐 Token 生成（Decode）
+         │
+         ▼
+  输出 Token → 解码为文本/结构化内容
+         │
+         ├── API 响应与 Usage 统计
+         ├── 应用层校验、事实核对
+         └── 如有需要：持久化会话或检索记忆</code></pre></div><p>这一过程中，各个名词回答的问题不同：</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>核心问题</th>
+<th>不能混同为</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Token</td>
+<td>模型以什么离散单位读写文本？</td>
+<td>字符、单词、知识点</td>
+</tr>
+<tr>
+<td>Tokenizer</td>
+<td>文字如何变成 Token ID？</td>
+<td>Embedding 模型、词义理解</td>
+</tr>
+<tr>
+<td>上下文窗口（Context Window）</td>
+<td>一次生成时能容纳多少上下文内容？</td>
+<td>模型实际可靠利用的信息量</td>
+</tr>
+<tr>
+<td>输入 Token 用量</td>
+<td>送入模型的内容用了多少 Token？</td>
+<td>只算用户输入的字数</td>
+</tr>
+<tr>
+<td>输出 Token 用量</td>
+<td>模型生成用了多少 Token？</td>
+<td>只算可见答案的字数</td>
+</tr>
+<tr>
+<td>自回归生成</td>
+<td>输出是怎样一步步产生的？</td>
+<td>查数据库并复制事实</td>
+</tr>
+<tr>
+<td>幻觉（Hallucination）</td>
+<td>为什么生成内容可能没有事实依据？</td>
+<td>仅仅是语法错误</td>
+</tr>
+<tr>
+<td>长期记忆</td>
+<td>信息如何跨请求、跨会话保存和取回？</td>
+<td>把所有聊天都塞入 Prompt</td>
+</tr>
+</tbody></table>
+<hr />
+<h2 id="section-4">2. Token 的严格含义</h2>
+<h3 id="section-5">2.1 Token 是离散编码单位，不固定等于一个“字”</h3>
+<p>文本 Token 是由指定 <strong>Tokenizer（分词/编码器）</strong> 产生的离散单位。每个 Token 通常对应一个整数标识符（Token ID），然后由模型转换成可计算的向量表示。</p>
+<p>一个 Token 可能对应：</p>
+<ul>
+<li>一个常见单词；</li>
+<li>单词的一部分（例如常见后缀）；</li>
+<li>一个中文字、多个中文字，或中文字的编码片段；</li>
+<li>空格、标点、换行及其组合；</li>
+<li>特定的控制标记，例如消息分隔标记。</li>
+</ul>
+<p><strong>不能普遍断言“1 Token = 1 个汉字”或“1 Token = 4 个字符”。</strong> 官方给出的英文近似换算只适合做粗略估算；实际数量依赖模型使用的编码、语言、文本形式和空格等细节。[1][2]</p>
+<h3 id="section-6">2.2 从文字到 Token ID</h3>
+<p>概念上可以表示为：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">原始文本
+  ↓  Unicode 文本 / 内部字节表示
+Tokenizer
+  ↓
+[Token ID 19, Token ID 450, Token ID 72, ...]
+  ↓
+模型的 Token Embedding 表
+  ↓
+向量序列</code></pre></div><p>这里的数字只是概念示例，不对应任何真实模型词表。</p>
+<p>常见的编码方法包括 BPE（Byte Pair Encoding）、Unigram Language Model 等。不同模型可能采用不同版本的分词器、词表和特殊标记集合。</p>
+<p><strong>BPE 的基本直觉</strong>：从较小的基础单元开始，将训练统计中经常连续出现的片段合并为更大的 Token 单元。实际实现细节因分词器而异，不应把所有分词器都当作完全相同的 BPE。</p>
+<h3 id="section-7">2.3 为什么同一个词在不同位置可能得到不同 Token 数？</h3>
+<p>Tokenization 不一定以人类语言学的“词”为边界。例如，前导空格、大小写、标点、换行都会影响切分。某个常见英文单词在带前导空格与不带前导空格时，可能被编码为不同 Token；中文与混合代码也存在类似差异。</p>
+<p>因此，准确计数应使用<strong>目标模型对应的 tokenizer 或供应商的 token-count API</strong>，而不是简单调用 Python 的 <code>len(text)</code>。</p>
+<h3 id="section-8">2.4 特殊 Token 与聊天消息的额外开销</h3>
+<p>除了可见文本，一些模型协议还使用特殊 Token 或内部结构表示：</p>
+<ul>
+<li>消息开始和结束；</li>
+<li>不同角色或通道；</li>
+<li>工具调用及工具结果边界；</li>
+<li>结构化数据或多模态内容。</li>
+</ul>
+<p>所以一条“用户仅输入十几个字”的请求，实际输入用量也可能包括系统指令、工具描述、历史消息、图片处理成本及协议包装开销。<strong>消息如何序列化、哪些部分计入 Usage，是 API 协议与模型实现的具体约定。</strong></p>
+<h3 id="section-9">2.5 Tokenizer 与 Embedding 不是同一件事</h3>
+<ul>
+<li><strong>Tokenizer</strong>：把文本拆为离散 Token ID。</li>
+<li><strong>Token Embedding</strong>：在语言模型内部把 Token ID 映射为连续向量。</li>
+<li><strong>检索用 Text Embedding 模型</strong>：把片段或文档编码为适合相似度检索的向量。</li>
+</ul>
+<p>检索用 Embedding 不等同于生成模型内部的 Token Embedding；二者目的与训练方式可以不同。</p>
+<hr />
+<h2 id="section-10">3. 输入 Token、输出 Token、缓存 Token 与推理 Token</h2>
+<h3 id="section-11">3.1 输入用量（Input / Prompt Tokens）</h3>
+<p>输入用量通常包含实际传递给模型的以下内容中适用的部分：</p>
+<ol>
+<li>系统与开发者指令；</li>
+<li>当前用户输入；</li>
+<li>本次重新提交或服务器维护的会话历史；</li>
+<li>工具定义（名称、描述、参数 Schema）；</li>
+<li>检索的资料片段、工具返回值；</li>
+<li>其他多模态内容及协议开销。</li>
+</ol>
+<p>因此，一个聊天产品的“本轮用户消息只有 50 字”，不代表输入 Token 仅有几十个。越长的历史、越多的工具定义，可能使每轮请求的输入成本上升。</p>
+<h3 id="section-12">3.2 输出用量（Output / Completion Tokens）</h3>
+<p>输出是模型本次生成的 Token。对纯文本模型而言，通常与答案长度有关，但可能包括用于生成工具调用参数的 Token 等。</p>
+<p><strong>推理模型的特殊情况</strong>：某些 API 将不可直接展示给用户的推理 Token 计入输出用量；它们与最终可见文字不是一回事，也不应该在总输出 Token 外再次重复相加。[1][3]</p>
+<h3 id="section-13">3.3 API Usage 的示意</h3>
+<p>以下是 <strong>Chat Completions 风格的示意 JSON</strong>，不保证所有提供商都使用这些字段：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"usage"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"prompt_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12000</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"completion_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1800</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"total_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">13800</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"prompt_tokens_details"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">"cached_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8000</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"completion_tokens_details"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">"reasoning_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>解释：</p>
+<ul>
+<li>输入共 12,000 Token，其中示例中的 8,000 属于可复用缓存输入的子集；</li>
+<li>输出共 1,800 Token，其中 500 是推理 Token 的子集；</li>
+<li>总量是 12,000 + 1,800 = 13,800 Token；</li>
+<li><strong>不能</strong>再把 <code>cached_tokens</code> 和 <code>reasoning_tokens</code> 额外加到总量上。</li>
+</ul>
+<p>实际 API 可能使用 <code>input_tokens</code>、<code>output_tokens</code> 或其他字段名；其统计粒度、缓存写入与读取字段、多模态 Token、是否包含服务端维护的历史等都可能不同。请以响应结构和官方说明为准。[3]</p>
+<h3 id="section-14">3.4 Prompt Caching 缓存了什么？</h3>
+<p>Prompt Cache 通常指服务端识别到可复用的相同提示词前缀后，复用其先前计算状态（例如 Transformer 的 KV 状态），减少重复的输入处理计算。它不是“模型永久学会了这段内容”。[4]</p>
+<p>应区分：</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>是否因输入缓存自动消失？</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>逻辑上的输入上下文占用</td>
+<td>否，通常仍算在上下文中</td>
+</tr>
+<tr>
+<td>必须重新完成的输入计算</td>
+<td>可能减少</td>
+</tr>
+<tr>
+<td>费用</td>
+<td>可能按缓存输入的不同费率计算</td>
+</tr>
+<tr>
+<td>跨会话长期记忆</td>
+<td>否</td>
+</tr>
+<tr>
+<td>模型参数是否被更新</td>
+<td>否</td>
+</tr>
+</tbody></table>
+<p>缓存命中条件、存活期、费率和多模态支持属于供应商特定行为。</p>
+<h3 id="section-15">3.5 费用不能只用总 Token 数直接乘同一个单价</h3>
+<p>对于一个同时区分普通输入、缓存输入、缓存写入和输出的假想 API，可以写成：</p>
+<p>[
+C = N_{\mathrm{uncached}}P_{\mathrm{input}} + N_{\mathrm{cached}}P_{\mathrm{cached}} + N_{\mathrm{output}}P_{\mathrm{output}} + C_{\mathrm{other}}
+]</p>
+<p>其中：</p>
+<ul>
+<li><code>N</code> 是各类 Token 数量；</li>
+<li><code>P</code> 是相应计费单价（要与每 Token / 每百万 Token 的单位一致）；</li>
+<li><code>C_other</code> 可能包含工具、存储或其他独立收费项目。</li>
+</ul>
+<p>某些服务还会单独计缓存写入价格或其他类别。<strong>这个公式是理解分类计费的框架，不是对所有供应商费率结构的通用声明。</strong></p>
+<hr />
+<h2 id="section-16">4. 上下文窗口到底是什么</h2>
+<h3 id="section-17">4.1 容量，而不是记忆质量</h3>
+<p><strong>上下文窗口</strong>是模型在一次生成过程中能够处理的上下文序列长度限制，通常以 Token 计量。</p>
+<p>它不是：</p>
+<ul>
+<li>模型训练时看过的数据总量；</li>
+<li>模型参数中储存的知识量；</li>
+<li>模型永久保存所有会话的容量；</li>
+<li>“窗口内每条信息都能被准确调用”的保证。</li>
+</ul>
+<p>根据 API 协议，一次请求中的上下文预算可能需要覆盖输入与新生成的输出；一些服务同时设置独立的最大输出长度。具体限制以模型文档为准。[2][5]</p>
+<h3 id="section-18">4.2 上下文预算的示意计算</h3>
+<p>假设一个<strong>虚构模型</strong>支持总共 64,000 Token 的上下文，且本次还需要预留 6,000 Token 的输出：</p>
+<table>
+<thead>
+<tr>
+<th>内容</th>
+<th>示例 Token 数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>系统指令和工具定义</td>
+<td>4,000</td>
+</tr>
+<tr>
+<td>历史对话</td>
+<td>30,000</td>
+</tr>
+<tr>
+<td>检索资料</td>
+<td>20,000</td>
+</tr>
+<tr>
+<td>当前用户消息</td>
+<td>2,000</td>
+</tr>
+<tr>
+<td>输出预留</td>
+<td>6,000</td>
+</tr>
+<tr>
+<td><strong>合计</strong></td>
+<td><strong>62,000</strong></td>
+</tr>
+</tbody></table>
+<p>这在示意模型的 64,000 Token 总预算之内，但距离上限只有 2,000 Token 缓冲。若还有未计入的序列化、多模态或工具开销，就可能超限。</p>
+<p>可以写作：</p>
+<p>[
+N_{\mathrm{input}} + N_{\mathrm{output\ reserve}} + N_{\mathrm{other}} \leq W
+]</p>
+<p>其中 <code>W</code> 为上下文容量上限。该关系适用于“输入和输出共同消耗同一窗口”的模型，但某些 API 对输出另设上限，还可能有更严格的输入限制；不要把上式当作供应商的完整校验规则。</p>
+<h3 id="section-19">4.3 最大上下文与最大输出是两个指标</h3>
+<p>例如一个模型即使具有很大的总上下文，也可能有更小的单次最大输出上限。因此：</p>
+<ul>
+<li>能读入大量文档 ≠ 能一次性输出同样长的回答；</li>
+<li>可以申请 <code>max_output_tokens=20000</code> ≠ 该模型一定允许这么多输出；</li>
+<li>输入已经接近窗口上限时，留给输出的空间可能很少。</li>
+</ul>
+<h3 id="section-20">4.4 多轮聊天为何会不断消耗上下文</h3>
+<p>对于一种常见的<strong>无服务端会话状态 API</strong>，应用每次需要自行拼接历史：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">第 1 轮：系统 + 用户1
+第 2 轮：系统 + 用户1 + 助手1 + 用户2
+第 3 轮：系统 + 用户1 + 助手1 + 用户2 + 助手2 + 用户3
+...</code></pre></div><p>因此，“对话已经持续几小时”并不意味着模型持有一个不断增长且永不丢失的隐藏内存。更常见的是应用重发历史、裁剪内容、提供摘要、使用检索或依靠服务端会话存储重建输入。</p>
+<p>这几种做法的保留能力和成本不同。服务端有会话 API，也不意味着模型参数发生在线学习。</p>
+<h3 id="section-21">4.5 达到窗口限制后会发生什么？</h3>
+<p>常见策略包括：</p>
+<ol>
+<li>请求被拒绝，提示输入过长；</li>
+<li>服务端或应用裁剪早期内容；</li>
+<li>应用生成历史摘要并替换原文；</li>
+<li>分块处理资料，按需检索相关部分；</li>
+<li>更换允许更大窗口的模型。</li>
+</ol>
+<p>究竟执行哪一种，不是由“LLM”这一概念自动决定的，而是 API 和应用架构决定的。</p>
+<hr />
+<h2 id="section-22">5. 自回归生成（Autoregressive Generation）</h2>
+<h3 id="section-23">5.1 “预测下一个 Token”的严格表述</h3>
+<p>对于给定输入上下文 <code>x</code> 和输出序列 <code>y_1, y_2, ..., y_T</code>，自回归语言模型把完整序列的条件概率拆解成连续的下一 Token 条件概率：</p>
+<p>[
+P(y_1,\ldots,y_T\mid x) = \prod_{t=1}^{T} P(y_t\mid x,y_1,\ldots,y_{t-1})
+]</p>
+<p>直观理解：模型先结合 <code>x</code> 选择第一个输出 Token，再把刚生成的结果加入上下文，选择第二个，依此继续，直到结束标记或到达输出限制。</p>
+<p>这不意味着模型只能机械模仿上一句话，也不意味着它完全没有抽象能力。大量参数训练后，下一 Token 分布可以表达语法、语义、世界知识、推理模式和行为偏好；但<strong>生成目标本身不提供对现实世界的逐条事实保证</strong>。</p>
+<h3 id="section-24">5.2 两个阶段：Prefill 与 Decode</h3>
+<p>许多 Transformer 推理系统可以简化为两段：</p>
+<p><strong>Prefill（处理输入）</strong>：一次处理已经提供的大段输入，为后续生成建立内部表示或缓存状态。</p>
+<p><strong>Decode（增量生成）</strong>：逐步产生新的 Token，利用已有状态继续生成。通常会使用 KV Cache 等机制，避免每一步都从零计算完整历史。</p>
+<p>这些是常见推理实现术语，不代表所有模型、硬件或服务都严格采用同一种内核。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">输入 Token：A B C D
+  └─ Prefill ─→ 内部状态
+                   │
+                   ├─ 预测下一个 Token：E
+                   ├─ 追加 E，再预测：F
+                   ├─ 追加 F，再预测：G
+                   └─ ...直到结束</code></pre></div><h3 id="section-25">5.3 因果 Attention 与“不能看到未来”</h3>
+<p>典型的自回归 Transformer 使用因果注意力掩码（Causal Mask），使某个位置只能利用允许的历史位置，而不能直接使用尚未生成的未来输出。训练时可以并行计算多个训练位置的损失；实际生成新 Token 时通常依赖之前已经生成的结果。</p>
+<h3 id="section-26">5.4 训练目标与交叉熵</h3>
+<p>在基础的下一 Token 预训练中，模型通过最小化实际 Token 的负对数概率来学习：</p>
+<p>[
+\mathcal{L} = -\sum_t \log P_{\theta}(x_t\mid x_{&lt;t})
+]</p>
+<p>其中 <code>θ</code> 表示模型参数。训练还可以包含指令微调、偏好优化或其他目标，因此<strong>不能简单认为所有现代模型只有这一个训练目标</strong>。</p>
+<p>这个公式解释了一个关键问题：基础预训练的直接目标是使训练序列的后续 Token 概率较高，而不是为每一条生成的事实提供独立证据。</p>
+<hr />
+<h2 id="section-27">6. 从概率分布到实际输出：采样与解码</h2>
+<p>模型在某一步生成时，通常先计算各候选 Token 的分数（Logits），再转换为概率分布，例如：</p>
+<p>[
+P_i = \frac{\exp(z_i/T)}{\sum_j \exp(z_j/T)}
+]</p>
+<p>其中 <code>z_i</code> 是候选 Token 的 Logit，<code>T</code> 是温度参数（Temperature，<code>T&gt;0</code> 的标准 Softmax 写法）。</p>
+<ul>
+<li><code>T</code> 较高，分布通常更平坦，低概率候选更容易被采样；</li>
+<li><code>T</code> 较低，概率更集中；</li>
+<li><code>T=0</code> 在 API 中通常是一个特别定义的解码模式，而不是把上式直接除以零；</li>
+<li><strong>Temperature 低不等于输出必然正确，也不保证跨机器、跨版本或多次调用完全确定。</strong></li>
+</ul>
+<p>还有常见的候选限制策略：</p>
+<ul>
+<li><strong>Top-k</strong>：只考虑概率最高的 <code>k</code> 个候选；</li>
+<li><strong>Top-p / Nucleus Sampling</strong>：只考虑累计概率达到阈值的一组较高概率候选；</li>
+<li><strong>Greedy Decoding</strong>：直接选择当前概率最大的候选；</li>
+<li><strong>Beam Search</strong>：维护若干候选路径（不一定被聊天 API 提供）。</li>
+</ul>
+<p>不同模型可能限制、忽略或不支持某些参数，尤其是专门的推理模型。</p>
+<h3 id="section-28">6.1 为什么越往后生成越可能累积错误？</h3>
+<p>模型第 <code>t</code> 步依赖前面已经生成的 <code>y_1...y_{t-1}</code>。如果前面给出了错误日期、错误实体或错误前提，那么后续生成可能围绕这个错误继续构造一个流畅而内部一致的故事。</p>
+<p>因此，对关键事实的验证应在信息进入后续链路之前进行，例如工具返回值校验、检索证据引用、确定性数值计算。</p>
+<h3 id="section-29">6.2 一个最小概率采样演示</h3>
+<p>下面的 Python 程序只演示“从概率分布抽取一个选项”，<strong>它不是神经网络，也不代表真实 Tokenizer 的行为</strong>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> random
+
+next_token_probs = {
+    <span class="hljs-string">"正确答案"</span>: <span class="hljs-number">0.60</span>,
+    <span class="hljs-string">"错误但流畅的答案"</span>: <span class="hljs-number">0.30</span>,
+    <span class="hljs-string">"不知道"</span>: <span class="hljs-number">0.10</span>,
+}
+
+rng = random.Random(<span class="hljs-number">42</span>)
+choices = <span class="hljs-built_in">list</span>(next_token_probs)
+weights = <span class="hljs-built_in">list</span>(next_token_probs.values())
+
+<span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">5</span>):
+    <span class="hljs-built_in">print</span>(rng.choices(choices, weights=weights, k=<span class="hljs-number">1</span>)[<span class="hljs-number">0</span>])</code></pre></div><p>它说明：只要一个错误候选具有非零概率，单次采样就可能输出错误内容。真实模型生成的概率分布复杂得多，错误也不仅来自随机采样。</p>
+<hr />
+<h2 id="section-30">7. 为什么模型会编造事实（幻觉）？</h2>
+<h3 id="section-31">7.1 幻觉的定义与边界</h3>
+<p>在事实性任务中，幻觉通常指模型输出与可核验事实不一致、或者输出缺乏可靠支持的信息。它并非简单等同于：</p>
+<ul>
+<li>正常的文学虚构或角色扮演；</li>
+<li>主观意见；</li>
+<li>由于工具或数据库本身出错导致的所有错误；</li>
+<li>无效 JSON 或格式错误。</li>
+</ul>
+<p>用户明确要求写小说时，虚构内容不是问题；用户要求查询真实公告时，捏造公告就属于问题。</p>
+<h3 id="section-32">7.2 原因一：生成目标与事实核验目标不相同</h3>
+<p>模型可以学会：某种句式里最自然出现的是一个年份、论文名称或人物姓名，却不一定具有辨别该事实真伪所需的权威证据。高概率的 Token 序列可能只是文本上<strong>看起来像正确答案</strong>。</p>
+<p>研究指出，预训练中的下一词预测任务并没有为每条句子附带真假标签，训练和测评又可能奖励猜测而不是表达不确定性，因此模型在缺乏依据时仍有动力生成具体陈述。[6][7]</p>
+<h3 id="section-33">7.3 原因二：训练数据不完备、冲突或过时</h3>
+<p>模型训练语料可能包含：</p>
+<ul>
+<li>同一事件的多个相互冲突版本；</li>
+<li>已经失效的旧政策或旧价格；</li>
+<li>广告、谣言、推测和讽刺文本；</li>
+<li>某些人物、地区、产品的严重数据不足。</li>
+</ul>
+<p>这些问题不是把温度降到 0 就能解决的。</p>
+<h3 id="section-34">7.4 原因三：问题本身缺少信息</h3>
+<p>例如：</p>
+<blockquote>
+<p>“某公司上周发布的内部产品版本号是多少？”</p>
+</blockquote>
+<p>如果模型没有内部资料或可靠外部来源，就不应在缺少信息时凭空猜测。</p>
+<p>这类问题应返回“缺少依据”，或调用有权限的外部查询工具，而不是根据公司常见版本号格式进行补全。</p>
+<h3 id="section-35">7.5 原因四：长上下文检索失败或证据冲突</h3>
+<p>即使正确答案已经出现在上下文里，模型仍可能：</p>
+<ol>
+<li>没有关注到正确段落；</li>
+<li>混淆不同文档的版本；</li>
+<li>将相近术语错误合并；</li>
+<li>优先使用参数中记住的旧答案；</li>
+<li>在两份冲突资料之间选择错误来源。</li>
+</ol>
+<p>长上下文中信息位置影响效果的问题已被研究观察到，但其程度依赖模型、任务与提示构造，不能假定所有模型都表现相同。[8]</p>
+<h3 id="section-36">7.6 原因五：形式正确不代表内容可靠</h3>
+<p>例如：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"source"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2026年某公司官方公告"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"effective_date"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2026-01-01"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"confirmed"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>这个 JSON 在语法上合法，字段也可以满足 Schema，但如果真实公告不存在，那么整体仍然是幻觉。</p>
+<p>所以要分开：</p>
+<ol>
+<li><strong>语法合法性</strong>：能否解析；</li>
+<li><strong>结构合法性</strong>：是否满足字段、类型及范围；</li>
+<li><strong>事实正确性</strong>：有无真实来源支持；</li>
+<li><strong>业务正确性</strong>：是否满足业务规则与权限边界。</li>
+</ol>
+<h3 id="section-37">7.7 常见幻觉类型</h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>例子</th>
+<th>合适的核查方法</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>实体幻觉</td>
+<td>编造不存在的产品或论文</td>
+<td>权威目录、官方文档</td>
+</tr>
+<tr>
+<td>数值幻觉</td>
+<td>捏造价格、库存、统计值</td>
+<td>数据库、计算、最新来源</td>
+</tr>
+<tr>
+<td>时间幻觉</td>
+<td>将旧政策当作现行政策</td>
+<td>发布日期、版本、有效期</td>
+</tr>
+<tr>
+<td>引用幻觉</td>
+<td>引用不存在的页码或段落</td>
+<td>逐条核对引用片段</td>
+</tr>
+<tr>
+<td>因果幻觉</td>
+<td>将相关性当作因果性</td>
+<td>研究设计与证据链</td>
+</tr>
+<tr>
+<td>工具幻觉</td>
+<td>声称已经执行实际未执行的操作</td>
+<td>工具执行日志与状态回执</td>
+</tr>
+</tbody></table>
+<hr />
+<h2 id="section-38">8. 语言流畅、语气自信与可信度不是同一指标</h2>
+<p>模型的文字可以写得极具说服力，但这不能作为真假判定依据。</p>
+<p>应区分：</p>
+<ul>
+<li><strong>Fluency（流畅性）</strong>：语言是否自然；</li>
+<li><strong>Coherence（连贯性）</strong>：论述前后是否一致；</li>
+<li><strong>Factuality（事实性）</strong>：是否符合可核查事实；</li>
+<li><strong>Groundedness（有据性）</strong>：是否由指定资料支持；</li>
+<li><strong>Calibration（校准性）</strong>：模型表达的置信程度与实际正确概率是否匹配。</li>
+</ul>
+<p>模型“看起来非常确定”不代表其实际正确率高。模型写出冗长的推理过程，也不等于推理中的每一步都能独立得到证明。</p>
+<p>尤其在工程场景中，不应将模型自评的“正确率 99%”直接视为可用指标；应使用独立的测试集与外部事实源。</p>
+<hr />
+<h2 id="section-39">9. 长上下文为什么不等于可靠记忆</h2>
+<h3 id="section-40">9.1 上下文是临时工作材料，不是持久化数据库</h3>
+<p>可以类比计算机系统：</p>
+<ul>
+<li>上下文窗口像当前正在工作的任务所能直接访问的一块<strong>有限工作区</strong>；</li>
+<li>模型参数像训练后固化下来的统计与知识表示；</li>
+<li>外部数据库或记忆库像持久化存储。</li>
+</ul>
+<p>这个比喻仅用于区分职责，并不表示 LLM 与 CPU / RAM / 磁盘完全等价。</p>
+<p>一次请求结束后，普通无状态模型调用不会自动把聊天内容写入模型参数。下一次能否回忆，需要应用是否重新提供历史、摘要或检索记忆。某些产品有持久化 Memory 功能，但这是<strong>产品级存储、检索与上下文管理</strong>，不是单次 <code>context_window</code> 自发产生的能力。</p>
+<h3 id="section-41">9.2 “放得下”与“找得准”不同</h3>
+<p>长上下文能力至少有三个不同层次：</p>
+<ol>
+<li><strong>可接收（Capacity）</strong>：接口能够接收较长的 Token 序列；</li>
+<li><strong>可定位（Retrieval）</strong>：模型能从中找到相关段落；</li>
+<li><strong>可正确使用（Reasoning/Grounded Generation）</strong>：模型能引用正确证据，解决问题，不把相近内容混淆。</li>
+</ol>
+<p>第 1 项成立，不等于第 2、3 项必然成立。</p>
+<p>《Lost in the Middle》指出，在其受测模型中，相关信息位于长上下文开头或结尾时，部分任务表现更好，而放在中间时会下降。这是一个具有代表性的经验发现，不应夸大为所有模型的固定规律。[8]</p>
+<h3 id="section-42">9.3 上下文越长，干扰也可能越多</h3>
+<p>增加上下文不仅增加可能有用的信息，也可能加入：</p>
+<ul>
+<li>重复但不一致的版本；</li>
+<li>历史上已经被纠正的错误回答；</li>
+<li>与当前问题无关的长篇内容；</li>
+<li>不可信外部文本中的命令或诱导；</li>
+<li>高相似度却不是目标版本的资料。</li>
+</ul>
+<p>若无来源管理和版本优先级机制，模型可能在大量候选信息中选错。<strong>更多上下文是容量增长，不是信息质量自动提升。</strong></p>
+<h3 id="section-43">9.4 多轮历史会发生四种典型损失</h3>
+<p><strong>裁剪损失</strong>：最早的消息可能被删除。<br /><strong>摘要损失</strong>：长文压缩为短摘要时，细节、数值、例外条件可能消失。<br /><strong>检索损失</strong>：相关资料未召回，或者被相似但错误的材料替代。<br /><strong>使用损失</strong>：正确资料已召回，但生成时未能遵守它。</p>
+<p>这些是不同故障层，不能统称为“模型记忆不好”后就只采取增加上下文窗口的方案。</p>
+<h3 id="section-44">9.5 KV Cache、Prompt Cache、对话历史和长期记忆的区别</h3>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>目的</th>
+<th>是否天然跨会话持久</th>
+<th>能否独立保证事实正确</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>KV Cache（推理态）</td>
+<td>减少生成时的重复计算</td>
+<td>否</td>
+<td>否</td>
+</tr>
+<tr>
+<td>Prompt Cache</td>
+<td>复用相同前缀的输入计算</td>
+<td>依服务缓存生命周期，非可靠业务记忆</td>
+<td>否</td>
+</tr>
+<tr>
+<td>对话历史</td>
+<td>保留既往交互文本</td>
+<td>由应用存储策略决定</td>
+<td>否</td>
+</tr>
+<tr>
+<td>历史摘要</td>
+<td>降低长历史的上下文消耗</td>
+<td>由存储策略决定</td>
+<td>否，可能丢细节</td>
+</tr>
+<tr>
+<td>RAG 知识库</td>
+<td>检索外部文档证据</td>
+<td>可以，取决于存储系统</td>
+<td>不保证，需要检查来源</td>
+</tr>
+<tr>
+<td>结构化业务数据库</td>
+<td>保存精确的状态、数值和版本</td>
+<td>通常可以</td>
+<td>在约束和数据治理范围内更可验证</td>
+</tr>
+<tr>
+<td>用户长期记忆库</td>
+<td>保存可再次检索的用户相关信息</td>
+<td>可以，取决于应用设计</td>
+<td>不保证，需更新、删除、校验</td>
+</tr>
+</tbody></table>
+<hr />
+<h2 id="section-45">10. 训练知识、当前上下文与外部记忆的三个层次</h2>
+<h3 id="section-46">10.1 参数化知识（Parametric Knowledge）</h3>
+<p>模型训练时学到的信息，以分布式方式反映在参数中。这并不是可直接遍历的事实数据库。</p>
+<p>特点：</p>
+<ul>
+<li>无法保证知道训练截止后的新闻；</li>
+<li>很难按单条事实可靠地删除、更新和证明来源；</li>
+<li>同名人物、相似实体、不同年份可能相互干扰；</li>
+<li>不能认为“模型曾在训练中见过”就一定能正确复述。</li>
+</ul>
+<h3 id="section-47">10.2 上下文内信息（In-Context Information）</h3>
+<p>当前请求中直接提供的提示词、对话和文档。模型无需修改参数就能在本轮使用这些信息。其使用效果受上下文长度、布局、干扰、模型能力影响。</p>
+<h3 id="section-48">10.3 外部持久化记忆（External Memory）</h3>
+<p>由程序将信息存入数据库、搜索索引、向量库或文件，并在需要时检索。</p>
+<p>优点：</p>
+<ul>
+<li>可以保留来源、创建时间、版本和访问权限；</li>
+<li>可以明确更新、撤销和删除；</li>
+<li>可以跨进程和服务重启保存；</li>
+<li>可以为每次回答追溯证据。</li>
+</ul>
+<p>但外部记忆同样有质量问题：如果写入内容本身错误、检索命中错误或版本失效，就仍可能输出错误答案。</p>
+<hr />
+<h2 id="section-49">11. 怎样让模型在知识型任务中更可靠</h2>
+<h3 id="section-50">11.1 把确定性事实交给确定性系统</h3>
+<p>例如：</p>
+<table>
+<thead>
+<tr>
+<th>任务</th>
+<th>优先依赖</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>计算价格与手续费</td>
+<td>程序计算</td>
+</tr>
+<tr>
+<td>查询用户订单状态</td>
+<td>有权限的业务数据库</td>
+</tr>
+<tr>
+<td>查询最新政策</td>
+<td>有日期与出处的官方材料</td>
+</tr>
+<tr>
+<td>总结多篇文章</td>
+<td>文档检索与模型摘要</td>
+</tr>
+<tr>
+<td>生成草稿</td>
+<td>模型生成 + 用户确认</td>
+</tr>
+<tr>
+<td>判断是否具有删除权限</td>
+<td>后端权限检查</td>
+</tr>
+</tbody></table>
+<p>模型可以负责理解自然语言、提取字段、组织解释，但不能把未经验证的生成内容直接当作业务真相。</p>
+<h3 id="section-51">11.2 RAG 的基本机制</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">用户提问
+   ↓
+识别任务 / 确定版本与权限
+   ↓
+检索文档、数据库或工具
+   ↓
+获取带 source_id、version、timestamp 的证据
+   ↓
+模型依据证据生成候选回答
+   ↓
+校验引用是否支持相应陈述
+   ↓
+返回回答、引用或“证据不足”</code></pre></div><p>RAG 主要解决的是“把相关外部知识提供给模型”，而不是自动解决模型所有幻觉问题。</p>
+<h3 id="section-52">11.3 为重要陈述保留可核查的来源</h3>
+<p>每个检索片段至少可记录：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"source_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"game_rule_2026_11"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"document_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"1.4"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"section"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"角色技能/技能A"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"updated_at"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2026-11-01"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"content"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"示例规则文本……"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>模型输出中可引用 <code>source_id</code> 和章节；应用可进一步检查引用确实属于已检索到的材料。<strong>存在来源 ID ≠ 引用已支持具体结论</strong>，还需要语义上的证据核验。</p>
+<h3 id="section-53">11.4 明确“资料不足”是合法结果</h3>
+<p>可靠的系统需要支持：</p>
+<ul>
+<li>当前资料未收录；</li>
+<li>资料版本不明确；</li>
+<li>多个来源相互冲突；</li>
+<li>数据无法验证；</li>
+<li>外部工具调用失败。</li>
+</ul>
+<p>不要把“必须给出一个具体答案”作为所有任务的成功标准。能正确拒绝猜测，也是事实性系统的重要能力。</p>
+<hr />
+<h2 id="section-54">12. 长对话如何管理：历史、摘要、检索与结构化状态</h2>
+<h3 id="section-55">12.1 四种常见策略</h3>
+<p><strong>策略 A：全量历史</strong><br />优点是简单、细节保留充分；缺点是成本随轮次增长、可能达到窗口上限，并且存在干扰。</p>
+<p><strong>策略 B：滑动窗口</strong><br />只保留最近若干轮，成本可控；缺点是容易忘记很早之前的约束。</p>
+<p><strong>策略 C：历史摘要</strong><br />将较早内容压缩，适合保留整体方向；缺点是细节与证据可能丢失。重要数值不宜只保留自然语言摘要。</p>
+<p><strong>策略 D：外部记忆 + 按需检索</strong><br />将历史事实、偏好、任务状态写入结构化存储，需要时检索；复杂度更高，但可治理、可追溯。</p>
+<p>实际应用通常会组合使用，而不是只选一种。</p>
+<h3 id="section-56">12.2 结构化记忆示意</h3>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"subject_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"user_1001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"fact_type"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"preferred_language"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"value"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"zh-CN"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"source"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"user_confirmed"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"updated_at"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2026-11-11T09:00:00Z"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"version"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"is_active"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">true</span></span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>这个结构使系统可以更新值、区分信息来源和有效状态。实际开发还需要认证、访问控制、隐私治理和删除能力。</p>
+<h3 id="section-57">12.3 保存记忆前应考虑的检查</h3>
+<ul>
+<li>是用户确认的事实，还是模型推断？</li>
+<li>是长期稳定信息，还是短期情境？</li>
+<li>是否需要保存敏感数据？是否获得必要授权？</li>
+<li>新旧事实发生冲突时如何更新？</li>
+<li>何时过期，如何撤回或删除？</li>
+<li>下次检索如何保证不会误用其他用户的信息？</li>
+</ul>
+<p><strong>长期记忆是一套数据管理机制，而不只是更长的 Prompt。</strong></p>
+<hr />
+<h2 id="section-58">13. API 开发中如何正确统计与限制 Token</h2>
+<h3 id="section-59">13.1 尽量使用响应 Usage，而非字数估算</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 演示如何避免重复统计缓存 Token、推理 Token。</span>
+usage = {
+    <span class="hljs-string">"prompt_tokens"</span>: <span class="hljs-number">12000</span>,
+    <span class="hljs-string">"completion_tokens"</span>: <span class="hljs-number">1800</span>,
+    <span class="hljs-string">"total_tokens"</span>: <span class="hljs-number">13800</span>,
+    <span class="hljs-string">"prompt_tokens_details"</span>: {<span class="hljs-string">"cached_tokens"</span>: <span class="hljs-number">8000</span>},
+    <span class="hljs-string">"completion_tokens_details"</span>: {<span class="hljs-string">"reasoning_tokens"</span>: <span class="hljs-number">500</span>},
+}
+
+input_tokens = usage[<span class="hljs-string">"prompt_tokens"</span>]
+output_tokens = usage[<span class="hljs-string">"completion_tokens"</span>]
+
+<span class="hljs-comment"># 缓存与推理用量是各自总量的子集（按此示例 API 结构）。</span>
+<span class="hljs-keyword">assert</span> input_tokens + output_tokens == usage[<span class="hljs-string">"total_tokens"</span>]
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"input:"</span>, input_tokens, <span class="hljs-string">"output:"</span>, output_tokens)</code></pre></div><p>注意：一些 API 在流式输出过程中只在结束事件提供完整 Usage；若连接提前断开，应用可能拿不到完整统计。不同服务还可能分别提供网关用量和最终账单口径。</p>
+<h3 id="section-60">13.2 使用目标 Tokenizer 估算输入</h3>
+<p>下例使用 OpenAI 的 <code>tiktoken</code>，但<strong>目标模型的编码必须确认存在对应映射</strong>：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pip install tiktoken</code></pre></div><div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> tiktoken
+
+<span class="hljs-comment"># 示例模型名称仅用于说明 API 用法；</span>
+<span class="hljs-comment"># 应按实际部署模型选择正确编码与计数方式。</span>
+encoding = tiktoken.get_encoding(<span class="hljs-string">"cl100k_base"</span>)
+
+texts = [
+    <span class="hljs-string">"Hello, world!"</span>,
+    <span class="hljs-string">"你好，世界！"</span>,
+    <span class="hljs-string">"def add(a, b): return a + b"</span>,
+]
+
+<span class="hljs-keyword">for</span> text <span class="hljs-keyword">in</span> texts:
+    token_ids = encoding.encode(text)
+    <span class="hljs-built_in">print</span>(<span class="hljs-built_in">repr</span>(text), <span class="hljs-string">"=&gt;"</span>, <span class="hljs-built_in">len</span>(token_ids), <span class="hljs-string">"tokens"</span>, token_ids)</code></pre></div><p>此程序用于比较一种具体编码对不同文本的切分；它不能代替任意模型的精确 API 请求计数。聊天消息包装、工具定义、多模态输入和供应商专用格式可能另有额外成本。</p>
+<h3 id="section-61">13.3 上下文预算应预留余量</h3>
+<p>应用可以在提交模型前预估：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">can_fit_context</span>(<span class="hljs-params">
+    input_tokens: <span class="hljs-built_in">int</span>,
+    reserved_output_tokens: <span class="hljs-built_in">int</span>,
+    context_limit: <span class="hljs-built_in">int</span>,
+    estimated_overhead: <span class="hljs-built_in">int</span> = <span class="hljs-number">0</span>,
+</span>) -&gt; <span class="hljs-built_in">bool</span>:
+    <span class="hljs-keyword">return</span> (
+        input_tokens + reserved_output_tokens + estimated_overhead
+        &lt;= context_limit
+    )
+
+<span class="hljs-keyword">assert</span> can_fit_context(<span class="hljs-number">52000</span>, <span class="hljs-number">6000</span>, <span class="hljs-number">64000</span>)
+<span class="hljs-keyword">assert</span> <span class="hljs-keyword">not</span> can_fit_context(<span class="hljs-number">62000</span>, <span class="hljs-number">6000</span>, <span class="hljs-number">64000</span>)</code></pre></div><p>该代码体现通用预算思路，真实应用仍需叠加模型最大输出限制、API 专用规则、工具开销与输入计数误差。</p>
+<h3 id="section-62">13.4 为什么不能机械地把历史追加到无限大</h3>
+<p>如果每一轮都重复发送所有历史，即使本轮问题很短，输入 Token 也可能接近历史累计长度。这样会同时带来：</p>
+<ol>
+<li>成本上升；</li>
+<li>输入处理延迟增加；</li>
+<li>截断与上下文溢出风险；</li>
+<li>相关信息被不相关历史稀释；</li>
+<li>更大的隐私与数据治理负担。</li>
+</ol>
+<p>对于长期运行的 Agent，要把<strong>工作状态、会话历史、工具记录、知识库和用户长期记忆</strong>区分存储，按任务需要组装上下文。</p>
+<hr />
+<h2 id="section-63">14. 一个典型故障：模型“记得”错误的规则</h2>
+<p>假设有游戏规则：</p>
+<ul>
+<li>旧版 1.0：角色 A 的技能每回合可使用 2 次；</li>
+<li>新版 1.4：同一技能每回合只能使用 1 次；</li>
+<li>用户问：“当前版本中可以使用几次？”</li>
+</ul>
+<p>如果模型回答“2 次”，可能有多种不同原因：</p>
+<table>
+<thead>
+<tr>
+<th>故障层</th>
+<th>实际情况</th>
+<th>应如何修复</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>资料录入</td>
+<td>知识库只有 1.0 版</td>
+<td>导入 1.4 版并登记版本</td>
+</tr>
+<tr>
+<td>检索过滤</td>
+<td>同时召回 1.0 和 1.4</td>
+<td>根据用户版本做元数据过滤</td>
+</tr>
+<tr>
+<td>上下文组织</td>
+<td>新版内容被截断</td>
+<td>调整预算和资料组织</td>
+</tr>
+<tr>
+<td>模型生成</td>
+<td>看到新版仍回答旧版</td>
+<td>强化证据约束、测试并核查引用</td>
+</tr>
+<tr>
+<td>版本定义</td>
+<td>用户没说“当前”指哪一版</td>
+<td>使用可查证的最新版本或询问澄清</td>
+</tr>
+</tbody></table>
+<p>仅仅把上下文窗口从 32K 加到 128K，无法保证自动修复这些问题。</p>
+<hr />
+<h2 id="section-64">15. 关键概念的对照与误区澄清</h2>
+<table>
+<thead>
+<tr>
+<th>常见说法</th>
+<th>更准确的认识</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>“一千汉字就是一千 Token。”</td>
+<td>Token 数与具体编码及文本有关，应实际计数。</td>
+</tr>
+<tr>
+<td>“上下文窗口 1M 就能准确记住 1M 内容。”</td>
+<td>容纳能力和可靠检索、理解、引用能力是不同指标。</td>
+</tr>
+<tr>
+<td>“每次对话后模型就学会了我的新信息。”</td>
+<td>一般无状态 API 不会因此修改模型参数；持续记忆需外部机制。</td>
+</tr>
+<tr>
+<td>“低温度输出就不会出错。”</td>
+<td>降低随机性不能解决过时知识和证据缺失。</td>
+</tr>
+<tr>
+<td>“JSON 合法就说明答案可信。”</td>
+<td>结构合法不等于事实正确。</td>
+</tr>
+<tr>
+<td>“Prompt Cache 是长期记忆。”</td>
+<td>缓存复用计算，不是可信持久记忆库。</td>
+</tr>
+<tr>
+<td>“输出里有来源链接就代表是真的。”</td>
+<td>来源必须存在，并实际支持对应陈述。</td>
+</tr>
+<tr>
+<td>“只要多给模型资料，它就会更准确。”</td>
+<td>无关、重复、冲突和过时资料可能降低表现。</td>
+</tr>
+<tr>
+<td>“模型答错一定是 Prompt 不够好。”</td>
+<td>可能是训练信息、检索、版本、工具、数据或生成问题。</td>
+</tr>
+<tr>
+<td>“模型说自己有 99% 把握就可信。”</td>
+<td>自述置信度不能代替独立评测和证据。</td>
+</tr>
+</tbody></table>
+<hr />
+<h2 id="section-65">16. 如何验证长上下文与幻觉问题：实验设计</h2>
+<h3 id="section-66">16.1 固定内容，改变证据位置</h3>
+<p>准备三份内容基本相同的长输入，唯一差别是正确证据的位置：</p>
+<ul>
+<li>版本 A：证据在开头；</li>
+<li>版本 B：证据在中间；</li>
+<li>版本 C：证据在末尾。</li>
+</ul>
+<p>对每个版本使用同一问题、同一模型和一致的解码参数，重复运行，记录：</p>
+<ol>
+<li>是否答对；</li>
+<li>是否引用正确证据；</li>
+<li>延迟、输入输出用量；</li>
+<li>错误来自未命中、误引用还是错误推断。</li>
+</ol>
+<p>此实验可以研究位置敏感性，但结论必须限定到实际测试的模型、样例和输入长度。</p>
+<h3 id="section-67">16.2 区分“无答案”与“答错”</h3>
+<p>评测至少应包括：</p>
+<ul>
+<li>材料中存在明确答案；</li>
+<li>材料中没有答案；</li>
+<li>新旧版本冲突；</li>
+<li>多份文档中存在相似但不同的对象；</li>
+<li>有外部证据与无外部证据两种条件。</li>
+</ul>
+<p>如果数据集中只有“有答案”的问题，就无法测试系统是否会在无依据时停止猜测。</p>
+<h3 id="section-68">16.3 可量化指标</h3>
+<ul>
+<li><strong>Exact Match / Accuracy</strong>：最终答案是否正确；</li>
+<li><strong>Evidence Support Rate</strong>：引用是否真正支持答案；</li>
+<li><strong>Abstention Accuracy</strong>：该回答“不知道”时是否正确拒绝猜测；</li>
+<li><strong>Version Consistency</strong>：是否按指定版本回答；</li>
+<li><strong>Latency</strong>：响应耗时；</li>
+<li><strong>Input / Output Tokens</strong>：实际用量和成本。</li>
+</ul>
+<p>真实模型评测与程序单元测试应分开：前者评估事实和任务效果，后者验证固定逻辑、预算检查、异常处理、权限和持久化行为。</p>
+<hr />
+<h2 id="section-69">17. 本节涉及的常用术语</h2>
+<table>
+<thead>
+<tr>
+<th>英文术语</th>
+<th>中文解释</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Token</td>
+<td>离散编码单位</td>
+</tr>
+<tr>
+<td>Tokenizer / Tokenization</td>
+<td>分词器 / Token 编码过程</td>
+</tr>
+<tr>
+<td>Vocabulary</td>
+<td>Token 词表</td>
+</tr>
+<tr>
+<td>Token ID</td>
+<td>Token 对应的整数标识</td>
+</tr>
+<tr>
+<td>Embedding</td>
+<td>向量表示；具体目的需看上下文</td>
+</tr>
+<tr>
+<td>Context Window</td>
+<td>上下文窗口</td>
+</tr>
+<tr>
+<td>Prompt Tokens</td>
+<td>输入 Token</td>
+</tr>
+<tr>
+<td>Completion / Output Tokens</td>
+<td>输出 Token</td>
+</tr>
+<tr>
+<td>Reasoning Tokens</td>
+<td>API 可能统计的内部推理输出 Token</td>
+</tr>
+<tr>
+<td>Cached Tokens</td>
+<td>利用输入缓存复用计算的 Token</td>
+</tr>
+<tr>
+<td>Prefill</td>
+<td>输入序列处理阶段</td>
+</tr>
+<tr>
+<td>Decode</td>
+<td>增量生成阶段</td>
+</tr>
+<tr>
+<td>Autoregressive</td>
+<td>自回归生成</td>
+</tr>
+<tr>
+<td>Logit</td>
+<td>模型在概率归一化前的候选分数</td>
+</tr>
+<tr>
+<td>Softmax</td>
+<td>将分数转换为概率分布的函数</td>
+</tr>
+<tr>
+<td>Temperature</td>
+<td>调整采样概率分布的参数</td>
+</tr>
+<tr>
+<td>Top-p / Top-k</td>
+<td>采样候选限制策略</td>
+</tr>
+<tr>
+<td>Causal Mask</td>
+<td>限制关注未来生成位置的掩码</td>
+</tr>
+<tr>
+<td>KV Cache</td>
+<td>推理中的键值状态缓存</td>
+</tr>
+<tr>
+<td>Hallucination</td>
+<td>缺乏事实支持或与事实冲突的生成内容</td>
+</tr>
+<tr>
+<td>Groundedness</td>
+<td>回答是否受到指定证据支持</td>
+</tr>
+<tr>
+<td>Factuality</td>
+<td>事实正确性</td>
+</tr>
+<tr>
+<td>Parametric Knowledge</td>
+<td>模型参数中习得的知识</td>
+</tr>
+<tr>
+<td>RAG</td>
+<td>检索增强生成</td>
+</tr>
+<tr>
+<td>Memory Store</td>
+<td>应用层持久化记忆存储</td>
+</tr>
+</tbody></table>
+<hr />
+<h2 id="section-70">18. 总结：这条知识目标的技术逻辑</h2>
+<ol>
+<li><strong>Token 决定模型处理文本的离散单位。</strong> Token 数量不是固定的字数换算，应以实际编码和 API Usage 为准。</li>
+<li><strong>上下文窗口定义容量。</strong> 输入、工具内容及输出预算之间存在约束，不能只看当前用户消息的长度。</li>
+<li><strong>自回归模型通过条件概率逐步生成。</strong> 概率高与事实真实是不同概念，因此流畅自然的答案也可能错误。</li>
+<li><strong>幻觉是系统性风险。</strong> 模型可能受到训练目标、数据、证据缺失、检索失败和生成过程共同影响。</li>
+<li><strong>长上下文不是可靠记忆。</strong> 保留、检索、更新、撤销和验证信息，必须依赖上下文管理、外部存储及适当的证据机制。</li>
+<li><strong>工程上最重要的边界是把“生成”与“事实”分开。</strong> 关键数据通过数据库和工具得到，证据通过来源与版本核对，模型主要承担理解、组织和表达。</li>
+</ol>
+<hr />
+<h2 id="section-71">19. 参考资料（官方文档与研究论文）</h2>
+<p>以下是支持本文主要概念的资料。文档、API 和价格可能更新；本文不把任何供应商当前的具体上下文大小或费率当作普遍规律。</p>
+<ol>
+<li><a href="https://help.openai.com/en/articles/4936856-what-are-tokens">OpenAI Help Center — Understanding and counting tokens</a><br />Token、语言差异、输入与输出、缓存与推理用量。</li>
+<li><a href="https://developers.openai.com/api/docs/concepts">OpenAI API — Key concepts</a><br />Token 基本概念、上下文窗口与输入输出约束。</li>
+<li><a href="https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create">OpenAI API — Chat Completions usage schema</a><br /><code>prompt_tokens</code>、<code>completion_tokens</code>、<code>total_tokens</code> 及细分字段。</li>
+<li><a href="https://developers.openai.com/api/docs/guides/prompt-caching">OpenAI API — Prompt caching</a><br />前缀缓存与 KV 状态复用。</li>
+<li><a href="https://platform.claude.com/docs/en/build-with-claude/context-windows">Anthropic Claude Platform — Context windows</a><br />上下文容量、历史与输出、缓存用量及长上下文管理的供应商示例。</li>
+<li><a href="https://openai.com/index/why-language-models-hallucinate/">OpenAI — Why language models hallucinate</a><br />下一词预测、评估机制和模型幻觉。</li>
+<li><a href="https://www.nature.com/articles/s41586-026-10549-w">Kalai et al. (2026), <em>Evaluating large language models for accuracy incentivizes hallucinations</em>, Nature</a><br />对准确率导向评估如何激励猜测的研究分析。</li>
+<li><a href="https://aclanthology.org/2024.tacl-1.9/">Liu et al. (2024), <em>Lost in the Middle: How Language Models Use Long Contexts</em>, TACL</a><br />相关信息位置对部分长上下文任务性能的影响。</li>
+</ol>
+<hr />
+<p><strong>本文为独立知识文档，专门对应学习目标中的第一条，不包含后续 Transformer/Attention 的系统性深入讲解、完整 API 实战或 Pydantic 输出校验章节。</strong></p>

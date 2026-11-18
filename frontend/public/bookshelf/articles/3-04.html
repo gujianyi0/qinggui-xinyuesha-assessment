@@ -1,0 +1,895 @@
+<h1 id="section-1">Agent、工具调用与执行边界（四）：工具超时、失败重试、执行步数、总耗时与调用预算</h1>
+<blockquote>
+<p>知识目标：理解如何限制 Agent 的工具执行时间与重试次数，设置最大执行步数、全局运行期限及调用预算，防止工具循环、故障放大、重复副作用和无边界资源消耗。</p>
+<p>范围：解释执行控制器的原理与可验证实现。示例使用 Python 3.11+ 标准库、模拟模型和模拟工具；不需要真实 API Key，不将演示用量单位冒充真实 Token 或价格。</p>
+</blockquote>
+<h2 id="section-2">1. 为什么 Agent 需要独立的执行控制</h2>
+<p>普通聊天常表现为一次模型请求与一次模型响应；Agent 则可能形成：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">用户任务
+  ↓
+模型 #1 → 请求 Tool A → 执行 → 返回结果
+  ↓
+模型 #2 → 请求 Tool B → 失败 → 重试 → 再次返回
+  ↓
+模型 #3 → 请求 Tool A → 执行 → 返回结果
+  ↓
+模型 #4 → ...</code></pre></div><p>如果没有边界，模型可能反复调用相同工具；某个网络工具可能长期无响应；多个重试层叠加造成请求风暴；一次任务消耗的 Token、外部 API 费用、CPU 与并发连接可能不断增加。这些问题不是单靠提示词“请不要重复”就可以可靠解决的。</p>
+<p><strong>执行控制器（runner / orchestrator）</strong> 应在模型和工具之外维护一个独立的、确定性的策略层：</p>
+<ol>
+<li>任务允许进行多少轮模型决策；</li>
+<li>最多接受多少次工具调用；</li>
+<li>单个工具最多尝试几次；</li>
+<li>所有步骤累计最长运行多久；</li>
+<li>还有多少 Token、费用或其他资源预算；</li>
+<li>何时认为没有进展，并强制停止；</li>
+<li>失败或终止后，如何向调用方报告精确状态。</li>
+</ol>
+<blockquote>
+<p><strong>本质原则：</strong> 模型可以选择下一步要做什么；是否允许继续执行，由程序根据权限、状态与预算判断。</p>
+</blockquote>
+<h2 id="section-3">2. 六个容易混淆的计数单位</h2>
+<table>
+<thead>
+<tr>
+<th>单位</th>
+<th>定义</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>模型调用尝试（model attempt）</td>
+<td>对模型 API 的一次实际请求，SDK 自动重试也可能产生多次尝试</td>
+<td>某次 API 请求遭遇 503 后再次发出</td>
+</tr>
+<tr>
+<td>Agent 模型轮次（turn）</td>
+<td>Runner 定义的一次逻辑模型决策回合；具体语义取决于框架</td>
+<td>模型请求工具后进入下一轮</td>
+</tr>
+<tr>
+<td>工具调用（tool call）</td>
+<td>模型提出一次具体工具操作意图</td>
+<td><code>search_rules(version="v2")</code></td>
+</tr>
+<tr>
+<td>工具执行尝试（tool attempt）</td>
+<td>实际执行该工具一次，重试会增加计数</td>
+<td>同一工具超时后第二次执行</td>
+</tr>
+<tr>
+<td>工具并发数（in-flight）</td>
+<td>同一时刻正在运行的工具操作个数</td>
+<td>同时请求三份资料</td>
+</tr>
+<tr>
+<td>任务运行（agent run）</td>
+<td>从接收任务到结束的整个生命周期</td>
+<td>包含模型、工具、排队和退避等待</td>
+</tr>
+</tbody></table>
+<p>这些数字不能互相替代。一次模型响应可能包含多个工具调用；每个工具调用可能产生多次执行尝试；一个轮次内的传输重试可能不计为新模型轮次。OpenAI Agents SDK 的 <code>max_turns</code> 指逻辑模型调用轮次，而不是所有工具尝试次数。</p>
+<p>例如一轮模型返回三个并行工具调用，每个工具最多执行三次，则该轮最多可能带来九次工具执行尝试。仅设置“最大模型轮次为 5”并不能自动把所有工具执行限定为 5 次。</p>
+<h2 id="section-4">3. 执行控制应当放在哪些层</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">                         全局 Run Deadline / 费用预算
+ ┌───────────────────────────────────────────────────┐
+ │   Runner: 最大模型轮次、工具调用次数、状态与循环检测  │
+ │       ↓                                           │
+ │   模型调用: 单次超时、供应商限流、用量统计            │
+ │       ↓                                           │
+ │   工具调用: 工具白名单、参数权限、超时、幂等检查      │
+ │       ↓                                           │
+ │   Tool Attempt: 网络超时、失败分类、有限重试、退避    │
+ │       ↓                                           │
+ │   外部系统: 数据库事务、外部 API、真实副作用           │
+ └───────────────────────────────────────────────────┘</code></pre></div><p>需要明确最内层的网络客户端、工具封装层、Agent 框架和应用入口谁负责重试与超时；多个层级不应互相不知道对方正在重试。</p>
+<h3 id="section-5">核心约束的应用顺序</h3>
+<p>在执行下一次模型或工具调用之前，建议按顺序检查：身份权限与参数合法性 → 当前任务状态 → 全局 Deadline → 剩余调用次数 → 剩余费用/用量预算 → 独立超时与并发许可。对于写入工具还应检查确认凭证、幂等键和对象版本。</p>
+<h2 id="section-6">4. 超时的四个层级</h2>
+<p><strong>超时（timeout）</strong> 是对某一操作等待时间的限制，<strong>期限（deadline）</strong> 是绝对的最晚结束时刻。</p>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>约束对象</th>
+<th>典型失败</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>网络阶段超时</td>
+<td>建连、发送、读取、连接池排队</td>
+<td>ConnectTimeout、ReadTimeout、PoolTimeout</td>
+</tr>
+<tr>
+<td>单次模型/工具超时</td>
+<td>某一次完整模型或工具执行尝试</td>
+<td>模型服务长期无响应</td>
+</tr>
+<tr>
+<td>单个工具逻辑调用期限</td>
+<td>当前工具含多次尝试与退避的总时长</td>
+<td>每次都在重试但迟迟无法完成</td>
+</tr>
+<tr>
+<td>整次 Agent 总期限</td>
+<td>所有模型、工具、重试、排队及等待时间</td>
+<td>总处理时间超过 SLA</td>
+</tr>
+</tbody></table>
+<p><strong>注意：</strong> HTTPX 的 <code>read</code> 超时是等待收到一个数据块的最大空闲时长，并不自动代表整个请求的最长耗时。持续收到少量数据的流式请求可能持续很久，因此流式服务要另设总期限。</p>
+<h3 id="section-7">4.1 Python <code>asyncio.timeout()</code> 与 <code>wait_for()</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">slow_tool</span>():
+    <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">10</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">run</span>():
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.timeout(<span class="hljs-number">2</span>):
+            <span class="hljs-keyword">await</span> slow_tool()
+    <span class="hljs-keyword">except</span> TimeoutError:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"本次操作超时"</span>)
+
+asyncio.run(run())</code></pre></div><p><code>asyncio.timeout()</code> 到期时通过取消当前任务实现超时，并在上下文管理器边界把对应取消转换为 <code>TimeoutError</code>。正常应当在 <code>async with</code> 外捕获它。<code>asyncio.wait_for()</code> 会取消它等待的对象，并等待取消处理结束，因此实际返回时间<strong>可能超过</strong>传入的超时值。</p>
+<h3 id="section-8">4.2 取消是协作式的，不保证撤销副作用</h3>
+<ul>
+<li><code>Task.cancel()</code> 发出取消请求；协程通常在挂起点收到 <code>CancelledError</code>。</li>
+<li>取消后执行的 <code>finally</code>、资源回收可能仍需要时间。</li>
+<li>同步阻塞、线程池中的阻塞函数、远端已经开始执行的操作不一定会立即停止。</li>
+<li>HTTP 客户端本地超时，不代表服务器端操作没有成功。</li>
+<li>对 <code>asyncio.CancelledError</code> 通常应继续传播，不应宽泛吞掉后假装任务成功。</li>
+</ul>
+<p>因此“调用超时”意味着<strong>本地没有在期限内确认结果</strong>，并不总是意味着“操作没有发生”。尤其对写入类工具，要将结果标记为 <code>OUTCOME_UNKNOWN</code> 并核验，而不是盲目重试。</p>
+<h2 id="section-9">5. 如何分类失败，决定是否重试</h2>
+<p>失败重试的前提是<strong>错误具有暂时性</strong>，且<strong>重复执行在业务上安全</strong>。这是两道独立条件。</p>
+<table>
+<thead>
+<tr>
+<th>失败情况</th>
+<th>通常是否重试</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>429</code> 限流</td>
+<td>在配额允许、尊重 <code>Retry-After</code> 时有限重试</td>
+<td>过快请求可能短时恢复</td>
+</tr>
+<tr>
+<td><code>502/503/504</code> 上游故障</td>
+<td>只对安全/幂等操作有限重试</td>
+<td>服务可能暂不可用</td>
+</tr>
+<tr>
+<td>短暂连接故障</td>
+<td>视操作副作用与请求发送阶段判断</td>
+<td>结果可能不确定</td>
+</tr>
+<tr>
+<td><code>400/422</code> 参数错误</td>
+<td>不重试</td>
+<td>相同参数重复发送通常仍错误</td>
+</tr>
+<tr>
+<td><code>401/403</code> 权限错误</td>
+<td>不重试</td>
+<td>重试不能代替身份认证或授权</td>
+</tr>
+<tr>
+<td><code>404</code> 资源不存在</td>
+<td>通常不重试</td>
+<td>需要核对资源 ID 或数据版本</td>
+</tr>
+<tr>
+<td><code>409</code> 状态冲突</td>
+<td>一般先重新读取状态并按业务规则处理</td>
+<td>不能机械地重复写入</td>
+</tr>
+<tr>
+<td>工具返回资料不足</td>
+<td>不应自动重复相同查询</td>
+<td>需要调整问题或取得新依据</td>
+</tr>
+<tr>
+<td>模型工具参数格式错误</td>
+<td>先校验/纠错，限制纠错次数</td>
+<td>不等于远端临时故障</td>
+</tr>
+<tr>
+<td>写入操作后响应丢失</td>
+<td>不应直接无条件重试</td>
+<td>写入可能已经成功</td>
+</tr>
+</tbody></table>
+<p>这里的 408/429/5xx 只是常见的初步分类，并非一条无条件通用规则。API 语义、<code>Retry-After</code>、请求是否到达、是否具备幂等性，都会影响真实策略。</p>
+<h3 id="section-10">5.1 重试次数应明确口径</h3>
+<p>如果写 <code>max_retries = 2</code>，通常意味着：首次执行 1 次 + 最多重试 2 次 = <strong>最多 3 次尝试</strong>。也有库使用 <code>max_attempts = 3</code> 直接表示最多三次。必须在配置名和日志中明确单位。</p>
+<h3 id="section-11">5.2 SDK 自动重试与业务重试叠加</h3>
+<p>如果模型 SDK 内部最多尝试 3 次，工具包装层又最多尝试 3 次，而 Agent 决策循环可能重新请求同一工具 3 次，那么某段外部调用路径的尝试次数可能被放大到 27 次。并不是所有架构必然如此，但只要存在多层各自重试，就有叠加风险。</p>
+<p>尽量指定一个明确的重试责任层，统一统计所有实际尝试次数。</p>
+<h2 id="section-12">6. 退避（Backoff）和抖动（Jitter）</h2>
+<p>故障发生后不应立即无限重试。常见的指数退避窗口是：</p>
+<p>[
+W_n = \min(W_{\max}, b \cdot 2^{n-1})
+]</p>
+<p>其中 <code>b</code> 是初始等待基数，<code>n</code> 是第几次失败后的重试等待。</p>
+<p>加入 Full Jitter 后，从 <code>0</code> 到 <code>W_n</code> 的区间随机取值：</p>
+<p>[
+D_n \sim U(0, W_n)
+]</p>
+<p>示例：<code>b=0.5s</code>、上限 <code>4s</code>，则重试等待窗口依次为 <code>[0,0.5]</code>、<code>[0,1]</code>、<code>[0,2]</code>、<code>[0,4]</code>，不同客户端不会恰好在相同时间一起重试。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> random
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">retry_delay</span>(<span class="hljs-params">failure_number: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">float</span>:
+    window = <span class="hljs-built_in">min</span>(<span class="hljs-number">4.0</span>, <span class="hljs-number">0.5</span> * <span class="hljs-number">2</span> ** (failure_number - <span class="hljs-number">1</span>))
+    <span class="hljs-keyword">return</span> random.uniform(<span class="hljs-number">0.0</span>, window)</code></pre></div><p>注意：退避等待本身也消耗总运行时长。应在等待前再次确认全局 Deadline，而不是让每一轮重试都获得全新的“总时间”。当服务端返回合法的 <code>Retry-After</code> 时，优先结合该信息和预算做判断。</p>
+<h3 id="section-13">为什么不能无条件重试</h3>
+<p>当系统已经过载时，重复请求会制造额外负载，可能延长故障时间。这就是<strong>重试风暴（retry storm）</strong>。指数退避、随机抖动、全局重试预算、限流和熔断器可以组合降低风险；它们不是彼此的替代品。</p>
+<h2 id="section-14">7. 重试安全、幂等性与“结果未知”</h2>
+<p>工具应根据副作用属性分类：</p>
+<ol>
+<li><strong>只读工具</strong>：如查询游戏规则、读取文章，通常更容易安全重试（但仍可能受速率或成本限制）。</li>
+<li><strong>幂等写入</strong>：相同业务请求多次执行只产生一次业务效果，且由服务端唯一约束或幂等键保证。</li>
+<li><strong>非幂等写入</strong>：如重复发送消息、重复创建交易、重复扣款，不能在响应丢失后直接再做一次。</li>
+</ol>
+<p>错误理解：“第一次请求超时，肯定没写入，因此再发一次。”</p>
+<p>正确做法：写入操作提交前应生成稳定的业务幂等键（例如 <code>confirmation_id</code>），并让远端或数据库约束保证它只产生一次最终效果。若无法可靠判断成功与否，应先查询既有结果，或者返回 <code>UNKNOWN</code> 让上层人工/程序核查。</p>
+<p><strong>幂等键不能只依赖客户端随意传入的字符串。</strong> 必须把键绑定到用户、操作类型、目标对象和请求内容。重试时沿用原键，不能每次重新生成一个新键。</p>
+<h2 id="section-15">8. 最大执行步数：模型轮次、工具次数和尝试次数都要限制</h2>
+<p>建议至少单独维护：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">max_model_turns = <span class="hljs-number">6</span>      <span class="hljs-comment"># 逻辑模型决策轮次</span>
+max_tool_calls = <span class="hljs-number">10</span>      <span class="hljs-comment"># 接受的工具调用意图</span>
+max_tool_attempts = <span class="hljs-number">15</span>   <span class="hljs-comment"># 含失败重试的真实工具执行次数</span></code></pre></div><p>这些数值只为说明计数方式，不是适用于任何 Agent 的推荐阈值。</p>
+<p>还可设置：</p>
+<ul>
+<li>每轮模型最多允许调用多少个工具。</li>
+<li>同一工具在整个 Run 内的调用次数上限。</li>
+<li>单个工具的并发上限。</li>
+<li>深层子 Agent / handoff 的调用深度。</li>
+<li>结构化输出纠错的最大次数。</li>
+</ul>
+<h3 id="section-16">为什么光有步数上限还不够</h3>
+<p>一个步骤可能持续非常久，也可能调用非常昂贵的外部服务。两次模型推理加一次高成本工具执行，就可能比十次普通查询更昂贵。因此应同时限制<strong>步数、时间、预算与并发</strong>。</p>
+<h2 id="section-17">9. 总耗时：使用同一个单调时钟的 Deadline</h2>
+<p>假设整个 Agent 允许运行 30 秒。正确方法是在开始时固定绝对截止时间：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">loop = asyncio.get_running_loop()
+deadline = loop.time() + <span class="hljs-number">30</span>
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.timeout_at(deadline):
+    <span class="hljs-keyword">await</span> run_agent_loop()</code></pre></div><p>每次子操作的实际等待上限应由“自身上限”和“全局剩余时间”共同决定：</p>
+<p>[
+T_{\text{attempt}} = \min(T_{\text{per-attempt}}, D - t_{\text{now}})
+]</p>
+<p>使用 <code>loop.time()</code> 等单调时钟，避免系统墙上时钟调整影响经过时间计算。每一次重试、排队、工具执行都共享相同 <code>deadline</code>。不要在每个循环重新设置一个 30 秒的所谓总超时。</p>
+<p><strong>注意：</strong> Python 取消是协作式的，<code>timeout_at()</code> 不是针对所有不可取消外部操作的硬实时杀死开关。要求强制隔离时，需要进程/容器级管理及外部服务自身的超时限制。</p>
+<h2 id="section-18">10. 调用预算：不仅是 Token</h2>
+<p>Agent 的资源预算可分为以下几类：</p>
+<table>
+<thead>
+<tr>
+<th>预算</th>
+<th>衡量对象</th>
+<th>典型限制方式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>输入/输出 Token 预算</td>
+<td>模型输入和生成量</td>
+<td>使用量累计、生成上限</td>
+</tr>
+<tr>
+<td>金额预算</td>
+<td>模型费用、收费工具 API</td>
+<td>价格表、费用计算、配额预留</td>
+</tr>
+<tr>
+<td>API 调用预算</td>
+<td>模型与工具的请求次数</td>
+<td>计数器、共享配额</td>
+</tr>
+<tr>
+<td>计算预算</td>
+<td>CPU、GPU、执行时长</td>
+<td>配额、并发池、作业隔离</td>
+</tr>
+<tr>
+<td>外部业务预算</td>
+<td>写入次数、邮件发送次数等</td>
+<td>权限、状态机、特定业务额度</td>
+</tr>
+</tbody></table>
+<h3 id="section-19">10.1 按 Token 计算费用</h3>
+<p>对于按输入和输出 Token 分别计费的模型，示意公式为：</p>
+<p>[
+C = \frac{N_{in}}{10^6}P_{in} + \frac{N_{out}}{10^6}P_{out}
+]</p>
+<p>其中 <code>P</code> 是每百万 Token 的价格。生产中还需要考虑缓存命中/未命中价格、非可见推理 Token、工具收费、不同模型价格及供应商账单规则；不能把缓存 Token 再作为额外一份完整输入重复计费。</p>
+<h3 id="section-20">10.2 预留预算与结算</h3>
+<p>模型调用前通常无法精确知道最终输出 Token。因此可先按最大可能用量和风险预留额度，调用后依据供应商实际 <code>usage</code> 对账。</p>
+<p>[
+B_{available}=B_{limit}-B_{settled}-B_{reserved}
+]</p>
+<p>如果响应超时或断开，实际计费量可能暂时未知；不能简单把它当作零。配额需要保留未结算状态并后续对账。</p>
+<p>对于多进程 Agent，共享余额检查和预留应是<strong>原子操作</strong>（数据库事务或其他可靠配额系统），不能靠一个普通 Python 全局变量。要做到真实的硬成本上限，还需要服务端配额/供应商账户限额等配合；本地取消不能保证上游立即停止收费。</p>
+<h2 id="section-21">11. 识别循环调用与无进展状态</h2>
+<p>并不是每次调用都比上一次更有进展。常见问题：</p>
+<ul>
+<li>同一个 <code>search()</code> 不断使用相同关键词，返回相同网页。</li>
+<li>同一个数据库查询连续返回“找不到”。</li>
+<li>模型被错误信息诱导，在两个工具之间往返。</li>
+<li>工具成功返回了结果，但模型忽略结果，继续请求相同工具。</li>
+<li>反复调用“检查任务状态”，但任务一直没有推进。</li>
+</ul>
+<p>一种简单启发式是构建：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">(tool_name, normalized_arguments, normalized_result)</code></pre></div><p>在没有新数据、任务状态或结果变化的情况下，若相同签名出现多次，可判断“疑似无进展”。</p>
+<p><strong>但指纹去重不是万能规则：</strong> 查询任务进度、轮询价格、逐步分页或分页游标轮换都可能合法重复。更可靠的是定义业务层的<strong>进展度量（progress metric）</strong>：新增有效证据数、完成的子任务数、状态变化、可验证结果增量等。</p>
+<p>对于轮询类工具，优先用程序定义轮询间隔与次数，而不是让模型每隔极短时间自行重复询问。</p>
+<h2 id="section-22">12. 一个合格的停止条件集合</h2>
+<p>Agent 不应只有“模型给出最终答案”这一种退出方式。合理的终止状态至少包括：</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>含义</th>
+<th>调用方处理方向</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>SUCCESS</code></td>
+<td>任务完成</td>
+<td>展示结果</td>
+</tr>
+<tr>
+<td><code>MODEL_TURNS_EXHAUSTED</code></td>
+<td>模型轮次用完</td>
+<td>展示阶段结果，不继续调用</td>
+</tr>
+<tr>
+<td><code>TOOL_CALLS_EXHAUSTED</code></td>
+<td>工具调用次数用完</td>
+<td>提示操作边界</td>
+</tr>
+<tr>
+<td><code>TOOL_ATTEMPTS_EXHAUSTED</code></td>
+<td>实际执行尝试总数用完</td>
+<td>停止重试</td>
+</tr>
+<tr>
+<td><code>TOTAL_TIMEOUT</code></td>
+<td>总运行期限到达</td>
+<td>返回超时状态和可查询的任务标识</td>
+</tr>
+<tr>
+<td><code>MODEL_TIMEOUT</code></td>
+<td>单次模型请求超时</td>
+<td>根据业务策略决定是否可重试</td>
+</tr>
+<tr>
+<td><code>RETRY_EXHAUSTED</code></td>
+<td>当前工具的重试次数耗尽</td>
+<td>返回工具故障原因</td>
+</tr>
+<tr>
+<td><code>WORK_BUDGET_EXHAUSTED</code></td>
+<td>资源配额不足</td>
+<td>不继续消耗资源</td>
+</tr>
+<tr>
+<td><code>NO_PROGRESS_LOOP</code></td>
+<td>检测到重复且无进展</td>
+<td>请求额外信息或终止</td>
+</tr>
+<tr>
+<td><code>OUTCOME_UNKNOWN_NO_RETRY</code></td>
+<td>写入结果可能已经发生但未确认</td>
+<td>先核验，禁止盲目重发</td>
+</tr>
+<tr>
+<td><code>PERMISSION_DENIED</code></td>
+<td>操作无授权</td>
+<td>终止且保留审计记录</td>
+</tr>
+<tr>
+<td><code>CANCELLED</code></td>
+<td>用户或系统明确请求取消</td>
+<td>协作式取消、检查副作用</td>
+</tr>
+</tbody></table>
+<p>上述是<strong>应用自行设计</strong>的状态名称，不是 Python 或某模型 SDK 统一规定的内置状态。</p>
+<h3 id="section-23">“部分完成”与“成功”不能混淆</h3>
+<p>任务因为预算耗尽而停止时，即便已经取得一些资料，也不应强行标成 <code>SUCCESS</code>。应返回独立状态、已完成步骤及未完成原因。若存在已发生的写入副作用，还应保存幂等键和可核验的业务结果。</p>
+<h2 id="section-24">13. 并发工具与预算竞态</h2>
+<p>多个工具同时执行时，还需要额外控制：</p>
+<ol>
+<li><strong>调用配额预留：</strong> 在真正安排 Task 之前，原子地分配预算。</li>
+<li><strong>并发上限：</strong> 使用 <code>Semaphore</code> 或更高层分布式配额，避免同时占满上游连接池。</li>
+<li><strong>失败传播：</strong> 决定某个子任务失败是否取消其他子任务；<code>TaskGroup</code> 的默认行为与 <code>gather(return_exceptions=True)</code> 不同。</li>
+<li><strong>总 Deadline：</strong> 所有并行分支共享一个最晚截止时间。</li>
+<li><strong>副作用隔离：</strong> 某个分支成功写入而其他分支失败，并不能自动事务回滚远端业务。</li>
+</ol>
+<p>单进程中的计数器或 <code>asyncio.Lock</code> 不保证跨多个 Worker 的全局额度。分布式环境应使用数据库事务、原子计数/预留或专门限额服务。</p>
+<h2 id="section-25">14. 可观测性：为什么“工具调用失败”四个字不够</h2>
+<p>每次运行至少应留存以下可观察信息（敏感数据需脱敏）：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"run_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"run_001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"model_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"example-model"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"prompt_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"p3"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"tool_call_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"tool_12"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"tool_name"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"search_rules"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"attempt"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"start_elapsed_ms"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">487</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"duration_ms"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">130</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"outcome"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"TRANSIENT_ERROR"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"error_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"READ_TIMEOUT"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"retry_scheduled_ms"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">580</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"model_turns_used"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"tool_attempts_used"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"remaining_deadline_ms"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"cost_status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"PENDING_RECONCILIATION"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>真实系统还应记录模型 usage（包含计费口径）、trace ID、会话 ID、幂等键、相关工具结果摘要/哈希、API 状态码和最后的终止原因。不要把密钥、完整私人资料和不必要的隐私内容直接写入日志。</p>
+<p>诊断时应能区分：</p>
+<ul>
+<li>工具本身慢，还是等待连接池/信号量慢？</li>
+<li>一次调用慢，还是多次退避累计慢？</li>
+<li>工具真实失败，还是模型在没有进展时反复调用？</li>
+<li>超出的是步数、时间、Token 还是费用预算？</li>
+<li>远程操作已经成功，但本地响应丢失了吗？</li>
+</ul>
+<h2 id="section-26">15. Python 完整可运行示例：有限执行控制器</h2>
+<p>以下是<strong>标准库、离线模拟</strong>示例。它包含：</p>
+<ul>
+<li>最大模型轮次、最大工具调用与最大工具执行尝试数；</li>
+<li>单次模型/工具超时与总 Deadline；</li>
+<li>有限重试、指数退避和抖动；</li>
+<li>临时错误与永久错误区分；</li>
+<li>不安全写入操作禁止自动重试；</li>
+<li>角色白名单和基本参数类型校验；</li>
+<li>模拟工作量单位预算（非真实 Token / 金额）；</li>
+<li>相同工具参数和结果的循环启发式检测；</li>
+<li>明确终止状态与事件记录。</li>
+</ul>
+<p><strong>边界声明：</strong> 这不是生产级 Agent 或收费配额系统。它不连接真实模型；未实现 Pydantic 业务 Schema、分布式原子余额、持久化恢复、真实幂等服务端和上游用量对账。<code>work_units</code> 只用来证明限额控制逻辑。</p>
+<p>将下方代码保存为 <code>runner_demo.py</code>，可运行 <code>python runner_demo.py</code>。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Agent execution control demo. Python &gt;=3.11, standard library only.
+No real LLM/network; work units are deliberately NOT API fees.
+"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> random
+<span class="hljs-keyword">from</span> collections <span class="hljs-keyword">import</span> Counter
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass, field
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> <span class="hljs-type">Any</span>, Awaitable, <span class="hljs-type">Callable</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">TransientToolError</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-string">"""A retryable failure if and only if the operation is retry-safe."""</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">PermanentToolError</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-string">"""A non-retryable error: invalid input, authorization, missing resource, etc."""</span>
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Limits</span>:
+    max_model_turns: <span class="hljs-built_in">int</span> = <span class="hljs-number">5</span>
+    max_tool_calls: <span class="hljs-built_in">int</span> = <span class="hljs-number">4</span>
+    max_tool_attempts: <span class="hljs-built_in">int</span> = <span class="hljs-number">6</span>
+    max_work_units: <span class="hljs-built_in">int</span> = <span class="hljs-number">20</span>  <span class="hljs-comment"># illustrative quota, NOT tokens or money</span>
+    total_seconds: <span class="hljs-built_in">float</span> = <span class="hljs-number">2.0</span>
+    model_timeout: <span class="hljs-built_in">float</span> = <span class="hljs-number">0.4</span>
+    tool_timeout: <span class="hljs-built_in">float</span> = <span class="hljs-number">0.2</span>
+    retry_per_call: <span class="hljs-built_in">int</span> = <span class="hljs-number">2</span>  <span class="hljs-comment"># number of retries, excludes first attempt</span>
+    backoff_base: <span class="hljs-built_in">float</span> = <span class="hljs-number">0.01</span>
+    backoff_cap: <span class="hljs-built_in">float</span> = <span class="hljs-number">0.03</span>
+    duplicate_results_limit: <span class="hljs-built_in">int</span> = <span class="hljs-number">2</span>
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ToolCall</span>:
+    call_id: <span class="hljs-built_in">str</span>
+    name: <span class="hljs-built_in">str</span>
+    arguments: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Decision</span>:
+    answer: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+    tool_call: ToolCall | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ToolSpec</span>:
+    handler: <span class="hljs-type">Callable</span>[[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]], Awaitable[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]]]
+    permitted_roles: <span class="hljs-built_in">frozenset</span>[<span class="hljs-built_in">str</span>]
+    retry_safe: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">True</span>
+
+
+<span class="hljs-meta">@dataclass</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Outcome</span>:
+    status: <span class="hljs-built_in">str</span>
+    answer: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>
+    turns: <span class="hljs-built_in">int</span>
+    tool_calls: <span class="hljs-built_in">int</span>
+    tool_attempts: <span class="hljs-built_in">int</span>
+    work_units: <span class="hljs-built_in">int</span>
+    events: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]] = field(default_factory=<span class="hljs-built_in">list</span>)
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ScriptModel</span>:
+    <span class="hljs-string">"""Offline fake model, with explicit actions and optional delay."""</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, actions: <span class="hljs-built_in">list</span>[Decision], delay: <span class="hljs-built_in">float</span> = <span class="hljs-number">0</span></span>):
+        <span class="hljs-variable language_">self</span>.actions = actions
+        <span class="hljs-variable language_">self</span>.delay = delay
+        <span class="hljs-variable language_">self</span>.index = <span class="hljs-number">0</span>
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">__call__</span>(<span class="hljs-params">self, history: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]]</span>) -&gt; Decision:
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.delay:
+            <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-variable language_">self</span>.delay)
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.index &gt;= <span class="hljs-built_in">len</span>(<span class="hljs-variable language_">self</span>.actions):
+            <span class="hljs-keyword">return</span> Decision(answer=<span class="hljs-string">"script ended"</span>)
+        action = <span class="hljs-variable language_">self</span>.actions[<span class="hljs-variable language_">self</span>.index]
+        <span class="hljs-variable language_">self</span>.index += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">return</span> action
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AgentRunner</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, model: <span class="hljs-type">Callable</span>[[<span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]]], Awaitable[Decision]],
+                 tools: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, ToolSpec], role: <span class="hljs-built_in">str</span>, limits: Limits,
+                 rng: random.Random | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span></span>):
+        <span class="hljs-variable language_">self</span>.model = model
+        <span class="hljs-variable language_">self</span>.tools = tools
+        <span class="hljs-variable language_">self</span>.role = role
+        <span class="hljs-variable language_">self</span>.limits = limits
+        <span class="hljs-variable language_">self</span>.rng = rng <span class="hljs-keyword">or</span> random.Random(<span class="hljs-number">42</span>)
+        <span class="hljs-variable language_">self</span>.turns = <span class="hljs-number">0</span>
+        <span class="hljs-variable language_">self</span>.tool_calls = <span class="hljs-number">0</span>
+        <span class="hljs-variable language_">self</span>.tool_attempts = <span class="hljs-number">0</span>
+        <span class="hljs-variable language_">self</span>.units = <span class="hljs-number">0</span>
+        <span class="hljs-variable language_">self</span>.history: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]] = []
+        <span class="hljs-variable language_">self</span>.events: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]] = []
+        <span class="hljs-variable language_">self</span>.repeated: Counter[<span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">str</span>, <span class="hljs-built_in">str</span>]] = Counter()
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">result</span>(<span class="hljs-params">self, status: <span class="hljs-built_in">str</span>, answer: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span></span>) -&gt; Outcome:
+        <span class="hljs-keyword">return</span> Outcome(status, answer, <span class="hljs-variable language_">self</span>.turns, <span class="hljs-variable language_">self</span>.tool_calls,
+                       <span class="hljs-variable language_">self</span>.tool_attempts, <span class="hljs-variable language_">self</span>.units, <span class="hljs-built_in">list</span>(<span class="hljs-variable language_">self</span>.events))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">consume</span>(<span class="hljs-params">self, units: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.units + units &gt; <span class="hljs-variable language_">self</span>.limits.max_work_units:
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+        <span class="hljs-variable language_">self</span>.units += units
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">True</span>
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">run</span>(<span class="hljs-params">self</span>) -&gt; Outcome:
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + <span class="hljs-variable language_">self</span>.limits.total_seconds
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> asyncio.timeout_at(deadline):
+                <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> <span class="hljs-variable language_">self</span>._run_loop(deadline)
+        <span class="hljs-keyword">except</span> TimeoutError:
+            <span class="hljs-variable language_">self</span>.events.append({<span class="hljs-string">"event"</span>: <span class="hljs-string">"total_deadline_exceeded"</span>})
+            <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"TOTAL_TIMEOUT"</span>)
+        <span class="hljs-comment"># Caller cancellation deliberately propagates. Never swallow CancelledError.</span>
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">_run_loop</span>(<span class="hljs-params">self, deadline: <span class="hljs-built_in">float</span></span>) -&gt; Outcome:
+        loop = asyncio.get_running_loop()
+        <span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
+            <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.turns &gt;= <span class="hljs-variable language_">self</span>.limits.max_model_turns:
+                <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"MODEL_TURNS_EXHAUSTED"</span>)
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-variable language_">self</span>.consume(<span class="hljs-number">2</span>):
+                <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"WORK_BUDGET_EXHAUSTED"</span>)
+            <span class="hljs-variable language_">self</span>.turns += <span class="hljs-number">1</span>
+            <span class="hljs-keyword">try</span>:
+                remaining = <span class="hljs-built_in">max</span>(<span class="hljs-number">0.000001</span>, deadline - loop.time())
+                decision = <span class="hljs-keyword">await</span> asyncio.wait_for(
+                    <span class="hljs-variable language_">self</span>.model(<span class="hljs-variable language_">self</span>.history), <span class="hljs-built_in">min</span>(<span class="hljs-variable language_">self</span>.limits.model_timeout, remaining)
+                )
+            <span class="hljs-keyword">except</span> TimeoutError:
+                <span class="hljs-variable language_">self</span>.events.append({<span class="hljs-string">"event"</span>: <span class="hljs-string">"model_timeout"</span>, <span class="hljs-string">"turn"</span>: <span class="hljs-variable language_">self</span>.turns})
+                <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"MODEL_TIMEOUT"</span>)
+
+            <span class="hljs-keyword">if</span> decision.answer <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+                <span class="hljs-variable language_">self</span>.events.append({<span class="hljs-string">"event"</span>: <span class="hljs-string">"final"</span>, <span class="hljs-string">"turn"</span>: <span class="hljs-variable language_">self</span>.turns})
+                <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"SUCCESS"</span>, decision.answer)
+            call = decision.tool_call
+            <span class="hljs-keyword">if</span> call <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"INVALID_MODEL_OUTPUT"</span>)
+            <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.tool_calls &gt;= <span class="hljs-variable language_">self</span>.limits.max_tool_calls:
+                <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"TOOL_CALLS_EXHAUSTED"</span>)
+            <span class="hljs-variable language_">self</span>.tool_calls += <span class="hljs-number">1</span>
+            spec = <span class="hljs-variable language_">self</span>.tools.get(call.name)
+            <span class="hljs-keyword">if</span> spec <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"UNKNOWN_TOOL"</span>)
+            <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.role <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> spec.permitted_roles:
+                <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"PERMISSION_DENIED"</span>)
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-built_in">isinstance</span>(call.arguments, <span class="hljs-built_in">dict</span>):
+                <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"INVALID_TOOL_ARGUMENTS"</span>)
+
+            result: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+            <span class="hljs-keyword">for</span> per_call_attempt <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">1</span>, <span class="hljs-variable language_">self</span>.limits.retry_per_call + <span class="hljs-number">2</span>):
+                <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.tool_attempts &gt;= <span class="hljs-variable language_">self</span>.limits.max_tool_attempts:
+                    <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"TOOL_ATTEMPTS_EXHAUSTED"</span>)
+                <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-variable language_">self</span>.consume(<span class="hljs-number">1</span>):
+                    <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"WORK_BUDGET_EXHAUSTED"</span>)
+                <span class="hljs-variable language_">self</span>.tool_attempts += <span class="hljs-number">1</span>
+                <span class="hljs-keyword">try</span>:
+                    remaining = <span class="hljs-built_in">max</span>(<span class="hljs-number">0.000001</span>, deadline - loop.time())
+                    result = <span class="hljs-keyword">await</span> asyncio.wait_for(
+                        spec.handler(call.arguments), <span class="hljs-built_in">min</span>(<span class="hljs-variable language_">self</span>.limits.tool_timeout, remaining)
+                    )
+                    <span class="hljs-variable language_">self</span>.events.append({<span class="hljs-string">"event"</span>: <span class="hljs-string">"tool_success"</span>, <span class="hljs-string">"call_id"</span>: call.call_id,
+                                        <span class="hljs-string">"attempt"</span>: per_call_attempt})
+                    <span class="hljs-keyword">break</span>
+                <span class="hljs-keyword">except</span> PermanentToolError <span class="hljs-keyword">as</span> exc:
+                    <span class="hljs-variable language_">self</span>.events.append({<span class="hljs-string">"event"</span>: <span class="hljs-string">"tool_permanent_error"</span>, <span class="hljs-string">"type"</span>: <span class="hljs-built_in">type</span>(exc).__name__})
+                    <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"TOOL_FAILED"</span>)
+                <span class="hljs-keyword">except</span> (TimeoutError, TransientToolError) <span class="hljs-keyword">as</span> exc:
+                    <span class="hljs-variable language_">self</span>.events.append({<span class="hljs-string">"event"</span>: <span class="hljs-string">"tool_transient_error"</span>, <span class="hljs-string">"type"</span>: <span class="hljs-built_in">type</span>(exc).__name__,
+                                        <span class="hljs-string">"attempt"</span>: per_call_attempt})
+                    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> spec.retry_safe:
+                        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"OUTCOME_UNKNOWN_NO_RETRY"</span>)
+                    <span class="hljs-keyword">if</span> per_call_attempt &gt;= <span class="hljs-variable language_">self</span>.limits.retry_per_call + <span class="hljs-number">1</span>:
+                        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"RETRY_EXHAUSTED"</span>)
+                    <span class="hljs-comment"># Full-jitter exponential backoff: all waits count toward total deadline.</span>
+                    window = <span class="hljs-built_in">min</span>(<span class="hljs-variable language_">self</span>.limits.backoff_cap,
+                                 <span class="hljs-variable language_">self</span>.limits.backoff_base * <span class="hljs-number">2</span> ** (per_call_attempt - <span class="hljs-number">1</span>))
+                    <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-variable language_">self</span>.rng.uniform(<span class="hljs-number">0</span>, window))
+
+            <span class="hljs-keyword">assert</span> result <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>
+            <span class="hljs-comment"># Detect same (tool, args, result) multiple times, a heuristic only.</span>
+            signature = (
+                call.name,
+                json.dumps(call.arguments, ensure_ascii=<span class="hljs-literal">False</span>, sort_keys=<span class="hljs-literal">True</span>),
+                json.dumps(result, ensure_ascii=<span class="hljs-literal">False</span>, sort_keys=<span class="hljs-literal">True</span>),
+            )
+            <span class="hljs-variable language_">self</span>.repeated[signature] += <span class="hljs-number">1</span>
+            <span class="hljs-variable language_">self</span>.history.append({<span class="hljs-string">"role"</span>: <span class="hljs-string">"tool"</span>, <span class="hljs-string">"call_id"</span>: call.call_id,
+                                 <span class="hljs-string">"name"</span>: call.name, <span class="hljs-string">"result"</span>: result})
+            <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.repeated[signature] &gt;= <span class="hljs-variable language_">self</span>.limits.duplicate_results_limit:
+                <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.result(<span class="hljs-string">"NO_PROGRESS_LOOP"</span>)
+
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_rule</span>(<span class="hljs-params">arguments: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]</span>) -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]:
+    <span class="hljs-keyword">if</span> arguments.get(<span class="hljs-string">"version"</span>) != <span class="hljs-string">"v2"</span>:
+        <span class="hljs-keyword">raise</span> PermanentToolError(<span class="hljs-string">"unsupported version"</span>)
+    <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.003</span>)
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"character"</span>: <span class="hljs-string">"hero_a"</span>, <span class="hljs-string">"hp"</span>: <span class="hljs-number">4</span>, <span class="hljs-string">"version"</span>: <span class="hljs-string">"v2"</span>}
+
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">demo</span>() -&gt; <span class="hljs-literal">None</span>:
+    model = ScriptModel([
+        Decision(tool_call=ToolCall(<span class="hljs-string">"call_1"</span>, <span class="hljs-string">"get_rule"</span>, {<span class="hljs-string">"version"</span>: <span class="hljs-string">"v2"</span>})),
+        Decision(answer=<span class="hljs-string">"已查询 v2 规则：hero_a 的生命值为 4。"</span>),
+    ])
+    runner = AgentRunner(model, {<span class="hljs-string">"get_rule"</span>: ToolSpec(get_rule, <span class="hljs-built_in">frozenset</span>({<span class="hljs-string">"reader"</span>}))},
+                         <span class="hljs-string">"reader"</span>, Limits())
+    <span class="hljs-built_in">print</span>(runner_result := <span class="hljs-keyword">await</span> runner.run())
+    <span class="hljs-keyword">assert</span> runner_result.status == <span class="hljs-string">"SUCCESS"</span>
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(demo())
+</code></pre></div><h3 id="section-27">15.1 示例中的重要代码选择</h3>
+<ul>
+<li><code>Limits</code> 用 <code>dataclass(frozen=True)</code> 定义配置，避免运行中无意改变限制。</li>
+<li><code>run()</code> 使用<strong>同一绝对期限</strong>保护完整执行；<code>asyncio.wait_for()</code> 保护一次调用尝试。</li>
+<li><code>tool_calls</code> 统计模型已经提出且被接受进入校验流程的工具意图；<code>tool_attempts</code> 统计真实执行次数。</li>
+<li>预算在调用前扣除模拟单位，避免先执行后才发现配额不足。</li>
+<li>如果 <code>retry_safe=False</code>，超时或临时故障后返回 <code>OUTCOME_UNKNOWN_NO_RETRY</code>，阻止不安全重试。</li>
+<li>外部调用者取消任务时，<code>CancelledError</code> 继续传播，而不转成普通成功结果。</li>
+<li><code>NO_PROGRESS_LOOP</code> 只是相同参数与结果的启发式判断，不是完整的业务进展检测算法。</li>
+</ul>
+<h2 id="section-28">16. 自动化验证：让终止条件可证明</h2>
+<p>将以下代码保存为 <code>test_runner_demo.py</code>，与 <code>runner_demo.py</code> 放在同一目录，执行：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m unittest -v test_runner_demo.py</code></pre></div><p>本次文档已实际执行以下测试集，<strong>18 项全部通过</strong>；它们使用模拟模型和模拟工具，未调用真实模型或商业 API。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> unittest
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> replace
+<span class="hljs-keyword">from</span> runner_demo <span class="hljs-keyword">import</span> (
+    AgentRunner, ScriptModel, Decision, ToolCall, ToolSpec, Limits,
+    TransientToolError, PermanentToolError, get_rule
+)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">call</span>(<span class="hljs-params">k, name=<span class="hljs-string">'get_rule'</span>, args=<span class="hljs-literal">None</span></span>):
+    <span class="hljs-keyword">return</span> Decision(tool_call=ToolCall(<span class="hljs-string">f'c<span class="hljs-subst">{k}</span>'</span>, name, args <span class="hljs-keyword">if</span> args <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> {<span class="hljs-string">'version'</span>:<span class="hljs-string">'v2'</span>}))
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">newrunner</span>(<span class="hljs-params">actions, handler=get_rule, *, lim=<span class="hljs-literal">None</span>, role=<span class="hljs-string">'reader'</span>, retry_safe=<span class="hljs-literal">True</span>, model_delay=<span class="hljs-number">0</span></span>):
+    model = ScriptModel(actions, model_delay)
+    tools = {<span class="hljs-string">'get_rule'</span>: ToolSpec(handler, <span class="hljs-built_in">frozenset</span>({<span class="hljs-string">'reader'</span>}), retry_safe)}
+    <span class="hljs-keyword">return</span> AgentRunner(model, tools, role, lim <span class="hljs-keyword">or</span> Limits())
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">RunnerTests</span>(unittest.IsolatedAsyncioTestCase):
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_success</span>(<span class="hljs-params">self</span>):
+        r = <span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>), Decision(answer=<span class="hljs-string">'done'</span>)]).run()
+        <span class="hljs-variable language_">self</span>.assertEqual((r.status, r.turns, r.tool_calls, r.tool_attempts), (<span class="hljs-string">'SUCCESS'</span>,<span class="hljs-number">2</span>,<span class="hljs-number">1</span>,<span class="hljs-number">1</span>))
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_transient_then_success</span>(<span class="hljs-params">self</span>):
+        attempts = <span class="hljs-number">0</span>
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">flaky</span>(<span class="hljs-params">args</span>):
+            <span class="hljs-keyword">nonlocal</span> attempts
+            attempts += <span class="hljs-number">1</span>
+            <span class="hljs-keyword">if</span> attempts == <span class="hljs-number">1</span>:
+                <span class="hljs-keyword">raise</span> TransientToolError(<span class="hljs-string">'temporary'</span>)
+            <span class="hljs-keyword">return</span> {<span class="hljs-string">'ok'</span>:<span class="hljs-literal">True</span>}
+        r = <span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>), Decision(answer=<span class="hljs-string">'done'</span>)], flaky).run()
+        <span class="hljs-variable language_">self</span>.assertEqual(r.status,<span class="hljs-string">'SUCCESS'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual((r.tool_attempts, attempts),(<span class="hljs-number">2</span>,<span class="hljs-number">2</span>))
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_permanent_no_retry</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">bad</span>(<span class="hljs-params">args</span>): <span class="hljs-keyword">raise</span> PermanentToolError(<span class="hljs-string">'invalid argument'</span>)
+        r = <span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>)], bad).run()
+        <span class="hljs-variable language_">self</span>.assertEqual((r.status,r.tool_attempts),(<span class="hljs-string">'TOOL_FAILED'</span>,<span class="hljs-number">1</span>))
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_unsafe_write_no_automatic_retry</span>(<span class="hljs-params">self</span>):
+        calls=<span class="hljs-number">0</span>
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">ambiguous</span>(<span class="hljs-params">args</span>):
+            <span class="hljs-keyword">nonlocal</span> calls
+            calls+=<span class="hljs-number">1</span>
+            <span class="hljs-keyword">raise</span> TransientToolError(<span class="hljs-string">'response lost after write'</span>)
+        r = <span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>)], ambiguous,retry_safe=<span class="hljs-literal">False</span>).run()
+        <span class="hljs-variable language_">self</span>.assertEqual((r.status,calls),(<span class="hljs-string">'OUTCOME_UNKNOWN_NO_RETRY'</span>,<span class="hljs-number">1</span>))
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_max_model_turns</span>(<span class="hljs-params">self</span>):
+        r = <span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>),call(<span class="hljs-number">2</span>),call(<span class="hljs-number">3</span>)],lim=replace(Limits(),max_model_turns=<span class="hljs-number">2</span>,duplicate_results_limit=<span class="hljs-number">99</span>)).run()
+        <span class="hljs-variable language_">self</span>.assertEqual((r.status,r.turns),(<span class="hljs-string">'MODEL_TURNS_EXHAUSTED'</span>,<span class="hljs-number">2</span>))
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_max_tool_calls</span>(<span class="hljs-params">self</span>):
+        r = <span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>),call(<span class="hljs-number">2</span>)],lim=replace(Limits(),max_tool_calls=<span class="hljs-number">1</span>)).run()
+        <span class="hljs-variable language_">self</span>.assertEqual((r.status,r.tool_calls),(<span class="hljs-string">'TOOL_CALLS_EXHAUSTED'</span>,<span class="hljs-number">1</span>))
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_max_tool_attempts</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">transient</span>(<span class="hljs-params">args</span>): <span class="hljs-keyword">raise</span> TransientToolError(<span class="hljs-string">'busy'</span>)
+        r = <span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>)],transient,lim=replace(Limits(),max_tool_attempts=<span class="hljs-number">1</span>)).run()
+        <span class="hljs-variable language_">self</span>.assertEqual((r.status,r.tool_attempts),(<span class="hljs-string">'TOOL_ATTEMPTS_EXHAUSTED'</span>,<span class="hljs-number">1</span>))
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_work_budget</span>(<span class="hljs-params">self</span>):
+        r = <span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>)],lim=replace(Limits(),max_work_units=<span class="hljs-number">2</span>)).run()
+        <span class="hljs-variable language_">self</span>.assertEqual((r.status,r.work_units),(<span class="hljs-string">'WORK_BUDGET_EXHAUSTED'</span>,<span class="hljs-number">2</span>))
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_model_timeout</span>(<span class="hljs-params">self</span>):
+        r = <span class="hljs-keyword">await</span> newrunner([Decision(answer=<span class="hljs-string">'done'</span>)],model_delay=<span class="hljs-number">.08</span>,lim=replace(Limits(),model_timeout=<span class="hljs-number">.005</span>)).run()
+        <span class="hljs-variable language_">self</span>.assertEqual(r.status,<span class="hljs-string">'MODEL_TIMEOUT'</span>)
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_tool_timeout_and_retry_limit</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">slow</span>(<span class="hljs-params">args</span>): <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">.1</span>); <span class="hljs-keyword">return</span> {<span class="hljs-string">'ok'</span>:<span class="hljs-literal">True</span>}
+        r = <span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>)],slow,lim=replace(Limits(),tool_timeout=<span class="hljs-number">.005</span>,retry_per_call=<span class="hljs-number">1</span>)).run()
+        <span class="hljs-variable language_">self</span>.assertEqual((r.status,r.tool_attempts),(<span class="hljs-string">'RETRY_EXHAUSTED'</span>,<span class="hljs-number">2</span>))
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_total_deadline</span>(<span class="hljs-params">self</span>):
+        r = <span class="hljs-keyword">await</span> newrunner([Decision(answer=<span class="hljs-string">'done'</span>)],model_delay=<span class="hljs-number">.12</span>,
+                            lim=replace(Limits(),model_timeout=<span class="hljs-number">.5</span>,total_seconds=<span class="hljs-number">.005</span>)).run()
+        <span class="hljs-variable language_">self</span>.assertEqual(r.status,<span class="hljs-string">'TOTAL_TIMEOUT'</span>)
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_loop_detected</span>(<span class="hljs-params">self</span>):
+        r = <span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>),call(<span class="hljs-number">2</span>),call(<span class="hljs-number">3</span>)]).run()
+        <span class="hljs-variable language_">self</span>.assertEqual((r.status,r.tool_calls),(<span class="hljs-string">'NO_PROGRESS_LOOP'</span>,<span class="hljs-number">2</span>))
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_unknown_tool</span>(<span class="hljs-params">self</span>):
+        r = <span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>,name=<span class="hljs-string">'not_exists'</span>)]).run()
+        <span class="hljs-variable language_">self</span>.assertEqual(r.status,<span class="hljs-string">'UNKNOWN_TOOL'</span>)
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_permission</span>(<span class="hljs-params">self</span>):
+        r = <span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>)],role=<span class="hljs-string">'visitor'</span>).run()
+        <span class="hljs-variable language_">self</span>.assertEqual(r.status,<span class="hljs-string">'PERMISSION_DENIED'</span>)
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_invalid_tool_args</span>(<span class="hljs-params">self</span>):
+        r = <span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>,args=<span class="hljs-string">'not a dict'</span>)]).run()
+        <span class="hljs-variable language_">self</span>.assertEqual(r.status,<span class="hljs-string">'INVALID_TOOL_ARGUMENTS'</span>)
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cancellation_propagates</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">slow</span>(<span class="hljs-params">args</span>): <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">10</span>); <span class="hljs-keyword">return</span> {<span class="hljs-string">'ok'</span>:<span class="hljs-literal">True</span>}
+        runner = newrunner([call(<span class="hljs-number">1</span>)],slow,lim=replace(Limits(),tool_timeout=<span class="hljs-number">100</span>,total_seconds=<span class="hljs-number">100</span>))
+        task=asyncio.create_task(runner.run())
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">.01</span>)
+        task.cancel()
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(asyncio.CancelledError):
+            <span class="hljs-keyword">await</span> task
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_final_even_without_tool</span>(<span class="hljs-params">self</span>):
+        r=<span class="hljs-keyword">await</span> newrunner([Decision(answer=<span class="hljs-string">'done'</span>)]).run()
+        <span class="hljs-variable language_">self</span>.assertEqual((r.status,r.tool_calls),(<span class="hljs-string">'SUCCESS'</span>,<span class="hljs-number">0</span>))
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_retry_budget_is_bounded</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">transient</span>(<span class="hljs-params">args</span>): <span class="hljs-keyword">raise</span> TransientToolError(<span class="hljs-string">'busy'</span>)
+        r=<span class="hljs-keyword">await</span> newrunner([call(<span class="hljs-number">1</span>)],transient,lim=replace(Limits(),retry_per_call=<span class="hljs-number">999</span>,max_tool_attempts=<span class="hljs-number">3</span>,max_work_units=<span class="hljs-number">99</span>)).run()
+        <span class="hljs-variable language_">self</span>.assertEqual((r.status,r.tool_attempts),(<span class="hljs-string">'TOOL_ATTEMPTS_EXHAUSTED'</span>,<span class="hljs-number">3</span>))
+
+
+<span class="hljs-keyword">if</span> __name__==<span class="hljs-string">'__main__'</span>:
+    unittest.main(verbosity=<span class="hljs-number">2</span>)
+</code></pre></div><p>覆盖范围包括：成功执行、瞬时故障后有限重试、永久错误不重试、结果未知时禁止写入重试、模型轮次上限、工具调用上限、工具尝试上限、工作量预算、模型超时、工具超时、总 Deadline、循环检测、未知工具、权限拒绝、非法参数、取消传播、直接成功、重试预算限制。</p>
+<h3 id="section-29">为什么这些测试不能证明“实际费用绝不超支”</h3>
+<p>真实模型成本取决于提供商记录的 Token、缓存、推理、工具费用以及可能存在的后台计费；本示例的 <code>work_units</code> 是离线模拟。要做到严格费用保护，需要<strong>服务端配额系统与真实用量对账</strong>，在并发多实例下进行原子预留，并处理超时后无法立即知道费用的情况。</p>
+<h2 id="section-30">17. 可选：用 Tenacity 管理局部工具重试</h2>
+<p>当工具调用较简单时，可以用 Tenacity 统一描述<strong>重试什么错误、最多尝试几次、如何等待</strong>。但 Tenacity 无法自动替代 Agent 层的模型轮次、工具总次数、全局预算及业务幂等校验。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> tenacity <span class="hljs-keyword">import</span> (
+    retry, retry_if_exception_type,
+    stop_after_attempt, wait_random_exponential,
+)
+
+<span class="hljs-meta">@retry(<span class="hljs-params">
+    retry=retry_if_exception_type(<span class="hljs-params">TransientToolError</span>),
+    stop=stop_after_attempt(<span class="hljs-params"><span class="hljs-number">3</span></span>),
+    wait=wait_random_exponential(<span class="hljs-params">multiplier=<span class="hljs-number">0.2</span>, <span class="hljs-built_in">max</span>=<span class="hljs-number">3</span></span>),
+    reraise=<span class="hljs-literal">True</span>,
+</span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">read_only_lookup</span>(<span class="hljs-params">query: <span class="hljs-built_in">str</span></span>):
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> some_async_read_only_client(query)</code></pre></div><p>上述代码需要 <code>pip install tenacity</code>，并提供真实的 <code>some_async_read_only_client</code>。示例仅展示配置结构，不作为可独立运行的完整程序。<strong>不能把无限制的 <code>@retry</code> 默认行为直接用于生产工具。</strong></p>
+<h2 id="section-31">18. 与 OpenAI Agents SDK / Agno 等框架的关系</h2>
+<p>框架可能已经提供：模型调用循环、工具错误结果、单工具超时、模型尝试超时或 <code>max_turns</code> 等能力，但这些只是部分边界。对 SDK 与版本应逐一核实：</p>
+<ul>
+<li><code>max_turns</code> 的定义：模型轮次还是工具执行次数？</li>
+<li>Tool Timeout 是返回给模型可见错误，还是直接中断整次执行？</li>
+<li>内部是否自动重试模型调用？自动重试是否计入预算？</li>
+<li>多工具调用并发执行时，配额如何扣除？</li>
+<li>Agent 切换、子 Agent、任务续接后，预算是否延续？</li>
+<li>出现断开或关闭时，未完成的写入能否核验？</li>
+</ul>
+<p>以当前 OpenAI Agents SDK 官方文档为例，Runner 有 <code>max_turns</code> 限制；异步 Function Tool 可以设置单次超时，并选择把超时作为工具错误交还模型或向外抛出异常；模型调用也可配置尝试级 timeout。但<strong>模型调用 timeout 不会自动限制整个 Run 或工具执行时间</strong>。这些设置不等于完整的任务费用/时长预算。具体行为随版本可能变化，开发时必须使用项目锁定版本的文档。</p>
+<p>Agno 同样需要检查所用版本是否有运行取消、工具超时、事件钩子、持久化状态等功能；如果缺少某一层边界，应由应用 Runner 或底层服务补足，不能靠在提示词中要求“执行不要超过五步”代替。</p>
+<h2 id="section-32">19. 常见误区汇总</h2>
+<table>
+<thead>
+<tr>
+<th>误区</th>
+<th>正确理解</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>给每个请求加 30 秒超时，整个 Agent 就最多 30 秒</td>
+<td>多次请求与退避会累计，总期限必须覆盖完整 Run</td>
+</tr>
+<tr>
+<td><code>wait_for(..., 5)</code> 保证 5 秒整返回</td>
+<td>取消与清理可能额外耗时</td>
+</tr>
+<tr>
+<td>只要 <code>max_turns=5</code>，最多执行 5 次工具</td>
+<td>单轮可能多个工具，单工具可能多次尝试</td>
+</tr>
+<tr>
+<td>超时必定意味着写入失败</td>
+<td>本地结果未知不等于远端未生效</td>
+</tr>
+<tr>
+<td>所有 5xx 都应该立刻再试</td>
+<td>是否重试还取决于幂等性、成本、上游负载与预算</td>
+</tr>
+<tr>
+<td><code>429</code> 一定要持续重试直到成功</td>
+<td>应尊重限流，并受总 Deadline 与最大尝试次数控制</td>
+</tr>
+<tr>
+<td><code>Semaphore</code> 就是每日 API 费用上限</td>
+<td>它限制并发，不等于累计用量预算</td>
+</tr>
+<tr>
+<td>一直没报错说明 Agent 正常推进</td>
+<td>可能在相同工具调用间循环，必须检查进展</td>
+</tr>
+<tr>
+<td>模型自己知道什么时候该停</td>
+<td>停止规则必须由程序实现并可验证</td>
+</tr>
+<tr>
+<td>本地日志的花费估算就是最终账单</td>
+<td>超时、缓存和供应商计费口径可能导致差异，需对账</td>
+</tr>
+</tbody></table>
+<h2 id="section-33">20. 参考资料（官方与高可信技术文档）</h2>
+<p>以下链接用于核对机制及 API 语义。框架接口可能随版本变化，具体开发应以项目实际依赖版本为准。</p>
+<ol>
+<li>Python 3.13：Coroutines and Tasks / Timeouts / Cancellation：<a href="https://docs.python.org/3.13/library/asyncio-task.html">https://docs.python.org/3.13/library/asyncio-task.html</a></li>
+<li>HTTPX：Timeouts（Connect / Read / Write / Pool）：<a href="https://www.python-httpx.org/advanced/timeouts/">https://www.python-httpx.org/advanced/timeouts/</a></li>
+<li>Tenacity：重试、停止条件、指数退避：<a href="https://tenacity.readthedocs.io/en/stable/">https://tenacity.readthedocs.io/en/stable/</a></li>
+<li>OpenAI Agents SDK：Running Agents / <code>max_turns</code>：<a href="https://openai.github.io/openai-agents-python/running_agents/">https://openai.github.io/openai-agents-python/running_agents/</a></li>
+<li>OpenAI Agents SDK：Function Tool Timeouts：<a href="https://openai.github.io/openai-agents-python/tools/">https://openai.github.io/openai-agents-python/tools/</a></li>
+<li>OpenAI Agents SDK：Model Call Timeouts：<a href="https://openai.github.io/openai-agents-python/models/">https://openai.github.io/openai-agents-python/models/</a></li>
+<li>Anthropic：Building Effective Agents（停止条件与自治循环）：<a href="https://www.anthropic.com/engineering/building-effective-agents">https://www.anthropic.com/engineering/building-effective-agents</a></li>
+<li>AWS：Timeouts, retries, backoff and jitter：<a href="https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/">https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/</a></li>
+</ol>
+<hr />
+<p><strong>结论：</strong> Agent 的执行边界不是单独一个参数，而是<strong>时间、次数、重试安全、预算、权限、进展和最终状态</strong>共同组成的约束系统。正确实现应保证任何一条边界耗尽时，程序能够有记录地停止，向调用方说明停止原因，并且不会盲目重复已经可能发生的写入操作。</p>

@@ -1,0 +1,250 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>问题修正记录.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><blockquote>
+<p>2026-11-17口径纠正：用户本人持续真实使用、提出问题并完成多轮修改与复测，试用与改进已完成，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E8%AF%95%E7%94%A8%E4%B8%8E%E6%94%B9%E8%BF%9B%E8%AE%B0%E5%BD%95.md">当前试用记录</a>。下文关于取消招募、没有外部试用者的历史状态按当时日期理解；“没有真人反馈或改进闭环”不再代表当前事实。QQ仍移出运行范围。</p>
+</blockquote>
+<h1>实际问题修正记录</h1>
+<p>起始日期：2026-11-10；更新至2026-11-13，版本1.9。本记录来自实际代码检查、失败运行及修复，不把预设风险伪装成生产事故。旧条目描述当时状态，QQ与真人试用已移出范围。最新证据见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md">1.9报告</a>及<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92-1.9-20261113.md">32条核对</a>。</p>
+<h2>FIX01：反馈页面无法保存第二次编辑</h2>
+<ul>
+<li>输入：用户保存草稿后修改预期结果，点击“保存修改”。</li>
+<li>原问题：前端将完整DraftInput直接发送到PATCH，带有<code>session_id</code>；后端DraftPatch禁止额外字段，返回422。</li>
+<li>定位：<code>frontend/src/components/Feedback.tsx</code>发送内容与<code>backend/app/schemas.py</code>不一致；会话归属只在创建时指定，编辑应使用既有归属。</li>
+<li>修改：拆出session_id；POST可携带会话，PATCH只发送可编辑字段和revision，保留后端严格校验。</li>
+<li>修复后：前端组件回归检查请求没有session_id且带旧revision；真实浏览器完成创建v1→编辑v2→明确确认保存。</li>
+<li>证据：<code>frontend/src/components/Feedback.test.tsx</code>、<code>docs/evidence/browser/summary.json</code>及<code>feedback-confirm.png</code>。</li>
+<li>边界：该项修改的是AI生成的接口调用代码。核对POST、PATCH调用方及后端修订/确认测试，没有通过放宽权限或禁止字段解决。可作为“一处修过的AI生成代码”的实际实例，由本人讲解调用链。</li>
+</ul>
+<h2>FIX02：确认反馈时日期无法写入JSON</h2>
+<ul>
+<li>输入：<code>POST /feedback-drafts</code>创建草稿，再以revision确认。</li>
+<li>错误现象：新增API测试的<code>test_two_identity_isolation</code>和<code>test_draft_revision_confirm_and_duplicate</code>失败，响应没有预期id；首轮结果为2 failed、41 passed。</li>
+<li>定位：Feedback.payload使用<code>draft_payload(draft)</code>，其中created_at是datetime；数据库JSON序列化无法处理，导致业务保存失败并被数据库异常处理器转为503。</li>
+<li>修改：入库前用FastAPI的<code>jsonable_encoder</code>转换草稿载荷，保留时间字符串与其他字段。</li>
+<li>修复后：11项API测试通过；新浏览器测试实际确认成功。未确认时正式反馈为空，重复确认返回同一ID，旧修订及确认后编辑被拒绝。</li>
+<li>防回归：<code>tests/test_api.py::test_draft_revision_confirm_and_duplicate</code>及浏览器草稿确认流程。</li>
+</ul>
+<h2>FIX03：Worker处理异常后可能跳过消息</h2>
+<ul>
+<li>输入：Kafka某条消息读取后，数据库领取、写状态或提交位点发生异常；原循环捕获异常后继续poll。</li>
+<li>原问题：这是代码检查发现的位点风险，未宣称在真实Broker发生过丢失事故。poll已推进本地位置，若继续处理后续消息并提交，会越过未持久处理的旧消息。</li>
+<li>定位：<code>backend/app/worker.py::Worker.run</code>异常分支只等待，未恢复本地位置。</li>
+<li>修改：在下一次poll之前seek回当前topic/partition/offset；若回退本身失败则退出，由持久位点和租约在重启时恢复。</li>
+<li>修复后：消费替身模拟offset7处理失败，检查实际seek目标为同一分区offset7；没有继续处理后续消息。非法信封类型补充检查，避免数组/空值导致属性异常。</li>
+<li>防回归：<code>tests/test_worker.py::test_poll_failure_rewinds_before_later_offset_can_commit</code>及5种坏信封测试。</li>
+<li>边界：真实Kafka重投递、重平衡及“写库后位点提交前崩溃”的进程级验证尚未运行，不能把消费替身测试写成Broker集成通过。</li>
+</ul>
+<h2>FIX04：API中断后会话永久显示回答中</h2>
+<ul>
+<li>输入：API写入running运行后进程异常退出，再启动API。</li>
+<li>原问题：运行状态没有恢复入口，<code>create_run</code>一直发现active运行并返回409；未决费用可能永久占用预留。</li>
+<li>修改：单API部署启动时将遗留running标记为可重试失败，未决用量按预留保守结算；重复恢复不会重复计费。</li>
+<li>修复后：持久状态恢复测试检查终态、retryable、预留归零和费用只记一次。已完成消息和会话重启仍可查询。</li>
+<li>防回归：<code>tests/test_runtime.py::test_restart_releases_stuck_session_and_conservatively_settles</code>、<code>tests/test_api.py::test_stream_audit_and_restart</code>。</li>
+<li>边界：此方案限定一个API进程；多API部署须增加运行租约。</li>
+</ul>
+<h2>FIX05：前端构建缺失与记录时间错误</h2>
+<ul>
+<li>原现象：<code>npm run build</code>报TS6133，Chat导入未使用EmptyState；<code>main.tsx</code>引用的styles.css不存在。</li>
+<li>修改：移除无用导入，补充完整页面和移动布局样式。浏览器检查发现后端无时区UTC时间被当作本地时间，显示少8小时；时间显示函数明确按UTC解析后转上海时间。</li>
+<li>结果：TypeScript和生产打包通过；浏览器无pageerror；390px移动视口无横向溢出；时间回归检查05:21 UTC显示13:21。</li>
+<li>证据：前端构建输出、<code>frontend/src/components/ui.test.ts</code>、浏览器截图。</li>
+</ul>
+<h2>FIX06：长资料向量化静默丢失尾部</h2>
+<ul>
+<li>原问题：198条资料中91条超过450字符，最长7068字符；直接交给BGE会受到512 tokens限制，后段内容不会参与检索。</li>
+<li>定位：实际准备BGE后核对输入长度，发现索引任务仅按整篇记录编码，没有将长记录分块。</li>
+<li>修改：按320字符/64重叠产生659块；保存原来源、父记录、字符起止及摘录，编码前检查token上限，超限明确报错。</li>
+<li>修复后：实际CPU BGE完成659条512维索引，SQLite和PostgreSQL/pgvector均验证成功；规则尾部不再因整篇截断丢失。</li>
+<li>防回归：<code>tests/test_chunking.py</code>重建原文、尾部、重叠、来源偏移及边界检查。</li>
+<li>检索限度：五个探针4个Top-5含预期概念，最后一个保留未命中，不把索引正确等同于答案正确。</li>
+</ul>
+<h2>FIX07：缓存遮蔽新索引或混用模型</h2>
+<ul>
+<li>原问题：缓存键仅包含快照、模型revision、问题和Top-K；同快照新索引发布后，旧的未索引或旧代次结果可能继续保留5分钟。索引也没有明确记录使用的模型配置。</li>
+<li>修改：缓存键加入发布任务和执行代次；任务结果保存模型、revision、模式及分块参数；模型配置改变时要求重建索引。</li>
+<li>修复后：先缓存词法降级结果，再发布索引，同问题立即返回向量检索；更换revision不会复用旧索引或旧缓存。</li>
+<li>防回归：<code>tests/test_retrieval_cache.py</code>两个测试。</li>
+</ul>
+<h2>FIX08：真实模型资源准备与Windows原生依赖</h2>
+<ul>
+<li>实际现象：默认torch依赖带入大量CUDA运行库，与CPU方案不符；在线SentenceTransformer加载还在探测不存在的adapter配置时遇到404。模型元数据首次遇到502。</li>
+<li>修改：uv锁定CPU torch来源；对临时5xx最多3次有限重试；从固定revision下载必需的safetensors/配置/词表，核对LFS SHA256或Git blob并保存清单，再完全离线加载。</li>
+<li>结果：实际模型CPU推理通过，没有关闭TLS验证、切换网络或账号登录；权重与来源清单留档。</li>
+<li>原生环境实际问题：PostgreSQL initdb在中文安装路径下产生UTF8/ANSI冲突；使用临时DOS路径映射到同一项目目录后成功，不改系统语言、不复制工程。原失败日志与成功记录均保留。</li>
+<li>清理修正：Oracle javapath垫片会启动子JVM，已关闭本轮对应残留实例并改为解析java.home、直接启动实际java.exe，防止测试结束后遗留Broker。</li>
+<li>证据：<code>docs/evidence/bge-local-20261110-01</code>、<code>native-postgres-20261110-01/initdb.log</code>、<code>native-postgres-20261110-02</code>及<code>native-postgres-20261110-02-kafka</code>。</li>
+</ul>
+<h2>FIX09：Agno 裁定工具执行成功但缺少回答引用</h2>
+<ul>
+<li>原问题：真实 Agno SDK 的协议测试中，裁定工具成功返回已验证证据，但运行结果未将其加入回答引用。</li>
+<li>定位：<code>tests/test_agno_protocol.py</code> 通过内存 HTTP 协议让模型选择裁定工具，检查工具审计与最终引用；保留失败输出 <code>docs/evidence/agno-protocol-before.txt</code>。</li>
+<li>修改：裁定工具成功后收集其执行证据引用，同时验证快照与场景前提；未验证裁定不能冒充有效引用。</li>
+<li>验证：5 项协议测试通过，包括裁定两个分支、用量核销、超时、供应商错误与客户端关闭；全套现有记录 66 项通过。</li>
+<li>边界：使用真实 SDK 和模拟 HTTP 响应，不是实际付费模型记录。</li>
+<li>证据：<code>docs/evidence/agno-protocol-after.xml</code>、<code>docs/evidence/pytest-r3.xml</code>。</li>
+</ul>
+<h2>FIX10：网页冒烟测试继承了替身服务的时序假设</h2>
+<ul>
+<li>实际输入：在真实 PostgreSQL/Kafka/BGE 预览执行原浏览器脚本，首次问答在 20 秒等待窗口内仍显示检索中。</li>
+<li>定位：API 日志显示首次加载本机 CPU 模型；有独立 Worker 时任务也可能在浏览器检查“等待处理”前被领取。</li>
+<li>修改：首次问答等待上限调整为 120 秒，任务先验证卡片存在，再确认取消终态；增加 <code>--complete-import</code>，必须等待真实导入完成且进度达到 100%。</li>
+<li>验证：集成预览 7 项流程通过、0 页面错误，另存完成任务的真实 API 结果。此修改只影响测试脚本，没有放宽业务断言。</li>
+<li>证据：<code>docs/evidence/browser-native-20261110-resume-03/summary.json</code>、同目录 <code>published-job.json</code>。</li>
+</ul>
+<p>完整测试统计及范围见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E9%AA%8C%E8%AF%81%E4%B8%8E%E5%B7%AE%E8%B7%9D.md">验证与差距</a>。FIX01–FIX03满足三条具体修正过程的记录结构；最终是否作为考核证据认可由验收人核对。</p>
+<h2>FIX11：真实裁定请求的前提映射和输出保护</h2>
+<ul>
+<li>原始证据：<code>live-baseline-20261110-01</code>的J01未匹配前提仍给倾向结论，J03/J05超时。</li>
+<li>修改：提示模型使用规范条件字段；裁定内容在服务端验证后输出，未取得verified时不展示或保存模型推测。新协议测试构造999点伤害的错误断言，验证它不进入SSE或历史。</li>
+<li>结果：<code>live-after-ruling-guard-20261110-01</code>同组32条全部留档、35回合完成；条件映射仍有缺口，未宣称全部裁定通过。</li>
+<li>后续定位：SC01的bypass_times/bypass_distances来自blade.lua本身，不是玩家需要描述的条件。移除两项输入要求，保留实际局面匹配；两项针对性测试和真实J01补验通过。</li>
+<li>最新全套73项通过；详见<code>pytest-resume-final.xml</code>、<code>ruling-player-input-after.xml</code>及真实模型对照记录。</li>
+</ul>
+<h2>FIX12：固定裁定记录查看、变体匹配及多轮误报</h2>
+<ul>
+<li>原始问题：J02/J05读取固定测试资料时反复被索要完整前提；J04原问题防具顺序与测试不符；J08已验证零次用杀分支查询失败；M02使用本人而被只搜索自己的机械检查误报。原始整组与首次定向记录保留。</li>
+<li>来源核对：逐条查SC02/SC05/SC08测试Lua、liuli/crossbow/analeptic冻结源码；补充SC04V未饮酒、首藤甲/传导白银的实际离线运行，1测试4断言通过。</li>
+<li>修改：新增有范围说明的reference查看模式，默认match仍拒绝不匹配条件；关联SC04V及SC08已执行分支；保留literal_terms_present并记录词面别名命中。</li>
+<li>进一步定位：首次定向复测机械检查通过，但模型把HP=4当响应次数、混用前提，J08甚至只有提示无正文。改为已验证事实的确定性呈现，模型不再重写这些数值与步骤。</li>
+<li>防回归：新增固定牌面及单位、原/变体前提隔离、空模型输出仍有记录正文、错误推测不进入历史/流、未知条件保持拒绝、同义词透明诊断测试。</li>
+<li>结果：最终6条原问题7个真实回合完成并逐条核对，84项Python回归通过。详见裁定与多轮问题核对报告；不代表全部32条或真人验收通过。</li>
+</ul>
+<h2>FIX13：基础规则未召回和实体描述引用缺口</h2>
+<ul>
+<li>原始证据：完整重跑01的R05声称没有基础规则原文，但冻结<code>standard/i18n/zh_CN.lua:481</code>明确规定每出牌阶段一次杀；D01的技能说明仅关联武将定义，D04的牌堆属性没有对应配置定位。</li>
+<li>修改：小top-K保留直接匹配的规则段落，调整公共缓存策略版本；武将属性、技能中文说明、卡牌说明与牌堆定义分开提供来源，运行器收集这些真实来源。</li>
+<li>影响检查：普通规则和实体查询均沿用相同工具入口，调用方仍收到原结构和新增来源字段；没有开放任意SQL或路径。</li>
+<li>复测：原输入五轮完整记录保留。最终R05正确给出一次及规则原文，D01/D04描述/配置引用可追溯；新增基础规则召回和来源字段回归通过。</li>
+</ul>
+<h2>FIX14：反馈被当同名技能及多轮补充猜测原因</h2>
+<ul>
+<li>原始证据：完整重跑01的I01/I02检索司马懿同名技能，未正确整理反馈；M03在收到重开恢复后推断客户端原因，超出用户事实。</li>
+<li>修改：明确反馈意图走本会话用户陈述整理，不调用游戏资料工具；多轮只合并已给事实、未知项待补。来源绑定会话、消息与原文SHA256，清楚标注尚未独立核验和未保存。</li>
+<li>保存边界：聊天返回文字草稿，不自动填网页；实际保存仍走“我的反馈”草稿、核对及明确确认接口，未将文字回复视为已提交。</li>
+<li>复测：最终M03保留iOS相册现象、0.5.25本地修改版、重开恢复；I01/I02正确追问。意图识别、会话引用绑定及Agno协议测试通过。</li>
+</ul>
+<h2>FIX15：裁定断言排列误作事件时序</h2>
+<ul>
+<li>原始证据：完整重跑02的SC06/SC07把核对断言顺序作为结算步骤，可能错误表达连营与奸雄的时间关系；04的SC03回答只给解除连环最终状态，没有回答具体时点。</li>
+<li>来源核对：SC06的axe.lua先throwCard，再取消闪的抵消；连营在AfterCardsMove处理。SC07执行轨迹先首目标受伤/奸雄取牌，再传导伤害。SC03事件75–78与90–93分别显示解除连环在扣体力之前。</li>
+<li>修改：断言清单显式不表示时间顺序，三场景单列有轨迹定位的chronology。原始引擎执行JSON和断言不改写，也未把新增解释称为重新执行引擎。</li>
+<li>复测：最终J03/J06/J07均展示正确时序，八条裁定正文均与受控记录呈现一致；相关时序与边界测试通过。</li>
+</ul>
+<h2>FIX16：真实供应商空正文未正确分类</h2>
+<ul>
+<li>原始证据：完整重跑03的R03没有正文、没有工具调用，报ValidationError；该回合保持failed，未抹除或改记成功。</li>
+<li>调查边界：DeepSeek官方文档说明默认启用thinking及开关。缺少该次reasoning和finish_reason原始记录，不能确定空正文全部由思考预算导致。</li>
+<li>修改：只对官方api.deepseek.com显式设置thinking disabled，保持同一模型服务与凭据；空正文作为可重试ModelFailure，不保存成功。未增加自动付费重试、未放大超时来掩盖失败。</li>
+<li>影响检查：其他供应商端点不传该专有选项；取消、用量结算、错误分类和客户端关闭保留。真实SDK协议夹具验证请求参数及空正文失败行为。</li>
+<li>复测：完整04和05的原R03均有正确“两张牌”正文及资料引用，99项全套回归通过。<a href="https://api-docs.deepseek.com/zh-cn/guides/thinking_mode/">官方说明</a>。</li>
+</ul>
+<h2>FIX17：项目摘要自行引入“旧说明”的无依据历史判断</h2>
+<ul>
+<li>原始证据：完整重跑04的V01仍称10人文案为旧版。继续追到<code>source_snapshot.py</code>发现本项目摘要自己写了“这段旧说明”；单改模型提示无法移除资料中的错误暗示。</li>
+<li>修改：提取器static-lua-v1.1改为只描述同快照文字10人与配置2–8不一致，并说明没有历史/线上证据；重新生成资料，冻结第三方文件不变。真实Worker任务<code>83cd7ae3-9b8e-41e0-be1e-0dea0989b8f7</code>成功发布198资料/659块。</li>
+<li>复测：最终完整05的V01明确不能判断文案是否旧版或线上上限；新增摘要历史边界回归通过。五组相同输入SHA256、所有中间错误与失败留档。</li>
+<li>汇总：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%8C%E6%95%B432%E6%9D%A1%E7%9C%9F%E5%AE%9E%E5%9B%9E%E5%BD%92%E6%A0%B8%E5%AF%B9-20261110.md">完整32条来源核对</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fpytest-full-regression-final.xml">99项测试</a>。独立真人/公司验收仍待进行。</li>
+</ul>
+<h2>本机预览中断记录</h2>
+<p>用户反馈15174拒绝连接后，发现Worker退出触发supervisor停止全组；此前出现MemoryError及连接清理警告。已恢复网页/API的200响应，正常模式且故障注入关闭。<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fnative-preview-outage-20261110.json">中断记录</a>与<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Ffull-regression-normal-health-20261110.json">恢复健康记录</a>留档。尚未确定内存异常全部成因，也未验证长期稳定性，不列为已完成代码修复。</p>
+<h2>FIX18：Worker常驻模型、状态写入和Kafka堆预算的稳定性修复</h2>
+<p>原始失败保留：Worker任务后约1.6 GiB常驻、监督器因后台退出/WinError5停止整组、Kafka在LogCleaner分配时堆OOM。按任务清理BGE子进程，Worker/Kafka独立有限恢复，状态文件容错，Kafka堆512 MiB/去重32 MiB。修正监控ctypes类型缓存增长。最终真实3600.784秒、1757组网页/API探测0失败；运行/空闲Worker退出、Kafka退出、真实锁、导入/取消均通过。116项Python及Ruff通过。详见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2FWorker%E4%B8%80%E5%B0%8F%E6%97%B6%E7%A8%B3%E5%AE%9A%E6%80%A7%E9%AA%8C%E8%AF%81%E4%B8%8E1.0%E4%BA%A4%E4%BB%98-20261111.md">完整报告</a>。原始MemoryError具体分配位置仍未知；本次窗口不作为永久稳定或真人验收。</p>
+<h2>FIX19：Redis合法JSON但错误结构直接返回</h2>
+<p>早期AI生成的读取路径仅json.loads。复现将缓存改为stale_canary对象，工具直接返回该对象，缺少正常资料和引用。已加入模式/快照/列表及来源字段校验；无效缓存回源重写。9类错误结构和正常命中回归通过，真实Redis＋PG＋BGE中的坏JSON/对象/数组/异快照修复通过。调用方的mode/snapshot_id/items结构保持，Agno协议及133项全套测试通过；4条真实定向问答的23处引用完整性0项不一致。原始复现见redis-cache-shape-before-20261111.json。</p>
+<h2>FIX20：运行中重复准备Redis覆盖DLL失败</h2>
+<p>准备脚本原来无条件解压，在Redis实际运行时重写cygcrypto-3.dll触发PermissionError。现先校验相同成员则跳过写入，继续核对归档/可执行文件哈希；实际运行中重新准备已成功，不结束现有服务或放宽校验。新启动器只执行项目目录内且版本、归档、可执行哈希符合的Redis；7项支持测试通过。详见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.1-Redis%E7%BC%93%E5%AD%98%E9%AA%8C%E8%AF%81%E4%B8%8E%E8%BF%9B%E5%BA%A6-20261111.md">1.1报告</a>。</p>
+<h2>FIX21：Kafka命名卷目录导致首次容器启动失败</h2>
+<p>首次Compose启动中，Kafka以官方镜像appuser（uid1000）运行，命名卷挂到<code>/tmp/kraft-combined-logs</code>后无权创建<code>bootstrap.checkpoint.tmp</code>，退出1并耗尽重启。原始<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-startup-failures-20261111%2Fkafka-permission-before.log">Kafka日志</a>和<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-startup-failures-20261111%2Fup-before.log">启动失败</a>保留。将日志目录及卷挂载统一到官方镜像已设置appuser所有权的<code>/var/lib/kafka/data</code>，未改为root运行Kafka；复启通过。依据<a href="https://github.com/apache/kafka/blob/3.9.1/docker/jvm/Dockerfile">Apache Kafka 3.9.1 Dockerfile</a>。此修复只改Compose；本轮后续应用代码变更见FIX24。</p>
+<h2>FIX22：Windows保留端口5173导致网页容器无法绑定</h2>
+<p>Kafka、迁移及API恢复后，网页启动报端口访问权限错误；本机<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-startup-failures-20261111%2Fwindows-excluded-ports.txt">端口保留范围</a>含5078–5177，覆盖5173。<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-startup-failures-20261111%2Fup-port-before.log">失败记录</a>保留。Compose改为可配置的<code>WEB_PORT</code>/<code>API_PORT</code>，默认15175/18082，仍只绑定127.0.0.1。原生预览15174和轻量开发端口分别保留；未改变系统端口保留或网络设置。</p>
+<h2>FIX23：故障验证必须区分真实异常、命名空间信号和手动停止</h2>
+<p>最初容器内向PID1发送SIGKILL没有终止目标；改用<code>docker kill</code>后，操作员停止会抑制自动重启，因此第二次运行在恢复等待处超时，未记成通过。原始<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-startup-failures-20261111%2Fapi-pid1-signal-noeffect.json">无效信号记录</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-linux-20261111-01%2Fsummary.json">部分运行01</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-linux-20261111-02%2Fsummary.json">未通过运行02</a>保留。</p>
+<p>验证脚本改用无网络、无数据挂载、只读根目录的辅助容器，在Docker VM PID命名空间内先核对目标PID命名空间，再终止本项目进程；仅保留KILL及核对身份所需的SYS_PTRACE能力。权限不足的一次辅助实验也保留，随后<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-helper-signal-20261111-02%2Fsummary.json">实际API异常重启</a>通过。API、网页、数据库补齐<code>on-failure:5</code>，迁移仍是一次性服务。验证断言按已发布代次统计659块，旧代次暂存数据另记，避免把未发布的旧暂存误判为重复最终结果。第三次运行通过14组后暴露FIX24，仍记未通过；最终完整状态见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-linux-20261111-04%2Fsummary.json">第四次运行</a>，不合并前三次为一次全通过记录。</p>
+<h2>FIX24：真实PostgreSQL停机后裸DNS异常返回500</h2>
+<p>原始<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-linux-20261111-03%2Fsummary.json">第三次运行</a>在数据库停机处失败。<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-postgres-outage-before-20261111.json">独立复现</a>确认在线200、停机500，原因是asyncpg抛出的<code>socket.gaierror</code>/连接OSError绕过SQLAlchemy的DBAPI包装，原API的SQLAlchemyError处理器未接到它；<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-startup-failures-20261111%2Fpostgres-dns-before.log">原始日志</a>保留。</p>
+<p>在PostgreSQL专用的异步连接创建器内，以完整解析的DSN建立连接，将OSError/超时转成SQLAlchemyError，连接超时限5秒；沿用既有API的503及retryable字段。没有增加全局OSError捕获；SQLite及非数据库文件错误的处理保持。最初handle_error事件方案未覆盖连接创建前的裸异常，被新增测试拒绝，失败XML保留；最终采用<a href="https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html#sqlalchemy.ext.asyncio.create_async_engine">SQLAlchemy官方async_creator接口</a>。</p>
+<p>新增4项测试覆盖真实本机拒绝连接、asyncpg DNS失败、超时，以及普通文件错误不被误标。修复后全套<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fpytest-v1.4-final-20261111.xml">137项测试</a>通过；<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-postgres-outage-fixed-20261111.json">实际Linux容器停机复测</a>取得200→503（中文原因、retryable=true）→200，并核对容器中db.py与本地修复的SHA256一致。其他31个应用模块与1.3保持一致，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-app-source-scope-final-20261111.json">变更范围</a>；第四次从新数据卷继续完整回归。</p>
+<h2>FIX25：无效裁定范围编号覆盖正常规则答案</h2>
+<p>本轮真实固定题R07中，模型把“SC01-08”作为scene_id，得到unknown；随后已检索到主公误杀忠臣的正确原文，仍被裁定保护覆盖成“暂不能判断…[]”且清空引用。新增协议测试在旧代码下实际失败，保留<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fassessment-audit-20261112-invalid-scene-before.xml">修复前XML</a>。改为Literal枚举在进入工具业务前校验单个SC01–SC08，指令明确基础规则走检索；有效场景缺条件时的保护保持。测试核对Schema枚举、正文、引用及未执行无效裁定，真实原R07复测及整组来源核对见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%88%98%E6%B5%8B%E8%AF%95%E5%8F%8D%E9%A6%88-20261112.md">本轮报告</a>。</p>
+<h2>FIX26：当前体力与体力上限术语混淆</h2>
+<p>本轮R04算出5−3=2，但写成“体力上限3张”，与后面的当前体力依据矛盾。按冻结规则弃牌阶段核对后，指令明确当前体力与体力上限是不同字段，要求数量、区域、限定词逐句对应来源。保留原32条问题，用整组前后真实记录比较；不以数字或词面命中掩盖概念错误，也不在存储后字符串替换答案。实测结果与边界见本轮报告，提示修正不保证任意输出绝不再错。</p>
+<h2>FIX27：真实提示词修改没有反映到运行版本</h2>
+<p>核对T02时发现prompt_version一直是ORM默认grounded-v1。模型调用前改为根据实际instructions稳定序列化计算摘要并持久化；同指令不同问题版本相同、普通问答与反馈指令版本不同。新增协议验证实际运行字段；评测元数据加本地实现哈希，最终容器哈希另核对。旧grounded-v1记录不回填，不根据新摘要倒推历史精确提示词。</p>
+<h2>FIX28：非计时协议夹具的20秒上限在集成并行时误触发</h2>
+<p>两次全套运行分别有一个协议用例触发夹具20秒上限；保留<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fassessment-audit-20261112-pytest.xml">首次147项结果</a>和<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fassessment-audit-20261112-pytest-final.xml">149项结果</a>。已确认运行错误是超时，唯一资源根因未证明；首次用例未改代码单独重跑通过。非计时协议测试上限对齐生产60秒，专门超时用例仍显式0.05秒，格式、正文、引用、用量与关闭断言保持。随后<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fassessment-audit-20261112-pytest-final-02.xml">149项</a>通过，额外补真实SDK工具失败路径，最终全套见本轮报告。这是测试夹具调整，不伪称业务超时策略修复。</p>
+<p>本轮真实R08空正文保持failed；缺失用量按1.010688元预留保守结算，没有自动重试或删记录。另一次构建GHCR网络超时和新增测试初版将故障放入JSON导致422，均在反馈文档列明，分别属于环境和测试代码问题，不列为新的业务缺陷。</p>
+<h2>FIX29：已经取得受控裁定证据后仍继续模型调用</h2>
+<p>第二轮J06已得到reference，仍继续查卡牌并等待模型，60秒后失败。新增协议模拟成功裁定后供应商503，修复前实际发出两次请求，<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fassessment-audit-20261112-ruling-stop-before.xml">失败记录</a>保留。通过Agno公开Function post_hook，在实际执行副本上仅对verified/reference设置stop_after_tool_call，沿用确定性裁定正文。缺条件仍可继续映射重试；两项协议分别核对直接记录1次请求、澄清后匹配2次请求、准确用量、关闭与引用，<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fassessment-audit-20261112-ruling-stop-after.xml">复测通过</a>。未改无资料空正文仍失败的规则。</p>
+<h2>FIX30：实体字段、空城范围和文字确认提示的矛盾</h2>
+<p>第二轮D01否认已返回的max_hp字段，M01无依据增加“普通杀”限制，M03又引导聊天告诉助手确认。分别依据工具属性、空城中文原文、反馈确认接口定位；增加不否认字段、不擅加范围限定词、不引导聊天保存的指令。第三轮同组32条选集复测，所有失败与变化记录见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%88%98%E6%B5%8B%E8%AF%95%E5%8F%8D%E9%A6%88-20261112.md">逐条报告</a>。提示改进只以实际核对的样例为依据，不宣称排除了所有未来模型错误。</p>
+<h2>FIX31：I01具体追问遗漏与实体补充被当作新问答</h2>
+<p>原I01仅通用字段，未明确武将/技能名；新协议用相同缺项正文在旧代码下失败，见v17-i01-protocol-before.xml。新增当前结算反馈的程序核对清单，并存入回执、流和历史；非空模型正文后才附加，空正文仍失败。客户端无清单；已说明信息无需重复；新增武将是/技能是等事实补充识别，同时排除普通新问题。完整162项与真实5条8回合＋新增2回合通过，33引用问题0。固定文件和1.6失败不改写，详见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.7-I01%E8%BF%BD%E9%97%AE%E4%B8%8E%E8%BE%93%E5%85%A5%E7%84%A6%E7%82%B9%E4%BF%AE%E5%A4%8D-20261112.md">1.7报告</a>。</p>
+<h2>FIX32：正文后点输入区域空白出现整块长光标</h2>
+<p>用户原Edge复现：activeElement=BODY、选择落在FORM，内联textarea使光标按整块输入框绘制。输入表面空白左键聚焦对应真实控件，textarea改block；跳过真实控件、按钮、链接、标签、可编辑元素和右键，保留文本选择与发送。组件旧代码测试实际失败，7项前端和7项焦点浏览器检查通过，原Edge相同步骤确认焦点为chat-message。没有改浏览器全局设置或全局禁止选择。源位置、截图、失败与复测证据见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.7-I01%E8%BF%BD%E9%97%AE%E4%B8%8E%E8%BE%93%E5%85%A5%E7%84%A6%E7%82%B9%E4%BF%AE%E5%A4%8D-20261112.md">1.7报告</a>。</p>
+<h2>FIX33–FIX35：1.8共享服务与轮询误取消</h2>
+<ul>
+<li>FIX33：原拉取后默认mock，不能复用提供者真实模型。新增密钥不分发的本机网关、公网连接及纯客户端；两身份隔离、请求编号去重与同一费用账本均验证。</li>
+<li>FIX34：普通Cloudflare隧道端口实际预检失败，改用443出站反向连接。保活由原生Ping超时改为文本心跳；初版与首轮严格恢复失败保留，不能把域名生成或控制登记当成业务在线。</li>
+<li>FIX35：本轮AI生成轮询代码在进度查询异常时误发cancel。实际运行cancelled且用量未知；改为仅显式中止时取消，临时查询错误重查同一run、不重发付费POST。11项前端通过，真实追问复测成功。一次模型供应商超时另记failed及保守结算，不通过替换正文掩盖。</li>
+</ul>
+<p>详细定位、原始失败、来源核对及复测范围见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.8-%E6%9C%AC%E6%9C%BA%E5%85%B1%E4%BA%AB%E7%9C%9F%E5%AE%9E%E9%97%AE%E7%AD%94%E4%B8%8E%E9%AA%8C%E8%AF%81-20261112.md">1.8报告</a>。</p>
+<h2>FIX36：多轮正文沿用历史但引用卡片缺失</h2>
+<p>HTTPS实测正文正确但0引用，SDK协议修复前也实际失败。只在同会话、同快照、正文提及且哈希/路径/行号复核通过的静态来源中选择，排除用户陈述和引擎裁定；新增来源续用回执和原消息编号，不增加模型请求。反馈/空正文处理不变，184项完整测试及真实同会话追问通过，最终引用1条且页面可查看。原缺口记录不覆盖，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.8-%E6%9C%AC%E6%9C%BA%E5%85%B1%E4%BA%AB%E7%9C%9F%E5%AE%9E%E9%97%AE%E7%AD%94%E4%B8%8E%E9%AA%8C%E8%AF%81-20261112.md">1.8报告</a>。</p>
+<h2>FIX37：裁定未调用工具与模型自填前提</h2>
+<p>修复前SDK两项实际失败：无工具仍输出999点，模型猜测条件被当玩家确认。现应用校验场景/前提，未取得本轮有效裁定时不流出、不保存推断，固定记录与当前匹配分开。否定条件、短追问有防回归；真实J01–08及AR02/03验证。失败、修改和边界见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md">1.9报告</a>。</p>
+<h2>FIX38：回执丢失后的重复付费风险与离页误取消</h2>
+<p>原编号在POST后才取得，重发换UUID。现发送前按身份/会话保存编号，后端同编号同载荷只建一个Run；断线找回、改载荷409、跨身份404、取消先到和迟到提交均测试。离页分离与显式停止区分。真实公网最终1次提交、3次原编号查询，刷新打开原会话仍可读，对应用量仅一条；失败和最终18.307秒通过分别留档。</p>
+<h2>FIX39：V02版本边界回答没有来源</h2>
+<p>首轮真实V02无工具/引用。新增明确标作维护资料的版本范围说明，生成前程序查询。SDK无模型工具调用夹具及真实V02均有回执、路径/哈希引用，仍不能保证线上部署一致，不把维护说明冒充上游规则。</p>
+<h2>FIX40：弃牌数正确但前提错误，受伤变体又缺引用</h2>
+<p>第二组R04算2却要求体力上限也为3；修正不得添加更强前提。AR01变体又暴露无来源，改为应用先查询规则。最终原题与当前3/上限4/手牌5均正确并有引用，没有存储后替换正文。同版本全组及变体记录保留。</p>
+<h2>FIX41：跨文件行号与未确认的反馈预期</h2>
+<p>第二组D04“同文件”错指i18n，I01/I02代填默认预期。改为逐字段来源路径，未给预期明确待用户确认；第三、第四组D04/I01/I02及M03复测。剩余措辞建议与硬错误分开记录。</p>
+<h2>FIX42：恢复按钮加载期间可点却无效果</h2>
+<p>公网首次测试发现按钮出现，但loading使send直接返回。现加载期间禁用，组件和公网复测通过。另一测试误把刷新默认新对话当历史丢失，改为打开原会话核对；未为满足错误测试修改产品行为，原失败保留。</p>
+<h2>FIX43：补充评测缺字段在付费后才失败</h2>
+<p>AI新增文件把sources误写成source_checks，采集在付费结束后KeyError。增加HTTP/模型前的整组字段/消息/重复编号校验，两项测试通过。先从隔离库找回已存运行；未留存的SSE明确为空，不伪造事件或因写报告失败直接重付。新实现另跑3条4回合验证，费用均结算回主账本。</p>
+<h2>FIX44（1.10）：玩家回答裸露Markdown符号与源码路径</h2>
+<ul>
+<li>原输入/现象：用户查询凯撒、曹操等，回答将<code>**结论**</code>、反引号和<code>runtime/packages/standard/pkg/init.lua</code>等工程位置直接铺在正文；旧界面没有Markdown渲染，标记作为普通文字显示。</li>
+<li>定位依据：真实已存回答、用户截图及Chat的message-text直接显示item.content；来源卡片虽存在，正文仍重复暴露定位。</li>
+<li>实际改动：新提示词不要求Markdown，也不在正文抄写路径/行号；助手展示转换保留结论与数量，资料路径转为标题；引用集中在回答末尾按钮按需展开。用户原话和数据库原始答案/引用均保留。</li>
+<li>修改前后：原文可见加粗符号与Lua路径；新展示正文不显示这些工程细节，仍可从对应按钮看路径、行号、快照、摘录。复制操作与可读正文一致。</li>
+<li>防回归：answerText.test.tsx及Chat.test.tsx检查旧数据兼容、数字/SC编号不变、用户路径保留、证据展开/关闭；前端22项、相关后端49项通过。现场部署及真实模型核对另见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md">1.10报告</a>。</li>
+</ul>
+<h2>INV01（2026-11-14）：整浏览器无响应，保留未确证边界</h2>
+<p>截图请求已完成，排查时网页滚轮/输入和服务健康正常；Windows多次记录虚拟内存不足，当前整机内存也紧张。没有捕获该时刻浏览器转储，不能把“未再复现”写成已修复。未终止其他项目、重置主库或改全局WSL配置。详见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E6%B5%8F%E8%A7%88%E5%99%A8%E6%97%A0%E5%93%8D%E5%BA%94%E6%8E%92%E6%9F%A5-20261114.md">专项排查</a>。</p>
+<h2>FIX45（1.10）：固定记录后的否定适用说明被误判</h2>
+<ul>
+<li>原输入：请查看SC03固定测试记录，说明记录中酒火杀、藤甲、白银狮子和连环的结果与前提，不代表我的实际局面。</li>
+<li>错误现象：真实STYLE03调用正常结束，但程序因出现“实际局面”而禁用reference，返回缺条件且无引用，未完成用户查看固定记录的请求。completed不等于语义通过。</li>
+<li>定位依据：ruling_policy把“实际局面”无差别当作当前局面请求；原始失败结果保存在live-v110-style，不改写。</li>
+<li>实际改动：只对句末明确的“不代表我的实际局面”免责声明排除该次关键字影响；正文中的实际局面问题、禁止固定记录、变更局面和跨轮授权限制继续生效。追问条件列表使用可读条目，不再裸露JSON数组。</li>
+<li>防回归：新增允许明确固定记录免责声明、拒绝混合当前局面/禁止记录的测试；相关49项通过。同题真实复测另存目录，前后结果与费用见1.10报告。</li>
+</ul>
+<h2>FIX46（1.11）：来源按钮展开后跑开与强制跟随</h2>
+<ul>
+<li>原始反馈：点击链接按钮，按钮会跑开。</li>
+<li>修前复现：实际1.10保存的STYLE01回答，展开来源1后来源2的横向坐标由96变358.1px，再点来源2又跳回96px。不是仅凭静态代码猜测。</li>
+<li>定位：详情参与各按钮flex项目宽度计算；另外聊天对每次消息/进度变化执行smooth scrollIntoView，打断阅读。</li>
+<li>修改：详情移到整个按钮排下方；只在用户仍跟随底部时即时更新内部滚动位置，手动阅读/点击引用后停跟随。</li>
+<li>自测：前端25项及TypeScript/生产构建通过；实际浏览器同回答点击坐标前后另留证。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.11-%E6%9D%A5%E6%BA%90%E6%8C%89%E9%92%AE%E8%B7%B3%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md">1.11报告</a>。</li>
+<li>边界：这项是已复现的按钮布局缺陷，不把它等同为所有浏览器无响应均已查明；此前整机资源压力记录保留。无付费重跑或后端逻辑变更。</li>
+</ul>
+<h2>FIX47（1.12）：参考来源折叠换行、裸露标题/表格标记</h2>
+<ul>
+<li>原反馈：来源文本被压成一整段，要求改善阅读体验，处理#等标记。</li>
+<li>定位：旧blockquote直接插入原文，普通HTML空白折叠，且未解析Markdown，字号仅9px。</li>
+<li>修改：SourceExcerpt使用锁定的Markdown/GFM第三方解析，排版标题、段落、列表和表格；保留代码缩进/运算符，增大字号行距，独立元数据与原文查看入口。</li>
+<li>验证：29项前端测试和生产构建通过；实际R01五份来源的段落、表格、列表、代码与字体核对通过，按钮最大位移仍0px，无新增付费调用。</li>
+<li>记录：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.12-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E9%98%85%E8%AF%BB%E6%8E%92%E7%89%88-20261114.md">1.12报告</a>。原文、来源哈希和存储消息未改写，截图超时不冒充视觉截图通过。</li>
+</ul>
+<h2>FIX48（1.13）：原文滚到底后无法继续下拉</h2>
+<ul>
+<li>用户截图：来源下半段被遮住，无法继续查看。</li>
+<li>原因：1.12新增的max-height/overflow:auto和overscroll-behavior:contain形成内外两层纵向滚动，内层到底会吞掉继续滚轮；之前未执行真实滚轮到末尾测试。</li>
+<li>修前复现：原文已到底，聊天仍有148.67px空间，真实向下wheel650px后聊天位置不变。</li>
+<li>修改：取消原文纵向限高、独立滚动和contain；聊天高度可收缩，滚动条预留宽度，原文与代码/表格排版保持。</li>
+<li>修后：29项前端行为测试及构建通过；普通、窄屏、矮窗口真实wheel可读末段，原始文本可达末行。首轮矮窗口“绝对底部仍须见末行”的错误断言保留，改用实际小幅向上滚动核对可读性。</li>
+<li>证据：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.13-%E5%8F%82%E8%80%83%E6%9D%A5%E6%BA%90%E6%BB%9A%E5%8A%A8%E4%BF%AE%E5%A4%8D-20261114.md">1.13报告</a>。无新增模型调用或后端重启。</li>
+</ul>
+</article></body></html>

@@ -1,0 +1,982 @@
+<h1 id="section-1">消息队列与后台任务可靠性（七）：消费延迟、在途任务、优雅停机、重平衡与真实业务进度</h1>
+<blockquote>
+<p>对应学习目标：消费延迟、在途任务、优雅停机和重平衡，区分进程存活与任务真正推进。</p>
+<p>知识范围：Apache Kafka 传统 Consumer Group、Kafka 4.x 新 Consumer Rebalance Protocol、Python asyncio 与 aiokafka、PostgreSQL 中的持久化业务状态。示例侧重理解运行机制和安全边界，使用可离线运行的教学模拟器；真实 Broker 与数据库行为另行区分。</p>
+<p>核心判断：<strong>Worker 进程还活着 ≠ Kafka Consumer 仍持有有效分区 ≠ 正在获取消息 ≠ 正在处理消息 ≠ 业务成功落库 ≠ Kafka 已安全提交进度。</strong></p>
+</blockquote>
+<hr />
+<h2 id="section-2">01. 为什么消费可靠性不等于进程可靠性</h2>
+<p>考虑一个资料导入任务：HTTP 接收上传并在 PostgreSQL 创建任务 → 生产者发送 Kafka 事件 → Worker 获取事件 → 解析文档 → 调用 Embedding/LLM API → 写入向量与资料状态 → 提交 Kafka Offset。</p>
+<p>其中任一环节都可能独立失败：</p>
+<ol>
+<li>Worker 在运行，但网络连接异常，无法读取 Kafka。</li>
+<li>Consumer 正常心跳，但业务协程一直等待一个没有结束的模型 API。</li>
+<li>Consumer 取得消息，调用外部服务成功，却在数据库提交前失败。</li>
+<li>业务数据库已成功提交，但 Kafka Offset 未提交；进程重启后重复消费。</li>
+<li>业务计算已经完成，但由于同分区更早的消息未完成，安全提交水位不能前进。</li>
+<li>消费组发生 Rebalance，旧 Worker 仍持有尚未结束的本地 Task，但它可能已经失去处理该分区的资格。</li>
+</ol>
+<p>所以必须独立观察<strong>进程、消费关系、领取情况、在途任务、持久化业务结果以及安全提交进度</strong>六个层面。</p>
+<h3 id="section-3">1.1 关键时序</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Kafka 生产者           Consumer/Worker             PostgreSQL
+    |                     |                           |
+    |--任务事件-----------&gt;|                           |
+    |                     |--登记任务为 RUNNING------&gt;|
+    |                     |--调用外部模型...          |
+    |                     |   (可持续数十秒)           |
+    |                     |--写入业务结果------------&gt;|
+    |                     |&lt;-------事务已提交---------|
+    |                     |--commit(offset+1)--------&gt;Kafka
+    |                     |                           |</code></pre></div><p>“正在心跳”只覆盖消费组协调层，不能直接证明右侧 PostgreSQL 的写入成功。</p>
+<hr />
+<h2 id="section-4">02. Kafka Consumer 相关 Offset：五个容易混淆的位置</h2>
+<p>一个 Kafka <code>TopicPartition</code> 包含多个不同位置概念，必须按<strong>分区</strong>分别讨论：</p>
+<ul>
+<li><strong>Record Offset</strong>：消息自身的日志位置。</li>
+<li><strong>Consumer Position</strong>：消费者下一次可返回给应用的消息位置；读取操作会推动它。</li>
+<li><strong>Committed Offset</strong>：已持久化的消费组恢复位置，重启、重分配时用于确定从何处开始。</li>
+<li><strong>Log End Offset（LEO）</strong>：日志末端位置；常见监控工具以此计算差距，需注意复制和事务隔离的具体可见性边界。</li>
+<li><strong>Business Progress</strong>：业务数据库中已经完成并符合约束的任务或记录；它与上面任何一个 Offset 都不必然相同。</li>
+</ul>
+<p>假设分区已经读取到 119（Position=120），但业务仅安全完成到 111（Committed Offset=112），日志末端是 130：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">分区日志               112           120              130
+                       |-------------|----------------|
+已提交安全位置          ^
+已交给应用的位置                      ^
+Kafka 日志末端                                          ^</code></pre></div><p>此时读取较快不意味着业务处理得快。未完成的消息可能已经积压在应用内部。</p>
+<p><strong>重要</strong>：Kafka Offset 可能存在间隙（压缩、事务记录等情形），不能机械地认为 <code>LEO - Committed Offset</code> 是等待处理的实际有效记录条数。该差值主要是位置差指标。</p>
+<h3 id="section-5">2.1 <code>read_committed</code> 与 LSO</h3>
+<p>对启用事务的生产者，<code>read_committed</code> 消费者可能只能读取到 Last Stable Offset（LSO），即开放事务之前的稳定边界。未结束的事务会让用户误以为“日志有数据，但消费者拿不到”。监控必须明确所使用的隔离级别与末尾位置定义。</p>
+<hr />
+<h2 id="section-6">03. Consumer Lag 是什么：按位置、时间和业务结果分别看</h2>
+<h3 id="section-7">3.1 Offset Lag</h3>
+<p>一种常见的消费组监控口径：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Committed Lag = Log End Offset - Group Committed Offset</code></pre></div><p>这是一个便利的<strong>分区位置差</strong>，而不是被证明未完成的独立业务任务数。</p>
+<p>客户端指标 <code>records-lag-max</code> 往往是<strong>当前位置（Position）与末端的差距</strong>，并不一定等于管理员工具根据提交位点计算的消费组 Lag。不要将两个同名或相近名称的指标当成完全等价。</p>
+<h3 id="section-8">3.2 时间延迟（Latency）</h3>
+<p>还需要测量：</p>
+<ul>
+<li><strong>Queue Age</strong>：消息生产到开始执行的等待时间。</li>
+<li><strong>Oldest Pending Age</strong>：最老未完成消息已经等待了多久。</li>
+<li><strong>Processing Duration</strong>：工作开始到完成的时间。</li>
+<li><strong>End-to-End Latency</strong>：消息生产到业务结果持久化的端到端时间。</li>
+<li><strong>Commit Delay</strong>：业务结果落库到 Offset 安全提交的延迟。</li>
+</ul>
+<p>同样的 Lag=100，在每秒生产 1000 条消息的系统与每小时生产 100 条消息的系统中，严重程度完全不同。</p>
+<h3 id="section-9">3.3 处理速率与追赶能力</h3>
+<p>令输入速率为 λ，业务成功完成速率为 μ：</p>
+<ul>
+<li><code>μ &gt; λ</code>：有可能逐步追上积压；还取决于重试、单分区瓶颈和资源限制。</li>
+<li><code>μ ≈ λ</code>：积压可能长期维持。</li>
+<li><code>μ &lt; λ</code>：在没有限流和扩容的情况下，积压通常增加。</li>
+</ul>
+<p>不能只看 <code>records-consumed-rate</code>（从 Kafka 取数的速度），应观察 <code>business_success_rate</code>（真正持久化成功的速度）。</p>
+<hr />
+<h2 id="section-10">04. 在途任务（In-flight）到底包含什么</h2>
+<p>日常语言里 In-flight 常指“正在执行的任务”，但正式监控应明确包含哪些状态。一个可操作的定义：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Kafka 已返回给应用但尚未达到终态的消息
+= 应用内排队 + 正在处理 + 等待重试 + 等待业务确认的记录</code></pre></div><p>对于通过 PostgreSQL 和独立 Worker 处理的任务，还应额外记录：</p>
+<ul>
+<li><code>PENDING</code>：已接受但还未领取。</li>
+<li><code>RUNNING</code>：Worker 已领取且租约有效。</li>
+<li><code>RETRY_WAIT</code>：等待下次重试。</li>
+<li><code>SUCCEEDED</code>：业务事务已完成并持久化结果。</li>
+<li><code>FAILED</code>：达到最终失败条件，失败原因已持久化。</li>
+<li><code>CANCELLED</code>：已取消；已发生的外部副作用不一定被撤销。</li>
+</ul>
+<p>在途任务计数最好区分 <code>fetched_not_started</code>、<code>running</code>、<code>retry_waiting</code> 和 <code>durable_completed_not_committed</code>。后者<strong>业务已完成</strong>但 Kafka 提交尚未推进，它不能被当作仍需重新执行业务的普通待办。</p>
+<h3 id="section-11">4.1 在途数量与资源占用</h3>
+<p>如果每条任务会调用模型、占用连接池或存储大文件，盲目预取会让在途任务堆积并耗尽内存。应设计：</p>
+<ul>
+<li>全局和每个分区的 in-flight 上限。</li>
+<li>队列容量与饱和后的背压行为。</li>
+<li>模型 API 并发上限、数据库连接池上限。</li>
+<li>长耗时任务转为持久化任务并由独立 Worker 运行。</li>
+<li>在 Redis 或内存进度丢失时，能从 PostgreSQL 恢复真实任务状态。</li>
+</ul>
+<hr />
+<h2 id="section-12">05. Liveness、Readiness 与 Progress：三种不同的健康</h2>
+<h3 id="section-13">5.1 Liveness：进程还在吗</h3>
+<p>进程 PID、HTTP <code>/health/live</code> 或 event loop tick 可以证明某个程序仍能回答简单探针。但一个进程完全可能处于“活锁”：持续运行与心跳，业务没有推进。</p>
+<h3 id="section-14">5.2 Readiness：现在适合接活吗</h3>
+<p>关注 Kafka 分区有效分配、依赖连接、数据库写入、队列容量、是否正在优雅停机，以及内存/连接池是否已达到无法安全继续领取工作的程度。</p>
+<p>Readiness 不是直接把“Kafka 临时离线”简化成进程必须重启；它主要决定是否继续接收或领取新工作。</p>
+<h3 id="section-15">5.3 Progress：工作实际推进了吗</h3>
+<p>需要至少一组<strong>不可伪造为成功</strong>的业务指标：</p>
+<ul>
+<li>最新成功持久化时间 <code>last_business_commit_at</code>。</li>
+<li><code>business_success_total</code> 和每分钟成功速率。</li>
+<li>失败、重试、取消和结果未知数量。</li>
+<li>oldest in-flight age 与租约超时数量。</li>
+<li>业务结果和 Kafka Offset 提交进度。</li>
+</ul>
+<p><strong>空闲不等于卡死</strong>：Kafka 没有新消息、in-flight=0、Lag=0、暂时没有成功记录，是正常状态。判定停滞需要结合“确实存在待处理工作”和“超过适用的时限”。</p>
+<hr />
+<h2 id="section-16">06. 四类典型“看起来活着、其实没干活”</h2>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>进程</th>
+<th>心跳</th>
+<th>Fetch/Position</th>
+<th>业务结果</th>
+<th>初步定位</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>真正空闲</td>
+<td>正常</td>
+<td>正常</td>
+<td>无新消息</td>
+<td>无新增</td>
+<td>不需要报警</td>
+</tr>
+<tr>
+<td>获取消息但模型卡死</td>
+<td>正常</td>
+<td>可能正常</td>
+<td>持续前进</td>
+<td>长时间无新增</td>
+<td>外部模型超时、在途过多</td>
+</tr>
+<tr>
+<td>数据库写入失败</td>
+<td>正常</td>
+<td>正常</td>
+<td>可前进</td>
+<td>成功率 0，错误增多</td>
+<td>DB 连接、事务、约束</td>
+</tr>
+<tr>
+<td>Rebalance 频繁</td>
+<td>正常</td>
+<td>断续</td>
+<td>分区反复转移</td>
+<td>速率下降</td>
+<td>消费组协调、网络或 poll 间隔</td>
+</tr>
+<tr>
+<td>提交 Offset 卡住</td>
+<td>正常</td>
+<td>正常</td>
+<td>已读取</td>
+<td>业务可能成功</td>
+<td>CommitFailed、协调器、分区所有权</td>
+</tr>
+<tr>
+<td>旧任务仍在写入</td>
+<td>正常</td>
+<td>可能已失效</td>
+<td>分区已转移</td>
+<td>旧 Worker 仍有副作用</td>
+<td>缺少租约/代际保护</td>
+</tr>
+</tbody></table>
+<p>后端业务进度的仪表板不应只展示 Kafka 消费组的 Lag 和 Worker 存活数量。</p>
+<hr />
+<h2 id="section-17">07. 手动提交的安全水位与并发处理</h2>
+<p>同分区消息的<strong>获取顺序</strong>和<strong>完成顺序</strong>不同。比如：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Offset    100      101      102      103
+状态      成功      执行中    成功      成功</code></pre></div><p>即使 103 完成，也不能提交 104。因为 101 尚未完成；提交 104 后进程崩溃，重启可能跳过 101。</p>
+<p>正确做法是维护<strong>已持久化完成的可提交前缀（safe commit frontier）</strong>。在上例中，最多提交下一条 <code>101</code>。当 101 最终完成，安全提交位点才能向前推进。</p>
+<p>Kafka Offset 可能有空洞，因此推进算法应依据消费者<strong>确实已经交付给应用的按序记录集合</strong>，而不能简单要求每个整数 Offset 都出现。</p>
+<p>需要区分：</p>
+<ol>
+<li>成功返回的 Future 不一定表示数据已持久化。</li>
+<li>业务事务完成后，才可以把相应记录标为可提交。</li>
+<li>本地“准备提交”不等于 Kafka Broker 确认提交。</li>
+<li>如果提交失败，保留较低恢复位置，接受重放并使用业务幂等去重。</li>
+</ol>
+<hr />
+<h2 id="section-18">08. 优雅停机的定义和边界</h2>
+<p>Graceful Shutdown（优雅停机）的目标不是“进程退出时尽量 sleep 几秒”，而是<strong>在有限窗口内完成安全交接，同时不丢失业务结果、不错误提交消费进度</strong>。</p>
+<h3 id="section-19">8.1 正常步骤</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">SIGTERM / 部署滚动更新
+      ↓
+状态设为 DRAINING；不接收新任务，不领取新 Kafka 消息
+      ↓
+对已领取工作尝试有界等待
+      ↓
+完成的工作先持久化业务结果
+      ↓
+按分区安全水位提交 Offset；失败则保持重放可能性
+      ↓
+超时任务请求取消，保留未完成持久化状态
+      ↓
+关闭 Consumer、HTTP 客户端、数据库资源
+      ↓
+进程退出</code></pre></div><h3 id="section-20">8.2 为什么不能先关闭数据库</h3>
+<p>已运行的 Worker 如果仍需提交事务，提前 <code>engine.dispose()</code> 或关闭数据库连接池，会破坏在途任务完成的可能性。因此通常先管理任务生命周期，再释放它们依赖的资源。</p>
+<h3 id="section-21">8.3 Drain Deadline 和 Force Kill</h3>
+<p>如果容器编排系统只给 30 秒终止宽限，而单次模型调用可能耗时 2 分钟，就不能假设所有任务都能完成。必须有：</p>
+<ul>
+<li>明确终止总时限和二级取消清理时限。</li>
+<li>剩余时间不足时拒绝领取新任务。</li>
+<li>将任务状态、重试次数、业务幂等键持久化。</li>
+<li>对外部调用结果未知的情况进行核对，而非无条件再次发起副作用。</li>
+<li>旧 Worker 的临时租约最终失效，新 Worker 能恢复。</li>
+</ul>
+<p>Python <code>Task.cancel()</code> 是<strong>协作式取消</strong>，并不等价于强制停止进程或撤销第三方 HTTP 请求。</p>
+<hr />
+<h2 id="section-22">09. 停机时哪些操作必须先做，哪些不一定能做</h2>
+<p><strong>必须做：</strong></p>
+<ol>
+<li>停止领取新工作。</li>
+<li>对在途任务做状态收敛：完成、等待恢复、请求取消或保留状态未知。</li>
+<li>记录业务已提交的结果及足以重放的幂等信息。</li>
+<li>对仍持有分区所有权的已处理前缀执行安全提交。</li>
+<li>释放网络和数据库资源。</li>
+</ol>
+<p><strong>不能保证：</strong></p>
+<ul>
+<li>在 SIGKILL 后仍执行 Python <code>finally</code>。</li>
+<li>Python 协程取消就让远端模型立即停止计费。</li>
+<li>Kafka Commit 失败就说明业务事务失败。</li>
+<li>旧 Consumer 离组后不会有尚未结束的后台 Task 继续产生副作用。</li>
+<li><code>consumer.stop()</code> 能自动回滚或终结全部业务任务。</li>
+</ul>
+<p>因此，<strong>优雅停机和故障恢复是两个互补设计</strong>：前者降低故障窗口，后者处理正常流程无法保证的情况。</p>
+<hr />
+<h2 id="section-23">10. Rebalance 是什么，为什么会影响在途任务</h2>
+<p>Consumer Group Rebalance 指消费组协调器重新确定 Topic 分区的消费归属。常见触发包括：</p>
+<ul>
+<li>有 Consumer 加入或离开。</li>
+<li>Consumer 宕机或被判定失联。</li>
+<li>Topic 分区数发生变化。</li>
+<li>消费者订阅或元数据发生变化。</li>
+<li>组协议迁移以及成员/协调器事件。</li>
+</ul>
+<p>旧成员可能正在处理原本分配给它的分区。当分区分配给新成员时，旧成员必须停止新的读取和失效提交；业务侧还需防止它“晚到的写入”覆盖新 Worker 的结果。</p>
+<h3 id="section-24">10.1 Rebalance 的一般阶段</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">稳定状态（ASSIGNED）
+    → 将移走的分区标记 REVOKING
+    → 停止该分区的新工作
+    → 尽量处理已完成任务并提交安全 Offset
+    → 撤销该分区所有权 REVOKED / LOST
+    → 新 Consumer 获得 ASSIGNED
+    → 从可恢复状态开始处理</code></pre></div><p>不同协议的回调和阶段可能不同，尤其需要区分 Classic 与 Kafka 4.x 新 Consumer 协议。</p>
+<hr />
+<h2 id="section-25">11. Classic 与 Kafka 4.x Consumer Rebalance Protocol</h2>
+<p>Kafka 4.0 开始，新 Consumer Rebalance Protocol（KIP-848）成为通用可用能力。其特点包括增量协调、服务端分配策略，以及与 Classic 不同的 heartbeat/session timeout 配置控制。</p>
+<table>
+<thead>
+<tr>
+<th>对比</th>
+<th>Classic</th>
+<th>Consumer 新协议</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>协议名称</td>
+<td><code>classic</code></td>
+<td><code>consumer</code></td>
+</tr>
+<tr>
+<td>典型组协调</td>
+<td>传统分组加入与同步</td>
+<td>更增量化的协调</td>
+</tr>
+<tr>
+<td>分配策略</td>
+<td>客户端配置与组协调</td>
+<td>由 Broker 侧控制为主</td>
+</tr>
+<tr>
+<td>心跳超时参数</td>
+<td>经典客户端参数</td>
+<td>服务端参数主导</td>
+</tr>
+<tr>
+<td>兼容性</td>
+<td>较多成熟客户端支持</td>
+<td>需要客户端实际支持</td>
+</tr>
+</tbody></table>
+<p><strong>不能假设 aiokafka 已完全支持 Java Consumer 在 Kafka 4.4 的所有新行为。</strong> 应检查项目锁定的 aiokafka 版本、支持的 Group Protocol 和回调 API。本文后续的 aiokafka 示例仅使用其文档明确公开的传统接口。</p>
+<hr />
+<h2 id="section-26">12. 心跳、session.timeout 与 max.poll.interval 的区别</h2>
+<p>在传统 Java Consumer 中：</p>
+<ul>
+<li><code>heartbeat.interval.ms</code>：心跳发送间隔（在 Classic 协议等适用场景下）。</li>
+<li><code>session.timeout.ms</code>：协调器判定成员失联的宽限。</li>
+<li><code>max.poll.interval.ms</code>：应用连续两次 <code>poll()</code> 之间的最大时间，目的是防止表面存活却不再领取和处理工作的 Consumer 无限占有分区。</li>
+</ul>
+<p>但在新 Consumer 协议下，客户端部分配置被服务器端参数替代，不能照搬旧参数。</p>
+<p>而在 <strong>aiokafka</strong> 中，心跳与抓取机制由异步客户端后台任务协调，客户端的行为与 Java 调用线程模型并不完全相同。即使心跳正常，业务协程仍可能处于等待外部 API 或数据库的状态。<code>max_poll_interval_ms</code> 的实际应用方式应按 aiokafka 所用版本文档核实。</p>
+<p><strong>结论</strong>：心跳、poll 活动和业务成功率必须独立监控，不能互相代替。</p>
+<hr />
+<h2 id="section-27">13. Rebalance 回调和分区所有权保护</h2>
+<p>对 aiokafka，<code>ConsumerRebalanceListener</code> 可注册：</p>
+<ul>
+<li><code>on_partitions_revoked(revoked)</code>：处理将被撤销的分区。</li>
+<li><code>on_partitions_assigned(assigned)</code>：初始化新分配的分区。</li>
+</ul>
+<p>在 revoke 期间：</p>
+<ol>
+<li>标记分区进入 <code>REVOKING</code>，不再领取新消息。</li>
+<li>对相关在途任务有界等待并保存可恢复状态。</li>
+<li>只在业务已经持久化完成的范围内提交安全水位。</li>
+<li>遇到 <code>CommitFailedError</code> 或已经失去所有权时不能盲目重试提交。</li>
+<li>撤销后拒绝旧 Worker 的无效业务提交；新 Worker 从数据库任务状态与已提交 Offset 重建。</li>
+</ol>
+<p><strong>死锁风险</strong>：官方 aiokafka 文档提醒，rebalance 监听器由客户端等待完成，会阻塞 <code>getmany()</code> / <code>getone()</code> 等调用。不能在 <code>getmany()</code> 持有某个异步锁时，让 rebalance 回调也试图获取相同的锁。</p>
+<p>并且 Rebalance 回调本身也不能作为唯一恢复机制，因为进程被强杀时通常无法运行任何回调。</p>
+<hr />
+<h2 id="section-28">14. 失去分区后的“迟到结果”如何处理</h2>
+<p>即使 Consumer 已被撤销分区，旧 Worker 发起的外部 API 可能刚刚返回。假如旧 Worker 随后直接写 PostgreSQL，就可能和新 Worker 争抢同一任务。</p>
+<p>可采用<strong>任务租约与代际保护</strong>：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">UPDATE</span> tasks
+<span class="hljs-keyword">SET</span> state <span class="hljs-operator">=</span> <span class="hljs-string">'SUCCEEDED'</span>, <span class="hljs-keyword">result</span> <span class="hljs-operator">=</span> :<span class="hljs-keyword">result</span>, updated_at <span class="hljs-operator">=</span> NOW()
+<span class="hljs-keyword">WHERE</span> id <span class="hljs-operator">=</span> :task_id
+  <span class="hljs-keyword">AND</span> state <span class="hljs-operator">=</span> <span class="hljs-string">'RUNNING'</span>
+  <span class="hljs-keyword">AND</span> worker_generation <span class="hljs-operator">=</span> :generation
+  <span class="hljs-keyword">AND</span> lease_owner <span class="hljs-operator">=</span> :worker_id
+RETURNING id;</code></pre></div><p>只有仍持有有效代际、符合业务约束的 Worker 才能更新成功；如果受影响行数是 0，则必须判定为<strong>失去执行资格或状态已变化</strong>，不能简单重试覆盖。</p>
+<p>真实系统还应维护任务级幂等键、最终结果唯一约束，以及操作前权限和当前状态验证。依赖 Redis 锁单独保证最终唯一性并不充分。</p>
+<hr />
+<h2 id="section-29">15. 如何建立统一的 Worker 状态机</h2>
+<p>建议将进程与业务任务分开记录：</p>
+<h3 id="section-30">15.1 进程级</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">STARTING → READY → DRAINING → STOPPED
+                    ↘ UNREADY / FAILED</code></pre></div><h3 id="section-31">15.2 分区级</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">UNASSIGNED → ACTIVE → REVOKING → REVOKED
+                      ↘ LOST</code></pre></div><h3 id="section-32">15.3 任务级</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">PENDING → RUNNING → SUCCEEDED
+              ↘ RETRY_WAIT → RUNNING
+              ↘ FAILED
+              ↘ CANCELLED</code></pre></div><p>不能仅凭进程健康把所有业务任务自动标为成功。任务终态应由数据库中的受控状态转换决定。</p>
+<hr />
+<h2 id="section-33">16. 背压、消费速率与在途上限</h2>
+<p>当模型服务变慢或数据库写入变慢时，应该降低领取量，避免无限创建 Task。</p>
+<p>可实施的机制：</p>
+<ul>
+<li>为 Consumer 的每个分区设置 <code>max_in_flight</code>。</li>
+<li>使用全局 <code>asyncio.Semaphore</code> 控制外部 API 并发。</li>
+<li>使用有界 <code>asyncio.Queue</code> 缓冲待处理工作。</li>
+<li>对长期任务优先持久化后交给独立 Worker，不在 HTTP 请求中等待。</li>
+<li>在达到容量上限后减少主动 fetch，而不是无限缓存。</li>
+</ul>
+<p>对于 aiokafka，官方文档推荐利用 <code>getmany(*partitions)</code> 显式选择当前需要读取的分区；不要未经版本核实就假设它支持与 Java Client 完全相同的 <code>pause()/resume()</code> API。</p>
+<p>注意：<strong>限制并发不自动等于限制队列长度</strong>；Semaphore 如果包在每个新创建的 Task 内，仍可能先产生大量等待中的 Task。应用层需要同时控制创建 Task 的数量与缓冲区容量。</p>
+<hr />
+<h2 id="section-34">17. 安全地组合异步模型调用与 Kafka Consumer</h2>
+<p>下面是便于理解的简化串行处理示例，它不模拟多分区并发，但有一个显著优势：每条消息只有在业务提交成功后才推进 Offset。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">from</span> aiokafka <span class="hljs-keyword">import</span> AIOKafkaConsumer, TopicPartition
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">persist_business_result</span>(<span class="hljs-params">msg</span>):
+    <span class="hljs-comment"># 必须由真实数据库事务实现：成功返回意味着事务已提交。</span>
+    <span class="hljs-comment"># 业务幂等键/唯一约束要能处理同一消息的重放。</span>
+    <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.01</span>)
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():
+    consumer = AIOKafkaConsumer(
+        <span class="hljs-string">"import-tasks"</span>,
+        bootstrap_servers=<span class="hljs-string">"localhost:9092"</span>,
+        group_id=<span class="hljs-string">"import-worker-v1"</span>,
+        enable_auto_commit=<span class="hljs-literal">False</span>,
+        auto_offset_reset=<span class="hljs-string">"earliest"</span>,
+    )
+    <span class="hljs-keyword">await</span> consumer.start()
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
+            msg = <span class="hljs-keyword">await</span> consumer.getone()
+            <span class="hljs-keyword">await</span> persist_business_result(msg)
+            tp = TopicPartition(msg.topic, msg.partition)
+            <span class="hljs-keyword">await</span> consumer.commit({tp: msg.offset + <span class="hljs-number">1</span>})
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> consumer.stop()
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    asyncio.run(main())</code></pre></div><p><strong>示例边界</strong>：此例没有生产级重试/DLQ、Rebalance 回调、SIGTERM 接管、HTTP 调用取消、数据库真实事务、容器宽限期和日志体系；<code>persist_business_result</code> 是占位实现。不能将它直接部署为高可靠服务。</p>
+<hr />
+<h2 id="section-35">18. 多任务并发 Worker 的安全设计</h2>
+<p>多任务并发时，需要额外的分区与任务注册表：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">TopicPartition
+  ├── Assignment Generation
+  ├── Next Fetched Offset
+  ├── 已交付记录集合
+  ├── 已持久化完成记录集合
+  ├── Safe Commit Frontier
+  ├── Kafka Confirmed Commit Offset
+  ├── 在途 Task 与 Deadline
+  └── ACTIVE / REVOKING / REVOKED / LOST</code></pre></div><p>关键循环如下（伪代码，强调控制逻辑而不是具体库的语法）：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">while RUNNING:
+    检查总在途与每个分区容量
+    从允许读取的分区获取消息
+    为每条消息登记 (tp, offset, generation)
+    执行受限并发的业务处理
+    仅在数据库事务成功后标记该记录完成
+    每个分区分别计算安全提交水位
+    仅在本 Consumer 持有有效分区所有权时提交 Offset
+
+on_revoke(partitions):
+    停止这些分区的新工作
+    有界等待相关 Task；持久化未完成状态
+    仅提交已安全完成的前缀
+    标记分区不可再写入和提交</code></pre></div><p>若进程崩溃在业务完成与 Offset 提交之间，仍通过业务幂等处理重放；不会因为未提交而直接把消息当成“丢失”。</p>
+<hr />
+<h2 id="section-36">19. 任务进度监控的最小指标体系</h2>
+<table>
+<thead>
+<tr>
+<th>指标名示例</th>
+<th>单位</th>
+<th>解释</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>worker_process_up</code></td>
+<td>0/1</td>
+<td>进程健康探针</td>
+</tr>
+<tr>
+<td><code>consumer_heartbeat_age_seconds</code></td>
+<td>秒</td>
+<td>最近有效心跳距今时间</td>
+</tr>
+<tr>
+<td><code>consumer_group_committed_lag</code></td>
+<td>Offset 差</td>
+<td>按已提交位置计算的积压</td>
+</tr>
+<tr>
+<td><code>consumer_fetch_lag</code></td>
+<td>Offset 差</td>
+<td>按当前读取位置计算的积压</td>
+</tr>
+<tr>
+<td><code>worker_inflight_tasks</code></td>
+<td>条</td>
+<td>已领取且未完成的工作</td>
+</tr>
+<tr>
+<td><code>worker_oldest_inflight_age_seconds</code></td>
+<td>秒</td>
+<td>最老在途任务执行年龄</td>
+</tr>
+<tr>
+<td><code>business_completed_total</code></td>
+<td>次</td>
+<td>业务结果成功持久化的累计次数</td>
+</tr>
+<tr>
+<td><code>business_failed_total</code></td>
+<td>次</td>
+<td>业务失败累计次数</td>
+</tr>
+<tr>
+<td><code>business_last_success_age_seconds</code></td>
+<td>秒</td>
+<td>上次成功完成到现在的时间</td>
+</tr>
+<tr>
+<td><code>offset_commit_failure_total</code></td>
+<td>次</td>
+<td>Kafka Offset 提交失败次数</td>
+</tr>
+<tr>
+<td><code>consumer_rebalance_total</code></td>
+<td>次</td>
+<td>本实例经历的重平衡次数</td>
+</tr>
+<tr>
+<td><code>worker_drain_pending_tasks</code></td>
+<td>条</td>
+<td>停机窗口结束仍未终结的任务</td>
+</tr>
+</tbody></table>
+<p>应避免只有单一“健康=绿灯”的面板。建议针对进程、分区、业务任务、数据库和外部依赖分别展示指标。</p>
+<p><strong>指标标签风险</strong>：Prometheus 等时序系统不应随意将高基数的 <code>task_id</code>、完整消息 ID、用户敏感标识作为指标标签；详细排障使用带请求关联 ID 的结构化日志或 Trace。</p>
+<hr />
+<h2 id="section-37">20. 故障定位流程：从现象到根因</h2>
+<h3 id="section-38">场景 A：Lag 高，但消费很慢</h3>
+<ol>
+<li>查看生产速率是否大于成功处理速率。</li>
+<li>对比 Consumer Position 与 Committed Offset。</li>
+<li>看当前 in-flight 数量及最老在途年龄。</li>
+<li>如果业务成功率低，检查模型响应、DB 事务与异常。</li>
+<li>如果业务成功率高但 Offset 落后，检查安全水位、提交失败、分区乱序处理。</li>
+<li>检查是否发生频繁 Rebalance 或分区过少造成并行度瓶颈。</li>
+</ol>
+<h3 id="section-39">场景 B：Lag 几乎为零，但用户看不到结果</h3>
+<ol>
+<li>检查 Lag 使用的是 Position 还是 Committed Offset。</li>
+<li>检查数据库中的最终业务状态与成功记录。</li>
+<li>检查 Redis 缓存或前端状态是否没有刷新。</li>
+<li>检查是否先提交 Offset 后处理业务，造成消息跳过。</li>
+<li>检查任务是否只被标记为 <code>RUNNING</code> 而没有成功完成。</li>
+</ol>
+<h3 id="section-40">场景 C：扩容后反而变慢</h3>
+<ol>
+<li>检查 Topic 分区数与 Consumer 数量；Consumer 数量超过分区数时不会继续提高单组分区并发度。</li>
+<li>检查 Rebalance 总量和时长。</li>
+<li>检查新 Consumer 是否反复加入/退出、出现 <code>CommitFailedError</code>。</li>
+<li>检查数据库连接池、第三方 API 限流是否成为新瓶颈。</li>
+<li>检查每条分区是否被重复分发、旧 Worker 是否仍可写入。</li>
+</ol>
+<h3 id="section-41">场景 D：滚动更新后少量任务重复</h3>
+<ol>
+<li>找到业务提交时间和 Kafka Commit 时间。</li>
+<li>检查是否在二者之间退出或分区被撤销。</li>
+<li>用业务幂等键检查最终记录是否只有一条。</li>
+<li>检查 Outbox/Inbox 是否留有可靠处理痕迹。</li>
+<li>如果有外部发送，核查第三方结果后再判断是否补发。</li>
+</ol>
+<hr />
+<h2 id="section-42">21. 常见误区与反例</h2>
+<p><strong>误区 1：心跳正常就是消费正常。</strong> 心跳维护组成员身份，不证明业务成功。</p>
+<p><strong>误区 2：Lag=0 就是全部任务成功。</strong> Lag 的统计口径、已取未处理、提前提交和数据库结果都可能改变判断。</p>
+<p><strong>误区 3：Worker 关闭时 <code>await consumer.stop()</code> 就能保证全部任务完成。</strong> Consumer 管理 Kafka 客户端资源，不自动等待你自行创建的所有业务 Task。</p>
+<p><strong>误区 4：在 Rebalance 回调里无期限等待所有任务最安全。</strong> 长时间等待可能让组协调卡住，还可能超过关闭时限。</p>
+<p><strong>误区 5：提交最大已完成 Offset 就可以。</strong> 若分区中较早 Offset 未完成，就可能漏处理。</p>
+<p><strong>误区 6：只要旧 Worker 不再心跳，它的远端调用就不可能成功。</strong> 第三方 API 不会因为你的 Kafka 分区所有权变化自动撤销业务副作用。</p>
+<p><strong>误区 7：<code>Task.cancel()</code> 保证被取消的任务马上终结。</strong> 协程可以在合适检查点响应取消，但也可能吞掉取消，外部操作可能继续。</p>
+<p><strong>误区 8：Kafka 4.x 的所有客户端都采用新 Consumer 协议。</strong> 必须核实客户端与配置，不能因为 Broker 版本高就假定协议行为一致。</p>
+<hr />
+<h2 id="section-43">22. 真实系统验收的必要场景</h2>
+<p>本章代码附录提供<strong>离线教学实现与测试</strong>，生产系统仍至少应实际复现：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>预期可观察行为</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>长模型调用 60 秒</td>
+<td>不阻塞其他消息的必要处理，且 in-flight 指标真实反映等待</td>
+</tr>
+<tr>
+<td>Offset 102 先于 101 完成</td>
+<td>安全提交水位不会越过 101</td>
+</tr>
+<tr>
+<td>任务成功落库后强制杀进程</td>
+<td>新 Worker 重放后只有一条业务最终结果</td>
+</tr>
+<tr>
+<td>Rebalance 中撤销分区</td>
+<td>旧 Worker 停止新领取并不能越权提交结果</td>
+</tr>
+<tr>
+<td>SIGTERM 后在途任务未完成</td>
+<td>在期限内收敛，剩余任务可恢复且未误提交</td>
+</tr>
+<tr>
+<td>Redis 不可用</td>
+<td>持久化任务状态仍可查询，实时缓存可降级</td>
+</tr>
+<tr>
+<td>Broker 暂时不可用</td>
+<td>提交失败可追踪，重连恢复或重放不丢业务</td>
+</tr>
+<tr>
+<td>空闲无消息</td>
+<td>不因“长期无成功记录”误报为卡死</td>
+</tr>
+</tbody></table>
+<p>这些是<strong>需要真实环境执行的验收用例</strong>，并非本文已运行完成的集成测试。</p>
+<hr />
+<h2 id="section-44">23. 示例实现的设计边界</h2>
+<p>下面附录的 Python 标准库教学代码提供：</p>
+<ol>
+<li><code>PartitionTracker</code>：基于已经交付的消息和已持久化完成的结果，计算安全提交水位。</li>
+<li><code>ProgressSnapshot</code>：比较按 Committed Offset 与 Position 计算的 Lag，以及在途任务状态。</li>
+<li><code>classify()</code>：将进程、心跳、可接单状态与业务进度综合成分类，不把未知情况自动判为停滞。</li>
+<li><code>bounded_drain()</code>：尝试有界等待，随后请求取消，并明确报告仍在运行的任务。</li>
+<li><code>WorkerLifecycle</code>：在停机期间拒绝新工作，并区分完全停止与仍有未结束任务的危险状态。</li>
+</ol>
+<p><strong>重要限制</strong>：<code>PartitionTracker</code> 仅是对 Kafka 按分区、有序交付给该 Worker 的消息进行本地跟踪；它本身并不执行 Kafka 提交，也不能阻止已经失去执行资格的旧进程在数据库中写入，真正的分布式防护仍须依赖事务、租约代际、唯一约束与实际 Consumer 组所有权机制。</p>
+<hr />
+<h2 id="section-45">24. 与前面 Kafka 知识点的关系</h2>
+<ul>
+<li>第 01 节提供 Topic/Partition/Offset/Consumer Group 基础。</li>
+<li>第 02 节解释自动提交、手动提交和故障窗口。</li>
+<li>第 03 节解释消息重复与业务幂等。</li>
+<li>第 04 节解释 Worker 崩溃、租约与恢复。</li>
+<li>第 05 节解释同分区乱序完成与安全提交水位。</li>
+<li>第 06 节解释有限重试、退避、失败消息与 DLQ。</li>
+<li><strong>本节将上述机制组合到监控、在途任务、优雅停机和 Rebalance 中，要求进程状态、消费组状态、业务成功与可恢复性都能被分别观察和验证。</strong></li>
+</ul>
+<hr />
+<h2 id="section-46">官方参考资料（访问时需核对项目所用版本）</h2>
+<ol>
+<li>Apache Kafka 4.4 — Monitoring：<a href="https://kafka.apache.org/44/operations/monitoring/">https://kafka.apache.org/44/operations/monitoring/</a>（<code>records-lag-max</code>、心跳、Rebalance 等指标）</li>
+<li>Apache Kafka 4.4 — Basic Kafka Operations：<a href="https://kafka.apache.org/44/operations/basic-kafka-operations/">https://kafka.apache.org/44/operations/basic-kafka-operations/</a>（<code>kafka-consumer-groups.sh --describe</code> 等管理命令）</li>
+<li>Apache Kafka 4.4 — Consumer Rebalance Protocol：<a href="https://kafka.apache.org/44/operations/consumer-rebalance-protocol/">https://kafka.apache.org/44/operations/consumer-rebalance-protocol/</a>（Classic 与 Consumer 新协议）</li>
+<li>Apache Kafka 4.4 — Consumer Configs：<a href="https://kafka.apache.org/44/configuration/consumer-configs/">https://kafka.apache.org/44/configuration/consumer-configs/</a>（<code>max.poll.interval.ms</code>、隔离级别和超时）</li>
+<li>aiokafka — Consumer Guide：<a href="https://aiokafka.readthedocs.io/en/latest/consumer.html">https://aiokafka.readthedocs.io/en/latest/consumer.html</a>（手动提交、消费组、Rebalance listener）</li>
+<li>aiokafka — Consumer API：<a href="https://aiokafka.readthedocs.io/en/latest/api.html">https://aiokafka.readthedocs.io/en/latest/api.html</a>（Consumer 生命周期、获取消息、提交 API）</li>
+<li>aiokafka — Rebalance Listener：<a href="https://aiokafka.readthedocs.io/en/stable/_modules/aiokafka/abc.html">https://aiokafka.readthedocs.io/en/stable/_modules/aiokafka/abc.html</a>（回调协议）</li>
+<li>Confluent — Consumer Design：<a href="https://docs.confluent.io/kafka/design/consumer-design.html">https://docs.confluent.io/kafka/design/consumer-design.html</a>（位置、提交 Offset、消费组）</li>
+<li>Confluent — Monitor Consumer Lag：<a href="https://docs.confluent.io/platform/current/monitor/monitor-consumer-lag.html">https://docs.confluent.io/platform/current/monitor/monitor-consumer-lag.html</a>（Lag 与延迟解释）</li>
+<li>Python — asyncio Task：<a href="https://docs.python.org/3/library/asyncio-task.html">https://docs.python.org/3/library/asyncio-task.html</a>（取消、等待与任务管理）</li>
+</ol>
+<hr />
+<h2 id="section-47">附录 A：完整 Python 教学模拟器</h2>
+<p>运行环境：Python 3.11 或更新版本，<strong>不需要安装 Kafka 客户端</strong>。保存以下代码为 <code>kafka_lifecycle_demo.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Kafka lifecycle semantics teaching model; no actual Kafka broker used.
+
+Important: Tests prove this model's state transitions, NOT real broker integration.
+"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass, field
+<span class="hljs-keyword">from</span> enum <span class="hljs-keyword">import</span> Enum
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> Awaitable, <span class="hljs-type">Callable</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">PartitionPhase</span>(<span class="hljs-built_in">str</span>, Enum):
+    ACTIVE = <span class="hljs-string">"ACTIVE"</span>
+    REVOKING = <span class="hljs-string">"REVOKING"</span>
+    REVOKED = <span class="hljs-string">"REVOKED"</span>
+    LOST = <span class="hljs-string">"LOST"</span>
+
+
+<span class="hljs-meta">@dataclass</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">PartitionTracker</span>:
+    <span class="hljs-string">"""Tracks successfully persisted Kafka records, not just fetched records.
+
+    Each instance is tied to a single partition assignment generation.
+    Kafka fetches deliver offsets in ascending order but offsets may have holes.
+    A caller must pass all delivered records, in their received order, to observe().
+    """</span>
+    generation: <span class="hljs-built_in">int</span>
+    initial_next_offset: <span class="hljs-built_in">int</span>
+    phase: PartitionPhase = PartitionPhase.ACTIVE
+    seen: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">int</span>] = field(default_factory=<span class="hljs-built_in">list</span>)
+    succeeded: <span class="hljs-built_in">set</span>[<span class="hljs-built_in">int</span>] = field(default_factory=<span class="hljs-built_in">set</span>)
+    last_commit: <span class="hljs-built_in">int</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+    _safe_index: <span class="hljs-built_in">int</span> = <span class="hljs-number">0</span>
+    _safe_next_offset: <span class="hljs-built_in">int</span> = field(init=<span class="hljs-literal">False</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__post_init__</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>._safe_next_offset = <span class="hljs-variable language_">self</span>.initial_next_offset
+        <span class="hljs-variable language_">self</span>.last_commit = <span class="hljs-variable language_">self</span>.initial_next_offset
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">observe</span>(<span class="hljs-params">self, offset: <span class="hljs-built_in">int</span>, generation: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.phase != PartitionPhase.ACTIVE <span class="hljs-keyword">or</span> generation != <span class="hljs-variable language_">self</span>.generation:
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+        <span class="hljs-keyword">if</span> offset &lt; <span class="hljs-variable language_">self</span>.initial_next_offset:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"offset lower than assignment start"</span>)
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.seen <span class="hljs-keyword">and</span> offset &lt;= <span class="hljs-variable language_">self</span>.seen[-<span class="hljs-number">1</span>]:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"newly fetched offsets must ascend"</span>)
+        <span class="hljs-variable language_">self</span>.seen.append(offset)
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">True</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">complete</span>(<span class="hljs-params">self, offset: <span class="hljs-built_in">int</span>, generation: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">if</span> generation != <span class="hljs-variable language_">self</span>.generation <span class="hljs-keyword">or</span> <span class="hljs-variable language_">self</span>.phase <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> {PartitionPhase.ACTIVE, PartitionPhase.REVOKING}:
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+        <span class="hljs-keyword">if</span> offset <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.seen:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"cannot finish an unobserved record"</span>)
+        <span class="hljs-variable language_">self</span>.succeeded.add(offset)
+        <span class="hljs-keyword">while</span> <span class="hljs-variable language_">self</span>._safe_index &lt; <span class="hljs-built_in">len</span>(<span class="hljs-variable language_">self</span>.seen) <span class="hljs-keyword">and</span> <span class="hljs-variable language_">self</span>.seen[<span class="hljs-variable language_">self</span>._safe_index] <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.succeeded:
+            processed = <span class="hljs-variable language_">self</span>.seen[<span class="hljs-variable language_">self</span>._safe_index]
+            <span class="hljs-variable language_">self</span>._safe_next_offset = processed + <span class="hljs-number">1</span>
+            <span class="hljs-variable language_">self</span>._safe_index += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">True</span>
+
+<span class="hljs-meta">    @property</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">safe_next_offset</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">int</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>._safe_next_offset
+
+<span class="hljs-meta">    @property</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">unfinished_count</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">int</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">len</span>(<span class="hljs-variable language_">self</span>.seen) - <span class="hljs-built_in">len</span>(<span class="hljs-variable language_">self</span>.succeeded)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">commit_succeeded</span>(<span class="hljs-params">self, target: <span class="hljs-built_in">int</span>, generation: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">if</span> generation != <span class="hljs-variable language_">self</span>.generation <span class="hljs-keyword">or</span> <span class="hljs-variable language_">self</span>.phase <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> {PartitionPhase.ACTIVE, PartitionPhase.REVOKING}:
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+        <span class="hljs-keyword">if</span> target &gt; <span class="hljs-variable language_">self</span>.safe_next_offset:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"cannot commit past safe frontier"</span>)
+        <span class="hljs-keyword">if</span> target &lt; (<span class="hljs-variable language_">self</span>.last_commit <span class="hljs-keyword">or</span> <span class="hljs-number">0</span>):
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"commit must not go backwards"</span>)
+        <span class="hljs-variable language_">self</span>.last_commit = target
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">True</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">start_revoke</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.phase != PartitionPhase.ACTIVE:
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+        <span class="hljs-variable language_">self</span>.phase = PartitionPhase.REVOKING
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">True</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">revoke</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.phase = PartitionPhase.REVOKED
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">lost</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.phase = PartitionPhase.LOST
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ProgressSnapshot</span>:
+    process_alive: <span class="hljs-built_in">bool</span>
+    heartbeat_recent: <span class="hljs-built_in">bool</span>
+    latest_end_offset: <span class="hljs-built_in">int</span>
+    committed_next_offset: <span class="hljs-built_in">int</span>
+    fetched_position: <span class="hljs-built_in">int</span>
+    in_flight: <span class="hljs-built_in">int</span>
+    last_success_age_s: <span class="hljs-built_in">float</span> | <span class="hljs-literal">None</span>
+    oldest_inflight_age_s: <span class="hljs-built_in">float</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+    backlog_wait_age_s: <span class="hljs-built_in">float</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+    ready: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">True</span>
+
+<span class="hljs-meta">    @property</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">committed_lag</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">int</span>:
+        <span class="hljs-string">"""Simple single-partition lag proxy; not exact number of physical messages."""</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">max</span>(<span class="hljs-number">0</span>, <span class="hljs-variable language_">self</span>.latest_end_offset - <span class="hljs-variable language_">self</span>.committed_next_offset)
+
+<span class="hljs-meta">    @property</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">fetch_lag</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">int</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">max</span>(<span class="hljs-number">0</span>, <span class="hljs-variable language_">self</span>.latest_end_offset - <span class="hljs-variable language_">self</span>.fetched_position)
+
+<span class="hljs-meta">    @property</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">uncommitted_gap</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">int</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">max</span>(<span class="hljs-number">0</span>, <span class="hljs-variable language_">self</span>.fetched_position - <span class="hljs-variable language_">self</span>.committed_next_offset)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">classify</span>(<span class="hljs-params">snapshot: ProgressSnapshot, stale_after_s: <span class="hljs-built_in">float</span> = <span class="hljs-number">30</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> snapshot.process_alive:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"DOWN"</span>
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> snapshot.ready <span class="hljs-keyword">or</span> <span class="hljs-keyword">not</span> snapshot.heartbeat_recent:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"UNREADY"</span>
+    <span class="hljs-keyword">if</span> snapshot.committed_lag == <span class="hljs-number">0</span> <span class="hljs-keyword">and</span> snapshot.in_flight == <span class="hljs-number">0</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"IDLE_HEALTHY"</span>
+    <span class="hljs-comment"># Missing last-success timestamp alone is NOT proof of stalled work.</span>
+    inflight_stale = (snapshot.oldest_inflight_age_s <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>
+                      <span class="hljs-keyword">and</span> snapshot.oldest_inflight_age_s &gt; stale_after_s)
+    no_progress_stale = (snapshot.last_success_age_s <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>
+                         <span class="hljs-keyword">and</span> snapshot.last_success_age_s &gt; stale_after_s)
+    backlog_stale = (snapshot.backlog_wait_age_s <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>
+                     <span class="hljs-keyword">and</span> snapshot.backlog_wait_age_s &gt; stale_after_s)
+    <span class="hljs-keyword">if</span> snapshot.in_flight &gt; <span class="hljs-number">0</span> <span class="hljs-keyword">and</span> (inflight_stale <span class="hljs-keyword">or</span> no_progress_stale):
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"STALLED_IN_FLIGHT"</span>
+    <span class="hljs-keyword">if</span> snapshot.committed_lag &gt; <span class="hljs-number">0</span> <span class="hljs-keyword">and</span> (no_progress_stale <span class="hljs-keyword">or</span> backlog_stale):
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"STALLED_BACKLOG"</span>
+    <span class="hljs-keyword">if</span> snapshot.committed_lag &gt; <span class="hljs-number">0</span> <span class="hljs-keyword">and</span> snapshot.last_success_age_s <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">and</span> snapshot.oldest_inflight_age_s <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">and</span> snapshot.backlog_wait_age_s <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"PROGRESS_UNKNOWN"</span>
+    <span class="hljs-keyword">if</span> snapshot.committed_lag &gt; <span class="hljs-number">0</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"BACKLOG_PROGRESSING"</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"WORKING"</span>
+
+
+<span class="hljs-meta">@dataclass</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">DrainReport</span>:
+    completed: <span class="hljs-built_in">int</span>
+    cancelled: <span class="hljs-built_in">int</span>
+    errors: <span class="hljs-built_in">int</span>
+    pending: <span class="hljs-built_in">int</span>
+
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">bounded_drain</span>(<span class="hljs-params">
+    tasks: <span class="hljs-built_in">list</span>[asyncio.Task], timeout_s: <span class="hljs-built_in">float</span>,
+    *, cancel_grace_s: <span class="hljs-built_in">float</span> = <span class="hljs-number">0.05</span>, on_cancel: <span class="hljs-type">Callable</span>[[], <span class="hljs-literal">None</span>] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+</span>) -&gt; DrainReport:
+    <span class="hljs-string">"""Wait a fixed period, request cancellation for remaining tasks, join them.
+
+    External I/O may continue even when local coroutine is cancelled; this
+    function cannot guarantee completion before a process force-kill.
+    """</span>
+    <span class="hljs-keyword">if</span> timeout_s &lt; <span class="hljs-number">0</span> <span class="hljs-keyword">or</span> cancel_grace_s &lt; <span class="hljs-number">0</span>:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"timeouts must be nonnegative"</span>)
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> tasks:
+        <span class="hljs-keyword">return</span> DrainReport(<span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>)
+    done, pending = <span class="hljs-keyword">await</span> asyncio.wait(tasks, timeout=timeout_s)
+    <span class="hljs-keyword">if</span> pending:
+        <span class="hljs-keyword">if</span> on_cancel:
+            on_cancel()
+        <span class="hljs-keyword">for</span> task <span class="hljs-keyword">in</span> pending:
+            task.cancel()
+        stopped, pending = <span class="hljs-keyword">await</span> asyncio.wait(pending, timeout=cancel_grace_s)
+        done.update(stopped)
+    errors = <span class="hljs-built_in">sum</span>(t.exception() <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> done <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> t.cancelled())
+    completed = <span class="hljs-built_in">sum</span>(<span class="hljs-keyword">not</span> t.cancelled() <span class="hljs-keyword">and</span> t.exception() <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> done)
+    cancelled = <span class="hljs-built_in">sum</span>(t.cancelled() <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> done)
+    <span class="hljs-keyword">return</span> DrainReport(completed, cancelled, errors, <span class="hljs-built_in">len</span>(pending))
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">WorkerLifecycle</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.accepting = <span class="hljs-literal">True</span>
+        <span class="hljs-variable language_">self</span>.phase = <span class="hljs-string">"RUNNING"</span>
+        <span class="hljs-variable language_">self</span>.tasks: <span class="hljs-built_in">set</span>[asyncio.Task] = <span class="hljs-built_in">set</span>()
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">submit</span>(<span class="hljs-params">self, coro: Awaitable</span>):
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-variable language_">self</span>.accepting:
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">hasattr</span>(coro, <span class="hljs-string">'close'</span>):
+                coro.close()
+            <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"worker draining"</span>)
+        task = asyncio.create_task(coro)
+        <span class="hljs-variable language_">self</span>.tasks.add(task)
+        task.add_done_callback(<span class="hljs-variable language_">self</span>.tasks.discard)
+        <span class="hljs-keyword">return</span> task
+
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">shutdown</span>(<span class="hljs-params">self, timeout_s: <span class="hljs-built_in">float</span></span>) -&gt; DrainReport:
+        <span class="hljs-variable language_">self</span>.accepting = <span class="hljs-literal">False</span>
+        <span class="hljs-variable language_">self</span>.phase = <span class="hljs-string">"DRAINING"</span>
+        report = <span class="hljs-keyword">await</span> bounded_drain(<span class="hljs-built_in">list</span>(<span class="hljs-variable language_">self</span>.tasks), timeout_s)
+        <span class="hljs-variable language_">self</span>.phase = <span class="hljs-string">"STOPPED"</span> <span class="hljs-keyword">if</span> report.pending == <span class="hljs-number">0</span> <span class="hljs-keyword">else</span> <span class="hljs-string">"UNSAFE_TO_CLOSE"</span>
+        <span class="hljs-keyword">return</span> report
+</code></pre></div><hr />
+<h2 id="section-48">附录 B：自动化测试代码</h2>
+<p>保存为 <code>test_kafka_lifecycle_demo.py</code>，与上一个文件放在同一目录：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> unittest
+<span class="hljs-keyword">from</span> kafka_lifecycle_demo <span class="hljs-keyword">import</span> (
+    PartitionTracker, PartitionPhase, ProgressSnapshot, classify,
+    bounded_drain, WorkerLifecycle,
+)
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">TrackerTests</span>(unittest.TestCase):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">setUp</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.p = PartitionTracker(generation=<span class="hljs-number">1</span>, initial_next_offset=<span class="hljs-number">100</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_initial_safe_offset</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.p.safe_next_offset, <span class="hljs-number">100</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_initial_committed_offset</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.p.last_commit, <span class="hljs-number">100</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_observe</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertTrue(<span class="hljs-variable language_">self</span>.p.observe(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_stale_observe_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertFalse(<span class="hljs-variable language_">self</span>.p.observe(<span class="hljs-number">100</span>,<span class="hljs-number">0</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_reverse_observe_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.p.observe(<span class="hljs-number">101</span>,<span class="hljs-number">1</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): <span class="hljs-variable language_">self</span>.p.observe(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_low_observe_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): <span class="hljs-variable language_">self</span>.p.observe(<span class="hljs-number">99</span>,<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_finish_unobserved_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): <span class="hljs-variable language_">self</span>.p.complete(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_fast_later_record_does_not_advance</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">for</span> n <span class="hljs-keyword">in</span> [<span class="hljs-number">100</span>,<span class="hljs-number">101</span>,<span class="hljs-number">102</span>]: <span class="hljs-variable language_">self</span>.p.observe(n,<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.p.complete(<span class="hljs-number">102</span>,<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.p.safe_next_offset,<span class="hljs-number">100</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_frontier_advances_on_gap_close</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">for</span> n <span class="hljs-keyword">in</span> [<span class="hljs-number">100</span>,<span class="hljs-number">101</span>,<span class="hljs-number">102</span>]: <span class="hljs-variable language_">self</span>.p.observe(n,<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.p.complete(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>); <span class="hljs-variable language_">self</span>.p.complete(<span class="hljs-number">102</span>,<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.p.safe_next_offset,<span class="hljs-number">101</span>)
+        <span class="hljs-variable language_">self</span>.p.complete(<span class="hljs-number">101</span>,<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.p.safe_next_offset,<span class="hljs-number">103</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_offset_gaps_possible</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">for</span> n <span class="hljs-keyword">in</span> [<span class="hljs-number">100</span>,<span class="hljs-number">104</span>,<span class="hljs-number">105</span>]: <span class="hljs-variable language_">self</span>.p.observe(n,<span class="hljs-number">1</span>)
+        <span class="hljs-keyword">for</span> n <span class="hljs-keyword">in</span> [<span class="hljs-number">100</span>,<span class="hljs-number">104</span>,<span class="hljs-number">105</span>]: <span class="hljs-variable language_">self</span>.p.complete(n,<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.p.safe_next_offset,<span class="hljs-number">106</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_bad_commit_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.p.observe(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): <span class="hljs-variable language_">self</span>.p.commit_succeeded(<span class="hljs-number">101</span>,<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_safe_commit</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.p.observe(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>); <span class="hljs-variable language_">self</span>.p.complete(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertTrue(<span class="hljs-variable language_">self</span>.p.commit_succeeded(<span class="hljs-number">101</span>,<span class="hljs-number">1</span>))
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.p.last_commit,<span class="hljs-number">101</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_backward_commit_rejected</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.p.observe(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>); <span class="hljs-variable language_">self</span>.p.complete(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>); <span class="hljs-variable language_">self</span>.p.commit_succeeded(<span class="hljs-number">101</span>,<span class="hljs-number">1</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): <span class="hljs-variable language_">self</span>.p.commit_succeeded(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_revoking_rejects_new_fetch</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertTrue(<span class="hljs-variable language_">self</span>.p.start_revoke())
+        <span class="hljs-variable language_">self</span>.assertFalse(<span class="hljs-variable language_">self</span>.p.observe(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_revoking_allows_existing_completion</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.p.observe(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>); <span class="hljs-variable language_">self</span>.p.start_revoke()
+        <span class="hljs-variable language_">self</span>.assertTrue(<span class="hljs-variable language_">self</span>.p.complete(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_revoked_rejects_old_completion</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.p.observe(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>); <span class="hljs-variable language_">self</span>.p.revoke()
+        <span class="hljs-variable language_">self</span>.assertFalse(<span class="hljs-variable language_">self</span>.p.complete(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_lost_rejects_commit</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.p.lost()
+        <span class="hljs-variable language_">self</span>.assertFalse(<span class="hljs-variable language_">self</span>.p.commit_succeeded(<span class="hljs-number">100</span>,<span class="hljs-number">1</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_old_generation_rejects_commit</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertFalse(<span class="hljs-variable language_">self</span>.p.commit_succeeded(<span class="hljs-number">100</span>,<span class="hljs-number">2</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_unfinished_count</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">for</span> n <span class="hljs-keyword">in</span> (<span class="hljs-number">100</span>,<span class="hljs-number">101</span>): <span class="hljs-variable language_">self</span>.p.observe(n,<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.p.complete(<span class="hljs-number">101</span>,<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.p.unfinished_count,<span class="hljs-number">1</span>)
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">MonitorTests</span>(unittest.TestCase):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">s</span>(<span class="hljs-params">self, **kw</span>):
+        v = <span class="hljs-built_in">dict</span>(process_alive=<span class="hljs-literal">True</span>, heartbeat_recent=<span class="hljs-literal">True</span>, latest_end_offset=<span class="hljs-number">110</span>,
+                 committed_next_offset=<span class="hljs-number">100</span>, fetched_position=<span class="hljs-number">109</span>, in_flight=<span class="hljs-number">2</span>, last_success_age_s=<span class="hljs-number">2.0</span>)
+        v.update(kw)
+        <span class="hljs-keyword">return</span> ProgressSnapshot(**v)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_lag_values</span>(<span class="hljs-params">self</span>):
+        s = <span class="hljs-variable language_">self</span>.s(); <span class="hljs-variable language_">self</span>.assertEqual((s.committed_lag,s.fetch_lag,s.uncommitted_gap),(<span class="hljs-number">10</span>,<span class="hljs-number">1</span>,<span class="hljs-number">9</span>))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_down</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.assertEqual(classify(<span class="hljs-variable language_">self</span>.s(process_alive=<span class="hljs-literal">False</span>)), <span class="hljs-string">'DOWN'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_bad_heartbeat</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.assertEqual(classify(<span class="hljs-variable language_">self</span>.s(heartbeat_recent=<span class="hljs-literal">False</span>)), <span class="hljs-string">'UNREADY'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_bad_readiness</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.assertEqual(classify(<span class="hljs-variable language_">self</span>.s(ready=<span class="hljs-literal">False</span>)), <span class="hljs-string">'UNREADY'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_idle_healthy</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.assertEqual(classify(<span class="hljs-variable language_">self</span>.s(latest_end_offset=<span class="hljs-number">100</span>,fetched_position=<span class="hljs-number">100</span>,in_flight=<span class="hljs-number">0</span>)), <span class="hljs-string">'IDLE_HEALTHY'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_stalled_inflight</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.assertEqual(classify(<span class="hljs-variable language_">self</span>.s(last_success_age_s=<span class="hljs-number">45</span>)), <span class="hljs-string">'STALLED_IN_FLIGHT'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_stalled_backlog</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.assertEqual(classify(<span class="hljs-variable language_">self</span>.s(in_flight=<span class="hljs-number">0</span>,last_success_age_s=<span class="hljs-number">45</span>)), <span class="hljs-string">'STALLED_BACKLOG'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_progressing</span>(<span class="hljs-params">self</span>): <span class="hljs-variable language_">self</span>.assertEqual(classify(<span class="hljs-variable language_">self</span>.s()), <span class="hljs-string">'BACKLOG_PROGRESSING'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_working_no_lag</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(classify(<span class="hljs-variable language_">self</span>.s(latest_end_offset=<span class="hljs-number">100</span>,fetched_position=<span class="hljs-number">100</span>,in_flight=<span class="hljs-number">1</span>)), <span class="hljs-string">'WORKING'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_success_with_backlog_unknown_without_age</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(classify(<span class="hljs-variable language_">self</span>.s(in_flight=<span class="hljs-number">0</span>,last_success_age_s=<span class="hljs-literal">None</span>)), <span class="hljs-string">'PROGRESS_UNKNOWN'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_no_success_with_old_backlog</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(classify(<span class="hljs-variable language_">self</span>.s(in_flight=<span class="hljs-number">0</span>,last_success_age_s=<span class="hljs-literal">None</span>,backlog_wait_age_s=<span class="hljs-number">35</span>)), <span class="hljs-string">'STALLED_BACKLOG'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_new_inflight_is_not_stalled</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(classify(<span class="hljs-variable language_">self</span>.s(last_success_age_s=<span class="hljs-literal">None</span>,oldest_inflight_age_s=<span class="hljs-number">2</span>)), <span class="hljs-string">'BACKLOG_PROGRESSING'</span>)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_old_inflight_is_stalled</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.assertEqual(classify(<span class="hljs-variable language_">self</span>.s(last_success_age_s=<span class="hljs-literal">None</span>,oldest_inflight_age_s=<span class="hljs-number">35</span>)), <span class="hljs-string">'STALLED_IN_FLIGHT'</span>)
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">DrainTests</span>(unittest.IsolatedAsyncioTestCase):
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_empty_drain</span>(<span class="hljs-params">self</span>):
+        r = <span class="hljs-keyword">await</span> bounded_drain([], <span class="hljs-number">0.01</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(r.completed,<span class="hljs-number">0</span>)
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_drain_good_task</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">fast</span>(): <span class="hljs-keyword">return</span> <span class="hljs-number">1</span>
+        t = asyncio.create_task(fast())
+        r = <span class="hljs-keyword">await</span> bounded_drain([t], <span class="hljs-number">0.1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual((r.completed,r.cancelled), (<span class="hljs-number">1</span>,<span class="hljs-number">0</span>))
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_drain_cancel_pending</span>(<span class="hljs-params">self</span>):
+        cleanup=[]
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">slow</span>():
+            <span class="hljs-keyword">try</span>: <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">30</span>)
+            <span class="hljs-keyword">finally</span>: cleanup.append(<span class="hljs-literal">True</span>)
+        t = asyncio.create_task(slow())
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0</span>)
+        r = <span class="hljs-keyword">await</span> bounded_drain([t],<span class="hljs-number">0.001</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(r.cancelled,<span class="hljs-number">1</span>); <span class="hljs-variable language_">self</span>.assertEqual(cleanup,[<span class="hljs-literal">True</span>])
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_drain_failure_count</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">fail</span>(): <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">'x'</span>)
+        t = asyncio.create_task(fail())
+        r = <span class="hljs-keyword">await</span> bounded_drain([t],<span class="hljs-number">0.1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual((r.errors,r.completed),(<span class="hljs-number">1</span>,<span class="hljs-number">0</span>))
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_worker_refuses_new_work</span>(<span class="hljs-params">self</span>):
+        w = WorkerLifecycle()
+        <span class="hljs-keyword">await</span> w.shutdown(<span class="hljs-number">0.01</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(RuntimeError): w.submit(asyncio.sleep(<span class="hljs-number">0</span>))
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_worker_drain</span>(<span class="hljs-params">self</span>):
+        w = WorkerLifecycle()
+        t = w.submit(asyncio.sleep(<span class="hljs-number">0</span>))
+        report = <span class="hljs-keyword">await</span> w.shutdown(<span class="hljs-number">0.5</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(w.phase,<span class="hljs-string">'STOPPED'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(report.completed,<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertTrue(t.done())
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_worker_stops_slow_task</span>(<span class="hljs-params">self</span>):
+        w=WorkerLifecycle()
+        t=w.submit(asyncio.sleep(<span class="hljs-number">30</span>))
+        r=<span class="hljs-keyword">await</span> w.shutdown(<span class="hljs-number">0.001</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(r.cancelled,<span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertTrue(t.cancelled())
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_uncooperative_task_leaves_pending</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">uncooperative</span>():
+            <span class="hljs-keyword">try</span>: <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">10</span>)
+            <span class="hljs-keyword">except</span> asyncio.CancelledError:
+                <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0.07</span>)
+        t = asyncio.create_task(uncooperative())
+        <span class="hljs-keyword">await</span> asyncio.sleep(<span class="hljs-number">0</span>)
+        report = <span class="hljs-keyword">await</span> bounded_drain([t], <span class="hljs-number">0</span>, cancel_grace_s=<span class="hljs-number">0.001</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(report.pending, <span class="hljs-number">1</span>)
+        <span class="hljs-keyword">await</span> t
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_negative_timeout</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError): <span class="hljs-keyword">await</span> bounded_drain([], -<span class="hljs-number">1</span>)
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">'__main__'</span>:
+    unittest.main()
+</code></pre></div><h3 id="section-49">运行命令及实际结果</h3>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m unittest -q</code></pre></div><p>本地实际运行：<strong>41 项测试通过</strong>。测试范围包括安全提交水位、分区撤销与失去所有权、Offset 空洞、Lag 计算、进程活着但业务停滞、优雅停机的有界等待和取消；不包括真实 Kafka Broker、Rebalance 网络事件或 PostgreSQL 事务集成。</p>
+<h3 id="section-50">结果与可推断结论的边界</h3>
+<ul>
+<li>可以据此检验示例中的本地算法和状态转换。</li>
+<li>不能据此推断真实 Kafka 的延迟、吞吐量、重平衡时长或者 Kafka/数据库跨系统事务的正确性。</li>
+<li>在真实工程里，应补充 <code>aiokafka</code> 消费组测试、SIGTERM/SIGKILL 进程级故障注入、数据库唯一约束和租约代际测试。</li>
+</ul>

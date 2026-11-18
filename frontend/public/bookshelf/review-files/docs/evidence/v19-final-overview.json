@@ -1,0 +1,66 @@
+{
+  "passed": true,
+  "checked_at": "2026-11-13T03:15:21.823101+00:00",
+  "backend_tests": 209,
+  "backend_failures": 0,
+  "frontend_tests": 17,
+  "public_entry_tests": 1,
+  "primary_source_files_matched": 36,
+  "main_database_matches_backup_before_readiness_login": true,
+  "tables": 19,
+  "readiness_login_notice": "Only subsequent test authentication tokens added; no model or business submission in these probes",
+  "services": [
+    {
+      "service": "api",
+      "state": "running",
+      "health": "healthy"
+    },
+    {
+      "service": "kafka",
+      "state": "running",
+      "health": "healthy"
+    },
+    {
+      "service": "postgres",
+      "state": "running",
+      "health": "healthy"
+    },
+    {
+      "service": "redis",
+      "state": "running",
+      "health": "healthy"
+    },
+    {
+      "service": "web",
+      "state": "running",
+      "health": ""
+    },
+    {
+      "service": "worker",
+      "state": "running",
+      "health": ""
+    }
+  ],
+  "public_readiness_probes": [
+    {
+      "phase": "guest_auth",
+      "status": 200
+    },
+    {
+      "phase": "authenticated_public_health",
+      "status": 200
+    }
+  ],
+  "budget": {
+    "spent_cny": 15.169532000000007,
+    "reserved_cny": 0.0,
+    "limit_cny": 200.0,
+    "warning": false
+  },
+  "backup_restore_tables": 19,
+  "restore_api_model_requests": 0,
+  "paid_requests_sent_by_this_check": 0,
+  "worker_hour_repeated": false,
+  "qq_in_scope": false,
+  "human_trial_in_scope": false
+}

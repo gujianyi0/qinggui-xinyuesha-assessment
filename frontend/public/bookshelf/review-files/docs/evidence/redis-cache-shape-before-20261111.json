@@ -1,0 +1,7 @@
+{
+  "reproduced": true,
+  "actual": {
+    "stale_canary": true
+  },
+  "expected": "invalid cached shape must be treated as a miss and repaired from source"
+}

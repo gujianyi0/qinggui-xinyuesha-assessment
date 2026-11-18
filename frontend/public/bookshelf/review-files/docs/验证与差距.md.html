@@ -1,0 +1,55 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>验证与差距.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>最新：1.9</h1>
+<p>当前裁定约束、断线恢复、32条真实回归和备份恢复进展见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.9-%E8%A3%81%E5%AE%9A%E7%BA%A6%E6%9D%9F%E6%96%AD%E7%BA%BF%E6%81%A2%E5%A4%8D%E4%B8%8E%E5%AE%8C%E6%95%B4%E5%9B%9E%E5%BD%92-20261113.md">1.9报告</a>与<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E9%AA%8C%E6%94%B6%E7%9F%A9%E9%98%B5.md">最新矩阵</a>。209项后端、17项前端通过；原32条重跑、V01超时同版本复测后采用32条/35回合，109引用完整性问题0。公网刷新恢复实际通过。当前费用约15.169532元，预算不重置。</p>
+<p>仍有边界：公司验收待安排；QQ/真人试用移出，不记完成；额外召回相关性、部分普通问答措辞和Markdown阅读体验可改进。单API、本机持续开机联网、手动备份尚无异地副本；当前恢复演练与正式灾难切换分开，不提供高可用或无限多轮记忆保证。</p>
+<h2>历史：1.8共享真实问答</h2>
+<p>固定公网入口和下载客户端已接本机真实模型，密钥留本机。184后端、11前端及构建通过；真实问答先后包含取消、成功、超时、追问重试成功，失败均保留，10引用完整性问题0。累计费用约11.851794元。前两轮连接恢复出现503，最终HTTPS严格复测17组全部200；详见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.8-%E6%9C%AC%E6%9C%BA%E5%85%B1%E4%BA%AB%E7%9C%9F%E5%AE%9E%E9%97%AE%E7%AD%94%E4%B8%8E%E9%AA%8C%E8%AF%81-20261112.md">1.8报告</a>及原始报告为准；未增加问答配额，没有重跑一小时或完整32条。</p>
+<p>当前GitHub已经公开；下方1.7“私有/不改成公开”的文字为当时状态，已被用户后续公开授权替代。QQ/真人试用仍不在交付范围。供他人访问须本机开机联网运行，尚未在另一台物理电脑全新安装；附加检索引用的相关性仍可改进。</p>
+<h2>历史：1.7验证</h2>
+<h1>验证与验收差距</h1>
+<p>更新：2026-11-12，版本1.7。<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.7-I01%E8%BF%BD%E9%97%AE%E4%B8%8E%E8%BE%93%E5%85%A5%E7%84%A6%E7%82%B9%E4%BF%AE%E5%A4%8D-20261112.md">本轮修复与复测</a>为最新依据；1.6全部历史错误与整组记录保留。</p>
+<table>
+<thead>
+<tr>
+<th>范围</th>
+<th>本轮结果</th>
+<th>边界</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>反馈与多轮</td>
+<td>I01/I02/M01/M02/M03共5条8回合＋FI01两回合通过，33引用问题0</td>
+<td>I01关闭；不是完整32条重跑或独立真人试用</td>
+</tr>
+<tr>
+<td>输入焦点</td>
+<td>正文后点空白长竖线修复，用户Edge现场确认；焦点浏览器7项通过</td>
+<td>浏览器检查接口全替身，未调用模型/写业务库</td>
+</tr>
+<tr>
+<td>自动化</td>
+<td>162后端、7前端，构建/Ruff通过</td>
+<td>18项SDK协议含模拟HTTP；19项历史QQ协议不代表真实QQ</td>
+</tr>
+<tr>
+<td>当前部署</td>
+<td>Docker1.7.0、后端26文件一致；前端BRXwD8U0/Cml1dYb1资产</td>
+<td>标准构建后追加应用层边界修正，源哈希核对后才运行真实评测</td>
+</tr>
+<tr>
+<td>费用与数据</td>
+<td>累计约9.800032元，新增0.078210元，预留/未结算0；正式反馈/草稿未增加</td>
+<td>估算，非供应商账单；旧原生启动保护保持</td>
+</tr>
+<tr>
+<td>后台与裁定</td>
+<td>1.6的17组故障及9次Lua证据保持</td>
+<td>本轮未重跑基础设施矩阵或一小时</td>
+</tr>
+<tr>
+<td>GitHub</td>
+<td>用户授权上传至本人账号下私有仓库，见README与Actions</td>
+<td>不改成公开，不添加其他协作者；正式验收安排未确定</td>
+</tr>
+</tbody></table>
+<p>I01与长竖线已关闭。尚有Markdown以文本显示的阅读体验建议；F01真实主库保持故障注入关闭。QQ和真人试用按用户决定移除，不列待联调/待招募，不记原文试用条目通过。公司最终验收与本机/托管检查分开。</p>
+</article></body></html>

@@ -1,0 +1,13 @@
+{
+  "name": "qinggui-assessment-bookshelf-export",
+  "version": "2.0.3",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node export-assessment.mjs"
+  },
+  "dependencies": {
+    "marked": "16.4.2",
+    "sanitize-html": "2.18.2"
+  }
+}

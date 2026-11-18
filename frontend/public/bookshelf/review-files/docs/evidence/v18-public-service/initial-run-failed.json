@@ -1,0 +1,17 @@
+{
+  "run_id": "a12717a9-3764-50be-9a9c-66e0160eafbe",
+  "status": "cancelled",
+  "error": "用户取消",
+  "question": "曹操有哪些技能？请说明技能原文、资料快照和来源。",
+  "text": "",
+  "citations": [],
+  "public_run_accepted_utc": "2026-11-12T10:29:53.107Z",
+  "first_result_query_utc": "2026-11-12T10:29:55.650Z",
+  "client_cancel_utc": "2026-11-12T10:30:20.761Z",
+  "budget_before": 9.800032000000005,
+  "budget_after": 10.810720000000005,
+  "usage_known": false,
+  "charged_cny": 1.010688,
+  "evidence": "Docker API request log and PostgreSQL persisted run; initial browser assertion failed before summary was written",
+  "cause_boundary": "A failed progress query triggered client cancellation; the initial HTTP response was not preserved, so its exact transport failure is not asserted."
+}

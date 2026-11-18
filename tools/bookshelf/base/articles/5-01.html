@@ -1,0 +1,1251 @@
+<h1 id="section-1">HTTP 服务、SQL、数据库与缓存（01）</h1>
+<h1 id="section-2">FastAPI 请求与响应模型、输入校验、错误状态、生命周期及前端状态管理</h1>
+<blockquote>
+<p>对应知识目标：<strong>FastAPI 请求与响应模型、输入校验、错误状态和生命周期；前端能区分请求失败、处理中和业务成功。</strong><br />知识范围：Python 3.10+、FastAPI、Pydantic v2、Starlette/ASGI、HTTP、浏览器 Fetch。<br />参考资料核对时间：2026-11-11。本文是独立知识文档。示例是教学服务，不承担生产环境的持久化任务保障。</p>
+</blockquote>
+<h2 id="section-3">目录</h2>
+<ol>
+<li>HTTP API 的执行模型与分层契约</li>
+<li>HTTP 请求从何处获取参数</li>
+<li>FastAPI 请求模型与 Pydantic 校验</li>
+<li>字段可选、默认值、可空与严格类型</li>
+<li>校验发生在哪一步，什么是 422</li>
+<li>响应模型、序列化和字段过滤</li>
+<li>响应模型错误为何属于服务端错误</li>
+<li>HTTP 状态码与业务执行状态</li>
+<li>错误对象设计与错误传播</li>
+<li>网络失败、HTTP 失败与业务失败</li>
+<li>202 Accepted 与异步任务状态机</li>
+<li>前端状态转换、Fetch、超时和重试</li>
+<li>FastAPI 生命周期与资源管理</li>
+<li>中间件、依赖注入、异常处理顺序</li>
+<li>CORS 与浏览器前后端联调</li>
+<li>可观测性与请求 ID</li>
+<li>完整可运行 FastAPI 示例</li>
+<li>对应的 JavaScript 前端示例</li>
+<li>自动化测试、验证结果及适用边界</li>
+<li>常见错误与诊断思路</li>
+<li>延伸知识与官方参考资料</li>
+</ol>
+<hr />
+<h2 id="section-4">1. HTTP API 的执行模型与分层契约</h2>
+<h3 id="section-5">1.1 HTTP 请求和响应</h3>
+<p>HTTP 是客户端与服务器之间交换表示信息的应用层协议。一条典型请求由方法、URL、请求头、请求体组成；响应由状态码、响应头、响应体组成。</p>
+<div class="code-wrap"><div class="code-label"><span>http</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">POST</span> <span class="hljs-string">/v1/messages</span> <span class="hljs-meta">HTTP/1.1</span>
+<span class="hljs-attribute">Host</span><span class="hljs-punctuation">: </span>api.example.test
+<span class="hljs-attribute">Content-Type</span><span class="hljs-punctuation">: </span>application/json
+<span class="hljs-attribute">Authorization</span><span class="hljs-punctuation">: </span>Bearer &lt;token&gt;
+
+<span class="language-css">{"<span class="hljs-selector-tag">text</span>":<span class="hljs-string">"请解释角色技能"</span>}</span></code></pre></div><div class="code-wrap"><div class="code-label"><span>http</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-meta">HTTP/1.1</span> <span class="hljs-number">201</span> Created
+<span class="hljs-attribute">Content-Type</span><span class="hljs-punctuation">: </span>application/json
+<span class="hljs-attribute">X-Request-ID</span><span class="hljs-punctuation">: </span>14fb...
+
+<span class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-attr">"message_id"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"..."</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"answer"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"已收到：请解释角色技能"</span><span class="hljs-punctuation">}</span></span></code></pre></div><p><strong>不要混淆四个层次：</strong></p>
+<ul>
+<li><strong>传输层结果</strong>：DNS、TCP、TLS、代理、请求是否真正到达。网络失败时可能根本没有 HTTP 响应。</li>
+<li><strong>HTTP 结果</strong>：<code>200</code>、<code>201</code>、<code>202</code>、<code>404</code>、<code>422</code>、<code>500</code> 等，表示这次 HTTP 交互的语义。</li>
+<li><strong>业务执行状态</strong>：如 <code>PENDING</code>、<code>RUNNING</code>、<code>SUCCEEDED</code>、<code>FAILED</code>。与单次 HTTP 状态码不是同一回事。</li>
+<li><strong>前端交互状态</strong>：如正在提交、等待结果、展示成功、展示错误。它是客户端对前三者的映射。</li>
+</ul>
+<h3 id="section-6">1.2 FastAPI 处于什么位置</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">浏览器 / App
+  │  HTTP Request
+  ▼
+ASGI Server（例如 Uvicorn）
+  │
+  ▼
+Middleware（CORS、日志、Request ID 等）
+  │
+  ▼
+Router（匹配方法和路径）
+  │
+  ▼
+依赖解析 + 参数提取 + Pydantic 请求校验
+  │
+  ▼
+Endpoint（路由函数） → Service → Repository / 外部服务
+  │
+  ▼
+Response Model 校验 / 序列化
+  │
+  ▼
+Exception Handler 或 HTTP Response
+  │
+  ▼
+前端根据响应和业务状态更新 UI</code></pre></div><p>ASGI 是 Python 异步服务器与应用之间的接口规范。Uvicorn 运行 ASGI 应用，FastAPI 在 Starlette 之上提供路由、依赖注入、数据验证与 OpenAPI 生成等能力。业务代码负责对象权限、数据库事务、外部 API 与实际业务规则。</p>
+<h3 id="section-7">1.3 什么是接口契约</h3>
+<p>接口契约需要明确：</p>
+<ol>
+<li><strong>输入契约</strong>：路径、查询、头、正文各有哪些参数；类型、范围、默认值和约束。</li>
+<li><strong>成功契约</strong>：成功时的 HTTP 状态、响应模型和业务语义。</li>
+<li><strong>错误契约</strong>：每类错误对应的状态码、稳定错误码、可重试性及字段定位。</li>
+<li><strong>异步契约</strong>：接收任务、查询任务、最终状态和结果是否可恢复。</li>
+<li><strong>生命周期契约</strong>：客户端断开、服务重启或取消请求时任务如何处理。</li>
+</ol>
+<p>接口契约不仅用于生成 API 文档，更直接决定前端能否正确显示界面。</p>
+<hr />
+<h2 id="section-8">2. HTTP 请求从何处获取参数</h2>
+<p>FastAPI 可以把请求的不同部分转换成 Python 参数：</p>
+<table>
+<thead>
+<tr>
+<th>来源</th>
+<th>声明方式</th>
+<th>典型用途</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Path</td>
+<td>路径参数 / <code>Path()</code></td>
+<td>资源标识</td>
+<td><code>/users/12</code></td>
+</tr>
+<tr>
+<td>Query</td>
+<td>普通简单参数 / <code>Query()</code></td>
+<td>排序、分页、过滤</td>
+<td><code>?page=2</code></td>
+</tr>
+<tr>
+<td>Body</td>
+<td>Pydantic 模型 / <code>Body()</code></td>
+<td>创建、更新资源</td>
+<td>JSON 对象</td>
+</tr>
+<tr>
+<td>Header</td>
+<td><code>Header()</code></td>
+<td>认证、幂等键、条件请求</td>
+<td><code>If-Match</code></td>
+</tr>
+<tr>
+<td>Cookie</td>
+<td><code>Cookie()</code></td>
+<td>会话相关值</td>
+<td>Session Cookie</td>
+</tr>
+<tr>
+<td>Dependency</td>
+<td><code>Depends()</code></td>
+<td>认证、会话、共享逻辑</td>
+<td>当前用户</td>
+</tr>
+</tbody></table>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI, Path, Query, Header
+<span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, Field
+
+app = FastAPI()
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ProductChange</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    name: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>)
+    count: <span class="hljs-built_in">int</span> = Field(ge=<span class="hljs-number">0</span>)
+
+<span class="hljs-meta">@app.put(<span class="hljs-params"><span class="hljs-string">'/products/{product_id}'</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">update_product</span>(<span class="hljs-params">
+    data: ProductChange,
+    product_id: <span class="hljs-built_in">int</span> = Path(<span class="hljs-params">ge=<span class="hljs-number">1</span></span>),
+    dry_run: <span class="hljs-built_in">bool</span> = Query(<span class="hljs-params"><span class="hljs-literal">False</span></span>),
+    if_match: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = Header(<span class="hljs-params">default=<span class="hljs-literal">None</span></span>),
+</span>):
+    <span class="hljs-keyword">return</span> {
+        <span class="hljs-string">'product_id'</span>: product_id,
+        <span class="hljs-string">'data'</span>: data.model_dump(),
+        <span class="hljs-string">'dry_run'</span>: dry_run,
+        <span class="hljs-string">'if_match'</span>: if_match,
+    }</code></pre></div><p>关键细节：</p>
+<ul>
+<li>URL 路径中与参数同名的字段通常按路径处理；简单类型参数通常按查询处理；Pydantic 模型通常来自请求体。</li>
+<li>JSON 正文并不意味着可以无条件信任。必须校验格式、类型、字段、长度、值域与业务合法性。</li>
+<li>Query 等输入来自 URL 文本，FastAPI/Pydantic 可进行适当转换；是否采用严格类型应依据业务场景决定。</li>
+<li><code>Header</code> 映射的客户端值不是天然可信的认证主体；<code>Authorization</code> 要经真实身份验证。</li>
+<li><strong>前端传来的 <code>user_id</code> / <code>tenant_id</code> 不能代替后端认证与对象级授权。</strong></li>
+<li>对 <code>GET</code> 请求不建议使用 JSON Body；虽然某些框架能接收，但客户端、代理与规范化工具的兼容性较差。</li>
+</ul>
+<hr />
+<h2 id="section-9">3. FastAPI 请求模型与 Pydantic 校验</h2>
+<h3 id="section-10">3.1 从 JSON 到 Python 对象</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, Field, ConfigDict
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ChatRequest</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    model_config = ConfigDict(extra=<span class="hljs-string">'forbid'</span>, strict=<span class="hljs-literal">True</span>)
+
+    text: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>, max_length=<span class="hljs-number">200</span>)
+
+<span class="hljs-meta">@app.post(<span class="hljs-params"><span class="hljs-string">'/chat'</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">chat</span>(<span class="hljs-params">data: ChatRequest</span>):
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">'answer'</span>: <span class="hljs-string">f'收到：<span class="hljs-subst">{data.text}</span>'</span>}</code></pre></div><p>请求处理的关键步骤是：收到请求体 → 识别 Content-Type 和 JSON → 构造 Pydantic 模型 → 逐字段校验 → 成功时才进入路由业务逻辑。</p>
+<p>如果 <code>text</code> 是空字符串、长度超限、类型错误，或者包含 <code>extra='forbid'</code> 禁止的未知字段，FastAPI 可以在路由函数执行前返回请求验证错误。</p>
+<h3 id="section-11">3.2 Python 类型标注与 Pydantic 的不同</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">f</span>(<span class="hljs-params">x: <span class="hljs-built_in">int</span></span>):
+    <span class="hljs-keyword">return</span> x
+
+f(<span class="hljs-string">'123'</span>)  <span class="hljs-comment"># 普通 Python 类型标注默认不会拒绝字符串</span></code></pre></div><p>而 Pydantic 在构造模型时会进行运行时检查。默认模式下，某些类型可以被转换；严格模式会限制许多自动转换。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, ConfigDict
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">StrictCount</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    model_config = ConfigDict(strict=<span class="hljs-literal">True</span>)
+    count: <span class="hljs-built_in">int</span>
+
+<span class="hljs-comment"># StrictCount(count='12') 会触发校验错误</span></code></pre></div><p>注意：严格模式不是所有业务校验的替代品。例如 <code>count=3</code> 通过整数类型检查，也未必满足库存、权限或交易规则。</p>
+<h3 id="section-12">3.3 字段验证与跨字段验证</h3>
+<p>字段验证关心单个数据元素，例如 <code>min_length</code>、<code>ge</code>、<code>le</code>、<code>pattern</code>。跨字段验证用于检查两个或多个字段的关联条件，例如结束时间必须晚于开始时间。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> datetime <span class="hljs-keyword">import</span> datetime
+<span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, model_validator
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Period</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    start: datetime
+    end: datetime
+
+<span class="hljs-meta">    @model_validator(<span class="hljs-params">mode=<span class="hljs-string">'after'</span></span>)</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">check_period</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.end &lt;= <span class="hljs-variable language_">self</span>.start:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'结束时间必须晚于开始时间'</span>)
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span></code></pre></div><p>Pydantic 的校验只保证定义了的约束被检查。数据库唯一性、资源归属、库存扣减以及外部事实等，仍需服务层或数据库执行。</p>
+<hr />
+<h2 id="section-13">4. 字段可选、默认值、可空与严格类型</h2>
+<p>这些概念不同，尤其是 Pydantic v2：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">class</span> <span class="hljs-title class_">Sample</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    a: <span class="hljs-built_in">str</span>                   <span class="hljs-comment"># 必填，不能为 None</span>
+    b: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>            <span class="hljs-comment"># 必填，但允许 None</span>
+    c: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>     <span class="hljs-comment"># 可省略，默认 None</span>
+    d: <span class="hljs-built_in">int</span> = <span class="hljs-number">10</span>              <span class="hljs-comment"># 可省略，默认 10</span></code></pre></div><p><strong><code>T | None</code> 表示值域允许 <code>None</code>，而不是自动让字段可省略。</strong> 是否必填主要由默认值决定。</p>
+<p>如果接口对更新采用 PATCH，应区分“不提供字段”与“显式把字段置为 null”。通常可检查 Pydantic 的 <code>model_fields_set</code>，或使用 <code>model_dump(exclude_unset=True)</code> 获取真正提交的字段。</p>
+<p>例如：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">class</span> <span class="hljs-title class_">UserPatch</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    display_name: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+
+patch = UserPatch.model_validate({})
+<span class="hljs-keyword">assert</span> <span class="hljs-string">'display_name'</span> <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> patch.model_fields_set
+
+patch2 = UserPatch.model_validate({<span class="hljs-string">'display_name'</span>: <span class="hljs-literal">None</span>})
+<span class="hljs-keyword">assert</span> <span class="hljs-string">'display_name'</span> <span class="hljs-keyword">in</span> patch2.model_fields_set</code></pre></div><p>在涉及用户资料、数据库列和前端表单时，这个区别能避免不必要地覆盖已有数据。</p>
+<hr />
+<h2 id="section-14">5. 输入校验发生在哪一步，为什么经常看到 422</h2>
+<p>FastAPI 默认使用 <code>422 Unprocessable Content</code>（也常见旧称 Unprocessable Entity）表示有效 HTTP 请求中包含不满足接口输入契约的数据。</p>
+<p>例如：</p>
+<div class="code-wrap"><div class="code-label"><span>http</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">POST /v1/messages
+<span class="hljs-attribute">Content-Type</span><span class="hljs-punctuation">: </span>application/json
+
+{"text":""}</code></pre></div><p>本教学应用返回：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"error"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"VALIDATION_ERROR"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"请求数据不符合约定格式"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"retryable"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">false</span></span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"details"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+      <span class="hljs-punctuation">{</span><span class="hljs-attr">"path"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"body.text"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"type"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"string_too_short"</span><span class="hljs-punctuation">}</span>
+    <span class="hljs-punctuation">]</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"request_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"..."</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p><strong>错误定位的两个关键字段</strong>：</p>
+<ul>
+<li><code>loc</code> / <code>path</code>：发生错误的位置，例如 <code>body.text</code>、<code>path.item_id</code>、<code>query.include_note</code>。</li>
+<li><code>type</code>：错误类别，例如 <code>missing</code>、<code>int_parsing</code>、<code>string_too_short</code>、<code>extra_forbidden</code>。</li>
+</ul>
+<p>如果直接使用 FastAPI 默认处理器，通常收到 <code>{"detail":[...]}</code>；本教学项目将其转换成业务统一错误结构，便于前端消费。</p>
+<p>注意区分：</p>
+<ul>
+<li><strong>400</strong>：通常用于业务约定的非法请求、格式问题等（具体协议另行设计）。</li>
+<li><strong>401</strong>：没有通过认证。</li>
+<li><strong>403</strong>：已识别身份，但不允许访问。</li>
+<li><strong>404</strong>：资源不存在；出于防止泄露对象存在性，有时也可对未授权资源返回 404。</li>
+<li><strong>409</strong>：请求与资源当前状态冲突。</li>
+<li><strong>422</strong>：请求输入未通过结构、类型或字段约束校验。</li>
+</ul>
+<p>不要为了“统一”而把所有错误都返回 200 + <code>success:false</code>，那样会破坏标准 HTTP 语义，使监控、代理和 SDK 难以准确判断失败。</p>
+<hr />
+<h2 id="section-15">6. 响应模型、序列化和字段过滤</h2>
+<p>FastAPI 的 <code>response_model</code> 定义返回给客户端的数据契约，并参与返回值校验、序列化及输出字段过滤。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">class</span> <span class="hljs-title class_">UserPublic</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    user_id: <span class="hljs-built_in">int</span>
+    nickname: <span class="hljs-built_in">str</span>
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">'/users/{user_id}'</span>, response_model=UserPublic</span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_user</span>(<span class="hljs-params">user_id: <span class="hljs-built_in">int</span></span>):
+    <span class="hljs-keyword">return</span> {
+        <span class="hljs-string">'user_id'</span>: user_id,
+        <span class="hljs-string">'nickname'</span>: <span class="hljs-string">'Alex'</span>,
+        <span class="hljs-string">'password_hash'</span>: <span class="hljs-string">'sensitive-data'</span>,
+    }</code></pre></div><p>响应结果只包含 <code>UserPublic</code> 允许的字段：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span><span class="hljs-attr">"user_id"</span><span class="hljs-punctuation">:</span><span class="hljs-number">12</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"nickname"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"Alex"</span><span class="hljs-punctuation">}</span></code></pre></div><p>输出过滤是有用的防线，但敏感数据依然不应无必要地进入业务序列化对象、日志或追踪数据。也不要把它当成权限系统。</p>
+<h3 id="section-16">6.1 声明方式</h3>
+<ul>
+<li>路由装饰器 <code>@app.get(..., response_model=SomeModel)</code>：显式指定 FastAPI 响应模型。</li>
+<li>函数返回类型 <code>async def fn() -&gt; SomeModel</code>：也可能被 FastAPI 用于响应模型推断。</li>
+<li>返回原始 <code>Response</code> / <code>JSONResponse</code>：通常跳过 FastAPI 依据 <code>response_model</code> 的自动转换和过滤；需由开发者自己保证正确性。</li>
+</ul>
+<h3 id="section-17">6.2 输出约束与输入约束不对称</h3>
+<p>输入不符合请求模型，通常是客户端 422。<strong>服务器返回的数据不符合声明的 <code>response_model</code>，通常是服务器编程错误，会导致 500，而非返回 422 要求用户修改输入。</strong></p>
+<p>如果应用要保留完整内部数据，同时对外只发送受限字段，推荐显式使用公开响应模型而不是依赖前端忽略多余字段。</p>
+<hr />
+<h2 id="section-18">7. 响应模型错误的传播</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">外部请求 / 前端输入
+  ├─ 请求体未通过 Pydantic → 422（客户端输入错误）
+  └─ 请求校验通过
+       └─ Service 返回结果
+            ├─ 业务拒绝 → 409 / 403 / 404 等
+            ├─ 外部依赖失败 → 502 / 503 / 504 等（取决于服务边界）
+            ├─ 返回值不符合响应模型 → 500（服务端契约违反）
+            └─ 响应模型通过 → 200 / 201 / 202 等</code></pre></div><p>这里需要区分三类校验：</p>
+<ol>
+<li><strong>输入校验</strong>：客户端送来的内容是否合法。</li>
+<li><strong>输出校验</strong>：服务端承诺的返回结构是否真实遵守。</li>
+<li><strong>业务校验</strong>：操作是否有权限，当前状态是否允许，真实事实是否正确。</li>
+</ol>
+<p>结构通过不代表业务成功；请求进入路由也不代表事务已经提交。</p>
+<hr />
+<h2 id="section-19">8. HTTP 状态码与业务执行状态的关系</h2>
+<table>
+<thead>
+<tr>
+<th>HTTP 状态</th>
+<th>典型解释</th>
+<th>前端处理参考</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>200 OK</code></td>
+<td>当前 HTTP 查询成功</td>
+<td>继续检查 body 中业务状态</td>
+</tr>
+<tr>
+<td><code>201 Created</code></td>
+<td>资源已创建</td>
+<td>可以展示已创建资源</td>
+</tr>
+<tr>
+<td><code>202 Accepted</code></td>
+<td>请求已接收，但处理未完成</td>
+<td>转入等待/轮询状态</td>
+</tr>
+<tr>
+<td><code>204 No Content</code></td>
+<td>成功但不返回正文</td>
+<td>不应强制调用 <code>response.json()</code></td>
+</tr>
+<tr>
+<td><code>400</code> / <code>422</code></td>
+<td>输入有问题</td>
+<td>高亮字段并给出修改提示</td>
+</tr>
+<tr>
+<td><code>401</code></td>
+<td>认证失败或缺失</td>
+<td>引导重新登录或刷新认证</td>
+</tr>
+<tr>
+<td><code>403</code></td>
+<td>未获授权</td>
+<td>禁止继续尝试受保护操作</td>
+</tr>
+<tr>
+<td><code>404</code></td>
+<td>资源不存在</td>
+<td>显示不存在或已被删除</td>
+</tr>
+<tr>
+<td><code>409</code></td>
+<td>当前业务状态冲突</td>
+<td>刷新数据、提示冲突、避免盲目重复</td>
+</tr>
+<tr>
+<td><code>429</code></td>
+<td>触发限流</td>
+<td>按服务端策略等待，考虑 <code>Retry-After</code></td>
+</tr>
+<tr>
+<td><code>500</code></td>
+<td>服务端内部错误</td>
+<td>错误反馈与追踪 ID</td>
+</tr>
+<tr>
+<td><code>502</code> / <code>503</code> / <code>504</code></td>
+<td>上游或服务可用性问题</td>
+<td>有界重试，保留上下文</td>
+</tr>
+</tbody></table>
+<p>不应仅靠某个 HTTP 状态码判断 AI 结果是否可靠。例如 <code>/tasks/{id}</code> 查询成功返回 <code>200</code>，但任务自身的 <code>state</code> 可能为 <code>FAILED</code>。</p>
+<h3 id="section-20">8.1 业务状态适合用明确枚举</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">PENDING → RUNNING → SUCCEEDED
+                  └→ FAILED</code></pre></div><p>生产任务还可能有 <code>RETRYING</code>、<code>CANCEL_REQUESTED</code>、<code>CANCELLED</code>、<code>EXPIRED</code> 等状态。务必明确终态与允许的状态转换。</p>
+<hr />
+<h2 id="section-21">9. 错误对象设计：机器可读与人类可读要分开</h2>
+<p>不推荐把前端逻辑写成 <code>if (message.includes('超时'))</code>。错误消息可能被翻译或调整；应提供稳定错误码。</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"error"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"BUSINESS_CONFLICT"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"当前状态不允许此操作"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"retryable"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">false</span></span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"details"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"request_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"f8e2..."</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>字段含义：</p>
+<ul>
+<li><code>code</code>：稳定、供客户端程序判断的错误代码，例如 <code>VALIDATION_ERROR</code>。</li>
+<li><code>message</code>：供用户阅读或开发调试的解释，不应包含堆栈、密钥或敏感对象。</li>
+<li><code>retryable</code>：服务端评估的当前失败是否可能适合重试；并不自动表示操作安全可重放。</li>
+<li><code>details</code>：字段路径、规则错误等结构化信息，注意脱敏。</li>
+<li><code>request_id</code>：用于关联日志与响应。</li>
+</ul>
+<h3 id="section-22">9.1 自定义异常与异常处理器</h3>
+<p>推荐在 Service 抛出明确的领域异常，由接口层统一映射成 HTTP 状态与错误响应。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">class</span> <span class="hljs-title class_">DomainError</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, status: <span class="hljs-built_in">int</span>, code: <span class="hljs-built_in">str</span>, message: <span class="hljs-built_in">str</span></span>):
+        <span class="hljs-variable language_">self</span>.status = status
+        <span class="hljs-variable language_">self</span>.code = code
+        <span class="hljs-variable language_">self</span>.message = message</code></pre></div><p><code>@app.exception_handler(...)</code> 注册异常处理器。FastAPI 还可以覆盖 <code>RequestValidationError</code> 的默认处理，但<strong>不要将 <code>exc.body</code> 原样返回给客户端或写到不受保护的日志</strong>：它可能包含口令、验证码、Cookie 或个人信息。</p>
+<h3 id="section-23">9.2 什么时候适合返回 <code>HTTPException</code></h3>
+<p>小型应用可以在路由直接 <code>raise HTTPException(status_code=404, detail='...')</code>。在较大的代码库中，领域层采用独立异常更容易复用和测试，接口适配层负责把领域错误映射成 HTTP。</p>
+<hr />
+<h2 id="section-24">10. 网络失败、HTTP 失败和业务失败</h2>
+<p>这三种错误在浏览器中看起来都可能是“请求失败”，但排查与重试策略完全不同。</p>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>示例</th>
+<th>是否存在 HTTP Response</th>
+<th>典型处理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>网络失败</td>
+<td>DNS、断网、CORS 阻止、连接重置</td>
+<td>不一定可被 JS 读取</td>
+<td>网络错误提示、检查连接</td>
+</tr>
+<tr>
+<td>HTTP 失败</td>
+<td>后端返回 <code>422</code>、<code>409</code>、<code>503</code></td>
+<td>通常有</td>
+<td>解析错误对象、按状态处理</td>
+</tr>
+<tr>
+<td>业务失败</td>
+<td><code>GET /jobs/42</code> 返回 <code>200</code>，但 <code>state=FAILED</code></td>
+<td>有，可能是 200</td>
+<td>读取任务状态与业务错误</td>
+</tr>
+</tbody></table>
+<p>一个极易忽略的事实：<strong>浏览器的 <code>fetch()</code> 在服务器返回 HTTP 404 或 500 时通常不会自动 reject Promise</strong>；只有网络等请求失败才通常 reject。因此必须检查 <code>response.ok</code> 或 <code>response.status</code>。</p>
+<div class="code-wrap"><div class="code-label"><span>javascript</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">const</span> response = <span class="hljs-keyword">await</span> <span class="hljs-title function_">fetch</span>(<span class="hljs-string">'/api/data'</span>);
+<span class="hljs-keyword">if</span> (!response.<span class="hljs-property">ok</span>) {
+  <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">Error</span>(<span class="hljs-string">`HTTP <span class="hljs-subst">${response.status}</span>`</span>);
+}
+<span class="hljs-keyword">const</span> data = <span class="hljs-keyword">await</span> response.<span class="hljs-title function_">json</span>();</code></pre></div><p>同样需要处理“HTTP 成功，但返回正文不是有效 JSON”、“204 没有正文”、浏览器因跨域策略无法读取响应，以及前端主动取消请求等情况。</p>
+<hr />
+<h2 id="section-25">11. 202 Accepted 与处理中的任务</h2>
+<p>某些操作（导入资料、批量 Embedding、长时间模型推理）无法在短时间内完成。可以提供任务式 API：</p>
+<div class="code-wrap"><div class="code-label"><span>http</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">POST /v1/jobs
+{"prompt":"建立索引"}</code></pre></div><div class="code-wrap"><div class="code-label"><span>http</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-meta">HTTP/1.1</span> <span class="hljs-number">202</span> Accepted
+<span class="hljs-attribute">Location</span><span class="hljs-punctuation">: </span>/v1/jobs/aabbcc...
+<span class="hljs-attribute">Retry-After</span><span class="hljs-punctuation">: </span>1
+
+<span class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-attr">"job_id"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"aabbcc..."</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"state"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"PENDING"</span><span class="hljs-punctuation">}</span></span></code></pre></div><p>随后：</p>
+<div class="code-wrap"><div class="code-label"><span>http</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">GET /v1/jobs/aabbcc...</code></pre></div><div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span><span class="hljs-attr">"job_id"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"aabbcc..."</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"state"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"RUNNING"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"result"</span><span class="hljs-punctuation">:</span><span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">,</span><span class="hljs-attr">"error"</span><span class="hljs-punctuation">:</span><span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">}</span></code></pre></div><p>任务完成：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span><span class="hljs-attr">"job_id"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"aabbcc..."</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"state"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"SUCCEEDED"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"result"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"处理完成：建立索引"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"error"</span><span class="hljs-punctuation">:</span><span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">}</span></code></pre></div><p>任务失败时，查询接口依然可能返回 HTTP 200：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"job_id"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"aabbcc..."</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"state"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"FAILED"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"result"</span><span class="hljs-punctuation">:</span><span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"error"</span><span class="hljs-punctuation">:</span><span class="hljs-punctuation">{</span><span class="hljs-attr">"code"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"JOB_FAILED"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"message"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"任务执行失败"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"retryable"</span><span class="hljs-punctuation">:</span><span class="hljs-literal"><span class="hljs-keyword">false</span></span><span class="hljs-punctuation">,</span><span class="hljs-attr">"details"</span><span class="hljs-punctuation">:</span><span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>因为 <strong>“GET 查询执行成功”</strong> 和 <strong>“该任务在过去执行成功”</strong> 并不是同一命题。</p>
+<h3 id="section-26">11.1 客户端等待超时后怎么办</h3>
+<ul>
+<li>前端可以停止轮询，但不能直接断言服务器任务已经失败。</li>
+<li>应保留任务 ID，允许稍后恢复查询。</li>
+<li>取消后台任务需要单独设计 <code>cancel</code> API 和明确的取消范围。</li>
+<li>写入型请求如果发生网络超时，不应未经幂等设计就自动重新发起相同操作。</li>
+</ul>
+<h3 id="section-27">11.2 演示任务与可靠后台任务的区别</h3>
+<p>本文件的演示服务使用 <code>asyncio.create_task()</code> 和进程内字典，只适合说明 HTTP 202、轮询和状态转换。在多进程、容器重启或强制退出时不能保证任务持久化。</p>
+<p>真实需要恢复的任务，应使用持久化任务记录、独立 Worker、消息队列、重试与幂等控制。<code>BackgroundTasks</code> 也不自动等价于可靠的跨重启任务队列。</p>
+<hr />
+<h2 id="section-28">12. 前端状态机：提交、处理中、成功与失败</h2>
+<p>常见 UI 状态应明确区分：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">IDLE
+  │ 用户点击
+  ▼
+SUBMITTING ─── 网络/HTTP 失败 ───▶ FAILED
+  │ HTTP 202，获得 job_id
+  ▼
+PROCESSING ─── 查询不到任务/HTTP 失败 ─▶ ERROR / UNKNOWN
+  ├── state=SUCCEEDED ───────────▶ SUCCEEDED
+  ├── state=FAILED ──────────────▶ FAILED
+  └── 客户端等待超时 ────────────▶ UNKNOWN（可继续查询）</code></pre></div><ul>
+<li><code>SUBMITTING</code>：提交 HTTP 请求仍在飞行中。</li>
+<li><code>PROCESSING</code>：服务器已经接收任务，但后台尚未达到终态。</li>
+<li><code>SUCCEEDED</code>：已确认业务实际完成。</li>
+<li><code>FAILED</code>：明确收到了 HTTP 错误或业务失败结果。</li>
+<li><code>UNKNOWN</code>：客户端未能确定最终状态，例如前端截止时间到达；此时不应伪造“任务失败”。</li>
+</ul>
+<h3 id="section-29">12.1 典型 React 状态</h3>
+<div class="code-wrap"><div class="code-label"><span>javascript</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">const</span> [jobUi, setJobUi] = <span class="hljs-title function_">useState</span>({<span class="hljs-attr">phase</span>: <span class="hljs-string">'idle'</span>});
+
+<span class="hljs-comment">// 展示逻辑（示意）</span>
+<span class="hljs-comment">// submitting -&gt; 提交中</span>
+<span class="hljs-comment">// processing -&gt; 正在处理 + 进度提示</span>
+<span class="hljs-comment">// succeeded -&gt; 展示结果</span>
+<span class="hljs-comment">// failed -&gt; 错误提示与允许的恢复动作</span>
+<span class="hljs-comment">// unknown -&gt; 保留任务 ID，允许重新查询</span></code></pre></div><p>另外还要处理页面跳转时的 <code>AbortController</code>、过期请求回写 UI、重复点击与表单禁用。前端停止等待，不等于服务器执行已经取消。</p>
+<h3 id="section-30">12.2 超时、重试和幂等</h3>
+<ul>
+<li><strong>客户端单次请求超时</strong>：例如 10 秒，解决前端无限等待问题。</li>
+<li><strong>业务任务截止时间</strong>：例如 5 分钟，由后端维护，不能与客户端超时混为一谈。</li>
+<li><strong>轮询间隔</strong>：应有限制，并可参考服务端 <code>Retry-After</code>；生产系统可使用退避与抖动。</li>
+<li><strong>重试策略</strong>：只对已判定可以安全重试的操作执行；创建、支付、发送等应支持幂等键。</li>
+<li><strong>未知结果</strong>：请求超时可能发生在服务器已提交事务之后；客户端不能据此判断事务没有发生。</li>
+</ul>
+<hr />
+<h2 id="section-31">13. FastAPI 生命周期（Lifespan）</h2>
+<h3 id="section-32">13.1 为什么需要生命周期管理</h3>
+<p>某些资源需要在应用启动时创建，并被多个请求复用：</p>
+<ul>
+<li><code>httpx.AsyncClient</code> 及 HTTP 连接池。</li>
+<li>SQLAlchemy <code>AsyncEngine</code> 及数据库连接池。</li>
+<li>本地推理模型、缓存客户端、监控资源。</li>
+<li>配置、索引句柄和需要显式释放的后台资源。</li>
+</ul>
+<p>若每次请求都重新创建，通常会增加开销；若从不关闭，则可能泄漏套接字或数据库连接。</p>
+<h3 id="section-33">13.2 推荐方式：<code>lifespan</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> contextlib <span class="hljs-keyword">import</span> asynccontextmanager
+<span class="hljs-keyword">import</span> httpx
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI, Request
+
+<span class="hljs-meta">@asynccontextmanager</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">lifespan</span>(<span class="hljs-params">app: FastAPI</span>):
+    client = httpx.AsyncClient(timeout=<span class="hljs-number">10.0</span>)
+    app.state.http_client = client
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">yield</span>  <span class="hljs-comment"># 此期间处理请求</span>
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> client.aclose()
+
+app = FastAPI(lifespan=lifespan)
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">'/upstream'</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">upstream</span>(<span class="hljs-params">request: Request</span>):
+    client: httpx.AsyncClient = request.app.state.http_client
+    resp = <span class="hljs-keyword">await</span> client.get(<span class="hljs-string">'https://example.com'</span>)
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">'status'</span>: resp.status_code}</code></pre></div><p>启动阶段执行 <code>yield</code> 之前的代码，关闭阶段执行之后的清理代码。需要注意，若同时传入 <code>lifespan</code>，传统 <code>@app.on_event('startup')</code> / <code>shutdown</code> 不再按原方式运行；新项目应优先采用 <code>lifespan</code>。</p>
+<h3 id="section-34">13.3 数据库 Engine 与 Session 的不同生命周期</h3>
+<ul>
+<li><strong>Engine / Pool</strong>：通常在单个应用进程生命周期中创建一次，关闭时 <code>dispose()</code>。</li>
+<li><strong>Session</strong>：每次请求、事务或并发任务使用相互独立的 Session；不把同一个 <code>AsyncSession</code> 同时交给多个并发 Task。</li>
+<li><strong>事务</strong>：要明确 <code>commit()</code>、<code>rollback()</code> 的时机；不能因为 HTTP 返回了 200，就假设外部系统或所有数据库写入都已原子成功。</li>
+</ul>
+<h3 id="section-35">13.4 服务停止与在途任务</h3>
+<p>常见的优雅停机顺序：停止接收新工作 → 等待在途请求 → 在期限内完成必要清理 → 取消无法继续的进程内任务 → 释放连接池 → 退出进程。</p>
+<p>这部分职责既涉及 Uvicorn/ASGI Server，也涉及业务自己创建的 Task、Worker 和外部依赖。<strong><code>lifespan</code> 的清理逻辑不能使内存任务在进程崩溃后自动恢复。</strong></p>
+<hr />
+<h2 id="section-36">14. 中间件、依赖注入与异常处理</h2>
+<h3 id="section-37">14.1 Middleware</h3>
+<p>中间件包围请求与响应处理过程，常用于：</p>
+<ul>
+<li>分配 <code>X-Request-ID</code>；</li>
+<li>日志、耗时计时；</li>
+<li>CORS 与安全头；</li>
+<li>统一指标。</li>
+</ul>
+<p>不要在中间件中无差别读取并保存敏感请求体。异常传播顺序可能受到中间件排列与异常处理器注册方式影响；具体行为应通过集成测试确认。</p>
+<h3 id="section-38">14.2 依赖注入 <code>Depends</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> Depends
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">get_settings</span>():
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">'mode'</span>: <span class="hljs-string">'dev'</span>}
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">'/settings'</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">settings</span>(<span class="hljs-params">data: <span class="hljs-built_in">dict</span> = Depends(<span class="hljs-params">get_settings</span>)</span>):
+    <span class="hljs-keyword">return</span> data</code></pre></div><p>实际应用可通过依赖注入获取认证用户、业务 Service、数据库 Session。使用带 <code>yield</code> 的依赖时，依赖结束时机与响应、流式响应、背景任务的关系需要注意版本和 <code>scope</code>。不要把已经结束的请求 Session 交给独立后台 Worker 继续使用。</p>
+<h3 id="section-39">14.3 请求验证异常与内部异常不同</h3>
+<ul>
+<li><code>RequestValidationError</code>：客户端输入不符合请求约定，可以转换为统一 422 响应。</li>
+<li><code>HTTPException</code>：业务接口显式表达的 HTTP 失败。</li>
+<li><code>ResponseValidationError</code>：服务器输出不符合声明约定，应作为内部问题处理。</li>
+<li>未捕获的其他异常：默认按内部错误处理；生产环境对客户端提供通用错误信息，在受保护日志中记录诊断信息。</li>
+</ul>
+<p><strong>不要把数据库堆栈、SQL、API Key 或内部文件路径放到错误响应里。</strong></p>
+<hr />
+<h2 id="section-40">15. CORS、浏览器同源策略与联调</h2>
+<p>当前端在 <code>http://localhost:5173</code>，后端在 <code>http://localhost:8000</code>，端口不同意味着不同源。浏览器可能在跨域请求前发起 <code>OPTIONS</code> 预检。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> fastapi.middleware.cors <span class="hljs-keyword">import</span> CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[<span class="hljs-string">'http://localhost:5173'</span>],
+    allow_methods=[<span class="hljs-string">'GET'</span>, <span class="hljs-string">'POST'</span>],
+    allow_headers=[<span class="hljs-string">'Content-Type'</span>, <span class="hljs-string">'Authorization'</span>],
+)</code></pre></div><p>请区分：</p>
+<ul>
+<li>CORS 是浏览器跨域访问控制，<strong>不是服务器 API 的身份认证机制</strong>。</li>
+<li>服务端直接调用 API 通常不依赖浏览器 CORS 放行。</li>
+<li>预检请求失败时，浏览器 JS 可能拿不到后端真实返回内容。</li>
+<li>与 Cookie、凭证相关的跨域访问还涉及 <code>allow_credentials</code>、精确来源、SameSite、Secure 和 CSRF 策略。</li>
+<li>在安全敏感的服务中，不要随意设置允许任意来源并发送凭证。</li>
+</ul>
+<hr />
+<h2 id="section-41">16. 可观测性与 Request ID</h2>
+<p>生产问题常表现为“某位用户说请求失败，但开发人员无法复现”。推荐每次 HTTP 请求分配关联 ID：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">X-Request-ID: a9c4...</code></pre></div><p>同时记录：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"request_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"a9c4..."</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"route"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"/v1/jobs"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"http_status"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">202</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"duration_ms"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">18</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"job_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"..."</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"error_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>这种日志能回答“哪次请求、经过哪个服务、返回了什么 HTTP 结果”，但不要将请求 ID 当作鉴权凭据。</p>
+<p>与 Agent、模型调用或数据库操作联动时，还需要 <code>trace_id</code>、<code>span_id</code>、<code>run_id</code> 和 <code>job_id</code>，避免把不同层次 ID 混为一谈。</p>
+<p>前端在异常页面展示可复制的请求 ID 有助于排查；日志要进行访问控制和敏感字段脱敏。</p>
+<hr />
+<h2 id="section-42">17. 完整可运行 FastAPI 示例</h2>
+<p>下面是已经进行本地集成测试的教学服务，包含：</p>
+<ul>
+<li><code>MessageIn</code> / <code>MessageOut</code> 请求与响应模型；</li>
+<li>严格字段校验、统一错误结构、409 领域异常；</li>
+<li><code>response_model</code> 对内部多余字段的过滤；</li>
+<li>路径与查询校验；</li>
+<li><code>202</code> 提交、<code>GET</code> 查询及 <code>PENDING/RUNNING/SUCCEEDED/FAILED</code>；</li>
+<li><code>lifespan</code> 初始化与清理、任务关闭取消；</li>
+<li>Request ID 和明确 CORS 来源。</li>
+</ul>
+<p>安装示例依赖：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">py <span class="hljs-literal">-3</span> <span class="hljs-literal">-m</span> venv .venv
+.\.venv\Scripts\python.exe <span class="hljs-literal">-m</span> pip install fastapi uvicorn httpx pytest</code></pre></div><p>将下一段代码保存为 <code>app.py</code>，执行：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">.\.venv\Scripts\python.exe <span class="hljs-literal">-m</span> uvicorn app:app <span class="hljs-literal">--reload</span></code></pre></div><p>然后在 <code>http://127.0.0.1:8000/docs</code> 查看自动生成的接口文档。不要在公共生产环境直接使用开发模式的 <code>--reload</code>。</p>
+<p><strong>说明：</strong> 以下任务存储完全在内存中，故意使用 <code>simulate_failure</code> 模拟业务失败。它只用于演示 HTTP 与业务状态，不是生产任务系统。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""教学用 FastAPI HTTP 契约演示；任务仅存放进程内存，不可用于生产持久队列。"""</span>
+<span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">import</span> logging
+<span class="hljs-keyword">from</span> contextlib <span class="hljs-keyword">import</span> asynccontextmanager
+<span class="hljs-keyword">from</span> enum <span class="hljs-keyword">import</span> Enum
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> <span class="hljs-type">Any</span>
+<span class="hljs-keyword">from</span> uuid <span class="hljs-keyword">import</span> uuid4
+
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI, Path, Request, Response
+<span class="hljs-keyword">from</span> fastapi.exceptions <span class="hljs-keyword">import</span> RequestValidationError
+<span class="hljs-keyword">from</span> fastapi.middleware.cors <span class="hljs-keyword">import</span> CORSMiddleware
+<span class="hljs-keyword">from</span> fastapi.responses <span class="hljs-keyword">import</span> JSONResponse
+<span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, ConfigDict, Field
+<span class="hljs-keyword">from</span> starlette.exceptions <span class="hljs-keyword">import</span> HTTPException <span class="hljs-keyword">as</span> StarletteHTTPException
+
+logger = logging.getLogger(__name__)
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ApiError</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    code: <span class="hljs-built_in">str</span>
+    message: <span class="hljs-built_in">str</span>
+    retryable: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span>
+    details: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ErrorEnvelope</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    error: ApiError
+    request_id: <span class="hljs-built_in">str</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">MessageIn</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    model_config = ConfigDict(extra=<span class="hljs-string">'forbid'</span>, strict=<span class="hljs-literal">True</span>)
+    text: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>, max_length=<span class="hljs-number">200</span>)
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">MessageOut</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    message_id: <span class="hljs-built_in">str</span>
+    answer: <span class="hljs-built_in">str</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ItemOut</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    item_id: <span class="hljs-built_in">int</span>
+    title: <span class="hljs-built_in">str</span>
+    note: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">JobCreate</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    model_config = ConfigDict(extra=<span class="hljs-string">'forbid'</span>, strict=<span class="hljs-literal">True</span>)
+    prompt: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>, max_length=<span class="hljs-number">200</span>)
+    delay_ms: <span class="hljs-built_in">int</span> = Field(default=<span class="hljs-number">100</span>, ge=<span class="hljs-number">10</span>, le=<span class="hljs-number">1000</span>)
+    simulate_failure: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">JobState</span>(<span class="hljs-built_in">str</span>, Enum):
+    PENDING = <span class="hljs-string">'PENDING'</span>
+    RUNNING = <span class="hljs-string">'RUNNING'</span>
+    SUCCEEDED = <span class="hljs-string">'SUCCEEDED'</span>
+    FAILED = <span class="hljs-string">'FAILED'</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">JobReceipt</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    job_id: <span class="hljs-built_in">str</span>
+    state: JobState
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">JobView</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    job_id: <span class="hljs-built_in">str</span>
+    state: JobState
+    result: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+    error: ApiError | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">DomainError</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, status: <span class="hljs-built_in">int</span>, code: <span class="hljs-built_in">str</span>, message: <span class="hljs-built_in">str</span>, retryable: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span></span>):
+        <span class="hljs-variable language_">self</span>.status = status
+        <span class="hljs-variable language_">self</span>.code = code
+        <span class="hljs-variable language_">self</span>.message = message
+        <span class="hljs-variable language_">self</span>.retryable = retryable
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">DemoStore</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.jobs: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, JobView] = {}
+        <span class="hljs-variable language_">self</span>.tasks: <span class="hljs-built_in">set</span>[asyncio.Task[<span class="hljs-literal">None</span>]] = <span class="hljs-built_in">set</span>()
+        <span class="hljs-variable language_">self</span>.accepting = <span class="hljs-literal">True</span>
+        <span class="hljs-variable language_">self</span>.closed = <span class="hljs-literal">False</span>
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">process_job</span>(<span class="hljs-params">store: DemoStore, job_id: <span class="hljs-built_in">str</span>, prompt: <span class="hljs-built_in">str</span>, delay_ms: <span class="hljs-built_in">int</span>, fail: <span class="hljs-built_in">bool</span></span>):
+    job = store.jobs[job_id]
+    job.state = JobState.RUNNING
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">await</span> asyncio.sleep(delay_ms / <span class="hljs-number">1000</span>)
+        <span class="hljs-keyword">if</span> fail:
+            <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">'教学模拟任务失败'</span>)
+        job.state = JobState.SUCCEEDED
+        job.result = <span class="hljs-string">f'处理完成：<span class="hljs-subst">{prompt}</span>'</span>
+    <span class="hljs-keyword">except</span> asyncio.CancelledError:
+        job.state = JobState.FAILED
+        job.error = ApiError(code=<span class="hljs-string">'SHUTDOWN_CANCELLED'</span>, message=<span class="hljs-string">'服务关闭，任务被取消'</span>, retryable=<span class="hljs-literal">True</span>)
+        <span class="hljs-keyword">raise</span>
+    <span class="hljs-keyword">except</span> Exception:
+        logger.exception(<span class="hljs-string">'模拟后台任务失败 job_id=%s'</span>, job_id)
+        job.state = JobState.FAILED
+        job.error = ApiError(code=<span class="hljs-string">'JOB_FAILED'</span>, message=<span class="hljs-string">'任务执行失败'</span>, retryable=<span class="hljs-literal">False</span>)
+
+<span class="hljs-meta">@asynccontextmanager</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">lifespan</span>(<span class="hljs-params">app: FastAPI</span>):
+    store = DemoStore()
+    app.state.store = store
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">yield</span>
+    <span class="hljs-keyword">finally</span>:
+        store.accepting = <span class="hljs-literal">False</span>
+        <span class="hljs-keyword">for</span> task <span class="hljs-keyword">in</span> <span class="hljs-built_in">tuple</span>(store.tasks):
+            task.cancel()
+        <span class="hljs-keyword">if</span> store.tasks:
+            <span class="hljs-keyword">await</span> asyncio.gather(*<span class="hljs-built_in">tuple</span>(store.tasks), return_exceptions=<span class="hljs-literal">True</span>)
+        store.closed = <span class="hljs-literal">True</span>
+
+app = FastAPI(title=<span class="hljs-string">'FastAPI 请求响应与状态示例'</span>, lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[<span class="hljs-string">'http://localhost:5173'</span>],
+    allow_methods=[<span class="hljs-string">'GET'</span>, <span class="hljs-string">'POST'</span>],
+    allow_headers=[<span class="hljs-string">'Content-Type'</span>, <span class="hljs-string">'Authorization'</span>],
+)
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">error_response</span>(<span class="hljs-params">request: Request, status: <span class="hljs-built_in">int</span>, error: ApiError</span>) -&gt; JSONResponse:
+    body = ErrorEnvelope(error=error, request_id=request.state.request_id)
+    <span class="hljs-keyword">return</span> JSONResponse(status_code=status, content=body.model_dump(mode=<span class="hljs-string">'json'</span>))
+
+<span class="hljs-meta">@app.middleware(<span class="hljs-params"><span class="hljs-string">'http'</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">attach_request_id</span>(<span class="hljs-params">request: Request, call_next</span>):
+    request.state.request_id = uuid4().<span class="hljs-built_in">hex</span>
+    <span class="hljs-keyword">try</span>:
+        response = <span class="hljs-keyword">await</span> call_next(request)
+    <span class="hljs-keyword">except</span> Exception:
+        logger.exception(<span class="hljs-string">'Unhandled HTTP error request_id=%s'</span>, request.state.request_id)
+        response = error_response(request, <span class="hljs-number">500</span>, ApiError(code=<span class="hljs-string">'INTERNAL_ERROR'</span>, message=<span class="hljs-string">'服务器内部错误'</span>, retryable=<span class="hljs-literal">False</span>))
+    response.headers[<span class="hljs-string">'X-Request-ID'</span>] = request.state.request_id
+    <span class="hljs-keyword">return</span> response
+
+<span class="hljs-meta">@app.exception_handler(<span class="hljs-params">RequestValidationError</span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">validation_error</span>(<span class="hljs-params">request: Request, exc: RequestValidationError</span>):
+    details = [
+        {<span class="hljs-string">'path'</span>: <span class="hljs-string">'.'</span>.join(<span class="hljs-built_in">str</span>(part) <span class="hljs-keyword">for</span> part <span class="hljs-keyword">in</span> err[<span class="hljs-string">'loc'</span>]), <span class="hljs-string">'type'</span>: err[<span class="hljs-string">'type'</span>]}
+        <span class="hljs-keyword">for</span> err <span class="hljs-keyword">in</span> exc.errors()
+    ]
+    <span class="hljs-keyword">return</span> error_response(request, <span class="hljs-number">422</span>, ApiError(
+        code=<span class="hljs-string">'VALIDATION_ERROR'</span>, message=<span class="hljs-string">'请求数据不符合约定格式'</span>, details=details
+    ))
+
+<span class="hljs-meta">@app.exception_handler(<span class="hljs-params">DomainError</span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">domain_error</span>(<span class="hljs-params">request: Request, exc: DomainError</span>):
+    <span class="hljs-keyword">return</span> error_response(request, exc.status, ApiError(
+        code=exc.code, message=exc.message, retryable=exc.retryable
+    ))
+
+<span class="hljs-meta">@app.exception_handler(<span class="hljs-params">StarletteHTTPException</span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">http_error</span>(<span class="hljs-params">request: Request, exc: StarletteHTTPException</span>):
+    <span class="hljs-comment"># 未知资源等路径层错误；避免把未受控 detail 原样返回</span>
+    code = <span class="hljs-string">'NOT_FOUND'</span> <span class="hljs-keyword">if</span> exc.status_code == <span class="hljs-number">404</span> <span class="hljs-keyword">else</span> <span class="hljs-string">'HTTP_ERROR'</span>
+    <span class="hljs-keyword">return</span> error_response(request, exc.status_code, ApiError(
+        code=code, message=<span class="hljs-string">'资源不存在'</span> <span class="hljs-keyword">if</span> code == <span class="hljs-string">'NOT_FOUND'</span> <span class="hljs-keyword">else</span> <span class="hljs-string">'HTTP 请求失败'</span>
+    ))
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">'/health/live'</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">live</span>():
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">'alive'</span>: <span class="hljs-literal">True</span>}
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">'/health/ready'</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">ready</span>(<span class="hljs-params">request: Request</span>):
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> request.app.state.store.accepting:
+        <span class="hljs-keyword">return</span> error_response(request, <span class="hljs-number">503</span>, ApiError(code=<span class="hljs-string">'NOT_READY'</span>, message=<span class="hljs-string">'不再接收新任务'</span>, retryable=<span class="hljs-literal">True</span>))
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">'ready'</span>: <span class="hljs-literal">True</span>}
+
+<span class="hljs-meta">@app.post(<span class="hljs-params"><span class="hljs-string">'/v1/messages'</span>, response_model=MessageOut, status_code=<span class="hljs-number">201</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">create_message</span>(<span class="hljs-params">payload: MessageIn</span>):
+    <span class="hljs-keyword">if</span> payload.text == <span class="hljs-string">'conflict'</span>:
+        <span class="hljs-keyword">raise</span> DomainError(<span class="hljs-number">409</span>, <span class="hljs-string">'BUSINESS_CONFLICT'</span>, <span class="hljs-string">'当前状态不允许此操作'</span>)
+    <span class="hljs-comment"># 多返回字段不会对外暴露（仍需业务层避免生成敏感值）</span>
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">'message_id'</span>: uuid4().<span class="hljs-built_in">hex</span>, <span class="hljs-string">'answer'</span>: <span class="hljs-string">f'已收到：<span class="hljs-subst">{payload.text}</span>'</span>, <span class="hljs-string">'internal_secret'</span>: <span class="hljs-string">'never-return'</span>}
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">'/v1/items/{item_id}'</span>, response_model=ItemOut</span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_item</span>(<span class="hljs-params">item_id: <span class="hljs-built_in">int</span> = Path(<span class="hljs-params">ge=<span class="hljs-number">1</span></span>), include_note: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span></span>):
+    <span class="hljs-keyword">if</span> item_id != <span class="hljs-number">1</span>:
+        <span class="hljs-keyword">raise</span> DomainError(<span class="hljs-number">404</span>, <span class="hljs-string">'ITEM_NOT_FOUND'</span>, <span class="hljs-string">'未找到对应条目'</span>)
+    <span class="hljs-keyword">return</span> ItemOut(item_id=item_id, title=<span class="hljs-string">'示例条目'</span>, note=<span class="hljs-string">'附加说明'</span> <span class="hljs-keyword">if</span> include_note <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>)
+
+<span class="hljs-meta">@app.post(<span class="hljs-params"><span class="hljs-string">'/v1/jobs'</span>, response_model=JobReceipt, status_code=<span class="hljs-number">202</span></span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">create_job</span>(<span class="hljs-params">payload: JobCreate, request: Request, response: Response</span>):
+    store: DemoStore = request.app.state.store
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> store.accepting:
+        <span class="hljs-keyword">raise</span> DomainError(<span class="hljs-number">503</span>, <span class="hljs-string">'NOT_READY'</span>, <span class="hljs-string">'服务正在关闭'</span>, retryable=<span class="hljs-literal">True</span>)
+    job_id = uuid4().<span class="hljs-built_in">hex</span>
+    store.jobs[job_id] = JobView(job_id=job_id, state=JobState.PENDING)
+    task = asyncio.create_task(process_job(store, job_id, payload.prompt, payload.delay_ms, payload.simulate_failure))
+    store.tasks.add(task)
+    task.add_done_callback(store.tasks.discard)
+    response.headers[<span class="hljs-string">'Location'</span>] = <span class="hljs-string">f'/v1/jobs/<span class="hljs-subst">{job_id}</span>'</span>
+    response.headers[<span class="hljs-string">'Retry-After'</span>] = <span class="hljs-string">'1'</span>
+    <span class="hljs-keyword">return</span> JobReceipt(job_id=job_id, state=JobState.PENDING)
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">'/v1/jobs/{job_id}'</span>, response_model=JobView</span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_job</span>(<span class="hljs-params">job_id: <span class="hljs-built_in">str</span>, request: Request</span>):
+    store: DemoStore = request.app.state.store
+    job = store.jobs.get(job_id)
+    <span class="hljs-keyword">if</span> job <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">raise</span> DomainError(<span class="hljs-number">404</span>, <span class="hljs-string">'JOB_NOT_FOUND'</span>, <span class="hljs-string">'任务不存在'</span>)
+    <span class="hljs-keyword">return</span> job
+</code></pre></div><hr />
+<h2 id="section-43">18. 浏览器端 JavaScript 示例</h2>
+<p>下面示例不依赖 React：它把状态更新交给传入的 <code>setState</code> 函数，可以在 React、Vue 或其他前端体系中包装使用。</p>
+<p>核心约束是：</p>
+<ol>
+<li>首先检查网络层有无响应；</li>
+<li>再检查 HTTP 状态码；</li>
+<li>检查业务状态枚举；</li>
+<li>有明确最终结果才显示“成功”；</li>
+<li>客户端等待超时只能标为“结果未确定”，不能替服务器宣布任务失败；</li>
+<li>对于页面主动取消和服务端仍在运行的任务，需要分离处理。</li>
+</ol>
+<div class="code-wrap"><div class="code-label"><span>javascript</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment">/** 浏览器端示例：将网络/HTTP/业务状态分开处理。 */</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">ApiFailure</span> <span class="hljs-keyword">extends</span> <span class="hljs-title class_ inherited__">Error</span> {
+  <span class="hljs-title function_">constructor</span>(<span class="hljs-params">code, message, { status = <span class="hljs-number">0</span>, retryable = <span class="hljs-literal">false</span>, requestId = <span class="hljs-literal">null</span> } = {}</span>) {
+    <span class="hljs-variable language_">super</span>(message);
+    <span class="hljs-variable language_">this</span>.<span class="hljs-property">name</span> = <span class="hljs-string">'ApiFailure'</span>;
+    <span class="hljs-variable language_">this</span>.<span class="hljs-property">code</span> = code;
+    <span class="hljs-variable language_">this</span>.<span class="hljs-property">status</span> = status;
+    <span class="hljs-variable language_">this</span>.<span class="hljs-property">retryable</span> = retryable;
+    <span class="hljs-variable language_">this</span>.<span class="hljs-property">requestId</span> = requestId;
+  }
+}
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">async</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">requestJson</span>(<span class="hljs-params">url, options = {}</span>) {
+  <span class="hljs-keyword">let</span> response;
+  <span class="hljs-keyword">try</span> {
+    response = <span class="hljs-keyword">await</span> <span class="hljs-title function_">fetch</span>(url, options);
+  } <span class="hljs-keyword">catch</span> (error) {
+    <span class="hljs-keyword">if</span> (error?.<span class="hljs-property">name</span> === <span class="hljs-string">'AbortError'</span>) {
+      <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ApiFailure</span>(<span class="hljs-string">'REQUEST_CANCELLED'</span>, <span class="hljs-string">'请求已取消或达到客户端截止时间'</span>);
+    }
+    <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ApiFailure</span>(<span class="hljs-string">'NETWORK_ERROR'</span>, <span class="hljs-string">'网络连接失败，请检查网络'</span>, { <span class="hljs-attr">retryable</span>: <span class="hljs-literal">true</span> });
+  }
+
+  <span class="hljs-keyword">const</span> requestId = response.<span class="hljs-property">headers</span>.<span class="hljs-title function_">get</span>(<span class="hljs-string">'X-Request-ID'</span>);
+  <span class="hljs-keyword">const</span> contentType = response.<span class="hljs-property">headers</span>.<span class="hljs-title function_">get</span>(<span class="hljs-string">'content-type'</span>) || <span class="hljs-string">''</span>;
+  <span class="hljs-keyword">let</span> body;
+  <span class="hljs-keyword">try</span> {
+    body = response.<span class="hljs-property">status</span> === <span class="hljs-number">204</span> ? <span class="hljs-literal">null</span>
+      : contentType.<span class="hljs-title function_">includes</span>(<span class="hljs-string">'application/json'</span>)
+        ? <span class="hljs-keyword">await</span> response.<span class="hljs-title function_">json</span>()
+        : <span class="hljs-keyword">await</span> response.<span class="hljs-title function_">text</span>();
+  } <span class="hljs-keyword">catch</span> {
+    <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ApiFailure</span>(<span class="hljs-string">'INVALID_RESPONSE'</span>, <span class="hljs-string">'服务器返回的数据无法解析'</span>, {
+      <span class="hljs-attr">status</span>: response.<span class="hljs-property">status</span>, requestId,
+    });
+  }
+
+  <span class="hljs-keyword">if</span> (!response.<span class="hljs-property">ok</span>) {
+    <span class="hljs-keyword">const</span> err = body &amp;&amp; <span class="hljs-keyword">typeof</span> body === <span class="hljs-string">'object'</span> ? body.<span class="hljs-property">error</span> : <span class="hljs-literal">null</span>;
+    <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ApiFailure</span>(err?.<span class="hljs-property">code</span> || <span class="hljs-string">'HTTP_ERROR'</span>, err?.<span class="hljs-property">message</span> || <span class="hljs-string">`HTTP <span class="hljs-subst">${response.status}</span>`</span>, {
+      <span class="hljs-attr">status</span>: response.<span class="hljs-property">status</span>, <span class="hljs-attr">retryable</span>: <span class="hljs-title class_">Boolean</span>(err?.<span class="hljs-property">retryable</span>), requestId,
+    });
+  }
+  <span class="hljs-keyword">return</span> { <span class="hljs-attr">httpStatus</span>: response.<span class="hljs-property">status</span>, body, requestId };
+}
+
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">wait</span>(<span class="hljs-params">ms, signal</span>) {
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">Promise</span>(<span class="hljs-function">(<span class="hljs-params">resolve, reject</span>) =&gt;</span> {
+    <span class="hljs-keyword">if</span> (signal?.<span class="hljs-property">aborted</span>) {
+      <span class="hljs-title function_">reject</span>(<span class="hljs-keyword">new</span> <span class="hljs-title class_">DOMException</span>(<span class="hljs-string">'已取消'</span>, <span class="hljs-string">'AbortError'</span>));
+      <span class="hljs-keyword">return</span>;
+    }
+    <span class="hljs-keyword">const</span> timeout = <span class="hljs-built_in">setTimeout</span>(<span class="hljs-function">() =&gt;</span> { <span class="hljs-title function_">cleanup</span>(); <span class="hljs-title function_">resolve</span>(); }, ms);
+    <span class="hljs-keyword">function</span> <span class="hljs-title function_">onAbort</span>(<span class="hljs-params"></span>) { <span class="hljs-built_in">clearTimeout</span>(timeout); <span class="hljs-title function_">cleanup</span>(); <span class="hljs-title function_">reject</span>(<span class="hljs-keyword">new</span> <span class="hljs-title class_">DOMException</span>(<span class="hljs-string">'已取消'</span>, <span class="hljs-string">'AbortError'</span>)); }
+    <span class="hljs-keyword">function</span> <span class="hljs-title function_">cleanup</span>(<span class="hljs-params"></span>) { signal?.<span class="hljs-title function_">removeEventListener</span>(<span class="hljs-string">'abort'</span>, onAbort); }
+    signal?.<span class="hljs-title function_">addEventListener</span>(<span class="hljs-string">'abort'</span>, onAbort, { <span class="hljs-attr">once</span>: <span class="hljs-literal">true</span> });
+  });
+}
+
+<span class="hljs-comment">/** setState 接收 {phase, ...}；signal 允许页面离开时取消前端等待。 */</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">async</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">submitAndTrack</span>(<span class="hljs-params">prompt, setState, { signal, maxWaitMs = <span class="hljs-number">15_000</span> } = {}</span>) {
+  <span class="hljs-keyword">const</span> started = <span class="hljs-title class_">Date</span>.<span class="hljs-title function_">now</span>();
+  <span class="hljs-title function_">setState</span>({ <span class="hljs-attr">phase</span>: <span class="hljs-string">'submitting'</span> });
+  <span class="hljs-keyword">try</span> {
+    <span class="hljs-keyword">const</span> receipt = <span class="hljs-keyword">await</span> <span class="hljs-title function_">requestJson</span>(<span class="hljs-string">'/v1/jobs'</span>, {
+      <span class="hljs-attr">method</span>: <span class="hljs-string">'POST'</span>,
+      <span class="hljs-attr">headers</span>: { <span class="hljs-string">'Content-Type'</span>: <span class="hljs-string">'application/json'</span> },
+      <span class="hljs-attr">body</span>: <span class="hljs-title class_">JSON</span>.<span class="hljs-title function_">stringify</span>({ prompt, <span class="hljs-attr">delay_ms</span>: <span class="hljs-number">100</span> }),
+      signal,
+    });
+    <span class="hljs-keyword">if</span> (receipt.<span class="hljs-property">httpStatus</span> !== <span class="hljs-number">202</span>) {
+      <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ApiFailure</span>(<span class="hljs-string">'UNEXPECTED_STATUS'</span>, <span class="hljs-string">'未收到预期的任务接收响应'</span>);
+    }
+    <span class="hljs-keyword">const</span> jobId = receipt.<span class="hljs-property">body</span>.<span class="hljs-property">job_id</span>;
+    <span class="hljs-title function_">setState</span>({ <span class="hljs-attr">phase</span>: <span class="hljs-string">'processing'</span>, jobId });
+
+    <span class="hljs-keyword">while</span> (<span class="hljs-title class_">Date</span>.<span class="hljs-title function_">now</span>() - started &lt; maxWaitMs) {
+      <span class="hljs-keyword">if</span> (signal?.<span class="hljs-property">aborted</span>) <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ApiFailure</span>(<span class="hljs-string">'REQUEST_CANCELLED'</span>, <span class="hljs-string">'前端停止等待'</span>);
+      <span class="hljs-keyword">const</span> { <span class="hljs-attr">body</span>: job } = <span class="hljs-keyword">await</span> <span class="hljs-title function_">requestJson</span>(<span class="hljs-string">`/v1/jobs/<span class="hljs-subst">${<span class="hljs-built_in">encodeURIComponent</span>(jobId)}</span>`</span>, { signal });
+      <span class="hljs-keyword">if</span> (job.<span class="hljs-property">state</span> === <span class="hljs-string">'SUCCEEDED'</span>) {
+        <span class="hljs-title function_">setState</span>({ <span class="hljs-attr">phase</span>: <span class="hljs-string">'succeeded'</span>, <span class="hljs-attr">result</span>: job.<span class="hljs-property">result</span>, jobId });
+        <span class="hljs-keyword">return</span>;
+      }
+      <span class="hljs-keyword">if</span> (job.<span class="hljs-property">state</span> === <span class="hljs-string">'FAILED'</span>) {
+        <span class="hljs-title function_">setState</span>({ <span class="hljs-attr">phase</span>: <span class="hljs-string">'failed'</span>, <span class="hljs-attr">code</span>: job.<span class="hljs-property">error</span>?.<span class="hljs-property">code</span> || <span class="hljs-string">'JOB_FAILED'</span>, jobId });
+        <span class="hljs-keyword">return</span>;
+      }
+      <span class="hljs-keyword">await</span> <span class="hljs-title function_">wait</span>(<span class="hljs-number">200</span>, signal);
+    }
+    <span class="hljs-comment">// 前端等待超时不表示后端任务失败；保留任务 ID 供稍后查询。</span>
+    <span class="hljs-title function_">setState</span>({ <span class="hljs-attr">phase</span>: <span class="hljs-string">'unknown'</span>, <span class="hljs-attr">reason</span>: <span class="hljs-string">'CLIENT_WAIT_TIMEOUT'</span>, jobId });
+  } <span class="hljs-keyword">catch</span> (error) {
+    <span class="hljs-keyword">const</span> code = error?.<span class="hljs-property">name</span> === <span class="hljs-string">'AbortError'</span> ? <span class="hljs-string">'REQUEST_CANCELLED'</span>
+      : error <span class="hljs-keyword">instanceof</span> <span class="hljs-title class_">ApiFailure</span> ? error.<span class="hljs-property">code</span> : <span class="hljs-string">'UNKNOWN_ERROR'</span>;
+    <span class="hljs-title function_">setState</span>({ <span class="hljs-attr">phase</span>: <span class="hljs-string">'failed'</span>, code });
+  }
+}
+</code></pre></div><h3 id="section-44">18.1 JavaScript 为什么需要再检查业务状态</h3>
+<p>假设轮询成功拿到了 <code>HTTP 200</code>，返回如下：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span><span class="hljs-attr">"job_id"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"123"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"state"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"FAILED"</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">"error"</span><span class="hljs-punctuation">:</span><span class="hljs-punctuation">{</span><span class="hljs-attr">"code"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"JOB_FAILED"</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">}</span></code></pre></div><p>此时 Fetch 是成功完成一次 HTTP 查询，<code>response.ok === true</code>。但业务本身失败。前端必须读取 <code>state</code> 并展示失败，而不是执行 <code>if (response.ok) showSuccess()</code>。</p>
+<h3 id="section-45">18.2 前端真实项目还需要补充什么</h3>
+<ul>
+<li>为 GET 轮询设置合理重试间隔、总重试预算以及上限。</li>
+<li>对提交重复触发实施按钮禁用或幂等键，但按钮禁用本身不是服务端幂等保证。</li>
+<li>用稳定的 <code>job_id</code> 恢复页面或刷新之后的查询。</li>
+<li>组件卸载或页面切换时，使用 <code>AbortController</code> 中止前端请求，并处理过期请求覆盖新 UI 状态。</li>
+<li>将 <code>401</code> 与 <code>403</code>、<code>409</code>、<code>422</code> 等错误分别映射到适当界面。</li>
+<li>对长任务优先展示实际服务端进度，不要用伪进度条冒充真实任务完成率。</li>
+<li>在更正式的 SDK 里，解析响应后还可以使用运行时 Schema 校验，避免后端契约变化导致前端异常。</li>
+</ul>
+<hr />
+<h2 id="section-46">19. 自动化测试与验证结果</h2>
+<h3 id="section-47">19.1 如何运行</h3>
+<p>将下面测试代码保存为 <code>test_app.py</code>，与 <code>app.py</code> 放在同一目录：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">.\.venv\Scripts\python.exe <span class="hljs-literal">-m</span> pytest <span class="hljs-literal">-q</span></code></pre></div><p>测试通过 <code>TestClient(app)</code> 的上下文管理器触发 lifespan 的启动与清理。不要直接在依赖启动资源的情况下随意创建没有进入上下文管理器的 TestClient 来假定资源已经初始化。</p>
+<p><strong>本次实际运行环境：</strong> Python 解释器具备 FastAPI 0.128.2、Pydantic 2.13.5、HTTPX 0.28.1、pytest 9.0.2。示例使用 Python 3.10+ 语法。真实数据库、Kafka、外部模型与浏览器端到端测试均未运行。</p>
+<h3 id="section-48">19.2 已验证的行为</h3>
+<table>
+<thead>
+<tr>
+<th>测试领域</th>
+<th>验证点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>生命周期</td>
+<td>测试启动时创建资源，退出时关闭</td>
+</tr>
+<tr>
+<td>成功响应</td>
+<td>201 与响应模型字段过滤</td>
+</tr>
+<tr>
+<td>字段错误</td>
+<td>空字段、必填字段、额外字段均为 422</td>
+</tr>
+<tr>
+<td>业务冲突</td>
+<td>409 和稳定业务错误码</td>
+</tr>
+<tr>
+<td>资源查询</td>
+<td>404 与不存在资源</td>
+</tr>
+<tr>
+<td>Path/Query</td>
+<td>参数校验失败返回 422</td>
+</tr>
+<tr>
+<td>Path/Query 成功</td>
+<td>正常访问资源及查询参数</td>
+</tr>
+<tr>
+<td>任务提交</td>
+<td>202 与 Location/任务 ID</td>
+</tr>
+<tr>
+<td>业务终态</td>
+<td>200 查询返回 SUCCEEDED/FAILED</td>
+</tr>
+<tr>
+<td>任务输入</td>
+<td>严格数值类型校验</td>
+</tr>
+<tr>
+<td>服务关闭</td>
+<td>进程内在途演示任务取消并清理</td>
+</tr>
+<tr>
+<td>OpenAPI</td>
+<td>接口文档存在且包含响应模型</td>
+</tr>
+<tr>
+<td>CORS</td>
+<td>允许来源和不允许来源分别验证</td>
+</tr>
+<tr>
+<td>请求 ID</td>
+<td>错误响应头与正文 ID 对应</td>
+</tr>
+</tbody></table>
+<p>本次验证结果：<strong>19 项 pytest 测试通过</strong>。前端 <code>frontend.js</code> 通过 Node.js <code>--check</code> 语法检查。<strong>这不意味着已进行真实浏览器端交互测试或生产环境高并发验证。</strong></p>
+<h3 id="section-49">19.3 已测试的 Python 代码</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> time
+<span class="hljs-keyword">from</span> fastapi.testclient <span class="hljs-keyword">import</span> TestClient
+<span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> ValidationError
+<span class="hljs-keyword">from</span> app <span class="hljs-keyword">import</span> app, DemoStore, JobState, JobCreate
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_lifespan_and_health</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        store = app.state.store
+        <span class="hljs-keyword">assert</span> <span class="hljs-built_in">isinstance</span>(store, DemoStore)
+        <span class="hljs-keyword">assert</span> <span class="hljs-keyword">not</span> store.closed
+        <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">'/health/live'</span>).json() == {<span class="hljs-string">'alive'</span>: <span class="hljs-literal">True</span>}
+        <span class="hljs-keyword">assert</span> c.get(<span class="hljs-string">'/health/ready'</span>).status_code == <span class="hljs-number">200</span>
+    <span class="hljs-keyword">assert</span> store.closed <span class="hljs-keyword">is</span> <span class="hljs-literal">True</span>
+    <span class="hljs-keyword">assert</span> store.accepting <span class="hljs-keyword">is</span> <span class="hljs-literal">False</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_success_response_and_filtering</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.post(<span class="hljs-string">'/v1/messages'</span>, json={<span class="hljs-string">'text'</span>: <span class="hljs-string">'你好'</span>})
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">201</span>
+        <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">'answer'</span>] == <span class="hljs-string">'已收到：你好'</span>
+        <span class="hljs-keyword">assert</span> <span class="hljs-string">'internal_secret'</span> <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> r.json()
+        <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(r.headers[<span class="hljs-string">'X-Request-ID'</span>]) == <span class="hljs-number">32</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_empty_payload_422</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.post(<span class="hljs-string">'/v1/messages'</span>, json={<span class="hljs-string">'text'</span>: <span class="hljs-string">''</span>})
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">422</span>
+        <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">'error'</span>][<span class="hljs-string">'code'</span>] == <span class="hljs-string">'VALIDATION_ERROR'</span>
+        <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">'error'</span>][<span class="hljs-string">'details'</span>][<span class="hljs-number">0</span>][<span class="hljs-string">'path'</span>] == <span class="hljs-string">'body.text'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_missing_payload_422</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.post(<span class="hljs-string">'/v1/messages'</span>, json={})
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">422</span>
+        <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">'error'</span>][<span class="hljs-string">'details'</span>][<span class="hljs-number">0</span>][<span class="hljs-string">'type'</span>] == <span class="hljs-string">'missing'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_extra_fields_rejected</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.post(<span class="hljs-string">'/v1/messages'</span>, json={<span class="hljs-string">'text'</span>:<span class="hljs-string">'abc'</span>, <span class="hljs-string">'admin'</span>: <span class="hljs-literal">True</span>})
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">422</span>
+        <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">'error'</span>][<span class="hljs-string">'details'</span>][<span class="hljs-number">0</span>][<span class="hljs-string">'type'</span>] == <span class="hljs-string">'extra_forbidden'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_business_conflict_409</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.post(<span class="hljs-string">'/v1/messages'</span>, json={<span class="hljs-string">'text'</span>: <span class="hljs-string">'conflict'</span>})
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">409</span>
+        <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">'error'</span>][<span class="hljs-string">'code'</span>] == <span class="hljs-string">'BUSINESS_CONFLICT'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_not_found_404</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.get(<span class="hljs-string">'/v1/items/2'</span>)
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">404</span>
+        <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">'error'</span>][<span class="hljs-string">'code'</span>] == <span class="hljs-string">'ITEM_NOT_FOUND'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_path_validation_422</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.get(<span class="hljs-string">'/v1/items/0'</span>)
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">422</span>
+        <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">'error'</span>][<span class="hljs-string">'details'</span>][<span class="hljs-number">0</span>][<span class="hljs-string">'path'</span>] == <span class="hljs-string">'path.item_id'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_query_validation_422</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.get(<span class="hljs-string">'/v1/items/1?include_note=not-a-boolean'</span>)
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">422</span>
+        <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">'error'</span>][<span class="hljs-string">'details'</span>][<span class="hljs-number">0</span>][<span class="hljs-string">'path'</span>] == <span class="hljs-string">'query.include_note'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_query_success</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.get(<span class="hljs-string">'/v1/items/1?include_note=true'</span>)
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">200</span>
+        <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">'note'</span>] == <span class="hljs-string">'附加说明'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">wait_for_job</span>(<span class="hljs-params">c, job_id, terminal, timeout=<span class="hljs-number">2</span></span>):
+    deadline = time.monotonic() + timeout
+    <span class="hljs-keyword">while</span> time.monotonic() &lt; deadline:
+        r = c.get(<span class="hljs-string">'/v1/jobs/'</span> + job_id)
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">200</span>
+        job = r.json()
+        <span class="hljs-keyword">if</span> job[<span class="hljs-string">'state'</span>] <span class="hljs-keyword">in</span> terminal:
+            <span class="hljs-keyword">return</span> job
+        time.sleep(<span class="hljs-number">.015</span>)
+    <span class="hljs-keyword">raise</span> AssertionError(<span class="hljs-string">'job did not finish'</span>)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_accepted_vs_completed</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.post(<span class="hljs-string">'/v1/jobs'</span>, json={<span class="hljs-string">'prompt'</span>: <span class="hljs-string">'test'</span>, <span class="hljs-string">'delay_ms'</span>: <span class="hljs-number">100</span>})
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">202</span>
+        <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">'state'</span>] == <span class="hljs-string">'PENDING'</span>
+        <span class="hljs-keyword">assert</span> r.headers[<span class="hljs-string">'Location'</span>].endswith(r.json()[<span class="hljs-string">'job_id'</span>])
+        mid = c.get(r.headers[<span class="hljs-string">'Location'</span>]).json()
+        <span class="hljs-keyword">assert</span> mid[<span class="hljs-string">'state'</span>] <span class="hljs-keyword">in</span> (<span class="hljs-string">'PENDING'</span>, <span class="hljs-string">'RUNNING'</span>, <span class="hljs-string">'SUCCEEDED'</span>)
+        result = wait_for_job(c, r.json()[<span class="hljs-string">'job_id'</span>], {<span class="hljs-string">'SUCCEEDED'</span>})
+        <span class="hljs-keyword">assert</span> result[<span class="hljs-string">'result'</span>] == <span class="hljs-string">'处理完成：test'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_background_business_failed_with_http_200</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.post(<span class="hljs-string">'/v1/jobs'</span>, json={<span class="hljs-string">'prompt'</span>: <span class="hljs-string">'fail'</span>, <span class="hljs-string">'simulate_failure'</span>: <span class="hljs-literal">True</span>, <span class="hljs-string">'delay_ms'</span>: <span class="hljs-number">15</span>})
+        result = wait_for_job(c, r.json()[<span class="hljs-string">'job_id'</span>], {<span class="hljs-string">'FAILED'</span>})
+        <span class="hljs-keyword">assert</span> result[<span class="hljs-string">'state'</span>] == <span class="hljs-string">'FAILED'</span>
+        <span class="hljs-keyword">assert</span> result[<span class="hljs-string">'error'</span>][<span class="hljs-string">'code'</span>] == <span class="hljs-string">'JOB_FAILED'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_missing_job_404</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.get(<span class="hljs-string">'/v1/jobs/missing'</span>)
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">404</span>
+        <span class="hljs-keyword">assert</span> r.json()[<span class="hljs-string">'error'</span>][<span class="hljs-string">'code'</span>] == <span class="hljs-string">'JOB_NOT_FOUND'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_job_schema_strict_numeric</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.post(<span class="hljs-string">'/v1/jobs'</span>, json={<span class="hljs-string">'prompt'</span>:<span class="hljs-string">'test'</span>,<span class="hljs-string">'delay_ms'</span>:<span class="hljs-string">'100'</span>})
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">422</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_task_cancelled_during_lifespan_exit</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.post(<span class="hljs-string">'/v1/jobs'</span>, json={<span class="hljs-string">'prompt'</span>: <span class="hljs-string">'slow'</span>, <span class="hljs-string">'delay_ms'</span>: <span class="hljs-number">1000</span>})
+        store = app.state.store
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">202</span>
+        job_id = r.json()[<span class="hljs-string">'job_id'</span>]
+    <span class="hljs-keyword">assert</span> store.closed
+    <span class="hljs-keyword">assert</span> store.jobs[job_id].state == JobState.FAILED
+    <span class="hljs-keyword">assert</span> store.jobs[job_id].error.code == <span class="hljs-string">'SHUTDOWN_CANCELLED'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_automatic_openapi_contract</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.get(<span class="hljs-string">'/openapi.json'</span>)
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">200</span>
+        paths = r.json()[<span class="hljs-string">'paths'</span>]
+        <span class="hljs-keyword">assert</span> <span class="hljs-string">'/v1/messages'</span> <span class="hljs-keyword">in</span> paths
+        <span class="hljs-keyword">assert</span> <span class="hljs-string">'/v1/jobs'</span> <span class="hljs-keyword">in</span> paths
+        <span class="hljs-keyword">assert</span> paths[<span class="hljs-string">'/v1/messages'</span>][<span class="hljs-string">'post'</span>][<span class="hljs-string">'responses'</span>][<span class="hljs-string">'201'</span>][<span class="hljs-string">'content'</span>][<span class="hljs-string">'application/json'</span>][<span class="hljs-string">'schema'</span>]
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cors_allowed</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.options(<span class="hljs-string">'/v1/messages'</span>, headers={<span class="hljs-string">'Origin'</span>:<span class="hljs-string">'http://localhost:5173'</span>,<span class="hljs-string">'Access-Control-Request-Method'</span>:<span class="hljs-string">'POST'</span>,<span class="hljs-string">'Access-Control-Request-Headers'</span>:<span class="hljs-string">'content-type'</span>})
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">200</span>
+        <span class="hljs-keyword">assert</span> r.headers[<span class="hljs-string">'access-control-allow-origin'</span>] == <span class="hljs-string">'http://localhost:5173'</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cors_disallowed</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.options(<span class="hljs-string">'/v1/messages'</span>, headers={<span class="hljs-string">'Origin'</span>:<span class="hljs-string">'http://malicious.example'</span>,<span class="hljs-string">'Access-Control-Request-Method'</span>:<span class="hljs-string">'POST'</span>})
+        <span class="hljs-keyword">assert</span> r.status_code == <span class="hljs-number">400</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_request_id_matches_body</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> c:
+        r = c.post(<span class="hljs-string">'/v1/messages'</span>, json={<span class="hljs-string">'text'</span>:<span class="hljs-string">''</span>})
+        <span class="hljs-keyword">assert</span> r.headers[<span class="hljs-string">'X-Request-ID'</span>] == r.json()[<span class="hljs-string">'request_id'</span>]
+</code></pre></div><hr />
+<h2 id="section-50">20. 常见错误、成因和排查</h2>
+<h3 id="section-51">20.1 <code>422</code> 总在出现，但感觉输入“明明正确”</h3>
+<p>检查：</p>
+<ol>
+<li>请求是 <code>application/json</code>，还是把 JSON 字符串当普通文本发送？</li>
+<li>字段是否真的存在，名字是否大小写一致？</li>
+<li>字段是 <code>None</code> 还是根本没有提交？</li>
+<li>严格模式是否拒绝了字符串形式的数字？</li>
+<li>额外字段是否被 <code>extra='forbid'</code> 拒绝？</li>
+<li>错误定位是 <code>body</code>、<code>path</code>、<code>query</code> 还是 <code>header</code>？</li>
+</ol>
+<p><code>422</code> 不应一律通过“放宽 Schema”解决，先确认前端的数据形态与 API 契约是否一致。</p>
+<h3 id="section-52">20.2 后端返回 200，前端却认为失败</h3>
+<p>可能原因：</p>
+<ul>
+<li>业务状态实际为 FAILED 或未完成；</li>
+<li>响应体字段与前端 TypeScript 类型定义不一致；</li>
+<li>前端 <code>response.json()</code> 解析失败；</li>
+<li>组件状态被过期请求覆盖；</li>
+<li>前端把 <code>202</code> 当作最终成功。</li>
+</ul>
+<p>检查 Network 面板的 HTTP 状态和响应体，结合 <code>X-Request-ID</code> 定位对应服务端日志。</p>
+<h3 id="section-53">20.3 前端提示 Network Error，但服务器有日志</h3>
+<p>可能是 CORS 响应头不匹配、预检失败、代理断开或浏览器安全策略阻止了 JavaScript 读取响应。需要检查浏览器 Console、Network 预检、代理和服务端日志；不能只检查业务路由是否执行。</p>
+<h3 id="section-54">20.4 服务启动后立刻抛 <code>AttributeError</code>：没有 <code>app.state.xxx</code></h3>
+<p>检查：</p>
+<ul>
+<li>是否正确传入并运行了 <code>lifespan</code>；</li>
+<li>测试中是否进入 <code>TestClient</code> 上下文；</li>
+<li>是否在模块导入时错误访问了只在启动后创建的资源；</li>
+<li>多个 Worker 是否各自拥有独立资源状态。</li>
+</ul>
+<h3 id="section-55">20.5 流式响应或后台任务偶尔中断</h3>
+<p>可能是客户端断开、ASGI 取消传播、服务器关闭期限、代理空闲超时或者资源已被提前释放。进程内 Task 并不持久；需要强可靠任务时，应转到任务持久化章节设计独立队列和 Worker。</p>
+<h3 id="section-56">20.6 所有错误都统一 <code>except Exception: return {"success": false}</code></h3>
+<p>这种写法会丢失 HTTP 状态、堆栈记录、类型信息与恢复语义，甚至错误地把 500 变成 200。推荐按领域错误、请求验证错误和未知内部错误分别处理。</p>
+<h3 id="section-57">20.7 测试通过，但是生产环境仍然出错</h3>
+<p>测试断言是其覆盖范围内的证据，不是生产保障。<code>TestClient</code> 的进程内测试无法自动覆盖真实浏览器 CORS、反向代理、TLS、多 Worker、负载均衡、数据库事务、外部依赖或长期稳定性。</p>
+<hr />
+<h2 id="section-58">21. 延伸知识与官方参考资料</h2>
+<h3 id="section-59">21.1 当前知识点与后续模块的关系</h3>
+<ul>
+<li><strong>SQL 与数据库</strong>：接口成功不等于事务成功；需要了解事务隔离、唯一约束与连接池。</li>
+<li><strong>Redis 缓存</strong>：缓存命中是性能行为，不等于持久化业务状态。</li>
+<li><strong>后台任务</strong>：202 之后的持久化状态、Worker、重试与幂等需要单独学习。</li>
+<li><strong>AI 模型调用</strong>：模型返回可能是流式的，结束事件、取消和部分输出要有额外协议。</li>
+<li><strong>前端工程</strong>：React/Vue 负责展示、交互与状态，必须根据服务器真实契约行事。</li>
+<li><strong>Agent 工具执行</strong>：模型提出操作不等于已获权限；服务端认证与授权仍是最终边界。</li>
+</ul>
+<h3 id="section-60">21.2 官方文档</h3>
+<ol>
+<li>FastAPI — <a href="https://fastapi.tiangolo.com/tutorial/body/">Request Body</a>：Pydantic 请求体定义、路径与查询参数。</li>
+<li>FastAPI — <a href="https://fastapi.tiangolo.com/tutorial/response-model/">Response Model</a>：响应验证、序列化、字段过滤。</li>
+<li>FastAPI — <a href="https://fastapi.tiangolo.com/tutorial/handling-errors/">Handling Errors</a>：HTTPException 与 RequestValidationError。</li>
+<li>FastAPI — <a href="https://fastapi.tiangolo.com/tutorial/response-status-code/">Response Status Code</a>：状态码声明与 OpenAPI。</li>
+<li>FastAPI — <a href="https://fastapi.tiangolo.com/advanced/events/">Lifespan Events</a>：启动、关闭及资源管理。</li>
+<li>FastAPI — <a href="https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/">Dependencies with yield</a>：数据库会话等请求级资源。</li>
+<li>FastAPI — <a href="https://fastapi.tiangolo.com/tutorial/testing/">Testing</a>：TestClient 与 pytest。</li>
+<li>FastAPI — <a href="https://fastapi.tiangolo.com/advanced/async-tests/">Async Tests</a>：HTTPX AsyncClient、ASGI 测试与 lifespan 注意事项。</li>
+<li>FastAPI — <a href="https://fastapi.tiangolo.com/tutorial/cors/">CORS</a>：跨域配置与预检。</li>
+<li>Pydantic — <a href="https://docs.pydantic.dev/latest/concepts/models/">Models</a>：模型定义、必填字段及额外字段。</li>
+<li>Pydantic — <a href="https://docs.pydantic.dev/latest/concepts/strict_mode/">Strict Mode</a>：严格类型校验。</li>
+<li>MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch">Using the Fetch API</a>：浏览器 Fetch 的错误处理和响应读取。</li>
+<li>MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status">HTTP response status codes</a>：常见 HTTP 状态码定义。</li>
+<li>Starlette — <a href="https://www.starlette.io/lifespan/">Lifespan</a>：ASGI 应用生命周期与测试。</li>
+</ol>
+<hr />
+<h2 id="section-61">结论</h2>
+<p>FastAPI 的请求/响应模型主要回答的是：<strong>一次 HTTP 调用接受什么、返回什么、输入输出有哪些结构约束。</strong></p>
+<p>HTTP 错误机制回答的是：<strong>这次请求为什么无法按约定完成。</strong></p>
+<p>业务状态机回答的是：<strong>已经启动的真实业务任务目前处于什么阶段，以及是否最终成功。</strong></p>
+<p><code>lifespan</code> 回答的是：<strong>服务在启动与关闭时如何准备和释放资源。</strong></p>
+<p>前端必须把这四层分开处理，才能做到“失败说得清楚、处理中不会假装成功、真正完成后才显示成功”。</p>

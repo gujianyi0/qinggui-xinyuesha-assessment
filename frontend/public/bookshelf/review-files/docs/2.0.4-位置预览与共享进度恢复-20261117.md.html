@@ -1,0 +1,33 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2.0.4-位置预览与共享进度恢复-20261117.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>2.0.4 位置预览与共享进度恢复</h1>
+<p>日期：2026-11-17，轻归版本2.0.4-local.1，本机15180内测。</p>
+<p>用户反馈位置链接会下载，并补充要求在49篇知识文档旁附上进度，恢复文章中的掌握、收藏和下载控件。确认继续使用用户本人的共享进度，考核官查看。</p>
+<h2>位置链接</h2>
+<ul>
+<li>按仓库相对路径在轻归内打开项目文件、目录或报告，不依赖F盘、用户名或克隆目录。源码和日志按每页100行展示，支持行号跳转；Markdown按段落阅读，目录可展开已导出文件，PNG可预览。</li>
+<li>下载改为独立的“下载此文件”或“下载原文”操作。代码正文作为文本展示，不执行HTML/脚本；长行分段展开，避免一次排版巨大文件。</li>
+<li>仅允许检阅清单中已导出的路径，私有配置和未收录文件不读取。浏览器无法自动推断别人电脑的克隆根目录；本轮实现站内对应位置预览，没有实现桌面资源管理器跳转。</li>
+</ul>
+<h2>共享掌握与收藏</h2>
+<ul>
+<li>沿用原知识书架Cloudflare D1记录。接入前实测48条已掌握、revision=40；没有重置为0，也没有自动把第49篇标成掌握。</li>
+<li>原服务同步补齐第49篇知识文档及进度目录，Worker版本<code>d90fa69b-c878-4a7b-adba-ee42b545b866</code>；<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv204-original-shelf-sync-20261117.json">原服务核对</a>。轻归v2公网前端仍未发布。</li>
+<li>本机后端保存管理口令，alice可维护共享掌握状态，bob及其他身份只读。修改带revision；考核资料8-xx不能提交学习状态。原有48条掌握ID保留，实际同值写入仅使revision从40增加为41，未增加或取消任何掌握条目。</li>
+<li>知识区恢复进度条、已掌握标记、收藏文章和下载原文。收藏按登录身份隔离保存在各自浏览器；主人可以兼容读取本机同源旧书架的收藏，保留旧存储，不把原Cloudflare域名的浏览器收藏伪装成已自动跨域迁移。</li>
+<li>文档导航QA仍是独立考核资料，不参与掌握进度和收藏统计。接入使用Cloudflare及Wrangler技能核对原服务与发布，未变更D1表结构。</li>
+</ul>
+<h2>失败及修正</h2>
+<p>首次实际验证已完成主人同值写入和过期修订409，随后一次只读账号查询返回503。没有据此清空本地进度或重放写入。针对已观察到的临时读取失败，增加一次GET重试并设12秒总截止时间；写入不自动重试，结果不明时重新读取核对。后续实际只读查询200、非主人写入403，48条ID保持一致。详见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv204-live-shared-progress-20261117.json">完整记录</a>。</p>
+<p>Docker直接访问原服务曾出现DNS解析失败，使用本机已有出站代理10793接通；实际地址仅在私有BOOKSHELF_HTTP_PROXY配置中。凭据未进入网页、导出资料或仓库。</p>
+<h2>验证</h2>
+<ul>
+<li>后端248项通过：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv204-pytest-20261117.log">日志</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv204-pytest-20261117.xml">JUnit</a>。覆盖共享进度权限、旧修订、非法学习ID、错误响应、临时读取重试与原功能回归。</li>
+<li>前端59项及Lint、架构、TypeScript、Knip、构建通过：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv204-frontend-check-20261117.log">日志</a>。覆盖主人掌握修改、只读账号、收藏刷新保留、目录/源码/Markdown预览、行号分页及私有路径拒绝。</li>
+<li>API分两步部署：<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv204-api-deployment-20261117.json">初次镜像与账本</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv204-read-retry-deployment-20261117.json">读取重试修正</a>。Worker、原15174前端和费用账本保持；本轮没有新增模型调用。</li>
+</ul>
+<p>实际网页核对已完成，原始记录见下节；本次原服务目录更新不是轻归v2公网发布。</p>
+<h2>实际网页与检阅证据</h2>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv204-browser-links-progress-20261117.json">浏览器记录</a>：进度48/49（98%）、主人掌握按钮可用，收藏切换后刷新仍保留，再恢复测试前收藏状态。只读账号掌握按钮禁用，个人收藏可用。浏览器没有切换真实共享掌握状态。</p>
+<p>点击位置链接后URL保持轻归工作区，源码按100行预览，未发生download事件；目录可进入，L105可定位高亮，Markdown报告保留标题和段落。390px下文件与进度界面无页面横向溢出，代码只在自身横向查看。自动滚动的首次定位未把目标完整暴露，检查命中元素并使用真实滚轮后完成点击；不把此工具定位问题写成用户链接仍下载。</p>
+<p>源码：<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fbookshelf_progress.py">共享进度后端</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=frontend%2Fsrc%2Ffeatures%2Fbookshelf%2Fcomponents%2Fevidence-preview.tsx">文件预览</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=frontend%2Fsrc%2Ffeatures%2Fbookshelf%2Futils%2Fshelf-href.ts">相对链接映射</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=frontend%2Fsrc%2Ffeatures%2Fbookshelf%2Fcomponents%2Fbookshelf-screen.tsx">掌握与收藏界面</a>。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv204-bookshelf-verification-20261117.json">资料与私有边界核验</a>另查原文哈希、已导出文件及凭据。没有截图视觉验收或实体手机测试，也没有重跑32条真实模型或一小时Worker。</p>
+</article></body></html>

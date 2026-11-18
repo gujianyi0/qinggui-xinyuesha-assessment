@@ -1,0 +1,27 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>B04-业务提交与位点之间崩溃的恢复.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>B04 业务提交与位点之间崩溃的恢复</h1>
+<p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
+<p>状态：<strong>已实现，指定崩溃点与真实重放已有验证</strong>。</p>
+<h2>对应要求（原段要点，转述）</h2>
+<p>在业务写入后但Kafka位点提交前退出，重启仍应正确处理并避免任务丢失或永久运行。</p>
+<p>来源：<a href="https://biteagle.yuque.com/mw0520/rzyee0/ay7550zlq5vyq27t#u0b9eb139">故剑遗学习目标 · 后台任务与可靠性 · 本段</a>。
+对应编号：B04。原段SHA256：<code>f5e4762361fae000f568d41d9e3ca597f1933d51f4282c4aa0beb6504a9a1f74</code>。</p>
+<p>这是原文一个段落的对应回答。要点使用转述；原段定位和哈希用于复核边界，不把此处概括当作公司新要求。</p>
+<h2>回答</h2>
+<p>核心顺序是先持久化业务结果或可恢复重试安排，再手动确认Kafka位点。若业务已经成功提交、Worker尚未提交位点便退出，消息会重放，但数据库终态会使重复领取失败，Worker只确认消息而不重新发布索引。</p>
+<h2>本项目如何实现</h2>
+<p>Worker设置enable.auto.commit=false、enable.auto.offset.store=false，handle完成持久处理后同步commit。处理未持久化的异常会回退本地消费位置，防止随后提交更高位点顺带跳过失败消息。</p>
+<p>中途崩溃与“已完成后未提交位点”分开处理：中途Job还处于running，租约过期后recover增加generation并重新排队；旧执行者被代次隔离。超过最大尝试次数进入failed，仍保留记录。需要恢复循环实际运行，不能在所有服务停机时承诺任务会自行前进。</p>
+<h2>已有验证与证据</h2>
+<ul>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fworker.py">Worker消费/提交实现</a>、<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fjobs.py">Jobs.recover</a>。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fcompose-linux-20261111-04%2Fsummary.json">真实容器崩溃证据</a>：business_commit_before_kafka_offset_crash_and_replay，退出码82；另有领取后终止、60秒租约恢复。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_worker.py">消费者回退测试</a>：test_poll_failure_rewinds_before_later_offset_can_commit。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=tests%2Ftest_jobs.py">旧租约隔离测试</a>：test_expired_lease_fences_old_execution。</li>
+</ul>
+<p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
+<h2>怎样核对或演示</h2>
+<p>按证据中的Job号、generation和Offset，对比退出前数据库succeeded、退出后消息重放、最终发布指针和位点推进。若做新实验，使用独立库/Topic和显式测试故障点，不能在主服务打开ASSESSMENT_CRASH_AT。</p>
+<h2>结论与边界</h2>
+<p>恢复是从持久状态决定跳过、重新执行或终止，不是把进程内Task原样复活。旧代次暂存可保留，但不会变成当前发布；目前不是多API/多Worker集群可用性或所有重平衡场景的完整证明。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%9E%E6%88%98QA%2F00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md">返回目录与维护说明</a></p>
+</article></body></html>

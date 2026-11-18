@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "backup": "v19-final-primary",
+  "target": "assessment_restore_v19_final",
+  "model_mode": "mock",
+  "provider_key_loaded": false,
+  "model_requests_sent": 0,
+  "sessions_read": 351,
+  "messages_read": 8,
+  "budget_preserved": true,
+  "primary_database_used": false,
+  "elapsed_seconds": 9.335
+}

@@ -1,0 +1,25 @@
+
+> qinggui-game-assistant-web@2.0.3-local.1 check
+> npm run lint && npm run architecture && npm run typecheck && npm run knip && npm test -- --maxWorkers=1 && npm run build
+
+
+> qinggui-game-assistant-web@2.0.3-local.1 lint
+> biome check src scripts vite.config.ts --error-on-warnings
+
+Checked 84 files in 43ms. No fixes applied.
+
+> qinggui-game-assistant-web@2.0.3-local.1 architecture
+> node scripts/check-architecture.mjs
+
+Architecture: 79 TypeScript files; Feature boundaries, naming, any and argument counts passed.
+
+> qinggui-game-assistant-web@2.0.3-local.1 typecheck
+> tsc --noEmit
+
+
+> qinggui-game-assistant-web@2.0.3-local.1 knip
+> knip --no-progress
+
+Unused files (2)
+public/bookshelf/app.js            
+public/bookshelf/shared-progress.js

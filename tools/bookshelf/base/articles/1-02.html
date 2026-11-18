@@ -1,0 +1,799 @@
+<h1 id="section-1">Python 请求调用链、数据与异常传播、代码变更影响分析</h1>
+<blockquote>
+<p><strong>所属模块：</strong> Python 基础与异步编程<br /><strong>对应学习目标：</strong> 能沿着请求入口读到业务逻辑、数据库和外部调用，理解输入、输出和错误怎样传递；修改已有代码前确认调用方和影响范围。<br /><strong>文档定位：</strong> 纯知识讲解、工程原理、代码示例与排查方法。<br /><strong>适用技术：</strong> Python 3.11+、FastAPI、Pydantic v2；数据库示例使用标准库 SQLite，拓展说明涉及 SQLAlchemy 2.x。</p>
+</blockquote>
+<hr />
+<h2 id="section-2">1. 请求调用链是什么</h2>
+<p>**请求调用链（request call chain）**指一个请求从进入服务开始，经过认证、参数验证、业务运算、数据库访问、外部服务调用，直到形成响应或失败的全过程。</p>
+<p>它至少包含四种不同的关系，不能混为一谈：</p>
+<ol>
+<li><strong>调用关系（call graph）</strong>：哪个函数调用了哪个函数。</li>
+<li><strong>数据流（data flow）</strong>：输入数据经过哪些读取、转换、校验和存储。</li>
+<li><strong>控制流（control flow）</strong>：条件分支、提前返回、重试、超时、异常如何改变执行路径。</li>
+<li><strong>副作用（side effects）</strong>：数据库写入、发送消息、扣费、写文件、调用第三方接口等真实状态变化。</li>
+</ol>
+<p>例如游戏规则问答服务的概念流程：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">玩家在前端提交问题
+  │ HTTP POST /ask
+  ▼
+Web Server / ASGI
+  │
+  ├─ Middleware：请求号、日志等
+  ├─ 身份认证/授权依赖（如果启用）
+  ├─ FastAPI 路由匹配与 Pydantic 输入校验
+  ▼
+API 路由函数
+  │  把 AskRequest 交给业务服务
+  ▼
+业务服务 AskService
+  ├─ 检查游戏版本、用户权限、业务条件
+  ├─ RuleRepository → PostgreSQL / SQLite → 规则数据
+  ├─ ModelClient → 外部大模型 API → 生成文本
+  └─ AnswerRepository → 数据库 → 保存结果
+  │
+  ▼
+输出对象 AskResponse → FastAPI 响应校验/序列化
+  │
+  ▼
+HTTP 状态码 + JSON → 前端</code></pre></div><p>这里的外部 API 调用与数据库访问是<strong>兄弟依赖</strong>，并不是数据库一定调用模型，也不是所有请求都必须经过所有节点。不同业务分支可能只有读取数据库，没有外部调用；也可能先发送任务到消息队列再返回 <code>202 Accepted</code>。</p>
+<h3 id="section-3">1.1 入口不等于 <code>main.py</code></h3>
+<p><code>main.py</code>、<code>app.py</code> 通常用于创建 FastAPI 应用或注册路由，但<strong>真正处理某个 HTTP 请求的入口</strong>通常是匹配的路由处理函数（path operation）。例如：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> APIRouter
+
+router = APIRouter(prefix=<span class="hljs-string">"/rules"</span>)
+
+<span class="hljs-meta">@router.get(<span class="hljs-params"><span class="hljs-string">"/{rule_id}"</span></span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">read_rule</span>(<span class="hljs-params">rule_id: <span class="hljs-built_in">int</span></span>):
+    ...</code></pre></div><p>调用该函数的不是源码中写出的另一行 <code>read_rule(...)</code>，而是框架在接收到匹配请求后执行它。因此，静态查找“谁显式调用了 <code>read_rule</code>”可能找不到调用者；必须同时查看<strong>路由注册和框架约定</strong>。</p>
+<p>除了 HTTP 路由，以下也可能是程序入口：命令行入口、定时任务、Kafka Consumer 回调、后台 Worker、测试框架钩子和 WebSocket 处理函数。判断入口要看当前故障发生在哪一种运行路径。</p>
+<h2 id="section-4">2. 从请求入口开始阅读代码</h2>
+<h3 id="section-5">2.1 先定位运行入口和路由</h3>
+<p>典型工程目录：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">app/
+├── main.py             # FastAPI 应用、路由注册、生命周期
+├── api/
+│   ├── routes.py       # HTTP 入口
+│   └── dependencies.py # 认证、数据库 Session、外部 Client 注入
+├── schemas/
+│   └── question.py     # 请求/响应模型
+├── services/
+│   └── ask_service.py  # 业务规则与流程协调
+├── repositories/
+│   └── rule_repo.py    # 数据库查询与持久化
+├── clients/
+│   └── model_client.py # 外部 HTTP / SDK 调用
+├── models/
+│   └── rule.py         # ORM 数据模型
+└── core/
+    └── errors.py       # 业务异常</code></pre></div><p><strong>找一个接口时</strong>，先搜路径字符串、HTTP 装饰器、路由对象和 <code>include_router</code>，再沿函数实现阅读：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 在仓库根目录执行（需安装 ripgrep）</span>
+rg -n <span class="hljs-string">'include_router|APIRouter|@app\.(get|post|put|delete)|@router\.(get|post|put|delete)'</span> app
+rg -n <span class="hljs-string">'"/ask"|"/rules"|AskRequest|AskService'</span> app</code></pre></div><p>阅读路线：</p>
+<ol>
+<li><code>main.py</code>：应用创建、路由挂载、全局异常处理、生命周期。</li>
+<li><code>api/routes.py</code>：HTTP 方法、路径、请求体、响应模型、依赖。</li>
+<li><code>schemas/</code>：字段类型、默认值、限制、字段别名、是否可为空。</li>
+<li><code>services/</code>：真正的业务规则、条件分支、调用次序。</li>
+<li><code>repositories/</code>：SQL、ORM 查询、事务和写入位置。</li>
+<li><code>clients/</code>：外部服务 URL、超时、鉴权、返回结果解析。</li>
+<li><code>errors.py</code> 与日志：异常如何转换成调用方看得懂的失败。</li>
+<li>测试和前端 API 客户端：接口的<strong>实际消费者</strong>与既有行为。</li>
+</ol>
+<h3 id="section-6">2.2 区分声明、注入、调用与执行</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> Annotated
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> Depends, FastAPI
+
+app = FastAPI()
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">get_user_id</span>() -&gt; <span class="hljs-built_in">int</span>:
+    <span class="hljs-keyword">return</span> <span class="hljs-number">123</span>
+
+<span class="hljs-meta">@app.get(<span class="hljs-params"><span class="hljs-string">"/profile"</span></span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">profile</span>(<span class="hljs-params">user_id: Annotated[<span class="hljs-built_in">int</span>, Depends(<span class="hljs-params">get_user_id</span>)]</span>):
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"user_id"</span>: user_id}</code></pre></div><p>此处没有写 <code>profile(get_user_id())</code>。FastAPI 的依赖注入系统先执行 <code>get_user_id()</code>，再把结果交给 <code>profile</code>。所以调用链除了显式调用，还包含<strong>依赖注入边</strong>。依赖自身还可以依赖其他依赖。</p>
+<p>装饰器、回调注册、事件订阅、反射、配置驱动和插件机制也会构成隐式调用关系。<strong>全文搜索不到函数名的显式调用，不代表它没有被执行。</strong></p>
+<h2 id="section-7">3. 沿路径理解输入和输出</h2>
+<h3 id="section-8">3.1 输入要分层看</h3>
+<p>同一个请求的数据可能依次变成不同表示：</p>
+<table>
+<thead>
+<tr>
+<th>所在层</th>
+<th>数据形式</th>
+<th>主要责任</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>前端</td>
+<td>JS 对象 / 表单</td>
+<td>收集用户数据，提示交互错误</td>
+</tr>
+<tr>
+<td>HTTP</td>
+<td>JSON、Header、Path、Query</td>
+<td>传输协议和身份凭据</td>
+</tr>
+<tr>
+<td>API 边界</td>
+<td>Pydantic <code>AskRequest</code></td>
+<td>类型、格式、长度及基础校验</td>
+</tr>
+<tr>
+<td>业务层</td>
+<td>领域对象或函数参数</td>
+<td>版本、权限、业务不变量</td>
+</tr>
+<tr>
+<td>数据访问层</td>
+<td>SQL 参数 / ORM 对象</td>
+<td>查询、写入、约束、事务</td>
+</tr>
+<tr>
+<td>外部 Client</td>
+<td>第三方 API 请求体</td>
+<td>提供商协议、超时、鉴权</td>
+</tr>
+</tbody></table>
+<p>例如：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, Field
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AskRequest</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    character: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>, max_length=<span class="hljs-number">40</span>)
+    version: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>, max_length=<span class="hljs-number">20</span>)
+    question: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>, max_length=<span class="hljs-number">2000</span>)</code></pre></div><p>请求校验能判断字符串是否为空，却不能证明“这个版本确实存在”，也不能证明“当前用户有权查看这份规则”。后两者通常属于业务层及权限层，不能因数据符合 Schema 就跳过。</p>
+<h3 id="section-9">3.2 输出也存在不同契约</h3>
+<p>数据库查询可能返回 ORM 对象，外部模型可能返回 JSON，业务服务可能返回领域结果，最终 API 返回 <code>AskResponse</code>。<strong>内部对象不应该未经筛选直接暴露给外部</strong>：可能泄露数据库字段、密钥或内部状态。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AskResponse</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    answer_id: <span class="hljs-built_in">int</span>
+    answer: <span class="hljs-built_in">str</span>
+    source: <span class="hljs-built_in">str</span></code></pre></div><p>FastAPI 的 <code>response_model</code> 可参与响应校验、序列化及字段过滤。若实际返回结果不符合响应模型，这是服务端契约错误，不能错误地当作用户输入非法。</p>
+<h3 id="section-10">3.3 数据流的关键问题</h3>
+<p>沿每个函数记录：</p>
+<ul>
+<li>参数从哪里来？是用户输入、数据库、缓存、环境变量还是外部 API？</li>
+<li>进入下一层时发生了哪些转换？有没有默认值、截断、标准化、过滤？</li>
+<li>返回值为空时是什么意思？“没有记录”“访问被拒绝”“服务失败”不能全部混为 <code>None</code>。</li>
+<li>什么数据被写入？写入是否发生在实际响应之前？写入失败是否会回滚？</li>
+<li>哪个字段是外部 API 契约？哪个字段只是内部临时变量？</li>
+</ul>
+<h2 id="section-11">4. 控制流与异常传播</h2>
+<p>异常和普通返回值是两条不同的传播渠道：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">repository</span>():
+    <span class="hljs-keyword">raise</span> ConnectionError(<span class="hljs-string">"DB unavailable"</span>)
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">service</span>():
+    <span class="hljs-keyword">return</span> repository()     <span class="hljs-comment"># 不会得到正常返回值</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">api</span>():
+    <span class="hljs-keyword">return</span> service()        <span class="hljs-comment"># 若无人捕获，异常继续向上</span></code></pre></div><p>当异常在 <code>repository()</code> 抛出时，该函数之后的正常语句不会继续执行；异常沿调用栈向上传递，直到被相匹配的 <code>except</code> 捕获，或最终被框架的异常处理机制接管。</p>
+<h3 id="section-12">4.1 三种常见异常处理方式</h3>
+<p><strong>A. 原样传播</strong>：当前层无法做有意义的恢复，通常应让上层处理。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">try</span>:
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> repo.get_rule(rule_id)
+<span class="hljs-keyword">except</span> DatabaseError:
+    logger.exception(<span class="hljs-string">"查询规则失败"</span>)
+    <span class="hljs-keyword">raise</span>  <span class="hljs-comment"># 保留异常类型和当前异常链</span></code></pre></div><p><strong>B. 转换为领域异常</strong>：把数据库或第三方实现细节转换为业务层理解的失败。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">try</span>:
+    <span class="hljs-keyword">await</span> provider.generate(prompt)
+<span class="hljs-keyword">except</span> ProviderTimeout <span class="hljs-keyword">as</span> exc:
+    <span class="hljs-keyword">raise</span> AnswerGenerationUnavailable(<span class="hljs-string">"上游模型超时"</span>) <span class="hljs-keyword">from</span> exc</code></pre></div><p><code>raise ... from exc</code> 保留显式异常原因，便于排查根因。</p>
+<p><strong>C. 在 API 边界映射为 HTTP</strong>：业务层通常不需要直接依赖 HTTP 状态码。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI, Request
+<span class="hljs-keyword">from</span> fastapi.responses <span class="hljs-keyword">import</span> JSONResponse
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AnswerGenerationUnavailable</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+app = FastAPI()
+
+<span class="hljs-meta">@app.exception_handler(<span class="hljs-params">AnswerGenerationUnavailable</span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">upstream_error</span>(<span class="hljs-params">request: Request, exc: AnswerGenerationUnavailable</span>):
+    <span class="hljs-keyword">return</span> JSONResponse(
+        status_code=<span class="hljs-number">503</span>,
+        content={<span class="hljs-string">"code"</span>: <span class="hljs-string">"MODEL_UNAVAILABLE"</span>, <span class="hljs-string">"message"</span>: <span class="hljs-string">"模型暂时不可用"</span>},
+    )</code></pre></div><h3 id="section-13">4.2 常见失败类型与边界行为</h3>
+<table>
+<thead>
+<tr>
+<th>故障</th>
+<th>最先发现的位置</th>
+<th>典型处理</th>
+<th>不应做的事</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>请求字段缺失</td>
+<td>API/Pydantic</td>
+<td>返回 422</td>
+<td>把错误输入送给模型猜测</td>
+</tr>
+<tr>
+<td>对象不存在</td>
+<td>Repository / Service</td>
+<td>返回 404 或业务空结果</td>
+<td>假装数据库宕机</td>
+</tr>
+<tr>
+<td>无权限</td>
+<td>认证/授权</td>
+<td>返回 401 或 403</td>
+<td>仅在前端隐藏按钮</td>
+</tr>
+<tr>
+<td>数据库不可达</td>
+<td>Repository</td>
+<td>记录详细错误，服务返回 5xx</td>
+<td>假装查询结果为空</td>
+</tr>
+<tr>
+<td>外部请求超时</td>
+<td>Client</td>
+<td>记录超时并返回 504/503，必要时有限重试</td>
+<td>无限等待或无界重试</td>
+</tr>
+<tr>
+<td>上游响应结构错误</td>
+<td>Client</td>
+<td>格式校验失败，返回 502 等</td>
+<td>将损坏数据写入业务表</td>
+</tr>
+<tr>
+<td>事务冲突/唯一性冲突</td>
+<td>Database / Service</td>
+<td>由业务判定 409、幂等成功或内部错误</td>
+<td>单凭异常名猜测最终结果</td>
+</tr>
+<tr>
+<td>响应模型校验失败</td>
+<td>API 响应阶段</td>
+<td>当作服务端缺陷定位</td>
+<td>返回 422 指责用户</td>
+</tr>
+</tbody></table>
+<p>状态码选择要遵守具体 API 契约。例如 502 通常对应无效上游响应，503 表示服务暂不可用，504 更适合网关/代理等待上游超时的语义；实际系统应统一错误约定，不能机械套用。</p>
+<h3 id="section-14">4.3 不能吞异常</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 反例：失去根因和失败信号</span>
+<span class="hljs-keyword">try</span>:
+    result = <span class="hljs-keyword">await</span> external_call()
+<span class="hljs-keyword">except</span> Exception:
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"answer"</span>: <span class="hljs-string">""</span>, <span class="hljs-string">"success"</span>: <span class="hljs-literal">True</span>}</code></pre></div><p>这段代码使调用方以为请求成功，也会污染结果统计。较好的做法是识别具体异常、记录根因、返回稳定的错误代码，并明确哪些错误可重试。</p>
+<h3 id="section-15">4.4 注意取消、超时和后台任务</h3>
+<p>异步请求还存在 <code>CancelledError</code>、超时和响应已发送后的错误。调用方断开不一定意味着后台执行已经停止；响应已经发送后，也不能把后续后台任务失败改写为同一个 HTTP 请求的另一个状态码。</p>
+<p>尤其要区分：</p>
+<ul>
+<li><strong>HTTP 请求生命周期</strong>：客户端通常等待一次响应。</li>
+<li><strong>进程内 Task</strong>：由事件循环调度，不天然跨重启持久化。</li>
+<li><strong>独立后台任务</strong>：通常需要任务记录、队列、Worker 与可查询状态。</li>
+</ul>
+<h2 id="section-16">5. 数据库调用链与事务</h2>
+<p>数据库链路需要同时看<strong>查询条件、会话生命周期、事务边界、数据约束</strong>。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Service
+  ├─ Repository.get(...) → SELECT → 返回记录/None
+  └─ Repository.save(...) → INSERT/UPDATE → COMMIT</code></pre></div><h3 id="section-17">5.1 <code>flush</code> 与 <code>commit</code> 的区别</h3>
+<p>在 SQLAlchemy 中，<code>flush</code> 让待处理更改发送到数据库事务中，但<strong>不代表事务已提交</strong>；<code>commit</code> 才使当前事务提交。异常时，必须根据事务和 Session 状态执行正确的回滚或让事务上下文负责回滚。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># SQLAlchemy AsyncSession 示意</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> session_factory.begin() <span class="hljs-keyword">as</span> session:
+    session.add(answer_record)
+<span class="hljs-comment"># 正常离开事务上下文时提交，抛出异常时回滚</span></code></pre></div><p><code>Session</code> / <code>AsyncSession</code> 是可变、有状态的工作单元，不应跨并发请求或并发任务共享同一个实例。典型做法是<strong>每个请求或每个独立并发任务拥有独立 Session</strong>，而 <code>Engine</code> 和连接池可以长期复用。</p>
+<h3 id="section-18">5.2 数据库事务不能回滚外部 API</h3>
+<p>例如：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">调用付费模型成功（费用已经发生）
+→ INSERT 答案记录
+→ COMMIT 失败</code></pre></div><p>数据库回滚只负责数据库事务，不会撤销外部模型调用、已发送短信或已经提交给第三方的支付操作。对此要区分：</p>
+<ul>
+<li>本地数据库原子性：事务。</li>
+<li>对外副作用去重：幂等键、唯一约束、提供商幂等能力。</li>
+<li>跨系统协调：可靠状态机、Outbox、补偿操作等。</li>
+</ul>
+<p>因此修改数据库调用链时必须检查外部副作用发生的顺序，不能简单认为 <code>try/except + rollback</code> 可以恢复整个世界。</p>
+<h2 id="section-19">6. 外部 API / SDK 调用链</h2>
+<p>外部服务边界至少应包含：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">构造请求参数
+  → 身份鉴权
+  → 网络发送
+  → 状态码校验
+  → 响应体解析
+  → 结构/业务校验
+  → 转换为内部返回值或明确失败</code></pre></div><p>Python 示例：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> httpx
+<span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, ValidationError
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ProviderResult</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    answer: <span class="hljs-built_in">str</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ProviderUnavailable</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">generate</span>(<span class="hljs-params">client: httpx.AsyncClient, prompt: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">try</span>:
+        response = <span class="hljs-keyword">await</span> client.post(<span class="hljs-string">"/generate"</span>, json={<span class="hljs-string">"prompt"</span>: prompt})
+        response.raise_for_status()
+        data = ProviderResult.model_validate(response.json())
+        <span class="hljs-keyword">return</span> data.answer
+    <span class="hljs-keyword">except</span> (httpx.TimeoutException, httpx.RequestError) <span class="hljs-keyword">as</span> exc:
+        <span class="hljs-keyword">raise</span> ProviderUnavailable(<span class="hljs-string">"外部模型网络故障"</span>) <span class="hljs-keyword">from</span> exc
+    <span class="hljs-keyword">except</span> httpx.HTTPStatusError <span class="hljs-keyword">as</span> exc:
+        <span class="hljs-keyword">raise</span> ProviderUnavailable(<span class="hljs-string">"外部模型返回错误状态"</span>) <span class="hljs-keyword">from</span> exc
+    <span class="hljs-keyword">except</span> (ValueError, ValidationError) <span class="hljs-keyword">as</span> exc:
+        <span class="hljs-keyword">raise</span> ProviderUnavailable(<span class="hljs-string">"外部模型返回格式异常"</span>) <span class="hljs-keyword">from</span> exc</code></pre></div><p>此示例假设 <code>client</code> 已配置 <code>base_url</code>、超时、鉴权等。真实项目应进一步区分可重试与不可重试的上游状态、速率限制以及错误代码；不要将所有失败一律盲目重试。</p>
+<p>应在服务生命周期中复用 HTTP Client / 连接池，并在结束时关闭。外部 API 返回的文本或工具结果是<strong>不可信数据</strong>，不能直接成为程序执行命令或越权修改数据库的依据。</p>
+<h2 id="section-20">7. 一份可离线运行的完整调用链示例</h2>
+<p>以下示例用一个文件展示 <code>HTTP → 请求模型 → Service → Repository → SQLite → 外部 Client（模拟）→ 持久化 → 响应</code>。它使用 FastAPI 的普通同步路由 <code>def</code>，配合同步 SQLite 和同步 httpx，避免在 <code>async def</code> 事件循环线程中执行阻塞 I/O。示例重点是<strong>读懂调用链</strong>，不是展示异步并发最佳实践。</p>
+<p><strong>此处“外部服务”通过 <code>httpx.MockTransport</code> 模拟，完全离线，不会请求真实模型或产生 API 费用。</strong> 生产系统需要替换为真实 Client、可靠数据库、认证授权和迁移机制。</p>
+<p>将下面代码保存为 <code>demo.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> sqlite3
+<span class="hljs-keyword">from</span> contextlib <span class="hljs-keyword">import</span> asynccontextmanager, closing
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+
+<span class="hljs-keyword">import</span> httpx
+<span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI, Request
+<span class="hljs-keyword">from</span> fastapi.responses <span class="hljs-keyword">import</span> JSONResponse
+<span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, Field, ValidationError
+
+DB_PATH = Path(<span class="hljs-string">"demo.db"</span>)
+
+<span class="hljs-comment"># ---------- 领域异常：表达业务事实，不直接与 HTTP 耦合 ----------</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">RuleNotFound</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ProviderFailure</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, message: <span class="hljs-built_in">str</span>, status_code: <span class="hljs-built_in">int</span> = <span class="hljs-number">502</span></span>):
+        <span class="hljs-built_in">super</span>().__init__(message)
+        <span class="hljs-variable language_">self</span>.status_code = status_code
+
+<span class="hljs-comment"># ---------- API 的输入与输出契约 ----------</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AskRequest</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    character: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>)
+    version: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>)
+    question: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>)
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AskResponse</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    answer_id: <span class="hljs-built_in">int</span>
+    answer: <span class="hljs-built_in">str</span>
+    source: <span class="hljs-built_in">str</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ModelResponse</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    answer: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>)
+
+<span class="hljs-comment"># ---------- 数据库基础设施 / Repository ----------</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">init_db</span>() -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">with</span> closing(sqlite3.connect(DB_PATH)) <span class="hljs-keyword">as</span> conn:
+        <span class="hljs-keyword">with</span> conn:
+            conn.execute(<span class="hljs-string">"""
+                CREATE TABLE IF NOT EXISTS game_rules (
+                    character TEXT NOT NULL,
+                    version TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    PRIMARY KEY (character, version)
+                )
+            """</span>)
+            conn.execute(<span class="hljs-string">"""
+                CREATE TABLE IF NOT EXISTS answers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    character TEXT NOT NULL,
+                    version TEXT NOT NULL,
+                    answer TEXT NOT NULL
+                )
+            """</span>)
+            conn.execute(<span class="hljs-string">"""
+                INSERT OR IGNORE INTO game_rules(character, version, content)
+                VALUES (?, ?, ?)
+            """</span>, (<span class="hljs-string">"角色A"</span>, <span class="hljs-string">"1.0"</span>, <span class="hljs-string">"角色A的基础生命值为4"</span>))
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">find_rule</span>(<span class="hljs-params">character: <span class="hljs-built_in">str</span>, version: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>:
+    <span class="hljs-keyword">with</span> closing(sqlite3.connect(DB_PATH)) <span class="hljs-keyword">as</span> conn:
+        row = conn.execute(
+            <span class="hljs-string">"SELECT content FROM game_rules WHERE character=? AND version=?"</span>,
+            (character, version),
+        ).fetchone()
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">if</span> row <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> row[<span class="hljs-number">0</span>]
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">save_answer</span>(<span class="hljs-params">character: <span class="hljs-built_in">str</span>, version: <span class="hljs-built_in">str</span>, answer: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">int</span>:
+    <span class="hljs-keyword">with</span> closing(sqlite3.connect(DB_PATH)) <span class="hljs-keyword">as</span> conn:
+        <span class="hljs-keyword">with</span> conn:  <span class="hljs-comment"># 本地数据库事务：正常提交，异常回滚</span>
+            cursor = conn.execute(
+                <span class="hljs-string">"INSERT INTO answers(character, version, answer) VALUES (?, ?, ?)"</span>,
+                (character, version, answer),
+            )
+            answer_id = cursor.lastrowid
+        <span class="hljs-keyword">assert</span> answer_id <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>
+        <span class="hljs-keyword">return</span> answer_id
+
+<span class="hljs-comment"># ---------- 外部 Client：这里是离线模拟 ----------</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">fake_provider</span>(<span class="hljs-params">request: httpx.Request</span>) -&gt; httpx.Response:
+    payload = json.loads(request.content)
+    <span class="hljs-keyword">if</span> payload[<span class="hljs-string">"question"</span>] == <span class="hljs-string">"simulate_timeout"</span>:
+        <span class="hljs-keyword">raise</span> httpx.ReadTimeout(<span class="hljs-string">"模拟上游超时"</span>, request=request)
+    <span class="hljs-keyword">return</span> httpx.Response(
+        <span class="hljs-number">200</span>,
+        json={<span class="hljs-string">"answer"</span>: <span class="hljs-string">f"依据资料：<span class="hljs-subst">{payload[<span class="hljs-string">'rule'</span>]}</span>。问题：<span class="hljs-subst">{payload[<span class="hljs-string">'question'</span>]}</span>"</span>},
+    )
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">call_provider</span>(<span class="hljs-params">client: httpx.Client, question: <span class="hljs-built_in">str</span>, rule: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">try</span>:
+        response = client.post(<span class="hljs-string">"/generate"</span>, json={<span class="hljs-string">"question"</span>: question, <span class="hljs-string">"rule"</span>: rule})
+        response.raise_for_status()
+        <span class="hljs-keyword">return</span> ModelResponse.model_validate(response.json()).answer
+    <span class="hljs-keyword">except</span> httpx.TimeoutException <span class="hljs-keyword">as</span> exc:
+        <span class="hljs-keyword">raise</span> ProviderFailure(<span class="hljs-string">"上游超时"</span>, status_code=<span class="hljs-number">504</span>) <span class="hljs-keyword">from</span> exc
+    <span class="hljs-keyword">except</span> (httpx.RequestError, httpx.HTTPStatusError,
+            ValueError, ValidationError) <span class="hljs-keyword">as</span> exc:
+        <span class="hljs-keyword">raise</span> ProviderFailure(<span class="hljs-string">"上游调用或响应校验失败"</span>) <span class="hljs-keyword">from</span> exc
+
+<span class="hljs-comment"># ---------- Service：连接各个依赖，处理业务条件 ----------</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">ask_service</span>(<span class="hljs-params">data: AskRequest, client: httpx.Client</span>) -&gt; AskResponse:
+    rule = find_rule(data.character, data.version)
+    <span class="hljs-keyword">if</span> rule <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">raise</span> RuleNotFound(<span class="hljs-string">"该版本没有对应规则"</span>)
+
+    answer = call_provider(client, data.question, rule)
+    answer_id = save_answer(data.character, data.version, answer)
+    <span class="hljs-keyword">return</span> AskResponse(
+        answer_id=answer_id,
+        answer=answer,
+        source=<span class="hljs-string">f"<span class="hljs-subst">{data.character}</span>@<span class="hljs-subst">{data.version}</span>"</span>,
+    )
+
+<span class="hljs-comment"># ---------- 应用生命周期：创建/释放复用的 Client ----------</span>
+<span class="hljs-meta">@asynccontextmanager</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">lifespan</span>(<span class="hljs-params">app: FastAPI</span>):
+    init_db()
+    <span class="hljs-keyword">with</span> httpx.Client(
+        base_url=<span class="hljs-string">"https://example.invalid"</span>,
+        transport=httpx.MockTransport(fake_provider),
+        timeout=<span class="hljs-number">3.0</span>,
+    ) <span class="hljs-keyword">as</span> client:
+        app.state.provider_client = client
+        <span class="hljs-keyword">yield</span>
+
+app = FastAPI(lifespan=lifespan)
+
+<span class="hljs-comment"># ---------- API 边界：把领域异常映射为 HTTP 错误 ----------</span>
+<span class="hljs-meta">@app.exception_handler(<span class="hljs-params">RuleNotFound</span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">rule_not_found</span>(<span class="hljs-params">request: Request, exc: RuleNotFound</span>):
+    <span class="hljs-keyword">return</span> JSONResponse(status_code=<span class="hljs-number">404</span>, content={<span class="hljs-string">"code"</span>: <span class="hljs-string">"RULE_NOT_FOUND"</span>})
+
+<span class="hljs-meta">@app.exception_handler(<span class="hljs-params">ProviderFailure</span>)</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">provider_failed</span>(<span class="hljs-params">request: Request, exc: ProviderFailure</span>):
+    <span class="hljs-keyword">return</span> JSONResponse(
+        status_code=exc.status_code,
+        content={<span class="hljs-string">"code"</span>: <span class="hljs-string">"PROVIDER_FAILURE"</span>, <span class="hljs-string">"message"</span>: <span class="hljs-built_in">str</span>(exc)},
+    )
+
+<span class="hljs-comment"># ---------- 真实 HTTP 请求处理入口 ----------</span>
+<span class="hljs-meta">@app.post(<span class="hljs-params"><span class="hljs-string">"/ask"</span>, response_model=AskResponse</span>)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">ask_route</span>(<span class="hljs-params">data: AskRequest, request: Request</span>) -&gt; AskResponse:
+    <span class="hljs-keyword">return</span> ask_service(data, request.app.state.provider_client)</code></pre></div><p>安装及运行：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pip install fastapi uvicorn httpx
+uvicorn demo:app --reload</code></pre></div><p>请求示例：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">curl -X POST http://127.0.0.1:8000/ask \
+  -H <span class="hljs-string">'Content-Type: application/json'</span> \
+  -d <span class="hljs-string">'{"character":"角色A","version":"1.0","question":"它的生命值是多少？"}'</span></code></pre></div><p>Windows PowerShell 中可以使用 <code>Invoke-RestMethod</code>，避免 <code>curl</code> 别名及引号解析差异：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-variable">$body</span> = <span class="hljs-selector-tag">@</span>{character=<span class="hljs-string">'角色A'</span>; version=<span class="hljs-string">'1.0'</span>; question=<span class="hljs-string">'它的生命值是多少？'</span>} | <span class="hljs-built_in">ConvertTo-Json</span>
+<span class="hljs-built_in">Invoke-RestMethod</span> <span class="hljs-literal">-Uri</span> <span class="hljs-string">'http://127.0.0.1:8000/ask'</span> <span class="hljs-literal">-Method</span> Post <span class="hljs-literal">-ContentType</span> <span class="hljs-string">'application/json'</span> <span class="hljs-literal">-Body</span> <span class="hljs-variable">$body</span></code></pre></div><h3 id="section-21">7.1 沿此例追踪一条成功请求</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">POST /ask
+  → AskRequest 校验
+  → ask_route(data, request)
+  → ask_service(data, client)
+  → find_rule(character, version)
+  → sqlite3 SELECT
+  ← 规则文本
+  → call_provider(client, question, rule)
+  → httpx.Client.post()
+  → fake_provider() 模拟返回 JSON
+  ← ModelResponse.answer
+  → save_answer(...)
+  → sqlite3 INSERT + COMMIT
+  ← answer_id
+  ← AskResponse
+  → FastAPI response_model 序列化
+  ← HTTP 200 + JSON</code></pre></div><h3 id="section-22">7.2 三条失败路径</h3>
+<p><strong>路径 A：请求缺字段</strong>。<code>AskRequest</code> 校验失败，业务服务<strong>根本不会执行</strong>；一般返回 422。</p>
+<p><strong>路径 B：规则不存在</strong>。<code>find_rule()</code> 返回 <code>None</code>，<code>ask_service()</code> 抛 <code>RuleNotFound</code>，全局异常处理器映射为 404；外部 API 和数据库写入不会发生。</p>
+<p><strong>路径 C：外部服务超时</strong>。<code>fake_provider()</code> 抛 <code>httpx.ReadTimeout</code>，<code>call_provider()</code> 转换为 <code>ProviderFailure(504)</code>，异常一路返回到全局处理器；<code>save_answer()</code> 不会执行。</p>
+<p>这里采用的是<strong>先调用外部 API、成功后才写数据库</strong>的顺序。即使最终保存失败，上游调用也可能已经花费资源；这与数据库事务的原子性并不冲突。</p>
+<h3 id="section-23">7.3 为什么这里不写 <code>async def ask_route</code>？</h3>
+<p>示例中 <code>sqlite3</code> 和 <code>httpx.Client</code> 是<strong>同步阻塞 API</strong>。FastAPI 的普通 <code>def</code> 路由通常运行于线程池，因此不会直接阻塞异步事件循环线程。若改为 <code>async def</code> 路由，应该将数据库层换成 SQLAlchemy <code>AsyncSession</code> + 异步驱动，并把 HTTP 层换成 <code>httpx.AsyncClient</code>，在相应位置 <code>await</code>。只把 <code>def</code> 改成 <code>async def</code>，不会自动使同步 I/O 异步化。</p>
+<h3 id="section-24">7.4 当前示例的限制</h3>
+<ul>
+<li>无认证授权，不能直接用于真实多用户服务。</li>
+<li>SQLite 适合演示，不代替生产 PostgreSQL 的事务/连接池/迁移设计。</li>
+<li>没有请求幂等键；每次成功请求都会新增一条答案记录。</li>
+<li>模型是离线 Mock，不是实际 LLM，也不代表模型答案可靠。</li>
+<li>尚未添加结构化日志、链路追踪、重试预算、业务超时和性能指标。</li>
+</ul>
+<h2 id="section-25">8. 修改已有代码前，如何找调用方</h2>
+<p>阅读函数定义只告诉你<strong>它做什么</strong>；搜索调用方才能知道<strong>改动会影响谁</strong>。</p>
+<h3 id="section-26">8.1 静态搜索</h3>
+<p>假设准备修改 <code>ask_service</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">rg -n <span class="hljs-string">'def ask_service|ask_service\('</span> .
+rg -n <span class="hljs-string">'from .* import ask_service|import .*ask_service'</span> .
+rg -n <span class="hljs-string">'AskRequest|AskResponse|/ask'</span> .</code></pre></div><p>还要检查：</p>
+<ul>
+<li>API 路由及其 Pydantic Schema；</li>
+<li>测试对服务的直接调用；</li>
+<li>Worker、定时任务或脚本对同一服务的复用；</li>
+<li>是否被依赖注入、注册回调、路由装饰器或动态映射引用；</li>
+<li>前端的调用代码、移动端的调用协议、OpenAPI 文档；</li>
+<li>数据库迁移、缓存键、消息 Schema、监控指标中的隐式依赖。</li>
+</ul>
+<p>VS Code 的 <strong>Find All References</strong>、<strong>Go to Definition</strong>、<strong>Call Hierarchy</strong> 可以快速查看符号关系；但动态语言中的反射、字符串路径、框架注册和外部消费者不一定能被静态工具完整发现。</p>
+<h3 id="section-27">8.2 区分正向依赖和反向依赖</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">ask_route ──调用──&gt; ask_service ──调用──&gt; find_rule
+                                └──调用──&gt; call_provider</code></pre></div><p>对于 <code>ask_service</code>：</p>
+<ul>
+<li><strong>下游依赖</strong>：<code>find_rule</code>、<code>call_provider</code> 等它所调用的对象。</li>
+<li><strong>上游调用方</strong>：<code>ask_route</code>、其他脚本、测试、Worker 等调用它的对象。</li>
+</ul>
+<p>修改一个函数的<strong>签名</strong>，主要先找上游调用方；改变查询逻辑、异常类型或副作用，则上下游都可能受影响。</p>
+<h2 id="section-28">9. 什么叫“影响范围”</h2>
+<p>影响范围不仅是“哪些文件需要改”，而是哪些<strong>契约、状态和行为</strong>可能变化。</p>
+<table>
+<thead>
+<tr>
+<th>变更维度</th>
+<th>典型问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>输入契约</td>
+<td>是否新增必填字段、改变默认值、字段别名或允许范围？</td>
+</tr>
+<tr>
+<td>输出契约</td>
+<td>是否删除/重命名字段，改变空值含义或状态码？</td>
+</tr>
+<tr>
+<td>调用关系</td>
+<td>是否有其他 API、Worker、测试复用同一函数？</td>
+</tr>
+<tr>
+<td>数据库</td>
+<td>是否需要新增列、索引、唯一约束和迁移？</td>
+</tr>
+<tr>
+<td>外部 API</td>
+<td>请求参数、授权、配额、超时和费用是否变化？</td>
+</tr>
+<tr>
+<td>副作用</td>
+<td>是否提前写库、重复发送、覆盖旧状态或多次计费？</td>
+</tr>
+<tr>
+<td>并发</td>
+<td>是否共享了可变对象、Session、Client 或锁？</td>
+</tr>
+<tr>
+<td>缓存</td>
+<td>缓存 Key、TTL、版本过滤及失效逻辑是否变化？</td>
+</tr>
+<tr>
+<td>错误处理</td>
+<td>旧的异常、错误码和重试行为是否还成立？</td>
+</tr>
+<tr>
+<td>安全</td>
+<td>身份与数据范围是否被后端强制验证？</td>
+</tr>
+<tr>
+<td>可观测性</td>
+<td>关键日志、请求号、Trace 和指标是否仍能定位问题？</td>
+</tr>
+<tr>
+<td>兼容性</td>
+<td>旧前端、旧数据、已有任务、第三方消费者是否还能工作？</td>
+</tr>
+</tbody></table>
+<h3 id="section-29">9.1 具体案例：把“规则查询”改成“按版本查询”</h3>
+<p>旧接口：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">get_rule</span>(<span class="hljs-params">character: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>: ...</code></pre></div><p>新需求：不同版本同名角色规则不同。准备改成：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">get_rule</span>(<span class="hljs-params">character: <span class="hljs-built_in">str</span>, version: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span>: ...</code></pre></div><p>表面上只加了一个参数，实际需要核对：</p>
+<ol>
+<li><strong>调用方</strong>：所有 <code>get_rule(...)</code> 是否提供 <code>version</code>，包括任务和脚本。</li>
+<li><strong>HTTP 契约</strong>：前端从哪里获得版本？旧请求没有版本时如何处理？</li>
+<li><strong>数据模型</strong>：是否真的保存了版本，旧记录如何迁移或标记未知？</li>
+<li><strong>查询语义</strong>：版本不存在返回 404、询问版本，还是使用默认版本？不能静默使用最新版本掩盖问题。</li>
+<li><strong>缓存</strong>：原 Key <code>rule:角色A</code> 必须考虑变为 <code>rule:1.0:角色A</code>，否则混用版本。</li>
+<li><strong>RAG</strong>：向量检索元数据也要过滤版本，引用必须标识来源版本。</li>
+<li><strong>业务异常</strong>：<code>RuleNotFound</code> 是否区分角色不存在和版本不支持？</li>
+<li><strong>测试</strong>：覆盖旧版本、新版本、无版本、版本冲突、缓存命中等路径。</li>
+<li><strong>外部协议</strong>：如果有移动端旧版本，必须选择明确的兼容策略并更新文档。</li>
+</ol>
+<p>这说明：<strong>局部参数变化可能造成全链路语义变化。</strong></p>
+<h2 id="section-30">10. 如何系统地确定变更风险</h2>
+<h3 id="section-31">10.1 基线、修改和回归验证</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">先重现既有行为
+    ↓
+确认入口、上下游依赖与外部契约
+    ↓
+查清数据流、异常流、资源和副作用
+    ↓
+明确新行为与兼容策略
+    ↓
+编写或更新最小测试
+    ↓
+实施尽量局部的修改
+    ↓
+运行相关测试、集成测试与真实调用
+    ↓
+检查日志、数据状态、性能与副作用</code></pre></div><p>修改之前要有<strong>基线</strong>：当前测试通过多少、某个请求目前是什么响应、数据库原本写入什么、哪些失败能复现。没有基线，修改后很难证明“修复了问题而没有破坏其他功能”。</p>
+<h3 id="section-32">10.2 推荐使用的 Git / 搜索命令</h3>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">git status --short
+git diff --<span class="hljs-built_in">stat</span>
+git diff -- app/services/ask_service.py
+git grep -n <span class="hljs-string">'get_rule'</span>
+rg -n <span class="hljs-string">'get_rule\('</span> .</code></pre></div><p>它们用于确定当前工作区是否干净、改了哪些文件、函数在哪些地方出现；但不能代替运行时测试。对于被多人共享的仓库，不能不检查当前修改就直接重置、覆盖或强推。</p>
+<h2 id="section-33">11. 调试调用链：日志、请求号与分布式追踪</h2>
+<h3 id="section-34">11.1 日志和 Traceback 的角色</h3>
+<p>**日志（log）**记录发生了什么；**异常堆栈（traceback）**显示抛出异常时的 Python 调用栈；<strong>分布式 Trace</strong> 可跨 HTTP、数据库、服务和消息队列建立关联。</p>
+<p>单次请求最好拥有一个 <code>request_id</code>；跨服务追踪可使用 <code>trace_id</code>、<code>span_id</code>。这两者可相关联，但语义不同：一个是应用层标识，一个属于追踪上下文。</p>
+<p>推荐记录：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">request_id=... route=/ask user_id=... （脱敏/最小化）
+service=ask stage=rule_lookup duration_ms=...
+service=ask stage=model_call duration_ms=... status=timeout
+service=ask stage=persist result=skipped
+error_code=PROVIDER_FAILURE trace_id=...</code></pre></div><p>不应将 API Key、密码、完整私人聊天或敏感数据库内容直接写入日志。</p>
+<h3 id="section-35">11.2 先找第一个失败点，而不是最后一个报错位置</h3>
+<p>前端出现 500，只说明请求失败，不能证明错误发生在路由函数。应结合日志定位：</p>
+<ol>
+<li>请求是否抵达后端？</li>
+<li>是否通过认证和 Pydantic 校验？</li>
+<li>哪个 Service 方法被执行？</li>
+<li>SQL 查询是否正常、记录是否存在？</li>
+<li>是否进入外部 Client？外部状态码、超时和格式是否正常？</li>
+<li>是否发生写库、提交、重试或副作用？</li>
+<li>异常在何处被捕获、转换或吞掉？</li>
+<li>最终为什么产生对应的 HTTP 状态码？</li>
+</ol>
+<p>对异步/消息队列系统还需要判断：当前日志是否对应同一个请求，还是另一个独立的后台任务；是否存在跨进程的上下文传播中断。</p>
+<h2 id="section-36">12. 测试应覆盖什么</h2>
+<h3 id="section-37">12.1 调用链测试的层次</h3>
+<ul>
+<li><strong>单元测试</strong>：Service 使用假 Repository、假模型 Client，验证业务条件和错误转换。</li>
+<li><strong>接口测试</strong>：用 FastAPI <code>TestClient</code> 或异步测试客户端检查 HTTP 契约和状态码。</li>
+<li><strong>数据库集成测试</strong>：验证 SQL、事务、唯一约束和数据迁移。</li>
+<li><strong>外部契约测试</strong>：检查真实 SDK 或模拟响应格式变化时的行为。</li>
+<li><strong>端到端测试</strong>：从前端实际交互到后端和持久化，核对用户感知结果。</li>
+</ul>
+<p>针对前文 <code>demo.py</code>，最小接口测试：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> fastapi.testclient <span class="hljs-keyword">import</span> TestClient
+<span class="hljs-keyword">from</span> demo <span class="hljs-keyword">import</span> app
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_rule_success</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> client:
+        response = client.post(<span class="hljs-string">"/ask"</span>, json={
+            <span class="hljs-string">"character"</span>: <span class="hljs-string">"角色A"</span>, <span class="hljs-string">"version"</span>: <span class="hljs-string">"1.0"</span>, <span class="hljs-string">"question"</span>: <span class="hljs-string">"生命值是多少？"</span>
+        })
+        <span class="hljs-keyword">assert</span> response.status_code == <span class="hljs-number">200</span>
+        payload = response.json()
+        <span class="hljs-keyword">assert</span> payload[<span class="hljs-string">"source"</span>] == <span class="hljs-string">"角色A@1.0"</span>
+        <span class="hljs-keyword">assert</span> payload[<span class="hljs-string">"answer_id"</span>] &gt; <span class="hljs-number">0</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_rule_not_found</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> client:
+        response = client.post(<span class="hljs-string">"/ask"</span>, json={
+            <span class="hljs-string">"character"</span>: <span class="hljs-string">"不存在"</span>, <span class="hljs-string">"version"</span>: <span class="hljs-string">"1.0"</span>, <span class="hljs-string">"question"</span>: <span class="hljs-string">"技能是什么？"</span>
+        })
+        <span class="hljs-keyword">assert</span> response.status_code == <span class="hljs-number">404</span>
+        <span class="hljs-keyword">assert</span> response.json()[<span class="hljs-string">"code"</span>] == <span class="hljs-string">"RULE_NOT_FOUND"</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_provider_timeout</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> client:
+        response = client.post(<span class="hljs-string">"/ask"</span>, json={
+            <span class="hljs-string">"character"</span>: <span class="hljs-string">"角色A"</span>, <span class="hljs-string">"version"</span>: <span class="hljs-string">"1.0"</span>, <span class="hljs-string">"question"</span>: <span class="hljs-string">"simulate_timeout"</span>
+        })
+        <span class="hljs-keyword">assert</span> response.status_code == <span class="hljs-number">504</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">test_invalid_input</span>():
+    <span class="hljs-keyword">with</span> TestClient(app) <span class="hljs-keyword">as</span> client:
+        response = client.post(<span class="hljs-string">"/ask"</span>, json={
+            <span class="hljs-string">"character"</span>: <span class="hljs-string">"角色A"</span>, <span class="hljs-string">"version"</span>: <span class="hljs-string">"1.0"</span>, <span class="hljs-string">"question"</span>: <span class="hljs-string">""</span>
+        })
+        <span class="hljs-keyword">assert</span> response.status_code == <span class="hljs-number">422</span></code></pre></div><p>测试运行：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -m pip install pytest
+pytest -q</code></pre></div><p>测试文件应保存为 <code>test_demo.py</code>。这里使用同一个示例数据库文件，仅为入门演示；正式测试要使用<strong>隔离数据库或临时数据库</strong>，并检查数据写入前后的状态，避免测试互相影响。</p>
+<h2 id="section-38">13. 与 C++、JavaScript 的对应关系</h2>
+<table>
+<thead>
+<tr>
+<th>知识点</th>
+<th>C++ 常见形式</th>
+<th>JavaScript 常见形式</th>
+<th>Python / FastAPI</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>请求入口</td>
+<td>路由/控制器回调</td>
+<td>Express/NestJS Route</td>
+<td><code>@router.post</code> 等路径操作</td>
+</tr>
+<tr>
+<td>服务层</td>
+<td>Service 类/函数</td>
+<td>Service 类/模块</td>
+<td>Python 函数/类</td>
+</tr>
+<tr>
+<td>数据传输对象</td>
+<td><code>struct</code> / class</td>
+<td>TypeScript interface + 校验</td>
+<td>Pydantic <code>BaseModel</code></td>
+</tr>
+<tr>
+<td>数据访问</td>
+<td>SQL API / ORM</td>
+<td>Prisma/TypeORM/SQL Client</td>
+<td>SQLAlchemy、驱动、Repository</td>
+</tr>
+<tr>
+<td>依赖注入</td>
+<td>构造注入/IoC 容器</td>
+<td>NestJS provider 等</td>
+<td><code>Depends</code>、显式参数传递</td>
+</tr>
+<tr>
+<td>外部 API</td>
+<td>HTTP Client</td>
+<td>fetch / axios</td>
+<td>httpx / SDK</td>
+</tr>
+<tr>
+<td>异常传播</td>
+<td><code>throw</code> / <code>catch</code></td>
+<td><code>throw</code> / <code>catch</code></td>
+<td><code>raise</code> / <code>except</code></td>
+</tr>
+<tr>
+<td>资源生命周期</td>
+<td>RAII</td>
+<td><code>try/finally</code>、资源管理机制</td>
+<td><code>with</code> / <code>async with</code></td>
+</tr>
+<tr>
+<td>调用方定位</td>
+<td>IDE References / call graph</td>
+<td>TS Server / IDE</td>
+<td>IDE、<code>rg</code>、路由注册、运行时 Trace</td>
+</tr>
+</tbody></table>
+<p><strong>关键差异：</strong> Python 的动态特性以及框架注册、依赖注入，让静态调用关系不一定完整。相比只阅读函数定义，更需要结合运行时日志、HTTP 路由契约和测试验证。</p>
+<h2 id="section-39">14. 常见误区汇总</h2>
+<ol>
+<li><strong>看到 <code>main.py</code> 就认为掌握了请求入口。</strong> 真正请求会执行哪个路由，取决于注册与匹配。</li>
+<li><strong>只搜索显式调用，不看 <code>Depends</code>、装饰器和回调。</strong> 可能遗漏隐藏的执行路径。</li>
+<li><strong>把 Pydantic 校验等同于业务正确。</strong> 格式正确不代表版本存在、用户有权限或答案有依据。</li>
+<li><strong>把数据库返回 <code>None</code> 等同于连接失败。</strong> “记录不存在”与“查询执行失败”有不同语义。</li>
+<li><strong>把异常转成成功响应。</strong> 造成假成功和后续数据污染。</li>
+<li><strong>认为 <code>async def</code> 自动解决阻塞。</strong> 直接调用同步数据库或 HTTP 客户端仍会阻塞事件循环线程。</li>
+<li><strong>只改函数定义，不找调用方。</strong> 很容易破坏其他路由、任务或测试。</li>
+<li><strong>把一次 SQL 的 <code>flush</code> 当作已提交。</strong> 事务可能尚未提交，也可能稍后回滚。</li>
+<li><strong>认为数据库回滚能撤销外部 API。</strong> 跨系统副作用不能通过本地事务自动恢复。</li>
+<li><strong>以接口返回 200 作为唯一成功标准。</strong> 仍需检查落库、引用、权限、重试和用户可见结果。</li>
+</ol>
+<h2 id="section-40">15. 知识结论</h2>
+<p>读懂一个已有 Python 服务，核心不在于能够逐行翻译代码，而是能够重建以下四条路径：</p>
+<ul>
+<li><strong>调用路径</strong>：请求入口 → 路由 → 业务 → 数据库/外部服务。</li>
+<li><strong>数据路径</strong>：输入 Schema → 业务参数 → 持久化/外部数据 → 输出 Schema。</li>
+<li><strong>错误路径</strong>：异常发生点 → 捕获/转换 → HTTP 或任务错误结果。</li>
+<li><strong>状态路径</strong>：什么操作改变了真实状态、什么时候提交、失败时还能否恢复。</li>
+</ul>
+<p>修改代码前则要完成<strong>反向追踪</strong>：谁在调用此功能、谁依赖其输入输出契约、哪些数据库记录或外部系统会受到影响。只有把调用链与影响面同时弄清楚，才能从“能修改代码”提升到“能可靠维护已有工程”。</p>
+<hr />
+<h2 id="section-41">16. 官方参考资料</h2>
+<p>以下为对应技术的官方文档；实际项目请以其锁定的框架版本为准。</p>
+<ol>
+<li><a href="https://fastapi.tiangolo.com/tutorial/dependencies/">FastAPI：Dependencies / 依赖注入</a> —— 理解隐式调用关系与依赖树。</li>
+<li><a href="https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/">FastAPI：Dependencies with yield</a> —— 理解 Session 等资源清理和异常传播。</li>
+<li><a href="https://fastapi.tiangolo.com/tutorial/handling-errors/">FastAPI：Handling Errors</a> —— 领域异常到 HTTP 响应的映射。</li>
+<li><a href="https://fastapi.tiangolo.com/tutorial/response-model/">FastAPI：Response Model</a> —— 响应校验、转换和敏感字段过滤。</li>
+<li><a href="https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html">SQLAlchemy 2.0：Asynchronous I/O</a> —— <code>AsyncSession</code> 生命周期与并发限制。</li>
+<li><a href="https://docs.sqlalchemy.org/en/20/orm/session_basics.html">SQLAlchemy 2.0：Session Basics</a> —— 事务、Session 和线程/协程安全。</li>
+<li><a href="https://docs.python.org/3/library/traceback.html">Python：traceback</a> —— 读取 Python 异常堆栈和异常链。</li>
+<li><a href="https://opentelemetry.io/docs/concepts/signals/traces/">OpenTelemetry：Traces</a> —— 请求跨组件传播的 Trace 与 Span。</li>
+</ol>
+<p><strong>文档独立性：</strong> 本文对应《Python 基础与异步编程》的第二条学习目标，可独立阅读，不依赖其他章节。</p>

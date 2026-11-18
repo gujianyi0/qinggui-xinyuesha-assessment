@@ -1,0 +1,232 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.45kB 0.1s done
+#1 DONE 0.1s
+
+#2 [api internal] load build definition from Dockerfile
+#2 transferring dockerfile: 603B 0.0s done
+#2 transferring dockerfile: 603B 0.0s done
+#2 DONE 0.1s
+
+#3 [api internal] load metadata for ghcr.io/astral-sh/uv:0.9.8
+#3 DONE 5.0s
+
+#4 [worker internal] load metadata for docker.io/library/python:3.13-slim
+#4 DONE 15.2s
+
+#5 [worker internal] load .dockerignore
+#5 transferring context: 139B 0.0s done
+#5 DONE 0.1s
+
+#6 [api internal] load build context
+#6 ...
+
+#7 [api] FROM ghcr.io/astral-sh/uv:0.9.8@sha256:08f409e1d53e77dfb5b65c788491f8ca70fe1d2d459f41c89afa2fcbef998abe
+#7 resolve ghcr.io/astral-sh/uv:0.9.8@sha256:08f409e1d53e77dfb5b65c788491f8ca70fe1d2d459f41c89afa2fcbef998abe 0.2s done
+#7 DONE 0.2s
+
+#8 [worker stage-0  1/13] FROM docker.io/library/python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
+#8 resolve docker.io/library/python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 0.2s done
+#8 DONE 0.2s
+
+#6 [api internal] load build context
+#6 transferring context: 1.86MB 0.3s done
+#6 transferring context: 1.86MB 0.3s done
+#6 DONE 0.4s
+
+#9 [worker stage-0  2/13] WORKDIR /app
+#9 CACHED
+
+#10 [worker stage-0  3/13] COPY --from=ghcr.io/astral-sh/uv:0.9.8 /uv /usr/local/bin/uv
+#10 CACHED
+
+#11 [worker stage-0  4/13] COPY pyproject.toml uv.lock ./
+#11 DONE 0.3s
+
+#11 [worker stage-0  4/13] COPY pyproject.toml uv.lock ./
+#11 DONE 0.3s
+
+#12 [api stage-0  5/13] COPY backend ./backend
+#12 DONE 0.3s
+
+#12 [api stage-0  5/13] COPY backend ./backend
+#12 DONE 0.3s
+
+#13 [api stage-0  6/13] COPY integrations ./integrations
+#13 DONE 0.2s
+
+#13 [api stage-0  6/13] COPY integrations ./integrations
+#13 DONE 0.2s
+
+#14 [worker stage-0  7/13] RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --extra embeddings --link-mode=copy
+#14 2.306 Using CPython 3.13.18 interpreter at: /usr/local/bin/python3
+#14 2.311 Creating virtual environment at: .venv
+#14 2.712    Building qinggui-xinyuesha-assessment @ file:///app
+#14 11.33       Built qinggui-xinyuesha-assessment @ file:///app
+#14 11.36 Prepared 1 package in 8.67s
+#14 61.21 Installed 80 packages in 49.84s
+#14 61.22  + agno==2.9.0
+#14 61.22  + agnoctl==0.2.1
+#14 61.22  + aiosqlite==0.22.1
+#14 61.22  + alembic==1.20.1
+#14 61.22  + annotated-doc==0.0.5
+#14 61.22  + annotated-types==0.8.0
+#14 61.22  + anyio==4.16.0
+#14 61.22  + asyncpg==0.32.0
+#14 61.22  + certifi==2026.10.23
+#14 61.22  + click==8.5.1
+#14 61.22  + cloudpickle==3.1.2
+#14 61.22  + confluent-kafka==2.16.1
+#14 61.22  + docstring-parser==0.18.0
+#14 61.22  + fastapi==0.162.2
+#14 61.22  + filelock==4.2.10
+#14 61.22  + fsspec==2026.9.0
+#14 61.22  + greenlet==3.5.6
+#14 61.22  + h11==0.16.0
+#14 61.22  + h2==4.4.1
+#14 61.22  + hf-xet==1.8.0
+#14 61.22  + hpack==4.2.0
+#14 61.22  + httpcore==1.0.9
+#14 61.22  + httpcore2==2.16.0
+#14 61.22  + httptools==0.9.0
+#14 61.22  + httpx==0.28.1
+#14 61.22  + httpx2==2.16.0
+#14 61.22  + huggingface-hub==2.4.0
+#14 61.22  + hyperframe==6.1.0
+#14 61.22  + idna==3.20
+#14 61.22  + jinja2==3.1.6
+#14 61.22  + jiter==0.19.0
+#14 61.22  + joblib==1.6.0
+#14 61.22  + mako==1.4.3
+#14 61.22  + markdown-it-py==4.2.0
+#14 61.22  + markupsafe==3.0.4
+#14 61.22  + mdurl==0.1.2
+#14 61.22  + mpmath==1.3.0
+#14 61.22  + narwhals==2.28.0
+#14 61.22  + networkx==3.7
+#14 61.22  + numpy==2.5.4
+#14 61.22  + openai==3.48.0
+#14 61.22  + opentelemetry-api==1.45.2
+#14 61.22  + packaging==26.3
+#14 61.22  + pgvector==0.5.1
+#14 61.22  + prompt-toolkit==3.0.53
+#14 61.22  + pydantic==2.14.3
+#14 61.22  + pydantic-core==2.50.4
+#14 61.22  + pydantic-settings==2.16.2
+#14 61.22  + pygments==2.21.0
+#14 61.22  + python-dotenv==1.2.4
+#14 61.22  + pyyaml==6.0.3
+#14 61.22  + qinggui-xinyuesha-assessment==1.8.0 (from file:///app)
+#14 61.22  + questionary==2.1.1
+#14 61.22  + redis==7.4.1
+#14 61.22  + regex==2026.11.9
+#14 61.22  + rich==15.0.0
+#14 61.22  + safetensors==0.8.0
+#14 61.22  + scikit-learn==1.9.1
+#14 61.22  + scipy==1.18.1
+#14 61.22  + sentence-transformers==5.7.0
+#14 61.22  + setuptools==84.2.1
+#14 61.22  + shellingham==1.5.4
+#14 61.22  + sniffio==1.3.1
+#14 61.22  + sqlalchemy==2.1.8
+#14 61.22  + starlette==1.10.0
+#14 61.22  + sympy==1.14.0
+#14 61.22  + threadpoolctl==3.8.0
+#14 61.22  + tokenizers==0.23.3
+#14 61.22  + torch==2.15.0+cpu
+#14 61.22  + tqdm==4.70.1
+#14 61.22  + transformers==5.22.2
+#14 61.22  + truststore==0.10.5
+#14 61.22  + typer==0.29.0
+#14 61.22  + typing-extensions==4.16.0
+#14 61.22  + typing-inspection==0.4.5
+#14 61.22  + uvicorn==0.54.0
+#14 61.22  + uvloop==0.23.0
+#14 61.22  + watchfiles==1.3.0
+#14 61.22  + wcwidth==0.9.4
+#14 61.22  + websockets==17.4
+#14 DONE 61.6s
+
+#14 [worker stage-0  7/13] RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --extra embeddings --link-mode=copy
+#14 DONE 61.6s
+
+#15 [api stage-0  8/13] COPY migrations ./migrations
+#15 DONE 0.9s
+
+#15 [api stage-0  8/13] COPY migrations ./migrations
+#15 DONE 0.9s
+
+#16 [api stage-0  9/13] COPY alembic.ini ./
+#16 DONE 0.2s
+
+#16 [api stage-0  9/13] COPY alembic.ini ./
+#16 DONE 0.2s
+
+#17 [worker stage-0 10/13] COPY data ./data
+#17 DONE 0.3s
+
+#17 [worker stage-0 10/13] COPY data ./data
+#17 DONE 0.3s
+
+#18 [api stage-0 11/13] COPY rulings ./rulings
+#18 DONE 0.3s
+
+#18 [api stage-0 11/13] COPY rulings ./rulings
+#18 DONE 0.3s
+
+#19 [worker stage-0 12/13] COPY scripts ./scripts
+#19 DONE 0.3s
+
+#19 [api stage-0 12/13] COPY scripts ./scripts
+#19 DONE 0.3s
+
+#20 [api stage-0 13/13] COPY evaluations ./evaluations
+#20 DONE 1.4s
+
+#20 [api stage-0 13/13] COPY evaluations ./evaluations
+#20 DONE 1.4s
+
+#21 [api] exporting to image
+#21 exporting layers
+#21 ...
+
+#22 [worker] exporting to image
+#22 exporting layers 98.6s done
+#22 exporting manifest sha256:c27cb15f4fceda4bc65c33e9a9c7592e513fba9805926e628ef92f9223faf0be
+#22 ...
+
+#21 [api] exporting to image
+#21 exporting layers 98.6s done
+#21 exporting manifest sha256:2693dbaac0acad3a9b5af70b425e5ff74d5b249cebf08834645c5229ab501f9f 0.1s done
+#21 exporting config sha256:5a6878efcfde62b12f17abc5740d5121c9db3f8d8fce5469f1406f7d09c75ff3
+#21 exporting config sha256:5a6878efcfde62b12f17abc5740d5121c9db3f8d8fce5469f1406f7d09c75ff3 0.1s done
+#21 exporting attestation manifest sha256:25c8afef5c3bdb2013cfb51f986a6ec6b760b686e19f6f1c0e59f5714964df3a
+#21 exporting attestation manifest sha256:25c8afef5c3bdb2013cfb51f986a6ec6b760b686e19f6f1c0e59f5714964df3a 0.1s done
+#21 exporting manifest list sha256:3349c7c5f0d4b61c1061eefb4f378722cadf057911147efbe56c3e31fb444d8a
+#21 exporting manifest list sha256:3349c7c5f0d4b61c1061eefb4f378722cadf057911147efbe56c3e31fb444d8a 0.1s done
+#21 naming to docker.io/library/qinggui-assessment-api:latest 0.0s done
+#21 unpacking to docker.io/library/qinggui-assessment-api:latest
+#21 ...
+
+#22 [worker] exporting to image
+#22 exporting manifest sha256:c27cb15f4fceda4bc65c33e9a9c7592e513fba9805926e628ef92f9223faf0be 0.1s done
+#22 exporting config sha256:530b6243dd53986d6b2b73ec8e315409acbe3a40ee365b080d72fc395a75ddca 0.1s done
+#22 exporting attestation manifest sha256:58fe433c37bcb1dbef62f27ec5c5a5eafe509d38a90272590db66ebede420cfb 0.1s done
+#22 exporting manifest list sha256:ce126758067f10b16048ef0965534addbc0870ea9daf34066ed327f4f67b53f0 0.1s done
+#22 naming to docker.io/library/qinggui-assessment-worker:latest 0.0s done
+#22 unpacking to docker.io/library/qinggui-assessment-worker:latest
+#22 unpacking to docker.io/library/qinggui-assessment-worker:latest 38.2s done
+#22 DONE 137.5s
+
+#21 [api] exporting to image
+#21 unpacking to docker.io/library/qinggui-assessment-api:latest 40.6s done
+#21 DONE 140.0s
+
+#23 [worker] resolving provenance for metadata file
+#23 DONE 0.5s
+
+#24 [api] resolving provenance for metadata file
+#24 DONE 0.4s
+ Image qinggui-assessment-api:latest Building 
+ Image qinggui-assessment-worker:latest Building 
+ Image qinggui-assessment-worker:latest Built 
+ Image qinggui-assessment-api:latest Built 

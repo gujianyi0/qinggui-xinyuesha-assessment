@@ -1,0 +1,73 @@
+{
+  "version": "2.0.0-local.1",
+  "scope": "local-internal-preview",
+  "manifest_matches": true,
+  "artifacts": [
+    {
+      "path": "assets/feedback-CFx9kP3a.js",
+      "status": 200,
+      "sha256_matches": true
+    },
+    {
+      "path": "assets/index-BaFzdQdY.css",
+      "status": 200,
+      "sha256_matches": true
+    },
+    {
+      "path": "assets/index-D-yezfoK.js",
+      "status": 200,
+      "sha256_matches": true
+    },
+    {
+      "path": "assets/jobs-DQjOr2dc.js",
+      "status": 200,
+      "sha256_matches": true
+    },
+    {
+      "path": "assets/jsx-runtime-Wy9s6hX0.js",
+      "status": 200,
+      "sha256_matches": true
+    },
+    {
+      "path": "assets/library-DlzsfVqI.js",
+      "status": 200,
+      "sha256_matches": true
+    },
+    {
+      "path": "assets/source-excerpt-ZZvQrne9.js",
+      "status": 200,
+      "sha256_matches": true
+    },
+    {
+      "path": "assets/status-tag-Bkc9OtCh.js",
+      "status": 200,
+      "sha256_matches": true
+    },
+    {
+      "path": "assets/tab-navigation-5M9ZGyq5.js",
+      "status": 200,
+      "sha256_matches": true
+    },
+    {
+      "path": "assets/workspace-DfGs25On.js",
+      "status": 200,
+      "sha256_matches": true
+    },
+    {
+      "path": "index.html",
+      "status": 200,
+      "sha256_matches": true
+    },
+    {
+      "path": "moon.svg",
+      "status": 200,
+      "sha256_matches": true
+    }
+  ],
+  "api_status": "ok",
+  "database": "postgresql",
+  "model_mode": "live",
+  "legacy_15174_status": 200,
+  "legacy_html_differs_from_v2": true,
+  "paid_model_calls": 0
+}

@@ -1,0 +1,147 @@
+{
+  "started_at": "2026-11-11T20:30:37.502304+00:00",
+  "project": "qinggui-assessment-live",
+  "archive_sha256": "e9e4b12eb1ec66d3d813f26298ca6ee755d62c573d241b4791d2cd2d40610441",
+  "checks": [
+    {
+      "operation": "config",
+      "exit_code": 0
+    },
+    {
+      "operation": "up",
+      "exit_code": 0
+    },
+    {
+      "operation": "exec",
+      "exit_code": 0
+    },
+    {
+      "operation": "exec",
+      "exit_code": 0
+    },
+    {
+      "operation": "run",
+      "exit_code": 0
+    },
+    {
+      "operation": "run",
+      "exit_code": 0
+    },
+    {
+      "operation": "run",
+      "exit_code": 0
+    }
+  ],
+  "scope": "Restore own private backup into empty dedicated Docker DB, no clean/drop of existing data",
+  "empty_target_verified": true,
+  "restored": {
+    "tables": {
+      "alembic_version": {
+        "rows": 1,
+        "sha256": "2d099a2ddff959788ba258694acf0dfcb2ac9f2719df95d7033621fb8b80b266"
+      },
+      "auth_tokens": {
+        "rows": 27,
+        "sha256": "8802991e0e8d1eb6823524278806f472262de2342b3cceadda78e579b447f4e7"
+      },
+      "budget_account": {
+        "rows": 1,
+        "sha256": "9f85598176025b0694675ca19e8eb9f7655c4294830507d31ed5f03f9d81ca1d"
+      },
+      "feedback": {
+        "rows": 3,
+        "sha256": "18563ebd8def2034a6643479a4dee26ed22f2012de71c2b2103e7f85157879c4"
+      },
+      "feedback_drafts": {
+        "rows": 3,
+        "sha256": "60ed4ccf8b10ba4c0698cb6f46d639afda76f7a35c0f4c44149f39510419fba7"
+      },
+      "indexed_chunks": {
+        "rows": 7361,
+        "sha256": "9ba7de0afa54833d0ad5ed60aa1dbfe9aa8980f2ed691a9d13df7ddc917d0369"
+      },
+      "job_attempts": {
+        "rows": 15,
+        "sha256": "d395cc19e4073b7ccaa0317d85ea4377cefd2b3ca694a9a827e3dc29304bd034"
+      },
+      "jobs": {
+        "rows": 15,
+        "sha256": "6f5e008e3b9094980e25aa5b78fc75ae507975afd51c338e352608e1a708e89a"
+      },
+      "messages": {
+        "rows": 537,
+        "sha256": "a60358c0027083ddc38dc3865efca65812607bd3e16b366442eda345a47c3039"
+      },
+      "outbox": {
+        "rows": 18,
+        "sha256": "d5fc8e4d1745117fba8ab347dd8eb520118412fb0ef244c8fb9a26a4a576bf92"
+      },
+      "published_indexes": {
+        "rows": 1,
+        "sha256": "fb0f9d0c4d5fe769efef24fb02079cd246465c50b397f9ac7d7df5b95ba9a936"
+      },
+      "qq_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "runs": {
+        "rows": 270,
+        "sha256": "10271f7fdcd50047bbcde3d20f76297e7442bc14992230731bf117c34fd970c8"
+      },
+      "sessions": {
+        "rows": 246,
+        "sha256": "fcb1f13688ac0ba36105ecdb4e2c7347726df95080a3653f48c44a28a7544aa6"
+      },
+      "tool_calls": {
+        "rows": 554,
+        "sha256": "746cc0abacfc13a068dc777b73cb34da1de15e39c9e8eb45bb583c42f503ec28"
+      },
+      "usage_records": {
+        "rows": 267,
+        "sha256": "90f7abba7ff149c0f0e882b9e4108640051c1e508d5c44f2fbd1781e3ba6153a"
+      },
+      "users": {
+        "rows": 2,
+        "sha256": "0994800cb01b5793cad07acdb029b5e4d89a9c82c71724080b989e73ee048d32"
+      },
+      "vector_chunks": {
+        "rows": 7361,
+        "sha256": "97203d1e0f06322bcd10383f6e6f2e4348fcd06b5b1dd366b6e558edee8d9833"
+      }
+    },
+    "active": {
+      "runs": 0,
+      "jobs": 0,
+      "usage": 0,
+      "outbox": 0
+    },
+    "budget": {
+      "id": 1,
+      "spent": 5.682864,
+      "reserved": 0.0
+    },
+    "migration": "0001",
+    "pgvector": "0.8.7",
+    "postgres": "17.11 (Debian 17.11-1.pgdg12+2)"
+  },
+  "alembic_preserved_all_rows": true,
+  "public_model_assets": {
+    "files": 11,
+    "sha256": {
+      "pinned/BAAI--bge-small-zh-v1.5/7999e1d3359715c523056ef9478215996d62a620/modules.json": "84e40c8e006c9b1d6c122e02cba9b02458120b5fb0c87b746c41e0207cf642cf",
+      "pinned/BAAI--bge-small-zh-v1.5/7999e1d3359715c523056ef9478215996d62a620/config.json": "3853a7979202c348751b753e36f579c41d8da7d36af617d3d907e1fc9b441f2a",
+      "pinned/BAAI--bge-small-zh-v1.5/7999e1d3359715c523056ef9478215996d62a620/special_tokens_map.json": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3",
+      "pinned/BAAI--bge-small-zh-v1.5/7999e1d3359715c523056ef9478215996d62a620/tokenizer.json": "48cea5d44424912a6fd1ea647bf4fe50b55ab8b1e5879c3275f80e339e8fae26",
+      "pinned/BAAI--bge-small-zh-v1.5/7999e1d3359715c523056ef9478215996d62a620/tokenizer_config.json": "e6f3b96db926a37d4039995fbf5ad17de158dfb8f6343d607e4dbaad18d75f5a",
+      "pinned/BAAI--bge-small-zh-v1.5/7999e1d3359715c523056ef9478215996d62a620/model.safetensors": "354763b9b1357bc9c44f62c6be2276321081ed2567773608c0d0785b61d5a026",
+      "pinned/BAAI--bge-small-zh-v1.5/7999e1d3359715c523056ef9478215996d62a620/download-manifest.json": "fbd57ce280a75ddacb98ad96e65d20377eadcec66b337ca8385686830f7f7382",
+      "pinned/BAAI--bge-small-zh-v1.5/7999e1d3359715c523056ef9478215996d62a620/sentence_bert_config.json": "84e39fda68ccbff05bfa723ae9c0e70e23e2ec373b76e0f8c6e71af72a693cbf",
+      "pinned/BAAI--bge-small-zh-v1.5/7999e1d3359715c523056ef9478215996d62a620/vocab.txt": "45bbac6b341c319adc98a532532882e91a9cefc0329aa57bac9ae761c27b291c",
+      "pinned/BAAI--bge-small-zh-v1.5/7999e1d3359715c523056ef9478215996d62a620/config_sentence_transformers.json": "940d5f50db195fa6e5e6a4f122c095f77880de259d74b14a65779ed48bdd7c56",
+      "pinned/BAAI--bge-small-zh-v1.5/7999e1d3359715c523056ef9478215996d62a620/1_Pooling/config.json": "aaa8861589f80c961a03cc86c7eeaef7605c1676b9ab55329d33a304738769c6"
+    },
+    "passed": true
+  },
+  "passed": true,
+  "finished_at": "2026-11-11T20:31:38.367636+00:00"
+}

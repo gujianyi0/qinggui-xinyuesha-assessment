@@ -1,0 +1,685 @@
+{
+  "exit_code": 0,
+  "stdout": "\r2026-11-10 12:20:38.490 Main[I] [ModManager] Loading extensions...\r\n\r2026-11-10 12:20:38.492 Main[I] [ModManager] Loaded 4 extension(s):\r\n - standard, standard_cards, maneuvering, test\r\n\r2026-11-10 12:20:38.495 Main[I] [LunarLtk] Loaded 29 generals.\r\n\r2026-11-10 12:20:38.495 Main[I] [LunarLtk] Loaded 121 skills.\r\n\r2026-11-10 12:20:38.495 Main[I] [LunarLtk] Loaded 43 card types.\r\n\r2026-11-10 12:20:38.495 Main[I] [Core] Loaded 1 boardgame(s).\r\n\r2026-11-10 12:20:38.495 Main[I] [Core] Loaded 1 game mode(s).\r\n\r\n███████╗██████╗ ███████╗███████╗██╗  ██╗██╗██╗     ██╗     \r\n██╔════╝██╔══██╗██╔════╝██╔════╝██║ ██╔╝██║██║     ██║     \r\n█████╗  ██████╔╝█████╗  █████╗  █████╔╝ ██║██║     ██║     \r\n██╔══╝  ██╔══██╗██╔══╝  ██╔══╝  ██╔═██╗ ██║██║     ██║     \r\n██║     ██║  ██║███████╗███████╗██║  ██╗██║███████╗███████╗\r\n╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝\r\n\r\n        Free          Open         Flexible\r\n\r\n   Git: <https://github.com/Qsgs-Fans/FreeKill>\r\n   Doc: <https://fkbook-all-in-one.readthedocs.io>\r\n\r\n.\r\nRan 1 tests in 0.052 seconds, 1 success, 0 failures\r\nOK\r\n",
+  "stderr": "",
+  "label": "SC05",
+  "arguments": [
+    "--testfile",
+    "assessment_scenes/SC05.lua"
+  ],
+  "cwd": ".local/engine",
+  "executed_at": "2026-11-10T04:20:38.595904+00:00",
+  "binary_sha256": "5d7e109b84c2424f9ef8667a2549b6e6911835a039a36f3022ecf4770779eba8",
+  "server_log": "2026-11-10 12:20:38.490 Main[I] [ModManager] Loading extensions...\n2026-11-10 12:20:38.492 Main[I] [ModManager] Loaded 4 extension(s):\n - standard, standard_cards, maneuvering, test\n2026-11-10 12:20:38.495 Main[I] [LunarLtk] Loaded 29 generals.\n2026-11-10 12:20:38.495 Main[I] [LunarLtk] Loaded 121 skills.\n2026-11-10 12:20:38.495 Main[I] [LunarLtk] Loaded 43 card types.\n2026-11-10 12:20:38.495 Main[I] [Core] Loaded 1 boardgame(s).\n2026-11-10 12:20:38.495 Main[I] [Core] Loaded 1 game mode(s).\n",
+  "tests_run": 1,
+  "successes": 1,
+  "failures": 0,
+  "passed": true,
+  "trace": {
+    "scene_id": "SC05",
+    "initial_players": [
+      {
+        "id": 1,
+        "chained": false,
+        "hp": 4,
+        "equip": [],
+        "hand": [],
+        "max_hp": 4,
+        "general": "caocao"
+      },
+      {
+        "id": 2,
+        "chained": false,
+        "hp": 4,
+        "equip": [],
+        "hand": [],
+        "max_hp": 4,
+        "general": "sunquan"
+      },
+      {
+        "id": 3,
+        "chained": false,
+        "hp": 4,
+        "equip": [],
+        "hand": [],
+        "max_hp": 4,
+        "general": "liubei"
+      },
+      {
+        "id": 4,
+        "chained": false,
+        "hp": 4,
+        "equip": [],
+        "hand": [],
+        "max_hp": 4,
+        "general": "zhangfei"
+      },
+      {
+        "id": 5,
+        "chained": false,
+        "hp": 4,
+        "equip": [],
+        "hand": [],
+        "max_hp": 4,
+        "general": "ganning"
+      },
+      {
+        "id": 6,
+        "chained": false,
+        "hp": 4,
+        "equip": [],
+        "hand": [],
+        "max_hp": 4,
+        "general": "guanyu"
+      },
+      {
+        "id": 7,
+        "chained": false,
+        "hp": 4,
+        "equip": [],
+        "hand": [],
+        "max_hp": 4,
+        "general": "xuchu"
+      },
+      {
+        "id": 8,
+        "chained": false,
+        "hp": 4,
+        "equip": [],
+        "hand": [],
+        "max_hp": 4,
+        "general": "lvbu"
+      }
+    ],
+    "final_players": [
+      {
+        "id": 1,
+        "chained": false,
+        "hp": 4,
+        "equip": [
+          {
+            "id": -2,
+            "name": "qinggang_sword"
+          }
+        ],
+        "hand": [],
+        "max_hp": 4,
+        "general": "caocao"
+      },
+      {
+        "id": 2,
+        "chained": false,
+        "hp": 3,
+        "equip": [],
+        "hand": [],
+        "max_hp": 3,
+        "general": "daqiao"
+      },
+      {
+        "id": 3,
+        "chained": false,
+        "hp": 3,
+        "equip": [
+          {
+            "id": -3,
+            "name": "nioh_shield"
+          }
+        ],
+        "hand": [],
+        "max_hp": 4,
+        "general": "liubei"
+      },
+      {
+        "id": 4,
+        "chained": false,
+        "hp": 4,
+        "equip": [],
+        "hand": [],
+        "max_hp": 4,
+        "general": "zhangfei"
+      },
+      {
+        "id": 5,
+        "chained": false,
+        "hp": 4,
+        "equip": [],
+        "hand": [],
+        "max_hp": 4,
+        "general": "ganning"
+      },
+      {
+        "id": 6,
+        "chained": false,
+        "hp": 4,
+        "equip": [],
+        "hand": [],
+        "max_hp": 4,
+        "general": "guanyu"
+      },
+      {
+        "id": 7,
+        "chained": false,
+        "hp": 4,
+        "equip": [],
+        "hand": [],
+        "max_hp": 4,
+        "general": "xuchu"
+      },
+      {
+        "id": 8,
+        "chained": false,
+        "hp": 4,
+        "equip": [],
+        "hand": [],
+        "max_hp": 4,
+        "general": "lvbu"
+      }
+    ],
+    "summary": "固定座位和范围满足流离时，黑杀转移至仁王盾目标，青釭效果应用于新目标并在结算后清理。",
+    "passed": true,
+    "events": [
+      {
+        "event": "fk.PreparingGeneral",
+        "before_hp": 4,
+        "target": 2,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.EventAcquireSkill",
+        "before_hp": 3,
+        "target": 2,
+        "after_hp": 3
+      },
+      {
+        "card": "qinggang_sword",
+        "target": 1,
+        "event": "fk.PreCardUse",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "card": "qinggang_sword",
+        "target": 1,
+        "event": "fk.AfterCardUseDeclared",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "qinggang_sword",
+        "target": 1,
+        "event": "fk.AfterCardTargetDeclared",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "qinggang_sword",
+        "target": 1,
+        "event": "fk.CardUsing",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "qinggang_sword",
+        "target": 1,
+        "event": "fk.TargetSpecifying",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "qinggang_sword",
+        "target": 1,
+        "event": "fk.TargetConfirming",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "qinggang_sword",
+        "target": 1,
+        "event": "fk.TargetSpecified",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "qinggang_sword",
+        "target": 1,
+        "event": "fk.TargetConfirmed",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "qinggang_sword",
+        "target": 1,
+        "event": "fk.BeforeCardUseEffect",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "card": "qinggang_sword",
+        "target": 1,
+        "event": "fk.CardUseFinished",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "nioh_shield",
+        "target": 3,
+        "event": "fk.PreCardUse",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "card": "nioh_shield",
+        "target": 3,
+        "event": "fk.AfterCardUseDeclared",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "nioh_shield",
+        "target": 3,
+        "event": "fk.AfterCardTargetDeclared",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "nioh_shield",
+        "target": 3,
+        "event": "fk.CardUsing",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "nioh_shield",
+        "target": 3,
+        "event": "fk.TargetSpecifying",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "nioh_shield",
+        "target": 3,
+        "event": "fk.TargetConfirming",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "nioh_shield",
+        "target": 3,
+        "event": "fk.TargetSpecified",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "nioh_shield",
+        "target": 3,
+        "event": "fk.TargetConfirmed",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "nioh_shield",
+        "target": 3,
+        "event": "fk.BeforeCardUseEffect",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "card": "nioh_shield",
+        "target": 3,
+        "event": "fk.CardUseFinished",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "card": "slash",
+        "target": 1,
+        "event": "fk.PreCardUse",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 1,
+        "event": "fk.AfterCardUseDeclared",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 1,
+        "event": "fk.AfterCardTargetDeclared",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 1,
+        "event": "fk.CardUsing",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 1,
+        "event": "fk.TargetSpecifying",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 2,
+        "event": "fk.TargetConfirming",
+        "before_hp": 3,
+        "after_hp": 3
+      },
+      {
+        "event": "fk.BeforeRequestAsk"
+      },
+      {
+        "event": "fk.AfterRequestAsk"
+      },
+      {
+        "event": "fk.BeforeTriggerSkillUse",
+        "before_hp": 3,
+        "target": 2,
+        "after_hp": 3
+      },
+      {
+        "event": "fk.SkillEffect",
+        "before_hp": 3,
+        "target": 2,
+        "after_hp": 3
+      },
+      {
+        "event": "fk.BeforeCardsMove"
+      },
+      {
+        "event": "fk.AfterCardsMove"
+      },
+      {
+        "event": "fk.AfterSkillEffect",
+        "before_hp": 3,
+        "target": 2,
+        "after_hp": 3
+      },
+      {
+        "card": "slash",
+        "target": 3,
+        "event": "fk.TargetConfirming",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 1,
+        "event": "fk.TargetSpecified",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.BeforeTriggerSkillUse",
+        "before_hp": 4,
+        "target": 1,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.SkillEffect",
+        "before_hp": 4,
+        "target": 1,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.AfterSkillEffect",
+        "before_hp": 4,
+        "target": 1,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 3,
+        "event": "fk.TargetConfirmed",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 1,
+        "event": "fk.BeforeCardUseEffect",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 1,
+        "event": "fk.PreCardEffect",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.AskForCardUse",
+        "before_hp": 4,
+        "target": 3,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.HandleAskForPlayCard",
+        "before_hp": 4,
+        "target": 3,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.BeforeRequestAsk"
+      },
+      {
+        "event": "fk.AfterRequestAsk"
+      },
+      {
+        "event": "fk.HandleAskForPlayCard",
+        "before_hp": 4,
+        "target": 3,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.AfterAskForCardUse",
+        "before_hp": 4,
+        "target": 3,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 3,
+        "event": "fk.BeforeCardEffect",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 3,
+        "event": "fk.CardEffecting",
+        "before_hp": 4,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.SkillEffect",
+        "before_hp": 4,
+        "target": 1,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 1,
+        "damage_after": 1,
+        "event": "fk.PreDamage",
+        "before_hp": 4,
+        "damage_before": 1,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 1,
+        "damage_after": 1,
+        "event": "fk.DamageCaused",
+        "before_hp": 4,
+        "damage_before": 1,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 1,
+        "damage_after": 1,
+        "event": "fk.DetermineDamageCaused",
+        "before_hp": 4,
+        "damage_before": 1,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 3,
+        "damage_after": 1,
+        "event": "fk.DamageInflicted",
+        "before_hp": 4,
+        "damage_before": 1,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 3,
+        "damage_after": 1,
+        "event": "fk.DetermineDamageInflicted",
+        "before_hp": 4,
+        "damage_before": 1,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.BeforeHpChanged",
+        "before_hp": 4,
+        "target": 3,
+        "after_hp": 4
+      },
+      {
+        "event": "fk.HpChanged",
+        "before_hp": 3,
+        "target": 3,
+        "after_hp": 3
+      },
+      {
+        "card": "slash",
+        "target": 1,
+        "damage_after": 1,
+        "event": "fk.Damage",
+        "before_hp": 4,
+        "damage_before": 1,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 3,
+        "damage_after": 1,
+        "event": "fk.Damaged",
+        "before_hp": 3,
+        "damage_before": 1,
+        "after_hp": 3
+      },
+      {
+        "card": "slash",
+        "target": 3,
+        "damage_after": 1,
+        "event": "fk.DamageFinished",
+        "before_hp": 3,
+        "damage_before": 1,
+        "after_hp": 3
+      },
+      {
+        "event": "fk.AfterSkillEffect",
+        "before_hp": 4,
+        "target": 1,
+        "after_hp": 4
+      },
+      {
+        "card": "slash",
+        "target": 3,
+        "event": "fk.CardEffectFinished",
+        "before_hp": 3,
+        "after_hp": 3
+      },
+      {
+        "card": "slash",
+        "target": 1,
+        "event": "fk.CardUseFinished",
+        "before_hp": 4,
+        "after_hp": 4
+      }
+    ],
+    "actions": [
+      {
+        "action": "equip",
+        "player": 1,
+        "card": "qinggang_sword"
+      },
+      {
+        "action": "equip",
+        "player": 3,
+        "card": "nioh_shield"
+      }
+    ],
+    "assertions": [
+      {
+        "passed": true,
+        "actual": 3,
+        "expected": 3,
+        "label": "大乔成功流离，自己不受伤"
+      },
+      {
+        "passed": true,
+        "actual": true,
+        "expected": true,
+        "label": "流离弃置了指定代价牌"
+      },
+      {
+        "passed": true,
+        "actual": 3,
+        "expected": 3,
+        "label": "黑杀转移后青釭无视新目标仁王盾"
+      },
+      {
+        "passed": true,
+        "actual": 0,
+        "expected": 0,
+        "label": "转移目标的无效防具标记已清理"
+      }
+    ],
+    "scope": "fixed-snapshot Lua rules / fake_backend"
+  },
+  "scenario_sha256": "64744588a0949565bb180782035881a68b4346a049ebafbea169997c577bea52",
+  "common_sha256": "36798d608cfcf75ac91db1e372ac99e9abbf178f8487be4bd9f5b4b73edee96e"
+}

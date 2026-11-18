@@ -1,0 +1,79 @@
+{
+  "version": "2.0.4-local.1",
+  "progress_and_bookmarks": {
+    "summary": "共享进度 · 已掌握 48/49（98%）",
+    "controls": {
+      "mastered": true,
+      "saved": false,
+      "download": true,
+      "title": "Python 基础与工程知识详解"
+    },
+    "persisted": true,
+    "bookmarkRestored": true,
+    "masteryNotToggled": true
+  },
+  "file_preview": {
+    "preview": {
+      "url": "http://127.0.0.1:15180/?page=bookshelf&shelf=review&document=8-02&file=backend%2Fapp%2Fmain.py",
+      "rows": 100,
+      "firstLine": "import asyncio",
+      "explicitDownload": "main.py",
+      "fileBreadcrumb": "项目文件 / backend / app / main.py",
+      "downloadTriggered": false
+    },
+    "directory": {
+      "path": "backend/app",
+      "names": [
+        "catalog.py",
+        "chunking.py",
+        "config.py",
+        "db.py",
+        "feedback_context.py",
+        "history_sources.py",
+        "jobs.py",
+        "main.py",
+        "models.py",
+        "retrieval_cache.py",
+        "ruling_policy.py",
+        "runtime.py",
+        "schemas.py",
+        "worker.py"
+      ]
+    },
+    "line": {
+      "selected": "105",
+      "rows": 100,
+      "text": "    app.add_middleware(CORSMiddleware, allow_origins=[\"http://localhost:5173\", \"http://127.0.0.1:5173\"], allow_methods=[\"GET\", \"POST\", \"PATCH\"], allow_headers=[\"Authorization\", \"Content-Type\", \"X-Assessment-Fault\"])"
+    },
+    "mobile": {
+      "viewport": 390,
+      "overflow": false,
+      "iframeCount": 0,
+      "codeHorizontalRange": 1025
+    }
+  },
+  "reviewer_and_markdown": {
+    "reviewer": {
+      "masteryDisabled": true,
+      "saveEnabled": true,
+      "knowledgeControls": "已掌握收藏文章A−A＋下载原文"
+    },
+    "markdown": {
+      "title": "真人试用与改进记录",
+      "titleVisible": true,
+      "paragraphs": 4,
+      "query": "docs/试用与改进记录.md"
+    }
+  },
+  "mobile_progress": {
+    "viewport": 390,
+    "overflow": false,
+    "progress": "共享进度 · 已掌握 48/49（98%）",
+    "searchWidth": 347
+  },
+  "limits": [
+    "DOM and native clicks verified; no screenshot visual approval or physical phone test.",
+    "Initial automatic scrolling did not expose the source link; inspected its hit target and used real wheel before clicking.",
+    "Browser mastery was not toggled. Bookmark toggling was restored after reload verification."
+  ]
+}

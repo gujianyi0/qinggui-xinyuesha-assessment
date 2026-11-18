@@ -1,0 +1,1325 @@
+<h1 id="section-1">消息队列与后台任务可靠性（四）：数据库已写入但 Offset 未提交、Worker 中途退出与并发重复消息的恢复</h1>
+<blockquote>
+<p>对应学习目标：<strong>业务已经写入但位点还没提交、处理中进程退出、重复消息同时到达时，系统怎样恢复。</strong></p>
+<p>所属模块：《消息队列与后台任务可靠性》· 第四节<br />主题范围：Kafka Consumer、PostgreSQL 业务事务、任务状态机、执行租约、幂等恢复、故障注入。<br />示例运行范围：Python 标准库 + SQLite 的可复现实验；另给出 PostgreSQL/aiokafka 的工程写法与限制。</p>
+</blockquote>
+<hr />
+<h2 id="section-2">1. 学习目标的本质：至少一次交付下实现可恢复的业务效果</h2>
+<p>Kafka 消费一条消息时，实际上至少存在两套独立的状态：</p>
+<ol>
+<li><strong>消息状态：</strong> Kafka 某个 Consumer Group 针对 Topic/Partition 保存的已提交 Offset。</li>
+<li><strong>业务状态：</strong> PostgreSQL 中某次导入、某份反馈整理或某个模型批处理的状态与最终结果。</li>
+</ol>
+<p>二者没有天然的跨系统原子提交关系。特别是外部 API 调用也不会自动加入 PostgreSQL 事务。</p>
+<p>因此“消息处理完成”要拆解为三个具体断言：</p>
+<ul>
+<li>业务结果已持久化并满足唯一性/完整性约束；</li>
+<li>同一业务请求重复执行时，不会再生成第二份有冲突的最终结果；</li>
+<li>Consumer 只在允许恢复语义的前提下推进 Kafka Offset。</li>
+</ul>
+<p><strong>目标不是宣称 Worker 永远不崩溃，而是保证 Worker 崩溃后存在明确的恢复路径。</strong></p>
+<h3 id="section-3">1.1 一个典型资料导入任务</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">前端：POST /imports
+    ↓
+FastAPI：验证身份 + 创建任务记录（task_id / business_key）
+    ↓
+Kafka Topic：document-imports
+    ↓
+Worker-A：读取消息（partition 2, offset 41）
+    ↓
+PostgreSQL：认领任务 → RUNNING
+    ↓
+解析文件 / Embedding / 调用外部模型
+    ↓
+PostgreSQL：同一事务保存最终结果 + SUCCEEDED
+    ↓
+Kafka：提交 offset = 42</code></pre></div><p><code>offset = 42</code> 代表下一次应读取的位置，并不是把“消息 42 已成功”写入 Kafka。假设 Worker 在结果提交数据库之后、提交 Kafka Offset 之前退出，重启后 Offset 41 可能再次被读取。此时程序应该识别它已完成，并复用持久化结果，而不是重新导入一遍。</p>
+<h3 id="section-4">1.2 什么叫“可靠恢复”</h3>
+<p>至少满足以下不变量：</p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>系统不变量</th>
+<th>主要保障机制</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>I1</td>
+<td>同一租户、同一业务操作最多存在一份最终结果</td>
+<td><code>UNIQUE(tenant_id, business_key)</code></td>
+</tr>
+<tr>
+<td>I2</td>
+<td>任务成功与对应最终结果保持一致</td>
+<td>同一数据库事务提交</td>
+</tr>
+<tr>
+<td>I3</td>
+<td>旧 Worker 失去任务所有权后无法完成写入</td>
+<td>租约 + generation/Fencing Token + 条件更新</td>
+</tr>
+<tr>
+<td>I4</td>
+<td>不可解释的处理中状态不能无限期存在</td>
+<td>任务超时、恢复扫描、重试策略</td>
+</tr>
+<tr>
+<td>I5</td>
+<td>重复消息不会悄悄修改已完成结果</td>
+<td>幂等键 + 输入指纹 + 终态不可覆盖</td>
+</tr>
+<tr>
+<td>I6</td>
+<td>Kafka Offset 不会越过尚未安全处理的消息</td>
+<td>分区连续进度与受控提交</td>
+</tr>
+<tr>
+<td>I7</td>
+<td>出错仍能追溯</td>
+<td>task_id、event_id、topic/partition/offset、attempt 与错误记录</td>
+</tr>
+</tbody></table>
+<p>这些不变量需要由代码、数据库和自动化测试共同保证，不能只在提示词或部署文档里声明。</p>
+<hr />
+<h2 id="section-5">2. 最小术语体系</h2>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>含义</th>
+<th>与恢复的关系</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>event_id</code></td>
+<td>一次逻辑事件的唯一标识</td>
+<td>识别同一事件重投；不同事件仍可能指向同一业务</td>
+</tr>
+<tr>
+<td><code>business_key</code></td>
+<td>一次逻辑业务操作的幂等键</td>
+<td>判断两条消息是否要求同一次导入/反馈生成</td>
+</tr>
+<tr>
+<td><code>task_id</code></td>
+<td>任务记录 ID</td>
+<td>面向用户查询进度与最终结果</td>
+</tr>
+<tr>
+<td><code>payload_hash</code></td>
+<td>规范化输入的指纹</td>
+<td>发现同一业务键被用于不同参数</td>
+</tr>
+<tr>
+<td>Topic/Partition/Offset</td>
+<td>Kafka 内部消息位置</td>
+<td>识别当前 Consumer 应提交的下一位置</td>
+</tr>
+<tr>
+<td><code>attempts</code></td>
+<td>业务认领/执行尝试次数</td>
+<td>记录重试和诊断故障，不应与 Kafka 投递次数混为一谈</td>
+</tr>
+<tr>
+<td><code>lease_until</code></td>
+<td>任务执行租约过期时间</td>
+<td>判断可能失联的 Worker 是否可被接管</td>
+</tr>
+<tr>
+<td><code>generation</code></td>
+<td>每次重新认领递增的代际编号</td>
+<td>拒绝旧 Worker 的迟到写入</td>
+</tr>
+<tr>
+<td><code>final_results</code></td>
+<td>业务最终结果表</td>
+<td>最终结果的唯一性和持久性来源</td>
+</tr>
+<tr>
+<td>Inbox / Processed Events</td>
+<td>消费侧事件记录表</td>
+<td>保留消息身份与处理证据</td>
+</tr>
+<tr>
+<td>Outbox</td>
+<td>数据库内的待发布事件表</td>
+<td>可靠传递跨系统后续动作</td>
+</tr>
+</tbody></table>
+<p><strong>重要区分：</strong> <code>event_id</code>、<code>business_key</code> 和 Kafka Offset 不是同一个东西。Kafka Offset 在 <code>(topic, partition)</code> 范围内标识日志位置；<code>event_id</code> 标识逻辑事件；<code>business_key</code> 标识业务操作。Producer 重试可能生成不同 Kafka 记录，但它们仍可以属于同一次业务。</p>
+<hr />
+<h2 id="section-6">3. 故障场景 A：业务写入成功，但 Kafka Offset 未提交</h2>
+<h3 id="section-7">3.1 完整时间线</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">时间 →
+
+Kafka:       交付 offset=41 ───────────────────────────── 重新交付 41
+Worker-A:              读取 → 处理 → DB COMMIT → ✕ 进程退出
+PostgreSQL:                              SUCCEEDED + result 已持久化
+Kafka Offset:            仍指向 41 ───────────────────── 41
+Worker-B:                                             读取 41 → 查重 → 不再写业务 → Commit 42</code></pre></div><p>Kafka 负责的只是“从哪里继续读”。它不知道 PostgreSQL 已经保存了结果。Kafka 可以再次提供相同消息，Consumer 不能把它当作首次操作直接重做。</p>
+<h3 id="section-8">3.2 正确恢复过程</h3>
+<ol>
+<li>Consumer 重启并重新获得分区分配，从已提交 Offset 恢复读取；</li>
+<li>解析消息并验证 <code>event_id</code>、<code>business_key</code>、<code>payload_hash</code>；</li>
+<li>查询任务最终状态或唯一业务结果；</li>
+<li>如果业务已成功，返回 <code>ALREADY_SUCCEEDED</code>，复用已保存结果；</li>
+<li>确认业务状态可持久追溯，再提交当前消息对应的下一 Offset。</li>
+</ol>
+<p>核心操作可描述为：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">process(message):
+    if final_result_exists(business_key):
+        return ALREADY_SUCCEEDED
+    else:
+        run_idempotent_transaction(message)
+        return SUCCEEDED
+
+commit_kafka_offset(message.offset + 1)</code></pre></div><p>这里的“查重”不能只有 <code>SELECT</code>。两个 Worker 都可能在同一时刻查不到记录。数据库必须以唯一约束、条件更新或事务性插入真正裁定哪一个请求可以创建最终结果。</p>
+<h3 id="section-9">3.3 为什么不能先提交 Offset</h3>
+<p>如果先提交 Offset 42，然后业务事务失败或 Worker 被终止，重启后 Kafka 从 42 继续读取，可能不再交付 Offset 41，从而造成未处理的业务被跳过。</p>
+<p>反过来，<strong>先数据库提交、再 Kafka 提交</strong>，保留了可重投窗口；只要业务幂等实现正确，重复投递不会破坏最终结果。这个权衡是常见的 At-least-once 消费设计。</p>
+<h3 id="section-10">3.4 三种容易混淆的“成功”</h3>
+<ul>
+<li><code>DB_COMMITTED</code>：数据库事务成功；</li>
+<li><code>KAFKA_OFFSET_COMMITTED</code>：Kafka Group 保存了新的恢复位置；</li>
+<li><code>EXTERNAL_EFFECT_CONFIRMED</code>：外部 API 真正执行成功，且有可核验的结果。</li>
+</ul>
+<p>这三个状态不能互相推导。数据库已成功不保证外部邮件已发送；Kafka Offset 已更新也不代表模型请求已完成。</p>
+<hr />
+<h2 id="section-11">4. 故障场景 B：任务正在 RUNNING 时 Worker 退出</h2>
+<h3 id="section-12">4.1 为什么 RUNNING 可能永久卡住</h3>
+<p>一种常见实现：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">UPDATE tasks SET status = <span class="hljs-string">'RUNNING'</span> WHERE <span class="hljs-built_in">id</span> = :task_id;
+<span class="hljs-comment"># Worker 开始耗时处理</span>
+<span class="hljs-comment"># 此时进程被杀死</span>
+UPDATE tasks SET status = <span class="hljs-string">'SUCCEEDED'</span> WHERE <span class="hljs-built_in">id</span> = :task_id;</code></pre></div><p>第一条更新已持久化，第二条从未执行。若系统仅依靠 <code>status = 'RUNNING'</code> 判断任务正在正常处理，就无法区分“仍在工作”和“Worker 已死亡”。</p>
+<h3 id="section-13">4.2 租约（Lease）</h3>
+<p>给每次认领加上期限：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">status = RUNNING
+owner = worker-A
+generation = 7
+lease_until = 2026-11-12T10:00:30Z</code></pre></div><p>只要租约尚有效，正常情况下其他 Worker 不主动接管同一任务；租约超时意味着“原执行权可能已经失效”，可以触发恢复程序。</p>
+<p>但<strong>租约超时不等于原 Worker 必然已经停止</strong>。网络暂停、GC、CPU 饱和、操作系统调度和时钟问题都可能让旧进程迟到恢复，因此必须结合后述的代际标识阻止其继续写入。</p>
+<h3 id="section-14">4.3 心跳与续租</h3>
+<p>对长任务，可以在执行过程中定期续租：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">UPDATE</span> tasks
+<span class="hljs-keyword">SET</span> lease_until <span class="hljs-operator">=</span> clock_timestamp() <span class="hljs-operator">+</span> <span class="hljs-type">INTERVAL</span> <span class="hljs-string">'30 seconds'</span>
+<span class="hljs-keyword">WHERE</span> task_id <span class="hljs-operator">=</span> :task_id
+  <span class="hljs-keyword">AND</span> status <span class="hljs-operator">=</span> <span class="hljs-string">'RUNNING'</span>
+  <span class="hljs-keyword">AND</span> owner <span class="hljs-operator">=</span> :owner
+  <span class="hljs-keyword">AND</span> generation <span class="hljs-operator">=</span> :generation
+  <span class="hljs-keyword">AND</span> lease_until <span class="hljs-operator">&gt;</span> clock_timestamp();</code></pre></div><p>若更新影响行数为 0，说明该 Worker 不再拥有有效的执行权，应停止后续写入并尝试取消尚未完成的工作。</p>
+<p><strong>务必注意：</strong> 租约属于跨进程持久状态，应该尽量以数据库权威时间判断有效性，而不是将进程本地的 <code>time.monotonic()</code> 原样持久化到数据库。<code>monotonic()</code> 适合计算单进程内耗时与截止时间，不适合作为跨重启的可比较时间戳。</p>
+<h3 id="section-15">4.4 恢复扫描（Reaper / Sweeper）</h3>
+<p>恢复程序可以定期查找：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">SELECT</span> task_id
+<span class="hljs-keyword">FROM</span> tasks
+<span class="hljs-keyword">WHERE</span> status <span class="hljs-operator">=</span> <span class="hljs-string">'RUNNING'</span>
+  <span class="hljs-keyword">AND</span> lease_until <span class="hljs-operator">&lt;</span> clock_timestamp();</code></pre></div><p>然后按约定策略：</p>
+<ul>
+<li>将任务重新变成 <code>PENDING</code>，等待下次分配；</li>
+<li>或由新 Worker 在事务中直接认领并递增 generation；</li>
+<li>记录旧 Worker 的最后心跳、原始错误、重试次数；</li>
+<li>对多次失败任务应用退避、最大重试次数和终态 <code>FAILED</code>。</li>
+</ul>
+<p><strong>前提条件：</strong> 如果 Kafka 消息已经提前被错误确认，单纯将状态改回 <code>PENDING</code> 还不够；还需要有可靠的任务分派或重新发布机制（如持久化任务扫描 + Outbox），否则可能永远没有 Worker 再次执行。</p>
+<h3 id="section-16">4.5 执行代际编号（Generation / Fencing）</h3>
+<p>假设：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Worker-A 获取 generation=7
+A 长时间暂停，租约过期
+Worker-B 获取 generation=8
+B 完成任务并提交结果
+A 恢复并试图写入旧结果</code></pre></div><p>如果 A 仅凭旧的 <code>task_id</code> 执行 <code>UPDATE</code>，就可能覆盖 B。正确做法是对完成操作使用条件更新：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">UPDATE</span> tasks
+<span class="hljs-keyword">SET</span> status <span class="hljs-operator">=</span> <span class="hljs-string">'SUCCEEDED'</span>, result_id <span class="hljs-operator">=</span> :result_id
+<span class="hljs-keyword">WHERE</span> task_id <span class="hljs-operator">=</span> :task_id
+  <span class="hljs-keyword">AND</span> status <span class="hljs-operator">=</span> <span class="hljs-string">'RUNNING'</span>
+  <span class="hljs-keyword">AND</span> owner <span class="hljs-operator">=</span> :owner
+  <span class="hljs-keyword">AND</span> generation <span class="hljs-operator">=</span> :generation
+  <span class="hljs-keyword">AND</span> lease_until <span class="hljs-operator">&gt;</span> clock_timestamp();</code></pre></div><p>只有实际影响 1 行时才能继续提交本事务；影响 0 行即认为执行权已过期、已被接管或状态不再允许完成。</p>
+<p>数据库端的条件检查属于真正的并发控制。<code>generation</code> 不能只由客户端在内存中比较。</p>
+<hr />
+<h2 id="section-17">5. 故障场景 C：重复消息同时到达两个 Worker</h2>
+<h3 id="section-18">5.1 并发竞态</h3>
+<p>错误方式：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Worker-A                         Worker-B
+SELECT ... 结果不存在            SELECT ... 结果不存在
+       ↓                                 ↓
+INSERT result                     INSERT result
+       ↓                                 ↓
+最终可能产生两个业务结果</code></pre></div><p>即便有 <code>if not exists</code> 判断，也无法防止两个事务同时通过检查。</p>
+<h3 id="section-19">5.2 数据库唯一性是最后防线</h3>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE TABLE</span> final_results (
+    tenant_id UUID <span class="hljs-keyword">NOT NULL</span>,
+    business_key TEXT <span class="hljs-keyword">NOT NULL</span>,
+    result_json JSONB <span class="hljs-keyword">NOT NULL</span>,
+    created_at TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> now(),
+    <span class="hljs-keyword">PRIMARY KEY</span> (tenant_id, business_key)
+);</code></pre></div><p>两个 Worker 可以都尝试写入，但同一 <code>(tenant_id, business_key)</code> 最终至多成功插入一条记录。业务层仍需要根据冲突结果决定返回已有结果还是报告参数不一致。</p>
+<h3 id="section-20">5.3 SQL 原子认领，不能依赖 Python 全局锁</h3>
+<p>可以使用 PostgreSQL 原子 <code>INSERT ... ON CONFLICT</code>，或在事务中执行 <code>SELECT ... FOR UPDATE</code>、带条件的 <code>UPDATE ... RETURNING</code>。</p>
+<p>例如：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">INSERT INTO</span> tasks (tenant_id, business_key, payload_hash, status, generation)
+<span class="hljs-keyword">VALUES</span> (:tenant, :key, :hash, <span class="hljs-string">'PENDING'</span>, <span class="hljs-number">0</span>)
+<span class="hljs-keyword">ON</span> CONFLICT (tenant_id, business_key) DO NOTHING;</code></pre></div><p>这里只是安全地保证任务记录最多一条，<strong>还没有完成执行权认领</strong>。接着应在事务中锁定目标行、检查状态/指纹/租约，并原子更新认领者与 generation。</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">BEGIN</span>;
+<span class="hljs-keyword">SELECT</span> status, generation, lease_until, payload_hash
+<span class="hljs-keyword">FROM</span> tasks
+<span class="hljs-keyword">WHERE</span> tenant_id <span class="hljs-operator">=</span> :tenant <span class="hljs-keyword">AND</span> business_key <span class="hljs-operator">=</span> :key
+<span class="hljs-keyword">FOR</span> <span class="hljs-keyword">UPDATE</span>;
+<span class="hljs-comment">-- 校验 hash / 状态 / 租约</span>
+<span class="hljs-keyword">UPDATE</span> tasks <span class="hljs-keyword">SET</span> status <span class="hljs-operator">=</span> <span class="hljs-string">'RUNNING'</span>, owner <span class="hljs-operator">=</span> :worker,
+    generation <span class="hljs-operator">=</span> generation <span class="hljs-operator">+</span> <span class="hljs-number">1</span>,
+    lease_until <span class="hljs-operator">=</span> clock_timestamp() <span class="hljs-operator">+</span> <span class="hljs-type">INTERVAL</span> <span class="hljs-string">'30 seconds'</span>
+<span class="hljs-keyword">WHERE</span> tenant_id <span class="hljs-operator">=</span> :tenant <span class="hljs-keyword">AND</span> business_key <span class="hljs-operator">=</span> :key;
+<span class="hljs-keyword">COMMIT</span>;</code></pre></div><p>上面的 SQL 是事务片段，必须补上校验条件与异常处理，不能把它当作可以直接部署的完整 Worker。行锁应只覆盖很短的“认领”事务，<strong>不要把一个耗时十分钟的模型请求包在数据库事务和行锁内</strong>。</p>
+<h3 id="section-21">5.4 不同 Kafka 分区也可能处理同一业务</h3>
+<p>即使传统 Consumer Group 对同一分区通常只分配给一个消费者，也仍有以下并发来源：</p>
+<ul>
+<li>不同事件可能写入不同分区，却携带相同业务幂等键；</li>
+<li>一个消费者在同一分区内部并发调度多个任务；</li>
+<li>Rebalance 或租约过期后，旧执行进程可能尚未完全停下；</li>
+<li>后台恢复扫描与 Kafka 消费者同时发现同一待处理任务。</li>
+</ul>
+<p>因此，<strong>Kafka 分区分配不是跨分区或跨系统的业务唯一锁</strong>。将同一业务 Key 用作 Kafka Message Key 有助于保持单 Topic/固定分区布局下的路由一致性，却不能取代数据库唯一约束。</p>
+<hr />
+<h2 id="section-22">6. 一套完整的任务状态机</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">                   ┌─────────────┐
+                   │   PENDING   │
+                   └──────┬──────┘
+                          │ 原子认领
+                          ▼
+                   ┌─────────────┐
+             ┌─────│   RUNNING   │─────┐
+             │     └─────────────┘     │
+       超时/重试等待              业务事务成功
+             │                         │
+             ▼                         ▼
+         RETRY_WAIT                SUCCEEDED
+             │
+             └──────────────→ PENDING
+
+     不可恢复错误/重试耗尽 → FAILED
+     已获准取消且停止执行 → CANCELLED</code></pre></div><p>教学代码为简化状态，只使用 <code>PENDING / RUNNING / SUCCEEDED / FAILED</code>。实际系统应考虑 <code>RETRY_WAIT</code>、<code>CANCEL_REQUESTED</code>、<code>CANCELLED</code>、<code>UNKNOWN_EXTERNAL_RESULT</code> 等状态。</p>
+<p>各状态应有明确约束：</p>
+<table>
+<thead>
+<tr>
+<th>当前状态</th>
+<th>可允许的下一状态</th>
+<th>必须满足的条件</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PENDING</td>
+<td>RUNNING</td>
+<td>取得任务执行权</td>
+</tr>
+<tr>
+<td>RUNNING</td>
+<td>SUCCEEDED</td>
+<td>当前 generation 有效，结果事务提交</td>
+</tr>
+<tr>
+<td>RUNNING</td>
+<td>RETRY_WAIT</td>
+<td>可恢复错误、符合重试预算</td>
+</tr>
+<tr>
+<td>RETRY_WAIT</td>
+<td>PENDING</td>
+<td>已到下次重试时间</td>
+</tr>
+<tr>
+<td>RUNNING</td>
+<td>FAILED</td>
+<td>不可恢复错误或重试耗尽</td>
+</tr>
+<tr>
+<td>RUNNING</td>
+<td>CANCELLED</td>
+<td>确认取消已生效，不能回滚已发生副作用</td>
+</tr>
+<tr>
+<td>SUCCEEDED</td>
+<td>—</td>
+<td>正常不应再被覆盖</td>
+</tr>
+<tr>
+<td>FAILED / CANCELLED</td>
+<td>—</td>
+<td>如允许人工重新执行，应产生新任务代际或新业务操作</td>
+</tr>
+</tbody></table>
+<p><strong>状态是持久化业务事实，不是一个 Worker 的局部变量。</strong></p>
+<hr />
+<h2 id="section-23">7. 如何设计数据库表：事件、任务、结果三层分开</h2>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">CREATE TABLE</span> tasks (
+    tenant_id UUID <span class="hljs-keyword">NOT NULL</span>,
+    business_key TEXT <span class="hljs-keyword">NOT NULL</span>,
+    payload_hash TEXT <span class="hljs-keyword">NOT NULL</span>,
+    status TEXT <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">CHECK</span> (
+        status <span class="hljs-keyword">IN</span> (<span class="hljs-string">'PENDING'</span>,<span class="hljs-string">'RUNNING'</span>,<span class="hljs-string">'RETRY_WAIT'</span>,
+                   <span class="hljs-string">'SUCCEEDED'</span>,<span class="hljs-string">'FAILED'</span>,<span class="hljs-string">'CANCELLED'</span>)
+    ),
+    owner TEXT,
+    generation <span class="hljs-type">BIGINT</span> <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> <span class="hljs-number">0</span>,
+    lease_until TIMESTAMPTZ,
+    attempts <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> <span class="hljs-number">0</span>,
+    next_retry_at TIMESTAMPTZ,
+    last_error_code TEXT,
+    created_at TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> now(),
+    updated_at TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> now(),
+    <span class="hljs-keyword">PRIMARY KEY</span> (tenant_id, business_key)
+);
+
+<span class="hljs-keyword">CREATE TABLE</span> inbox_events (
+    consumer_group TEXT <span class="hljs-keyword">NOT NULL</span>,
+    event_id UUID <span class="hljs-keyword">NOT NULL</span>,
+    tenant_id UUID <span class="hljs-keyword">NOT NULL</span>,
+    business_key TEXT <span class="hljs-keyword">NOT NULL</span>,
+    payload_hash TEXT <span class="hljs-keyword">NOT NULL</span>,
+    topic TEXT <span class="hljs-keyword">NOT NULL</span>,
+    partition_id <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span>,
+    message_offset <span class="hljs-type">BIGINT</span> <span class="hljs-keyword">NOT NULL</span>,
+    received_at TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> now(),
+    <span class="hljs-keyword">PRIMARY KEY</span> (consumer_group, event_id)
+);
+
+<span class="hljs-keyword">CREATE TABLE</span> final_results (
+    tenant_id UUID <span class="hljs-keyword">NOT NULL</span>,
+    business_key TEXT <span class="hljs-keyword">NOT NULL</span>,
+    content JSONB <span class="hljs-keyword">NOT NULL</span>,
+    created_at TIMESTAMPTZ <span class="hljs-keyword">NOT NULL</span> <span class="hljs-keyword">DEFAULT</span> now(),
+    <span class="hljs-keyword">PRIMARY KEY</span> (tenant_id, business_key),
+    <span class="hljs-keyword">FOREIGN KEY</span> (tenant_id, business_key)
+        <span class="hljs-keyword">REFERENCES</span> tasks(tenant_id, business_key)
+);
+
+<span class="hljs-keyword">CREATE</span> INDEX ix_tasks_expired_running
+    <span class="hljs-keyword">ON</span> tasks (lease_until)
+    <span class="hljs-keyword">WHERE</span> status<span class="hljs-operator">=</span><span class="hljs-string">'RUNNING'</span>;</code></pre></div><p>这里列出的是教学用 DDL 骨架，真实生产系统还需要：外键关联的租户范围、审计、任务尝试记录、错误保留策略、版本字段、资源权限和迁移脚本。</p>
+<h3 id="section-24">7.1 为什么需要 Inbox</h3>
+<p>Kafka 消息包含 Topic/Partition/Offset，但同一个逻辑事件可能因生产者重试产生不同物理记录。Inbox 让程序能够知道“哪个逻辑事件在什么消费组、对应什么业务操作”。</p>
+<p><code>inbox_events</code> 不等于“已经成功处理的事件”，因为本表例子只记录<strong>接收过</strong>。若要支持确认成功后安全跳过，需要额外存储 <code>processing_status</code> / <code>completed_at</code>，并让完成标记与最终业务结果在同一事务中写入。不要将“接收记录存在”误判为“业务已经完成”。</p>
+<h3 id="section-25">7.2 为什么最终结果要有独立唯一约束</h3>
+<p>仅用任务表的 <code>status='SUCCEEDED'</code> 防重，容易在多个事务并发检查时出现竞态。结果表自己的唯一键是最终数据库约束，和状态机形成双重保护。</p>
+<h3 id="section-26">7.3 为什么 Payload Hash 很重要</h3>
+<p>同一个 <code>business_key</code> 如果先用于导入文档 A，之后又用于导入文档 B，程序不能不加区分地返回 A 的结果。</p>
+<p>推荐规范：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">business_key = 调用方生成的、在约定作用域内稳定不变的操作 ID
+payload_hash = 对规范化输入计算的 SHA-256</code></pre></div><p>当同一业务键对应不同 <code>payload_hash</code>，应报告冲突（例如 HTTP 409），而不是复用旧结果或覆盖旧任务。</p>
+<hr />
+<h2 id="section-27">8. PostgreSQL 中怎样安全完成结果提交</h2>
+<p>以下是一个独立事务内部的关键步骤：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">BEGIN</span>;
+
+<span class="hljs-comment">-- 先证明当前 Worker 仍然拥有执行权</span>
+<span class="hljs-keyword">UPDATE</span> tasks
+<span class="hljs-keyword">SET</span> status <span class="hljs-operator">=</span> <span class="hljs-string">'SUCCEEDED'</span>, updated_at <span class="hljs-operator">=</span> clock_timestamp(),
+    owner <span class="hljs-operator">=</span> <span class="hljs-keyword">NULL</span>, lease_until <span class="hljs-operator">=</span> <span class="hljs-keyword">NULL</span>
+<span class="hljs-keyword">WHERE</span> tenant_id <span class="hljs-operator">=</span> :tenant
+  <span class="hljs-keyword">AND</span> business_key <span class="hljs-operator">=</span> :key
+  <span class="hljs-keyword">AND</span> status <span class="hljs-operator">=</span> <span class="hljs-string">'RUNNING'</span>
+  <span class="hljs-keyword">AND</span> owner <span class="hljs-operator">=</span> :owner
+  <span class="hljs-keyword">AND</span> generation <span class="hljs-operator">=</span> :generation
+  <span class="hljs-keyword">AND</span> lease_until <span class="hljs-operator">&gt;</span> clock_timestamp()
+RETURNING tenant_id, business_key;
+
+<span class="hljs-comment">-- 应用程序必须检查上面的 RETURNING 恰好有一行；否则 ROLLBACK。</span>
+<span class="hljs-keyword">INSERT INTO</span> final_results (tenant_id, business_key, content)
+<span class="hljs-keyword">VALUES</span> (:tenant, :key, :result_json);
+
+<span class="hljs-comment">-- 可选：同一事务记录相应 Event 的完成状态/Outbox 事件</span>
+<span class="hljs-keyword">COMMIT</span>;</code></pre></div><p>同一事务里，<code>UPDATE tasks</code> 和 <code>INSERT final_results</code> 一起成功，才能形成 <code>SUCCEEDED + final_result</code> 的一致状态。插入发生唯一性冲突、JSON 数据非法或者数据库连接丢失时，事务应整体失败并回滚。</p>
+<p>不要把模型 API 调用或较慢的文件上传包进这个事务中。可以先计算候选结果，再用一个短事务提交已完成的结果。</p>
+<h3 id="section-28">8.1 <code>ON CONFLICT</code> 不能隐藏不同输入</h3>
+<p>如果选择：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">INSERT INTO</span> final_results (tenant_id, business_key, content)
+<span class="hljs-keyword">VALUES</span> (:tenant, :key, :content)
+<span class="hljs-keyword">ON</span> CONFLICT (tenant_id, business_key) DO NOTHING;</code></pre></div><p>冲突被忽略并不自动代表这两次输入等价。应单独验证 <code>payload_hash</code> 与原业务记录一致，再决定是否复用结果。对于业务幂等性，<strong>数据库冲突是信号，不是可以盲目忽略的错误。</strong></p>
+<hr />
+<h2 id="section-29">9. 租约不能完全消除旧执行者风险</h2>
+<p>租约本质上是时间限制，而非强制杀死旧进程。</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">时间 0：A 获取租约，generation=12
+时间 20：A 被暂停
+时间 31：A 租约失效
+时间 32：B 获取租约，generation=13
+时间 33：B 写入新结果
+时间 34：A 恢复，试图写入旧结果</code></pre></div><p>通过 <code>WHERE generation = 12</code> 的数据库条件更新，可以阻止 A 在数据库内提交旧结果。</p>
+<p>但如果 A 在暂停前已经调用外部服务（发送邮件、调用支付接口、发起模型任务），数据库里的 generation 校验无法撤销已发生的外部副作用。对于这些操作，还需要：</p>
+<ul>
+<li>第三方 API 支持的幂等键；</li>
+<li>外部系统结果查询与对账；</li>
+<li>Outbox / Inbox 结合可靠发送；</li>
+<li>不可撤销操作采用审批、预算和补偿流程；</li>
+<li>将“外部结果未知”视为独立状态，不盲目立即重试。</li>
+</ul>
+<p>若采用 Fencing Token，要求<strong>真正执行资源变更的服务端</strong>拒绝较小的 Token；只在 Worker 本地比较 Token 不起作用。</p>
+<hr />
+<h2 id="section-30">10. Kafka Offset 的安全推进与并发完成顺序</h2>
+<p>同一 Partition 内收到：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Offset 41 → 耗时任务 A，尚未完成
+Offset 42 → 快速任务 B，已完成
+Offset 43 → 快速任务 C，已完成</code></pre></div><p>如果在 A 未完成时提交 Offset 44，之后 Worker 崩溃，重启可能直接从 44 开始，导致 A 被跳过。</p>
+<p>因此可选方案为：</p>
+<ol>
+<li><strong>按分区串行处理并提交：</strong> 简单、最容易证明安全；</li>
+<li><strong>并发执行但使用连续完成水位：</strong> 只提交已安全处理的连续前缀，不能越过未完成记录；</li>
+<li><strong>先将各消息可靠写入数据库任务队列，再确认 Kafka：</strong> 需要将消息登记与处理状态分离，并配套独立的恢复/调度机制。</li>
+</ol>
+<p>注意 Kafka 日志 Offset 不一定数值上严格连续（例如事务控制记录可能产生可见的间隙）；水位算法应该以<strong>实际消费到的记录顺序及处理状态</strong>为基础，而不是简单假定每一个整数 Offset 都对应一条需要业务处理的消息。</p>
+<h3 id="section-31">10.1 分区 Rebalance</h3>
+<p>旧 Consumer 可能处理了数据库事务，却在随后 <code>commit()</code> 时遇到 <code>CommitFailedError</code>，因为它已失去分区所有权。此时不能自作主张跳过失败的 Offset；新持有者重新读取消息后，依靠数据库幂等逻辑处理重投。</p>
+<p>实现中应明确处理分区撤销事件和在途任务，必要时停止认领或完成可安全提交的任务，并保护已经失去所有权的旧 Worker。</p>
+<hr />
+<h2 id="section-32">11. aiokafka 的最小安全消费模式</h2>
+<p>下面展示真实接口形态；<code>process_until_durable()</code> 是业务模块函数的占位抽象，并不是 aiokafka 自带方法：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> asyncio
+<span class="hljs-keyword">from</span> aiokafka <span class="hljs-keyword">import</span> AIOKafkaConsumer, TopicPartition
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">process_until_durable</span>(<span class="hljs-params">message</span>):
+    <span class="hljs-string">"""业务实现必须只有在结果已持久化、或已确认重复成功时才返回。"""</span>
+    <span class="hljs-keyword">raise</span> NotImplementedError
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>():
+    consumer = AIOKafkaConsumer(
+        <span class="hljs-string">"document-imports"</span>,
+        bootstrap_servers=<span class="hljs-string">"localhost:9092"</span>,
+        group_id=<span class="hljs-string">"document-indexer-v1"</span>,
+        enable_auto_commit=<span class="hljs-literal">False</span>,
+        auto_offset_reset=<span class="hljs-string">"earliest"</span>,
+    )
+    <span class="hljs-keyword">await</span> consumer.start()
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">for</span> msg <span class="hljs-keyword">in</span> consumer:
+            tp = TopicPartition(msg.topic, msg.partition)
+            <span class="hljs-comment"># 该最小示例顺序处理消息，不把 BUSY 当作处理成功。</span>
+            <span class="hljs-keyword">await</span> process_until_durable(msg)
+            <span class="hljs-comment"># 只有确认业务结果已经持久化，才推进消费进度。</span>
+            <span class="hljs-keyword">await</span> consumer.commit({tp: msg.offset + <span class="hljs-number">1</span>})
+    <span class="hljs-keyword">finally</span>:
+        <span class="hljs-keyword">await</span> consumer.stop()
+
+asyncio.run(main())</code></pre></div><h3 id="section-33">11.1 此示例故意没有承诺的能力</h3>
+<ul>
+<li>没有完成模型超时、错误类型、重试策略和死信机制；</li>
+<li>没有实现数据库幂等、租约或任务状态机；</li>
+<li>没有完成再均衡监听与并发任务隔离；</li>
+<li>没有保证 <code>process_until_durable()</code> 可以无限等待；</li>
+<li>没有实现跨 Kafka 与 PostgreSQL 的原子提交。</li>
+</ul>
+<p>其目的只是展示<strong>可证明安全的 Offset 提交位置</strong>：只有本次记录已被可靠处理，或者被持久化业务状态证明已经处理，才可以推进。实际遇到 <code>BUSY</code> 时不应直接把它当成成功；可以等待已存在执行完成、终止当前消费循环以便重投，或使用设计好的持久化后台任务转移机制。</p>
+<hr />
+<h2 id="section-34">12. 发生故障后的恢复决策树</h2>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">收到消息 / 重新读取消息
+            │
+            ▼
+       验证业务标识
+            │
+       输入指纹不一致？ ── 是 ─→ 冲突 / 人工处理，不覆盖
+            │ 否
+            ▼
+   数据库里已有最终结果？ ── 是 ─→ 复用结果，允许确认该消息
+            │ 否
+            ▼
+      状态为 RUNNING？
+        │ 是          │ 否
+        ▼             ▼
+      租约有效？      原子认领新任务
+      │ 是  │ 否           │
+      ▼     ▼              │
+     BUSY  新 Worker 接管 ←─┘
+      │          │
+      │          ▼
+      │     执行业务操作
+      │          │
+      │          ▼
+      │    校验代际及权限
+      │          │
+      │          ▼
+      │     事务提交最终结果
+      │          │
+      │          ▼
+      └─ 不得提前确认 ──→ 业务完成后确认 Kafka</code></pre></div><p>这个决策树省略了一些复杂生产分支，例如任务已 <code>FAILED</code>、取消、超限、第三方结果未知、Redis 不可用和 Rebalance。实际系统必须给这些分支独立状态，不能把它们简单归为 <code>BUSY</code> 或 <code>SUCCESS</code>。</p>
+<hr />
+<h2 id="section-35">13. 不同故障发生点的恢复矩阵</h2>
+<table>
+<thead>
+<tr>
+<th>故障发生点</th>
+<th>数据库可见结果</th>
+<th>Kafka 可能状态</th>
+<th>正确恢复动作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>读取消息前崩溃</td>
+<td>未开始</td>
+<td>Offset 未推进</td>
+<td>新 Consumer 正常读取</td>
+</tr>
+<tr>
+<td>认领事务提交前崩溃</td>
+<td>无有效认领</td>
+<td>Offset 未推进</td>
+<td>消息重投并重新认领</td>
+</tr>
+<tr>
+<td>认领事务提交后、业务处理中崩溃</td>
+<td>RUNNING / 无结果</td>
+<td>Offset 未推进</td>
+<td>租约过期后重新认领，增加 generation</td>
+</tr>
+<tr>
+<td>外部调用后、结果事务前崩溃</td>
+<td>可能有外部副作用，DB 无结果</td>
+<td>Offset 未推进</td>
+<td>查询第三方操作状态/幂等重试，不能盲目重复</td>
+</tr>
+<tr>
+<td>最终结果事务提交后、Offset 提交前崩溃</td>
+<td>SUCCEEDED / 有结果</td>
+<td>Offset 未推进</td>
+<td>重投后复用结果，再提交 Offset</td>
+</tr>
+<tr>
+<td>Offset 请求发出后失联</td>
+<td>业务成功</td>
+<td>Kafka 提交是否成功可能未知</td>
+<td>允许重投，通过 DB 幂等抑制重复</td>
+</tr>
+<tr>
+<td>同业务消息并发到达</td>
+<td>可能处于 RUNNING</td>
+<td>多条消息在途</td>
+<td>仅一个执行者获得有效认领，其余等待或复用</td>
+</tr>
+<tr>
+<td>处理期间发生 Rebalance</td>
+<td>旧 Worker 可能已完成业务</td>
+<td>Offset Commit 可能失败</td>
+<td>新消费者重投 + DB 幂等；旧 Worker 不得越权继续</td>
+</tr>
+</tbody></table>
+<p>“Offset 请求返回超时”不一定意味着 Broker 未提交。程序必须允许两种情况出现，而不是依赖一次 RPC 返回值猜测世界状态。</p>
+<hr />
+<h2 id="section-36">14. 同时到达的两条不同消息如何去重</h2>
+<p>举例：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"event_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"evt-001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"tenant_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"tenant-A"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"business_key"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"import-document-42"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"payload_hash"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"sha256:abc"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"source"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"upload"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"event_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"evt-002"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"tenant_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"tenant-A"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"business_key"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"import-document-42"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"payload_hash"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"sha256:abc"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"source"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"retry"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p><code>event_id</code> 不同意味着它们是两个逻辑事件；但 <code>business_key</code> 与输入指纹相同，意味着它们应该落到<strong>同一份最终业务结果</strong>。</p>
+<p>而如果两条消息的 <code>business_key</code> 相同，<code>payload_hash</code> 不同，系统应将其识别为冲突，而不是自动认为后者是合法重试。</p>
+<hr />
+<h2 id="section-37">15. 进程退出与服务优雅停机</h2>
+<h3 id="section-38">15.1 正常收到关闭信号</h3>
+<ol>
+<li>停止认领新任务；</li>
+<li>停止/暂停消费或让负载接管新的消息；</li>
+<li>对现有任务等待有限的清理时间；</li>
+<li>对完成的业务安全提交结果和 Kafka Offset；</li>
+<li>对未完成的工作释放或让租约超时，保留恢复所需状态；</li>
+<li>关闭 aiokafka Consumer、数据库引擎和 HTTP 客户端。</li>
+</ol>
+<h3 id="section-39">15.2 发生 <code>SIGKILL</code> / 容器被强制终止</h3>
+<p>没有机会运行 <code>finally</code>，也不能依赖 <code>atexit</code>、进程内 Task Registry 或内存字典恢复。所有能保证恢复的关键数据必须在故障前已经持久化，或者可通过 Kafka 消息重新构造。</p>
+<h3 id="section-40">15.3 租约释放时也要防止“释放了别人的锁”</h3>
+<p>Worker-A 的租约过期后，Worker-B 取得新租约。此时 A 的清理逻辑若执行无条件：</p>
+<div class="code-wrap"><div class="code-label"><span>sql</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">UPDATE</span> tasks <span class="hljs-keyword">SET</span> owner<span class="hljs-operator">=</span><span class="hljs-keyword">NULL</span>, status<span class="hljs-operator">=</span><span class="hljs-string">'PENDING'</span> <span class="hljs-keyword">WHERE</span> task_id<span class="hljs-operator">=</span>:id;</code></pre></div><p>就会破坏 B 的执行权。正确释放也必须附带 <code>owner</code> 和 <code>generation</code> 等条件。</p>
+<hr />
+<h2 id="section-41">16. 失败重试、失败终态与死信处理</h2>
+<p>可靠恢复不代表所有失败都要无限重试。</p>
+<p>建议按性质分类：</p>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>示例</th>
+<th>典型策略</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>暂时故障</td>
+<td>连接中断、数据库短暂不可用</td>
+<td>有限次数 + 指数退避与抖动</td>
+</tr>
+<tr>
+<td>配置故障</td>
+<td>API Key 无效、权限错误</td>
+<td>终止重试并报警</td>
+</tr>
+<tr>
+<td>永久业务错误</td>
+<td>不支持的文件、非法数据</td>
+<td>保存失败原因，转失败终态</td>
+</tr>
+<tr>
+<td>外部结果未知</td>
+<td>API 超时但可能已成功</td>
+<td>先查询或对账，避免重复副作用</td>
+</tr>
+<tr>
+<td>重复投递</td>
+<td>已有 <code>SUCCEEDED</code> 结果</td>
+<td>幂等复用，不重新执行</td>
+</tr>
+<tr>
+<td>旧 Worker 迟到</td>
+<td>generation 已过期</td>
+<td>拒绝写入，保留审计记录</td>
+</tr>
+</tbody></table>
+<p>对于失败任务，不应让一条坏消息无限阻塞整个分区。可以将失败原因持久化，并在明确的终态或可靠重试转移完成后推进原消息 Offset；如果采用死信队列或重试 Topic，还需要确保失败任务的落库/发布不会出现丢失窗口。</p>
+<p><strong>注意：</strong> “失败后把消息扔到 DLQ 再提交原 Offset”这两步本身也需要设计可靠性。常见方法包括用 Outbox 持久化待发布的失败事件，再由发布程序重试。</p>
+<hr />
+<h2 id="section-42">17. 如果业务结果很大、耗时很长怎么办</h2>
+<p>例如批量 Embedding 1000 份文件，需要持续数分钟。</p>
+<p>不建议把全部工作放进一段长数据库事务，更不应该长时间持有行锁。可以分阶段：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">任务认领（短事务）
+    ↓
+读取文件 / 分批计算 Embedding（事务外）
+    ↓
+保存可校验的批次进度（短事务）
+    ↓
+继续处理其他批次
+    ↓
+校验 generation、最终数据完整性
+    ↓
+写入最终结果、标记 SUCCEEDED（短事务）</code></pre></div><p>其中增量中间结果应带上 <code>task_id</code>、批次编号和版本信息；恢复时可识别已完成批次，避免重复计算。但如果某个批次对应第三方 API 费用，重复提交仍可能发生，必须依赖外部幂等或缓存与对账机制。</p>
+<p>对具有多阶段副作用的任务，需要设计中间状态与补偿协议，不能仅凭一个 <code>status</code> 字段描述全部已发生事实。</p>
+<hr />
+<h2 id="section-43">18. 恢复系统需要哪些可观测性指标</h2>
+<h3 id="section-44">18.1 核心记录字段</h3>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"task_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"import-42"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"tenant_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"tenant-A"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"event_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"evt-001"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"consumer_group"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"document-indexer-v1"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"topic"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"document-imports"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"partition"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"offset"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">41</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"worker_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"worker-B"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"generation"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"attempt"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"SUCCEEDED"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"last_error_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"result_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"result-42"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>所有字段均为示意值。生产日志应避免打印完整用户隐私数据、模型密钥、访问令牌与大段文档原文。</p>
+<h3 id="section-45">18.2 指标</h3>
+<ul>
+<li>任务总数、RUNNING 数量、租约超期数量；</li>
+<li>任务重试率、租约抢占率、重复投递命中率；</li>
+<li>Kafka Group Lag、Offset Commit 失败率；</li>
+<li>最终结果唯一性冲突次数；</li>
+<li>任务处于 RUNNING 的持续时间分布；</li>
+<li><code>SUCCEEDED</code> 却缺少结果、结果存在却状态非成功的不变量告警；</li>
+<li>第三方 API 结果未知或需人工对账的数量。</li>
+</ul>
+<p>注意 Kafka Lag 仅反映消费进度位置，不直接等于业务任务全部成功；如果先把消息登记进数据库任务表并提前推进 Offset，还需要监控数据库内待处理任务的队列延迟。</p>
+<hr />
+<h2 id="section-46">19. 常见错误及正确替代</h2>
+<table>
+<thead>
+<tr>
+<th>常见错误</th>
+<th>为什么错误</th>
+<th>更合理的方式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>SELECT</code> 不存在再 <code>INSERT</code></td>
+<td>并发检查竞态</td>
+<td>唯一约束 + 原子写入</td>
+</tr>
+<tr>
+<td>在 <code>RUNNING</code> 时立即提交 Kafka</td>
+<td>Worker 后续崩溃可能失去重投路径</td>
+<td>仅在业务已持久化或可靠转移处理权后提交</td>
+</tr>
+<tr>
+<td>任务超过 30 秒就认定旧 Worker 已结束</td>
+<td>原进程可能只是暂停</td>
+<td>租约接管 + generation 条件更新</td>
+</tr>
+<tr>
+<td><code>Redis SETNX</code> 就保证只执行一次</td>
+<td>锁可能失效，业务约束仍缺失</td>
+<td>数据库约束、事务及 Fencing</td>
+</tr>
+<tr>
+<td><code>ON CONFLICT DO NOTHING</code> 后直接当成功</td>
+<td>同业务键可能携带不同输入</td>
+<td>验证 payload_hash 与现有结果</td>
+</tr>
+<tr>
+<td>数据库 COMMIT 后盲目重试模型 API</td>
+<td>外部操作可能已发生</td>
+<td>第三方幂等键、结果查询与对账</td>
+</tr>
+<tr>
+<td>只保存 <code>status</code> 不记录尝试</td>
+<td>无法解释故障前发生了什么</td>
+<td>持久化 attempts、错误、时间和执行代际</td>
+</tr>
+<tr>
+<td>异步任务都完成前提交最大 Offset</td>
+<td>可能跳过未完成任务</td>
+<td>分区顺序处理或安全连续水位</td>
+</tr>
+<tr>
+<td>依赖优雅停机确保一定恢复</td>
+<td>SIGKILL 不运行清理逻辑</td>
+<td>持久化状态、租约和重投</td>
+</tr>
+<tr>
+<td>进程内锁当成多实例锁</td>
+<td>只能约束当前进程</td>
+<td>数据库原子操作与业务唯一性</td>
+</tr>
+</tbody></table>
+<hr />
+<h2 id="section-47">20. 故障注入测试应该验证什么</h2>
+<p>至少需要区分“代码正确执行”“状态正确写入”“重启后正确恢复”三个层次。下面是可执行的测试矩阵：</p>
+<table>
+<thead>
+<tr>
+<th>测试</th>
+<th>注入时机</th>
+<th>必须检查的结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>T1</td>
+<td>数据库完成后、Kafka Commit 前崩溃</td>
+<td>重投后只存在 1 条最终结果</td>
+</tr>
+<tr>
+<td>T2</td>
+<td>创建 RUNNING 后进程退出</td>
+<td>租约失效后可重新认领</td>
+</tr>
+<tr>
+<td>T3</td>
+<td>旧 Worker 在新 Worker 完成后恢复</td>
+<td>旧 generation 无法提交</td>
+</tr>
+<tr>
+<td>T4</td>
+<td>6 个线程并发认领相同业务</td>
+<td>至多一个有效认领者</td>
+</tr>
+<tr>
+<td>T5</td>
+<td>同一 event_id 重投</td>
+<td>事件不重新定义为新业务</td>
+</tr>
+<tr>
+<td>T6</td>
+<td>不同 event_id、相同 business_key</td>
+<td>共用相同业务结果</td>
+</tr>
+<tr>
+<td>T7</td>
+<td>相同 business_key、不同 payload_hash</td>
+<td>抛出冲突，不覆盖数据</td>
+</tr>
+<tr>
+<td>T8</td>
+<td>最终结果插入后、DB Commit 前崩溃</td>
+<td>结果插入与成功标记一同回滚</td>
+</tr>
+<tr>
+<td>T9</td>
+<td>RUNNING 租约未过期</td>
+<td>第二 Worker 不可接管</td>
+</tr>
+<tr>
+<td>T10</td>
+<td>任务已经 SUCCEEDED</td>
+<td>不能被迟到完成覆盖</td>
+</tr>
+<tr>
+<td>T11</td>
+<td>不同租户使用相同业务键</td>
+<td>结果分别隔离</td>
+</tr>
+<tr>
+<td>T12</td>
+<td>Worker 进程重启</td>
+<td>数据库中的任务和结果仍然存在</td>
+</tr>
+<tr>
+<td>T13</td>
+<td>重试耗尽进入 FAILED</td>
+<td>重投不自动复活终态</td>
+</tr>
+<tr>
+<td>T14</td>
+<td>Kafka Rebalance / Offset Commit 失败</td>
+<td>不丢失已完成数据库结果，允许消息重新消费</td>
+</tr>
+<tr>
+<td>T15</td>
+<td>同分区处理完成乱序</td>
+<td>不提交越过未完成消息的 Offset</td>
+</tr>
+<tr>
+<td>T16</td>
+<td>外部服务超时但已经执行</td>
+<td>不盲目重复不可撤销副作用</td>
+</tr>
+</tbody></table>
+<p>本节提供的离线代码覆盖其中可用 SQLite/线程可靠验证的部分；真实 Kafka Rebalance、Broker 故障与 PostgreSQL 锁语义需要独立集成测试。</p>
+<hr />
+<h2 id="section-48">21. Python 教学实现：核心设计说明</h2>
+<p>附录 A 提供一份不依赖任何外部服务的 <code>TaskStore</code>：</p>
+<ul>
+<li>SQLite 文件数据库模拟<strong>持久化任务状态</strong>；</li>
+<li><code>BEGIN IMMEDIATE</code> 在 SQLite 内部串行化写事务；</li>
+<li><code>tasks(tenant,business_key)</code> 唯一键代表业务唯一性；</li>
+<li><code>seen_events</code> 保留事件身份；</li>
+<li><code>final_results</code> 以唯一键禁止重复最终结果；</li>
+<li><code>generation</code> 与 <code>owner</code> 约束迟到 Worker 的写入；</li>
+<li><code>lease_until</code> 允许任务超时接管；</li>
+<li><code>complete()</code> 将状态更新和结果插入放在同一数据库事务；</li>
+<li>提供 <code>fail_after_result_insert</code> 故障注入，确保事务回滚；</li>
+<li>模拟数据库完成、Kafka 位点未提交后事件重新到达。</li>
+</ul>
+<p>这里的 SQLite 原子写事务机制只是一个简洁教学手段。PostgreSQL 的实际 <code>FOR UPDATE</code>、并发隔离、行锁等待、死锁处理和多个 Worker 的分区再平衡并不能靠 SQLite 测试代替。</p>
+<p>程序还有一个值得注意的细节：<code>sqlite3.Connection</code> 的 <code>with con:</code> 主要管理事务提交/回滚，<strong>不会自动关闭连接</strong>；示例使用 <code>contextlib.closing()</code> 释放连接资源。生产系统应使用数据库连接池与结构化生命周期管理。</p>
+<hr />
+<h2 id="section-49">22. 真实 Kafka + PostgreSQL 集成测试建议</h2>
+<p>可以将 Kafka、PostgreSQL 与 Worker 放进 Docker Compose，建立以下端到端测试：</p>
+<ol>
+<li>向 Kafka 写入同一业务的重复消息；</li>
+<li>Worker 从分区取得记录并写入 PostgreSQL；</li>
+<li>在数据库 COMMIT 之后、Kafka Offset COMMIT 之前强制退出进程；</li>
+<li>重启 Worker，观察同一 Offset 是否重新交付；</li>
+<li>检查数据库最终结果数量始终为一；</li>
+<li>在任务 RUNNING 时强杀 Worker，等待租约超时并运行恢复扫描；</li>
+<li>启动两个 Worker 并发竞争同一业务键，核对认领代际和最终结果；</li>
+<li>人为触发 Rebalance，验证旧消费者不再继续写入或确认失效分区进度；</li>
+<li>运行长时间压力测试，检查有没有任务永久停留 RUNNING；</li>
+<li>验证第三方 API 失败与结果未知的处理，不把网络超时当作确定失败。</li>
+</ol>
+<p>这是一组<strong>待在真实服务环境中执行的验证方案</strong>，并非本次离线程序已经完成的集成测试。</p>
+<hr />
+<h2 id="section-50">23. 核心结论</h2>
+<ol>
+<li><strong>结果提交后 Kafka Offset 未提交：</strong> 允许消息重投；通过业务幂等键、唯一结果和事务识别已成功任务，再提交下一 Offset。</li>
+<li><strong>Worker 在执行中途退出：</strong> 利用持久化状态与租约判断是否允许重新认领，重领时增加 generation，旧 Worker 不得再写入。</li>
+<li><strong>多个重复消息并发到达：</strong> 通过数据库唯一约束与事务原子认领裁决执行权，而非依赖“先检查有没有记录”。</li>
+<li><strong>跨系统副作用：</strong> PostgreSQL 事务无法撤销第三方操作，必须设计外部幂等、Outbox、状态查询或对账。</li>
+<li><strong>安全提交位点：</strong> 不越过未安全处理的消息；多分区和多线程情况下要明确每个分区的进度与任务归属。</li>
+<li><strong>可靠性不是静态配置，而是可验证行为：</strong> 必须人为制造崩溃、重复、并发竞争和重启，检查数据库最终状态与错误记录。</li>
+</ol>
+<hr />
+<h2 id="section-51">官方参考资料</h2>
+<ol>
+<li>Apache Kafka — <a href="https://kafka.apache.org/design/">Design / Message Delivery Semantics</a>：至少一次和恰好一次保证的边界。</li>
+<li>aiokafka — <a href="https://aiokafka.readthedocs.io/en/latest/consumer.html">Consumer Client</a>：Position、Committed Offset、手动提交、Rebalance。</li>
+<li>aiokafka — <a href="https://aiokafka.readthedocs.io/en/stable/examples/manual_commit.html">Manual Commit</a>：处理后再提交及其恢复权衡。</li>
+<li>PostgreSQL — <a href="https://www.postgresql.org/docs/current/sql-insert.html">INSERT / ON CONFLICT</a>：原子冲突处理与唯一性约束。</li>
+<li>PostgreSQL — <a href="https://www.postgresql.org/docs/current/sql-select.html">SELECT / FOR UPDATE / SKIP LOCKED</a>：行级锁与并发任务认领。</li>
+<li>PostgreSQL — <a href="https://www.postgresql.org/docs/current/transaction-iso.html">Transaction Isolation</a>：事务隔离与并发异常。</li>
+<li>Python — <a href="https://docs.python.org/3/library/sqlite3.html">sqlite3</a>：数据库事务和连接生命周期。</li>
+<li>Python — <a href="https://docs.python.org/3/library/contextlib.html#contextlib.closing">contextlib.closing</a>：资源显式关闭。</li>
+</ol>
+<hr />
+<h2 id="section-52">附录 A：完整 Python 故障恢复教学实现</h2>
+<p>以下代码可另存为 <code>recovery_demo.py</code>，使用 Python 3.13 标准库运行。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Deterministic local lab for Kafka consumer business recovery.
+
+Only sqlite3 is used; this is NOT a Kafka or PostgreSQL integration test.
+`now` represents a database-authoritative epoch timestamp in this lab.
+"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+<span class="hljs-keyword">from</span> contextlib <span class="hljs-keyword">import</span> closing
+<span class="hljs-keyword">import</span> sqlite3
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Claim</span>:
+    outcome: <span class="hljs-built_in">str</span>
+    generation: <span class="hljs-built_in">int</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+    result: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">TaskStore</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, path: <span class="hljs-built_in">str</span> | Path</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.path = <span class="hljs-built_in">str</span>(path)
+        <span class="hljs-keyword">with</span> closing(<span class="hljs-variable language_">self</span>._connect()) <span class="hljs-keyword">as</span> con:
+            con.executescript(<span class="hljs-string">"""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    tenant TEXT NOT NULL,
+                    business_key TEXT NOT NULL,
+                    payload_hash TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK (
+                      status IN ('PENDING','RUNNING','SUCCEEDED','FAILED')
+                    ),
+                    owner TEXT,
+                    generation INTEGER NOT NULL DEFAULT 0,
+                    lease_until REAL,
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    result TEXT,
+                    PRIMARY KEY (tenant, business_key)
+                );
+                CREATE TABLE IF NOT EXISTS seen_events (
+                    event_id TEXT PRIMARY KEY,
+                    tenant TEXT NOT NULL,
+                    business_key TEXT NOT NULL,
+                    payload_hash TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS final_results (
+                    tenant TEXT NOT NULL,
+                    business_key TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    PRIMARY KEY (tenant, business_key)
+                );
+            """</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_connect</span>(<span class="hljs-params">self</span>) -&gt; sqlite3.Connection:
+        con = sqlite3.connect(<span class="hljs-variable language_">self</span>.path, timeout=<span class="hljs-number">5</span>, isolation_level=<span class="hljs-literal">None</span>)
+        con.row_factory = sqlite3.Row
+        <span class="hljs-keyword">return</span> con
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">claim</span>(<span class="hljs-params">
+        self, *, event_id: <span class="hljs-built_in">str</span>, tenant: <span class="hljs-built_in">str</span>, business_key: <span class="hljs-built_in">str</span>,
+        payload_hash: <span class="hljs-built_in">str</span>, owner: <span class="hljs-built_in">str</span>, now: <span class="hljs-built_in">float</span>, lease_seconds: <span class="hljs-built_in">float</span> = <span class="hljs-number">30</span>,
+    </span>) -&gt; Claim:
+        <span class="hljs-keyword">if</span> lease_seconds &lt;= <span class="hljs-number">0</span>:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'lease_seconds must be positive'</span>)
+        <span class="hljs-keyword">with</span> closing(<span class="hljs-variable language_">self</span>._connect()) <span class="hljs-keyword">as</span> con:
+            con.execute(<span class="hljs-string">'BEGIN IMMEDIATE'</span>)  <span class="hljs-comment"># SQLite-only write serialization</span>
+            <span class="hljs-keyword">try</span>:
+                con.execute(
+                    <span class="hljs-string">'INSERT OR IGNORE INTO seen_events VALUES (?, ?, ?, ?)'</span>,
+                    (event_id, tenant, business_key, payload_hash),
+                )
+                event = con.execute(
+                    <span class="hljs-string">'SELECT * FROM seen_events WHERE event_id=?'</span>, (event_id,)
+                ).fetchone()
+                <span class="hljs-keyword">if</span> (event[<span class="hljs-string">'tenant'</span>], event[<span class="hljs-string">'business_key'</span>], event[<span class="hljs-string">'payload_hash'</span>]) != (
+                    tenant, business_key, payload_hash
+                ):
+                    <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'event_id reused for different operation'</span>)
+
+                row = con.execute(
+                    <span class="hljs-string">'SELECT * FROM tasks WHERE tenant=? AND business_key=?'</span>,
+                    (tenant, business_key),
+                ).fetchone()
+                <span class="hljs-keyword">if</span> row <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                    con.execute(
+                        <span class="hljs-string">'''INSERT INTO tasks
+                           (tenant, business_key, payload_hash, status, owner,
+                            generation, lease_until, attempts)
+                           VALUES (?, ?, ?, 'RUNNING', ?, 1, ?, 1)'''</span>,
+                        (tenant, business_key, payload_hash, owner, now + lease_seconds),
+                    )
+                    outcome = Claim(<span class="hljs-string">'CLAIMED'</span>, <span class="hljs-number">1</span>)
+                <span class="hljs-keyword">else</span>:
+                    <span class="hljs-keyword">if</span> row[<span class="hljs-string">'payload_hash'</span>] != payload_hash:
+                        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'business key reused with different payload'</span>)
+                    <span class="hljs-keyword">if</span> row[<span class="hljs-string">'status'</span>] == <span class="hljs-string">'SUCCEEDED'</span>:
+                        outcome = Claim(<span class="hljs-string">'ALREADY_SUCCEEDED'</span>, result=row[<span class="hljs-string">'result'</span>])
+                    <span class="hljs-keyword">elif</span> row[<span class="hljs-string">'status'</span>] == <span class="hljs-string">'FAILED'</span>:
+                        outcome = Claim(<span class="hljs-string">'TERMINAL_FAILED'</span>)
+                    <span class="hljs-keyword">elif</span> row[<span class="hljs-string">'status'</span>] == <span class="hljs-string">'RUNNING'</span> <span class="hljs-keyword">and</span> row[<span class="hljs-string">'lease_until'</span>] &gt; now:
+                        outcome = Claim(<span class="hljs-string">'BUSY'</span>)
+                    <span class="hljs-keyword">else</span>:  <span class="hljs-comment"># PENDING or expired RUNNING</span>
+                        generation = row[<span class="hljs-string">'generation'</span>] + <span class="hljs-number">1</span>
+                        con.execute(
+                            <span class="hljs-string">'''UPDATE tasks SET status='RUNNING', owner=?,
+                               generation=?, lease_until=?, attempts=attempts+1
+                               WHERE tenant=? AND business_key=?'''</span>,
+                            (owner, generation, now + lease_seconds, tenant, business_key),
+                        )
+                        outcome = Claim(<span class="hljs-string">'CLAIMED'</span>, generation)
+                con.execute(<span class="hljs-string">'COMMIT'</span>)
+                <span class="hljs-keyword">return</span> outcome
+            <span class="hljs-keyword">except</span> BaseException:
+                con.execute(<span class="hljs-string">'ROLLBACK'</span>)
+                <span class="hljs-keyword">raise</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">complete</span>(<span class="hljs-params">
+        self, *, tenant: <span class="hljs-built_in">str</span>, business_key: <span class="hljs-built_in">str</span>, owner: <span class="hljs-built_in">str</span>,
+        generation: <span class="hljs-built_in">int</span>, now: <span class="hljs-built_in">float</span>, result: <span class="hljs-built_in">str</span>,
+        fail_after_result_insert: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span>,
+    </span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">with</span> closing(<span class="hljs-variable language_">self</span>._connect()) <span class="hljs-keyword">as</span> con:
+            con.execute(<span class="hljs-string">'BEGIN IMMEDIATE'</span>)
+            <span class="hljs-keyword">try</span>:
+                updated = con.execute(
+                    <span class="hljs-string">'''UPDATE tasks SET status='SUCCEEDED', result=?,
+                       owner=NULL, lease_until=NULL
+                       WHERE tenant=? AND business_key=? AND status='RUNNING'
+                         AND owner=? AND generation=? AND lease_until&gt;?'''</span>,
+                    (result, tenant, business_key, owner, generation, now),
+                ).rowcount
+                <span class="hljs-keyword">if</span> updated != <span class="hljs-number">1</span>:
+                    con.execute(<span class="hljs-string">'ROLLBACK'</span>)
+                    <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+                con.execute(
+                    <span class="hljs-string">'INSERT INTO final_results VALUES (?, ?, ?)'</span>,
+                    (tenant, business_key, result),
+                )
+                <span class="hljs-keyword">if</span> fail_after_result_insert:
+                    <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">'simulated crash before DB commit'</span>)
+                con.execute(<span class="hljs-string">'COMMIT'</span>)
+                <span class="hljs-keyword">return</span> <span class="hljs-literal">True</span>
+            <span class="hljs-keyword">except</span> BaseException:
+                con.execute(<span class="hljs-string">'ROLLBACK'</span>)
+                <span class="hljs-keyword">raise</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">requeue_expired</span>(<span class="hljs-params">self, now: <span class="hljs-built_in">float</span></span>) -&gt; <span class="hljs-built_in">int</span>:
+        <span class="hljs-string">"""Recovery scanner: change expired RUNNING rows to PENDING."""</span>
+        <span class="hljs-keyword">with</span> closing(<span class="hljs-variable language_">self</span>._connect()) <span class="hljs-keyword">as</span> con:
+            con.execute(<span class="hljs-string">'BEGIN IMMEDIATE'</span>)
+            count = con.execute(
+                <span class="hljs-string">'''UPDATE tasks SET status='PENDING', owner=NULL, lease_until=NULL
+                   WHERE status='RUNNING' AND lease_until&lt;=?'''</span>, (now,)
+            ).rowcount
+            con.execute(<span class="hljs-string">'COMMIT'</span>)
+            <span class="hljs-keyword">return</span> count
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get_task</span>(<span class="hljs-params">self, tenant: <span class="hljs-built_in">str</span>, business_key: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">dict</span> | <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">with</span> closing(<span class="hljs-variable language_">self</span>._connect()) <span class="hljs-keyword">as</span> con:
+            r = con.execute(
+                <span class="hljs-string">'SELECT * FROM tasks WHERE tenant=? AND business_key=?'</span>,
+                (tenant, business_key),
+            ).fetchone()
+            <span class="hljs-keyword">return</span> <span class="hljs-built_in">dict</span>(r) <span class="hljs-keyword">if</span> r <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">result_count</span>(<span class="hljs-params">self, tenant: <span class="hljs-built_in">str</span>, business_key: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">int</span>:
+        <span class="hljs-keyword">with</span> closing(<span class="hljs-variable language_">self</span>._connect()) <span class="hljs-keyword">as</span> con:
+            <span class="hljs-keyword">return</span> con.execute(
+                <span class="hljs-string">'SELECT COUNT(*) FROM final_results WHERE tenant=? AND business_key=?'</span>,
+                (tenant, business_key),
+            ).fetchone()[<span class="hljs-number">0</span>]
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">event_count</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">int</span>:
+        <span class="hljs-keyword">with</span> closing(<span class="hljs-variable language_">self</span>._connect()) <span class="hljs-keyword">as</span> con:
+            <span class="hljs-keyword">return</span> con.execute(<span class="hljs-string">'SELECT COUNT(*) FROM seen_events'</span>).fetchone()[<span class="hljs-number">0</span>]
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">fail_permanently</span>(<span class="hljs-params">
+        self, *, tenant: <span class="hljs-built_in">str</span>, business_key: <span class="hljs-built_in">str</span>, owner: <span class="hljs-built_in">str</span>,
+        generation: <span class="hljs-built_in">int</span>, now: <span class="hljs-built_in">float</span>,
+    </span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">with</span> closing(<span class="hljs-variable language_">self</span>._connect()) <span class="hljs-keyword">as</span> con:
+            con.execute(<span class="hljs-string">'BEGIN IMMEDIATE'</span>)
+            count = con.execute(
+                <span class="hljs-string">'''UPDATE tasks SET status='FAILED', owner=NULL, lease_until=NULL
+                   WHERE tenant=? AND business_key=? AND status='RUNNING'
+                     AND owner=? AND generation=? AND lease_until&gt;?'''</span>,
+                (tenant, business_key, owner, generation, now),
+            ).rowcount
+            con.execute(<span class="hljs-string">'COMMIT'</span>)
+            <span class="hljs-keyword">return</span> count == <span class="hljs-number">1</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">demonstration</span>(<span class="hljs-params">db_path: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>]:
+    store = TaskStore(db_path)
+    args = <span class="hljs-built_in">dict</span>(tenant=<span class="hljs-string">'acme'</span>, business_key=<span class="hljs-string">'import-42'</span>, payload_hash=<span class="hljs-string">'sha256:x'</span>)
+    first = store.claim(event_id=<span class="hljs-string">'event-1'</span>, owner=<span class="hljs-string">'worker-A'</span>, now=<span class="hljs-number">100</span>, **args)
+    <span class="hljs-keyword">assert</span> first.outcome == <span class="hljs-string">'CLAIMED'</span>
+    <span class="hljs-keyword">assert</span> store.complete(tenant=<span class="hljs-string">'acme'</span>, business_key=<span class="hljs-string">'import-42'</span>, owner=<span class="hljs-string">'worker-A'</span>,
+                          generation=first.generation, now=<span class="hljs-number">110</span>, result=<span class="hljs-string">'indexed=15'</span>)
+    <span class="hljs-comment"># Crash before Kafka offset commit -&gt; redelivery on restart.</span>
+    replay = store.claim(event_id=<span class="hljs-string">'event-1'</span>, owner=<span class="hljs-string">'worker-B'</span>, now=<span class="hljs-number">120</span>, **args)
+    <span class="hljs-keyword">assert</span> replay.outcome == <span class="hljs-string">'ALREADY_SUCCEEDED'</span>
+    <span class="hljs-keyword">return</span> [first.outcome, <span class="hljs-string">'SIMULATED_CRASH_BEFORE_OFFSET_COMMIT'</span>,
+            replay.outcome, <span class="hljs-string">f'final_results=<span class="hljs-subst">{store.result_count(<span class="hljs-string">"acme"</span>, <span class="hljs-string">"import-42"</span>)}</span>'</span>]
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">'__main__'</span>:
+    <span class="hljs-keyword">from</span> tempfile <span class="hljs-keyword">import</span> TemporaryDirectory
+    <span class="hljs-keyword">with</span> TemporaryDirectory() <span class="hljs-keyword">as</span> folder:
+        <span class="hljs-keyword">for</span> line <span class="hljs-keyword">in</span> demonstration(<span class="hljs-built_in">str</span>(Path(folder) / <span class="hljs-string">'tasks.db'</span>)):
+            <span class="hljs-built_in">print</span>(line)
+</code></pre></div><hr />
+<h2 id="section-53">附录 B：自动化测试源码</h2>
+<p>将以下代码另存为 <code>test_recovery_demo.py</code>，放在同一目录，然后执行 <code>python -m unittest -v test_recovery_demo.py</code>。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> tempfile
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<span class="hljs-keyword">import</span> threading
+<span class="hljs-keyword">import</span> unittest
+<span class="hljs-keyword">from</span> recovery_demo <span class="hljs-keyword">import</span> TaskStore, demonstration
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">RecoveryTests</span>(unittest.TestCase):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">setUp</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.tmp = tempfile.TemporaryDirectory()
+        <span class="hljs-variable language_">self</span>.addCleanup(<span class="hljs-variable language_">self</span>.tmp.cleanup)
+        <span class="hljs-variable language_">self</span>.path = <span class="hljs-built_in">str</span>(Path(<span class="hljs-variable language_">self</span>.tmp.name) / <span class="hljs-string">'store.sqlite'</span>)
+        <span class="hljs-variable language_">self</span>.db = TaskStore(<span class="hljs-variable language_">self</span>.path)
+        <span class="hljs-variable language_">self</span>.args = <span class="hljs-built_in">dict</span>(tenant=<span class="hljs-string">'t1'</span>, business_key=<span class="hljs-string">'task1'</span>, payload_hash=<span class="hljs-string">'hash1'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">claim</span>(<span class="hljs-params">self, event_id=<span class="hljs-string">'e1'</span>, owner=<span class="hljs-string">'A'</span>, now=<span class="hljs-number">100</span>, **kw</span>):
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.db.claim(event_id=event_id, owner=owner, now=now,
+                             **{**<span class="hljs-variable language_">self</span>.args, **kw})
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">complete</span>(<span class="hljs-params">self, generation=<span class="hljs-number">1</span>, owner=<span class="hljs-string">'A'</span>, now=<span class="hljs-number">101</span>, **kw</span>):
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.db.complete(tenant=<span class="hljs-string">'t1'</span>, business_key=<span class="hljs-string">'task1'</span>, owner=owner,
+                                generation=generation, now=now, result=<span class="hljs-string">'done'</span>, **kw)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_new_claim_and_state</span>(<span class="hljs-params">self</span>):
+        c = <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.assertEqual(c.outcome, <span class="hljs-string">'CLAIMED'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(c.generation, <span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.get_task(<span class="hljs-string">'t1'</span>, <span class="hljs-string">'task1'</span>)[<span class="hljs-string">'attempts'</span>], <span class="hljs-number">1</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_complete_creates_result</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.assertTrue(<span class="hljs-variable language_">self</span>.complete())
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.result_count(<span class="hljs-string">'t1'</span>, <span class="hljs-string">'task1'</span>), <span class="hljs-number">1</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_redelivery_after_db_commit_before_offset</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.complete()
+        replay = <span class="hljs-variable language_">self</span>.claim(owner=<span class="hljs-string">'B'</span>, now=<span class="hljs-number">200</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(replay.outcome, <span class="hljs-string">'ALREADY_SUCCEEDED'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.result_count(<span class="hljs-string">'t1'</span>, <span class="hljs-string">'task1'</span>), <span class="hljs-number">1</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_second_event_same_operation</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.complete()
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.claim(event_id=<span class="hljs-string">'e2'</span>, now=<span class="hljs-number">200</span>).outcome, <span class="hljs-string">'ALREADY_SUCCEEDED'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.result_count(<span class="hljs-string">'t1'</span>, <span class="hljs-string">'task1'</span>), <span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.event_count(), <span class="hljs-number">2</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_event_id_collision_different_task</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaisesRegex(ValueError, <span class="hljs-string">'event_id'</span>):
+            <span class="hljs-variable language_">self</span>.claim(business_key=<span class="hljs-string">'task2'</span>)
+        <span class="hljs-variable language_">self</span>.assertIsNone(<span class="hljs-variable language_">self</span>.db.get_task(<span class="hljs-string">'t1'</span>, <span class="hljs-string">'task2'</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_business_key_conflicting_payload</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaisesRegex(ValueError, <span class="hljs-string">'business key'</span>):
+            <span class="hljs-variable language_">self</span>.claim(event_id=<span class="hljs-string">'e2'</span>, payload_hash=<span class="hljs-string">'different'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.event_count(), <span class="hljs-number">1</span>)  <span class="hljs-comment"># rolled back event e2 too</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_unexpired_running_blocks_duplicate</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.claim(event_id=<span class="hljs-string">'e2'</span>, owner=<span class="hljs-string">'B'</span>, now=<span class="hljs-number">101</span>).outcome, <span class="hljs-string">'BUSY'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_expired_lease_reclaim</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        c = <span class="hljs-variable language_">self</span>.claim(event_id=<span class="hljs-string">'e2'</span>, owner=<span class="hljs-string">'B'</span>, now=<span class="hljs-number">130</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(c.outcome, <span class="hljs-string">'CLAIMED'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(c.generation, <span class="hljs-number">2</span>)
+        <span class="hljs-variable language_">self</span>.assertTrue(<span class="hljs-variable language_">self</span>.complete(generation=<span class="hljs-number">2</span>, owner=<span class="hljs-string">'B'</span>, now=<span class="hljs-number">131</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_old_owner_cannot_finalize_after_takeover</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.claim(event_id=<span class="hljs-string">'e2'</span>, owner=<span class="hljs-string">'B'</span>, now=<span class="hljs-number">130</span>)
+        <span class="hljs-variable language_">self</span>.assertFalse(<span class="hljs-variable language_">self</span>.complete(generation=<span class="hljs-number">1</span>, owner=<span class="hljs-string">'A'</span>, now=<span class="hljs-number">131</span>))
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.result_count(<span class="hljs-string">'t1'</span>,<span class="hljs-string">'task1'</span>),<span class="hljs-number">0</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_old_owner_cannot_finalize_expired_lease</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.assertFalse(<span class="hljs-variable language_">self</span>.complete(now=<span class="hljs-number">130</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_business_rollback_result_and_status</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaisesRegex(RuntimeError, <span class="hljs-string">'simulated crash'</span>):
+            <span class="hljs-variable language_">self</span>.complete(fail_after_result_insert=<span class="hljs-literal">True</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.result_count(<span class="hljs-string">'t1'</span>, <span class="hljs-string">'task1'</span>), <span class="hljs-number">0</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.get_task(<span class="hljs-string">'t1'</span>, <span class="hljs-string">'task1'</span>)[<span class="hljs-string">'status'</span>], <span class="hljs-string">'RUNNING'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_recovery_after_crash_mid_processing</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.requeue_expired(<span class="hljs-number">130</span>), <span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.get_task(<span class="hljs-string">'t1'</span>, <span class="hljs-string">'task1'</span>)[<span class="hljs-string">'status'</span>], <span class="hljs-string">'PENDING'</span>)
+        c = <span class="hljs-variable language_">self</span>.claim(event_id=<span class="hljs-string">'e2'</span>, owner=<span class="hljs-string">'B'</span>, now=<span class="hljs-number">131</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(c.generation, <span class="hljs-number">2</span>)
+        <span class="hljs-variable language_">self</span>.assertTrue(<span class="hljs-variable language_">self</span>.complete(owner=<span class="hljs-string">'B'</span>, generation=<span class="hljs-number">2</span>, now=<span class="hljs-number">132</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_requeue_does_not_steal_live_lease</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.requeue_expired(<span class="hljs-number">125</span>), <span class="hljs-number">0</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_fail_terminal_is_not_reclaimed</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.assertTrue(<span class="hljs-variable language_">self</span>.db.fail_permanently(tenant=<span class="hljs-string">'t1'</span>, business_key=<span class="hljs-string">'task1'</span>,
+                   owner=<span class="hljs-string">'A'</span>, generation=<span class="hljs-number">1</span>, now=<span class="hljs-number">101</span>))
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.claim(event_id=<span class="hljs-string">'e2'</span>, owner=<span class="hljs-string">'B'</span>, now=<span class="hljs-number">200</span>).outcome,
+                         <span class="hljs-string">'TERMINAL_FAILED'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_success_immutable</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.complete()
+        <span class="hljs-variable language_">self</span>.assertFalse(<span class="hljs-variable language_">self</span>.complete())
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.get_task(<span class="hljs-string">'t1'</span>, <span class="hljs-string">'task1'</span>)[<span class="hljs-string">'result'</span>], <span class="hljs-string">'done'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_other_tenant_is_separate</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        c = <span class="hljs-variable language_">self</span>.claim(event_id=<span class="hljs-string">'e2'</span>, tenant=<span class="hljs-string">'t2'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(c.outcome, <span class="hljs-string">'CLAIMED'</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.result_count(<span class="hljs-string">'t1'</span>, <span class="hljs-string">'task1'</span>), <span class="hljs-number">0</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_other_operation_independent</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.claim(event_id=<span class="hljs-string">'e2'</span>, business_key=<span class="hljs-string">'task2'</span>).outcome,
+                         <span class="hljs-string">'CLAIMED'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_state_persists_after_reopen</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.complete()
+        reopened = TaskStore(<span class="hljs-variable language_">self</span>.path)
+        <span class="hljs-variable language_">self</span>.assertEqual(reopened.get_task(<span class="hljs-string">'t1'</span>, <span class="hljs-string">'task1'</span>)[<span class="hljs-string">'status'</span>], <span class="hljs-string">'SUCCEEDED'</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_multiple_threads_compete_for_same_business</span>(<span class="hljs-params">self</span>):
+        barrier = threading.Barrier(<span class="hljs-number">6</span>)
+        answers = []
+        mu = threading.Lock()
+        <span class="hljs-keyword">def</span> <span class="hljs-title function_">worker</span>(<span class="hljs-params">n</span>):
+            barrier.wait()
+            c = <span class="hljs-variable language_">self</span>.claim(event_id=<span class="hljs-string">f'e<span class="hljs-subst">{n}</span>'</span>, owner=<span class="hljs-string">f'w<span class="hljs-subst">{n}</span>'</span>)
+            <span class="hljs-keyword">with</span> mu:
+                answers.append(c.outcome)
+        ts = [threading.Thread(target=worker, args=(i,)) <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">6</span>)]
+        <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> ts: t.start()
+        <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> ts: t.join()
+        <span class="hljs-variable language_">self</span>.assertEqual(answers.count(<span class="hljs-string">'CLAIMED'</span>), <span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(answers.count(<span class="hljs-string">'BUSY'</span>), <span class="hljs-number">5</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.db.get_task(<span class="hljs-string">'t1'</span>,<span class="hljs-string">'task1'</span>)[<span class="hljs-string">'attempts'</span>], <span class="hljs-number">1</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_lease_generation_monotonic</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.claim()
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.claim(event_id=<span class="hljs-string">'e2'</span>, owner=<span class="hljs-string">'B'</span>, now=<span class="hljs-number">130</span>).generation,<span class="hljs-number">2</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(<span class="hljs-variable language_">self</span>.claim(event_id=<span class="hljs-string">'e3'</span>, owner=<span class="hljs-string">'C'</span>, now=<span class="hljs-number">160</span>).generation,<span class="hljs-number">3</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_demo</span>(<span class="hljs-params">self</span>):
+        p = <span class="hljs-built_in">str</span>(Path(<span class="hljs-variable language_">self</span>.tmp.name) / <span class="hljs-string">'demo.sqlite'</span>)
+        out = demonstration(p)
+        <span class="hljs-variable language_">self</span>.assertIn(<span class="hljs-string">'ALREADY_SUCCEEDED'</span>, out)
+        <span class="hljs-variable language_">self</span>.assertIn(<span class="hljs-string">'final_results=1'</span>, out)
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">'__main__'</span>:
+    unittest.main(verbosity=<span class="hljs-number">2</span>)
+</code></pre></div><hr />
+<h2 id="section-54">附录 C：本次运行验证记录</h2>
+<p>运行环境：Python 3.13.5，SQLite（Python 标准库）。</p>
+<p>命令：</p>
+<div class="code-wrap"><div class="code-label"><span>bash</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python -Werror::ResourceWarning -m unittest -v test_recovery_demo.py
+python recovery_demo.py</code></pre></div><p>运行结果：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">Ran 21 tests in 0.213s
+OK
+
+CLAIMED
+SIMULATED_CRASH_BEFORE_OFFSET_COMMIT
+ALREADY_SUCCEEDED
+final_results=1</code></pre></div><p><strong>验证范围说明：</strong> 真实执行了 SQLite 文件数据库上的事务提交、唯一约束、租约接管、并发抢占、状态持久化和故障注入。<code>SIMULATED_CRASH_BEFORE_OFFSET_COMMIT</code> 只是故障窗口的逻辑模拟，并没有真正启动 Kafka Broker、提交 Offset 或强制终止进程。SQLite 的锁行为不能等同于 PostgreSQL。并未对真实外部模型 API 的副作用进行验证。</p>

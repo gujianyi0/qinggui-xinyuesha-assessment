@@ -5,6 +5,28 @@ from dataclasses import dataclass, field
 
 SCENES = tuple(f'SC0{i}' for i in range(1, 9))
 NEW_TOPIC = re.compile(r'^(?:换个问题|换个话题|另一个问题|查询|请查|查一下|介绍)|^标准.+有哪些技能')
+BASIC_DATA_QUERY = re.compile(
+    r'^(?:(?:那么|那|还有|请问|请|帮我|再问一下)\s*)*'
+    r'(?P<subject>[^\s，,。！？?]{1,24}?)(?:的)?'
+    r'(?:技能(?:说明)?|势力|体力(?:上限)?|性别|花色|点数|攻击范围)'
+    r'(?:是什么|有哪些|有什么|是多少|如何|呢|吗)?[。？！?!]*$'
+)
+CONTEXTUAL_FOLLOWUP = re.compile(
+    r'^(?:那|这样|这时|这个|这种|这次|这些|该|它|他|她|其中|另一个|'
+    r'如果|假如|假设|改成|改为|换成|换为|仍|再|继续|还|为什么|为何|'
+    r'会|能否|是否|可以吗|不喝|不饮|没有|未饮|当前|场上|武将是|是的|好[的吧]?$)'
+    r'|刚才|上一(?:轮|次|个)|之前的|上述|同样|原来|伤害|结算|传导|装备|手牌'
+)
+
+
+def is_contextual_followup(message: str) -> bool:
+    text = message.strip()
+    if NEW_TOPIC.search(text):
+        return False
+    query = BASIC_DATA_QUERY.fullmatch(text)
+    if query and not re.search(r'其中|这|那|该|他|她|它|刚才|之前|改成|换成|如果', query['subject']):
+        return False
+    return bool(CONTEXTUAL_FOLLOWUP.search(text))
 
 
 def scenes_in(text: str) -> set[str]:
@@ -50,14 +72,14 @@ def ruling_policy(message: str, previous_user_messages=(), request_data=None) ->
     scenes = scenes_in(message)
     if body.get('ruling_scene_id'):
         scenes = {body['ruling_scene_id']}
-    # A short follow-up need not repeat the scene name. Keep the boundary until
-    # an explicit new subject, rather than letting pronouns bypass the guard.
-    if not scenes and not NEW_TOPIC.search(message):
+    # Only a positively contextual follow-up inherits a scene. An independent
+    # question also stops history scanning; an old SC record must not taint it.
+    if not scenes and is_contextual_followup(message):
         for previous in previous_user_messages:
             scenes = scenes_in(previous)
             if scenes:
                 break
-            if NEW_TOPIC.search(previous):
+            if not is_contextual_followup(previous):
                 break
     reference = bool(re.search(r'固定|记录|已验证场景|对照|裁定场景\s*SC0[1-8]', message, re.I))
     # A final disclaimer excludes applying the record to a player position;

@@ -1,0 +1,634 @@
+{
+  "reviewer": "Codex逐条语义与来源核对，非独立真人试用或公司验收",
+  "case_count": 32,
+  "turns": 35,
+  "accepted_citations": 109,
+  "final_scope": "同一实现完整32条＋V01同版本定向重试；不声称整组一次无失败",
+  "integrity_notice": "引用哈希/路径/工具绑定另有audit；额外召回不都属于必要论据。",
+  "cases": [
+    {
+      "case_id": "R01",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "f310d6fb-ee05-4f73-8f7c-b13e49e7a359"
+      ],
+      "turns": 1,
+      "citation_count": 5,
+      "review": "四身份目标及主公死亡时内奸独存条件正确。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "游戏目标；lines 382-389",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "R02",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "a7bfa3e7-857c-4b11-8015-ee295dcb256f"
+      ],
+      "turns": 1,
+      "citation_count": 5,
+      "review": "准备、判定、摸牌、出牌、弃牌、结束顺序正确。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "lines 443-455",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "R03",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "0e945ba5-629c-4c5a-92fa-cd383face6a9"
+      ],
+      "turns": 1,
+      "citation_count": 5,
+      "review": "通常摸两张、从牌堆顶取牌；特殊效果另计。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "摸牌阶段；lines 469-475",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "R04",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "eb78fbeb-3a9c-4b9c-8c79-f86a2df39e17"
+      ],
+      "turns": 1,
+      "citation_count": 3,
+      "review": "5−当前体力3=弃2；不把体力上限相等当必要条件，预查询有来源。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "弃牌阶段；lines 487-489",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "R05",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "5ad345ba-3ea8-4df4-a2ee-0edfecac2207"
+      ],
+      "turns": 1,
+      "citation_count": 5,
+      "review": "普通出牌阶段一次杀，额外效果另计。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "出牌阶段；lines 477-481",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "R06",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "c73ad73c-3253-4188-b4e5-a12c157d9822"
+      ],
+      "turns": 1,
+      "citation_count": 5,
+      "review": "杀死反贼摸三张，凶手为反贼亦适用；特殊免奖惩另计。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "死亡与奖惩；line 513",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "R07",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "98874c36-7200-4b50-a952-869a66fa04dc"
+      ],
+      "turns": 1,
+      "citation_count": 7,
+      "review": "主公弃所有手牌和装备，区别死者的牌与判定区。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "死亡与奖惩；line 515",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "R08",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "9248cd35-a305-4911-8a6e-d4bfeaf7f0ef"
+      ],
+      "turns": 1,
+      "citation_count": 1,
+      "review": "一张黑色手牌当闪，使用/打出，区域与颜色均保留。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "[\":qingguo\"]；line 94",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "D01",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "38deaea0-7cac-401e-b760-ec07d609d615"
+      ],
+      "turns": 1,
+      "citation_count": 3,
+      "review": "魏、4/4、奸雄/护驾；护驾标主公技。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/pkg/init.lua",
+          "locator": "General:new caocao；line 12",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "D02",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "3dc58911-e9a3-4c62-baaa-10cccc408cbe"
+      ],
+      "turns": 1,
+      "citation_count": 3,
+      "review": "蜀、3/3、观星/空城，技能文案与定义对应。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/pkg/init.lua",
+          "locator": "General:new zhugeliang；line 24",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "D03",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "85546c5b-1311-49b6-a290-ba6fec30e61f"
+      ],
+      "turns": 1,
+      "citation_count": 2,
+      "review": "蜀、4/4、武圣；红色牌范围准确。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/pkg/init.lua",
+          "locator": "General:new guanyu；line 22",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "D04",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "ad507f80-647e-4641-9c50-a05f35aded72"
+      ],
+      "turns": 1,
+      "citation_count": 3,
+      "review": "装备武器、范围1；定义与中文说明路径分开，未错指牌堆行号。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard_cards/pkg/init.lua",
+          "locator": "crossbow；lines 117-122",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "D05",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "15bf958c-29e6-495e-9249-3ac242c14d96"
+      ],
+      "turns": 1,
+      "citation_count": 3,
+      "review": "防具、减至1与失去后回复两条准确；“装备前提”应理解为失去前，建议后续消除措辞歧义。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/maneuvering/pkg/init.lua",
+          "locator": "silver_lion；lines 213-214",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "D06",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "42407a92-4026-476a-a01b-32fd0dc0cde4"
+      ],
+      "turns": 1,
+      "citation_count": 6,
+      "review": "酒基本牌且目标自己；铁索锦囊、一至两名角色；花色点数对应attribute_sources。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/maneuvering/pkg/init.lua",
+          "locator": "analeptic / iron_chain；lines 177-183",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "J01",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "45638486-5634-4c96-9f44-dd3630cd917d"
+      ],
+      "turns": 1,
+      "citation_count": 1,
+      "review": "固定记录说明空城禁止仍生效，未把缺失前提当当前玩家事实。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/blade.lua",
+          "locator": "SC01",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard/pkg/skills/kongcheng.lua",
+          "locator": "SC01",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "J02",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "2da28f21-a27f-4b19-b560-b84ca9b9ea97"
+      ],
+      "turns": 1,
+      "citation_count": 1,
+      "review": "固定黑桃6杀→红桃5杀，鬼才红桃3桃；两次八卦满足无双。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/pkg/skills/wushuang.lua",
+          "locator": "SC02",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/eight_diagram.lua",
+          "locator": "SC02",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "J03",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "df0e7dc3-fb74-4c9f-8adf-0a7f1467b7d8"
+      ],
+      "turns": 1,
+      "citation_count": 1,
+      "review": "固定首目标3、传导1；解除连环在体力扣减前，按实际轨迹说明。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/maneuvering/pkg/skills/analeptic.lua",
+          "locator": "SC03",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/maneuvering/pkg/skills/silver_lion.lua",
+          "locator": "SC03",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "J04",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "f08b2d14-14f4-4ad8-9683-024164895f26"
+      ],
+      "turns": 1,
+      "citation_count": 2,
+      "review": "主记录与SC04V分列，饮酒、防具位置不混用；仅直接目标防具失效。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/qinggang_sword.lua",
+          "locator": "SC04",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/maneuvering/pkg/skills/vine.lua",
+          "locator": "SC04",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "J05",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "ef539108-48e9-46b1-b8dc-1dcedd5d4904"
+      ],
+      "turns": 1,
+      "citation_count": 1,
+      "review": "固定座位1/2/3、红桃7桃为代价；转移新目标受青釭影响并清理标记。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/pkg/skills/liuli.lua",
+          "locator": "SC05",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/nioh_shield.lua",
+          "locator": "SC05",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "J06",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "230c362d-ac7f-4e77-a5d3-dbe4b287db85"
+      ],
+      "turns": 1,
+      "citation_count": 1,
+      "review": "弃牌→连营摸牌→杀继续生效，非把断言列表当时间顺序。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/axe.lua",
+          "locator": "SC06",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard/pkg/skills/lianying.lua",
+          "locator": "SC06",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "J07",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "0da7e586-f27c-4b39-8128-71bf1a2826c0"
+      ],
+      "turns": 1,
+      "citation_count": 1,
+      "review": "首目标奸雄取实体火杀不阻断传导，第二曹操不能再拿走同牌。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/pkg/skills/jianxiong.lua",
+          "locator": "SC07",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/maneuvering/pkg/skills/iron_chain.lua",
+          "locator": "SC07",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "J08",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "ad3a20db-8f30-4507-8f7a-02490436c297"
+      ],
+      "turns": 1,
+      "citation_count": 2,
+      "review": "用过杀时红手牌/唯一连弩的转化区别，未用杀对照与执行证据齐备。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/pkg/skills/wusheng.lua",
+          "locator": "SC08",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard_cards/pkg/skills/crossbow.lua",
+          "locator": "SC08",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "M01",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "650511b8-d6ac-4ae3-b22d-769075097ecf",
+        "1fad2d18-8984-4bcc-b201-f1d6a41ae559"
+      ],
+      "turns": 2,
+      "citation_count": 9,
+      "review": "两轮主体仍为标准诸葛亮；空城只禁止杀/决斗，不代表其他牌一律合法。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "kongcheng；line 141",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "M02",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "cbadb176-5529-4b71-a6ce-b27b75c4f158",
+        "330e293f-f487-474f-8097-b9b5bb9ac03e"
+      ],
+      "turns": 2,
+      "citation_count": 16,
+      "review": "酒濒死自救，目标自己；与桃救他人的目标说明对应。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/maneuvering/pkg/init.lua",
+          "locator": "analeptic；line 178",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "M03",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "1aef98dd-b4c3-46a1-95e0-786fabca419d",
+        "a5358d82-866d-4cb5-a955-1c44278b3bdb"
+      ],
+      "turns": 2,
+      "citation_count": 3,
+      "review": "版本0.5.25/本地修改、重开恢复并入同一反馈；预期待补，未声称提交。",
+      "expected_sources": [
+        {
+          "path": "docs/问答与决策记录.md",
+          "locator": "反馈草稿与明确确认",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "V01",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-retry-v01",
+      "run_ids": [
+        "4f3d27fd-51dc-4792-8177-2d5b864edf5e"
+      ],
+      "turns": 1,
+      "citation_count": 7,
+      "review": "整组90秒超时保留；同版本重试正确指出10人文案与2–8配置冲突，不推测历史成因。重试含冗余过程句，列为表现改进项。",
+      "expected_sources": [
+        {
+          "path": "runtime/packages/standard/i18n/zh_CN.lua",
+          "locator": "line 417：10人文字",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        },
+        {
+          "path": "runtime/packages/standard/pkg/init.lua",
+          "locator": "minPlayer/maxPlayer；lines 214-215",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "V02",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "40cd9900-db90-462e-b4c2-5b2c4d59468d"
+      ],
+      "turns": 1,
+      "citation_count": 1,
+      "review": "客户端号/本地提交/服务器部署分开；维护说明有回执及引用，不冒充线上检测。",
+      "expected_sources": [
+        {
+          "path": "data/manifest.json",
+          "locator": "本地来源快照与文件哈希",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "N01",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "520c8187-802b-40ad-bcb1-3efb96911b21"
+      ],
+      "turns": 1,
+      "citation_count": 5,
+      "review": "无月影/天命数据，不编造效果；无关召回不是不存在的证明。",
+      "expected_sources": [
+        {
+          "path": "data/snapshots.json",
+          "locator": "当前覆盖包范围",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "N02",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "95874fdc-f86f-4878-a27d-ffa9298b05b2"
+      ],
+      "turns": 1,
+      "citation_count": 0,
+      "review": "无QQ账号战绩/群聊工具，未声称访问私人记录。",
+      "expected_sources": [
+        {
+          "path": "docs/架构与接口说明.md",
+          "locator": "平台和会话数据边界",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "F01",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "2baa801c-8db0-4730-9b4b-fe662fb8a483"
+      ],
+      "turns": 1,
+      "citation_count": 0,
+      "review": "两类资料工具ConnectionError真实注入，未编造效果或来源，提示重试；仅隔离库。",
+      "expected_sources": [
+        {
+          "path": "evaluations/README.md",
+          "locator": "受控工具失败注入",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "I01",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "f2950156-4b17-44ad-b631-ae6736384efd"
+      ],
+      "turns": 1,
+      "citation_count": 1,
+      "review": "具体武将、技能/卡牌、时机、目标/局面及通用缺项明确；预期待用户确认，未正式保存。",
+      "expected_sources": [
+        {
+          "path": "docs/问答与决策记录.md",
+          "locator": "反馈草稿字段和确认规则",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    },
+    {
+      "case_id": "I02",
+      "status": "passed_selected_assertions",
+      "label": "live-v19-full-04",
+      "run_ids": [
+        "79031d72-8596-4dc6-a3bd-fe34f7cdf5a3"
+      ],
+      "turns": 1,
+      "citation_count": 1,
+      "review": "iOS/客户端0.5.25保留，复现及预期待补，纯客户端不强索技能；网页核对确认独立。",
+      "expected_sources": [
+        {
+          "path": "docs/问答与决策记录.md",
+          "locator": "反馈草稿字段和确认规则",
+          "commit": "b9dc701220bc04afe70cfbb40d729626fd33c147"
+        }
+      ]
+    }
+  ]
+}

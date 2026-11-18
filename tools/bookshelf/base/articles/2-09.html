@@ -1,0 +1,1154 @@
+<h1 id="section-1">大模型原理、API 与输出校验（九）</h1>
+<h1 id="section-2">重要数值的程序计算、重要事实的资料依据，以及模型改动的收益与代价评估</h1>
+<blockquote>
+<p>对应学习目标：<strong>重要数值由程序计算，重要事实有资料依据。记录模型、提示词版本、耗时与用量，比较一次修改的收益和代价。</strong></p>
+<p>文档性质：独立知识手册；Python 示例使用标准库，可离线运行；不需要 API Key。</p>
+<p>更新基准：2026-11-11。各供应商模型名、价格和返回字段会发生变化，使用前以目标 API 的当期文档和计费表为准。</p>
+</blockquote>
+<h2 id="section-3">目录</h2>
+<ol>
+<li>模型生成与确定性计算的职责边界</li>
+<li>重要数值为什么要由程序计算</li>
+<li><code>Decimal</code>、单位、舍入和计算规则</li>
+<li>重要事实如何建立依据与证据链</li>
+<li>事实、引用、来源版本及冲突处理</li>
+<li>模型调用中应记录的元数据</li>
+<li>模型版本、提示词版本与结果可复现性</li>
+<li>输入、输出、缓存和推理 Token 的用量口径</li>
+<li>模型调用成本计算与账单核对</li>
+<li>延迟、吞吐量和请求生命周期测量</li>
+<li>一次改动的 A/B 配对评测方法</li>
+<li>质量、耗时、成本和风险的综合决策</li>
+<li>日志结构、可观测性和敏感数据保护</li>
+<li>超时、失败、流式中断时如何记录</li>
+<li>端到端案例：规则问答与确定性计算</li>
+<li>完整 Python 离线实现及单元测试</li>
+<li>常见误区与边界条件</li>
+<li>参考文献与术语</li>
+</ol>
+<hr />
+<h2 id="section-4">1. 模型生成与确定性计算的职责边界</h2>
+<p>大语言模型通常根据上下文概率分布生成后续 Token。它能理解复杂问题、转换文本、抽取字段、选择工具、组织答案，但<strong>它的自然语言输出并不是由强制数学正确性的执行器生成</strong>。即使模型能正确写出算式，也不能将其结果直接等价为经过业务规则验证的计算结果。</p>
+<p>实际系统至少存在三类不同的工作：</p>
+<table>
+<thead>
+<tr>
+<th>工作类型</th>
+<th>典型问题</th>
+<th>建议的责任主体</th>
+<th>主要验证机制</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>确定性计算</td>
+<td>总价、税额、概率公式、时差、库存差额、余额</td>
+<td>程序、数据库查询或受控计算工具</td>
+<td>单元测试、边界值、数值不变量</td>
+</tr>
+<tr>
+<td>事实查询</td>
+<td>某版本角色生命值、制度生效日期、合同条款</td>
+<td>可信结构化数据与带版本的原始资料</td>
+<td>引用定位、版本一致性、数据血缘</td>
+</tr>
+<tr>
+<td>语言生成与任务理解</td>
+<td>解释规则、总结报告、生成草稿、选择工具</td>
+<td>语言模型</td>
+<td>事实校验、输出校验、人工评测</td>
+</tr>
+</tbody></table>
+<p><strong>正确的职责划分不等于完全禁止模型参与计算。</strong> 模型可以识别用户表达、抽取参数，甚至生成候选计算表达式；但对于有金钱、权限、数量、时间或安全后果的数字，最终的运算、验证与业务决策应由可信代码完成。</p>
+<p>典型结构如下：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">用户：角色 A 使用 3 件单价 19.99 的商品，折扣 15%，税率 6%，总价多少？
+    │
+    ├── 模型理解意图，提取单价、数量、折扣、税率（仍需校验）
+    │
+    ▼
+Pydantic / 业务输入校验：数量 &gt;= 0，折扣在 [0,1]，单位和币种正确
+    │
+    ▼
+确定性计算工具：Decimal + 约定的折扣/税额/舍入顺序
+    │
+    ▼
+模型引用工具结果，用自然语言解释
+    │
+    ▼
+输出验证：禁止把工具结果替换成模型自己重新计算的数字</code></pre></div><p>对于“重要数值”，系统设计上可以让程序直接生成固定字段或表格，由模型只负责解释其含义。若程序计算结果与模型叙述不一致，应以程序为准并拦截不一致回答。</p>
+<h2 id="section-5">2. 重要数值为什么要由程序计算</h2>
+<h3 id="section-6">2.1 模型的数值输出与程序执行不同</h3>
+<p>程序中的表达式 <code>19.99 * 3</code> 由指定的算术运算执行；模型可能通过训练学到运算模式或推理策略，但生成文字并不自动证明其遵循正确的数值语义。对于非常长的数字、数量级换算、跨字段计算和复杂的多步骤业务规则，错误风险更高。</p>
+<p>此外，正确的数字也可能建立在错误的输入上：</p>
+<ul>
+<li>折扣被识别成 15 而不是 0.15；</li>
+<li>税率应在折扣后计算，却在折扣前计算；</li>
+<li>把人民币金额按美元处理；</li>
+<li>用当前规则计算旧版本角色数值；</li>
+<li>参与求和的记录被遗漏或重复；</li>
+<li>一项计费数值包含缓存 Token，另一项又将缓存 Token 重复累加。</li>
+</ul>
+<p>因此一条可靠的数值处理链应区分：<strong>输入正确性 → 运算规则正确性 → 程序结果正确性 → 输出展示正确性</strong>。</p>
+<h3 id="section-7">2.2 哪些数值应优先由程序计算</h3>
+<ul>
+<li>资金、费用、折扣、税费、结算和余额；</li>
+<li>配额、额度、库存、数量与百分比；</li>
+<li>游戏中的伤害、生命值、概率、冷却与规则修正；</li>
+<li>时间、时区、日期差、过期时间与限流窗口；</li>
+<li>模型的 Token 成本、质量指标、延迟统计；</li>
+<li>排名、阈值判定、合格/不合格条件。</li>
+</ul>
+<p>关键不是数字“看起来简单”，而是<strong>计算是否需要可重复、可审计、可纠错和可复现</strong>。</p>
+<h2 id="section-8">3. <code>Decimal</code>、单位、舍入和计算规则</h2>
+<h3 id="section-9">3.1 <code>float</code> 不是通用的十进制金额类型</h3>
+<p>二进制浮点数不能精确表示所有十进制小数。例如 <code>0.1 + 0.2</code> 在典型的 Python 浮点实现中不会精确等于 <code>0.3</code>。一般科学计算中这未必是问题；但财务、账单等领域需要明确的十进制运算规则。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> decimal <span class="hljs-keyword">import</span> Decimal
+
+<span class="hljs-built_in">print</span>(<span class="hljs-number">0.1</span> + <span class="hljs-number">0.2</span>)  <span class="hljs-comment"># 典型输出：0.30000000000000004</span>
+<span class="hljs-built_in">print</span>(Decimal(<span class="hljs-string">"0.1"</span>) + Decimal(<span class="hljs-string">"0.2"</span>))  <span class="hljs-comment"># Decimal('0.3')</span></code></pre></div><p>用字符串构造 <code>Decimal</code>，避免先经历二进制浮点近似：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> decimal <span class="hljs-keyword">import</span> Decimal, ROUND_HALF_UP
+
+amount = Decimal(<span class="hljs-string">"19.99"</span>)
+quantity = <span class="hljs-number">3</span>
+discount = Decimal(<span class="hljs-string">"0.15"</span>)
+tax = Decimal(<span class="hljs-string">"0.06"</span>)
+
+<span class="hljs-comment"># 示例业务规则：先将折后金额舍入到分，再计算并舍入税额</span>
+subtotal_after_discount = (amount * quantity * (<span class="hljs-number">1</span> - discount)).quantize(
+    Decimal(<span class="hljs-string">"0.01"</span>), rounding=ROUND_HALF_UP
+)
+tax_amount = (subtotal_after_discount * tax).quantize(
+    Decimal(<span class="hljs-string">"0.01"</span>), rounding=ROUND_HALF_UP
+)
+final = subtotal_after_discount + tax_amount
+<span class="hljs-built_in">print</span>(final)  <span class="hljs-comment"># 54.03</span></code></pre></div><p><strong>舍入顺序属于业务规则。</strong> 逐行舍入、订单合计后舍入、税前舍入、税后舍入可能产生不同金额；不应默认这里的示例政策适用于所有国家、产品或合同。</p>
+<h3 id="section-10">3.2 数值结果要携带单位与口径</h3>
+<p>单独存储 <code>100</code> 可能含糊不清：它是 100 元、100 分、100 毫秒，还是百分比的基点？建议在数据模型中明确 <code>currency</code>、<code>unit</code>、<code>rounding_mode</code>、<code>calculation_version</code>、<code>effective_at</code> 等字段。</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"amount"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"54.03"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"currency"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"USD"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"calculation_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"order-tax-v3"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"rounding"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"ROUND_HALF_UP"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"tax_basis"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"discounted_subtotal"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>跨货币转换还需要明确使用的汇率、来源、时间与手续费策略；历史金额重算必须固定适用的汇率和政策版本。</p>
+<h3 id="section-11">3.3 计算结果应附带校验条件</h3>
+<p>例如 <code>quantity &gt;= 0</code>、<code>0 &lt;= discount_rate &lt;= 1</code>、<code>tax_rate &gt;= 0</code>、余额不能低于允许下限。数据库约束和事务可以进一步防止并发修改导致结果不一致。单靠模型输出一个看似正确的数值无法替代这些约束。</p>
+<hr />
+<h2 id="section-12">4. 重要事实如何建立依据与证据链</h2>
+<p>事实回答与“模型生成的句子”必须区分。对于有明确来源的事实，应保留<strong>证据对应关系（provenance，来源血缘）</strong>：这个事实来自哪份资料、哪个版本、哪个章节，以及如何验证它支持当前结论。</p>
+<h3 id="section-13">4.1 证据记录的最小结构</h3>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"fact_key"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"character.hero_a.base_hp"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"fact_value"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"source_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"rules/hero-a"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"document_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"1.2"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"section"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"角色属性"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"excerpt"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"角色 A：基础生命值为 4。"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"effective_at"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"示例版本生效时间"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"retrieved_at"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2026-11-11T00:00:00Z"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"source_hash"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"由原始资料内容计算的 SHA-256"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>其中 <code>effective_at</code> 描述事实生效时间，<code>retrieved_at</code> 描述系统获取资料的时间，两者含义不同。<code>source_hash</code> 只可证明对照的内容字节与某个哈希一致，不能单独证明内容真实或来源合法。</p>
+<h3 id="section-14">4.2 信息来源的层次</h3>
+<ol>
+<li><strong>权威结构化事实</strong>：经过验证的数据库字段、正式规则参数、官方发布数据。通常优先用于精确数值。</li>
+<li><strong>原始文档</strong>：官方发布说明、法规原文、技术标准、产品手册等。需要保留版本和定位信息。</li>
+<li><strong>二手资料</strong>：报道、博客、社区帖子与非官方摘要。应与原始资料核对。</li>
+<li><strong>模型内部知识</strong>：可作为线索，但不能直接视为已核查的外部事实。</li>
+</ol>
+<p>来源权威性还取决于所问的问题：公司内部的业务规则应以公司批准的当前版本为准，而不是把外部百科当作最终依据。</p>
+<h3 id="section-15">4.3 引用存在，不代表引用支持结论</h3>
+<p>假设回答写“角色 A 的生命值是 7”，同时附上 <code>rules/hero-a</code> 文档 ID。即便文档真实存在，若其内容写的是“生命值 4”，引用仍然<strong>不支持该断言</strong>。</p>
+<p>引用核验至少需要三层：</p>
+<ul>
+<li><strong>存在性</strong>：来源 ID 和片段是否存在？</li>
+<li><strong>适用性</strong>：版本、时间、范围、对象是否与问题匹配？</li>
+<li><strong>支持性</strong>：来源是否真的支持对应的原子化断言？</li>
+</ul>
+<p>对于结构化规则数据可以通过精确键比较。对于长篇自然语言，则需要更细的证据片段匹配、规则化检查、必要时人工复核。<strong>字符串相似、引用链接可打开或模型自称有依据，都不是事实核验的充分条件。</strong></p>
+<hr />
+<h2 id="section-16">5. 事实、引用、来源版本及冲突处理</h2>
+<h3 id="section-17">5.1 版本必须进入查询条件</h3>
+<p>用户说“角色 A 的生命值是多少？”时，系统若同时存在 v1.1 和 v1.2 的规则，需要根据上下文确定适用版本。不能任意挑一条检索结果回答。</p>
+<p>一种查询过程：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">用户提问 → 提取对象与所需版本
+                  │
+          版本是否确定？
+             /       \
+           否         是
+           │          │
+      澄清版本     查询该版本权威资料
+                       │
+                  核对字段与来源
+                       │
+                  生成带依据的答案</code></pre></div><h3 id="section-18">5.2 来源之间发生冲突怎么办</h3>
+<p>可能原因包括旧版本与新版本混合、资料解析错误、规则例外未检索到、相同术语指向不同对象，以及真实的官方资料互相矛盾。</p>
+<p>处理顺序应为：</p>
+<ol>
+<li>核对资料的生效时间、正式版本与适用范围；</li>
+<li>查找正式修订记录和更高权威的资料；</li>
+<li>如果依据不足，明确说明存在冲突及各自来源；</li>
+<li>不让模型靠“多数资料支持”自行替代权威性和适用性判断；</li>
+<li>在需要时要求人工确认，再写入后续业务结果。</li>
+</ol>
+<h3 id="section-19">5.3 不确定性要能传给调用方</h3>
+<p>事实不完整时可返回结构化状态，例如：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"needs_evidence"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"answer"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"missing"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"规则版本"</span><span class="hljs-punctuation">,</span> <span class="hljs-string">"有效原始资料"</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"candidate_sources"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"rules/hero-a/v1.1"</span><span class="hljs-punctuation">,</span> <span class="hljs-string">"rules/hero-a/v1.2"</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>这样前端可以显示“需要补充版本”或“资料尚未核实”，而不是把模型的猜测作为正常答案展示。</p>
+<hr />
+<h2 id="section-20">6. 模型调用中应记录的元数据</h2>
+<p>为了在后续定位质量变化、成本激增或延迟退化，模型调用记录不能只有用户提问与回答。最低应包括以下字段：</p>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>建议字段</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>请求定位</td>
+<td><code>request_id</code>、<code>trace_id</code>、时间戳</td>
+<td>跨前端、接口、模型和工具关联一次调用</td>
+</tr>
+<tr>
+<td>模型信息</td>
+<td><code>provider</code>、请求的 <code>model</code>、响应实际模型</td>
+<td>识别供应商与模型变更</td>
+</tr>
+<tr>
+<td>模型配置</td>
+<td>采样参数、最大输出限制、思考预算（若支持）</td>
+<td>解释生成行为的差异</td>
+</tr>
+<tr>
+<td>提示词信息</td>
+<td><code>prompt_version</code>、模板哈希、渲染版本哈希</td>
+<td>追踪配置变更与实际输入差异</td>
+</tr>
+<tr>
+<td>业务输入</td>
+<td>数据集/案例 ID、知识库版本、工具版本</td>
+<td>保证评测可比较</td>
+</tr>
+<tr>
+<td>结果</td>
+<td>成功/失败、结束状态、错误类型、输出校验结果</td>
+<td>区分真正成功与仅 HTTP 成功</td>
+</tr>
+<tr>
+<td>延迟</td>
+<td>总耗时、首字延迟、模型耗时、工具耗时</td>
+<td>定位性能瓶颈</td>
+</tr>
+<tr>
+<td>用量</td>
+<td>输入、输出、缓存、推理 Token（可用时）</td>
+<td>计算资源和成本</td>
+</tr>
+<tr>
+<td>成本</td>
+<td>计费方案版本、估算成本、实际账单状态</td>
+<td>比较改动经济性</td>
+</tr>
+<tr>
+<td>风险</td>
+<td>来源依据状态、拒答、越权、敏感数据检测</td>
+<td>监测可靠性与合规性</td>
+</tr>
+</tbody></table>
+<h3 id="section-21">6.1 一次用户请求可能包含多次模型调用</h3>
+<p>一个 Agent 任务可能先调用模型选择工具，再调用模型总结证据，期间还请求 Embedding 和第三方检索 API。因此要区分：</p>
+<ul>
+<li><strong>调用级记录</strong>：一次真实模型 API 调用的耗时和用量；</li>
+<li><strong>请求级记录</strong>：完整 HTTP 请求中的多个模型调用、工具和数据库操作；</li>
+<li><strong>任务级记录</strong>：跨后台 Worker、重试和服务重启的完整业务任务成本。</li>
+</ul>
+<p>如果只记录最终一次模型调用的 Token，就会低估整个 Agent 任务的实际开销。</p>
+<h2 id="section-22">7. 模型版本、提示词版本与结果可复现性</h2>
+<h3 id="section-23">7.1 “模型名称相同”不一定等于后端完全相同</h3>
+<p>服务商可能更新模型的权重、基础设施或路由。公开 API 中的模型别名有时指向可更新版本。若提供快照版本号、响应模型字段、后端指纹（例如部分接口的 <code>system_fingerprint</code>），应将其记录下来。</p>
+<p>然而，后端指纹不是通用的严格复现保证，供应商也可能不提供这一字段。即使模型版本与采样参数一致，推理仍可能受非确定性因素影响。</p>
+<h3 id="section-24">7.2 提示词版本包含两个层次</h3>
+<ul>
+<li><strong>模板版本</strong>：System/Developer 指令、变量位置、工具规范、输出 Schema 的版本；</li>
+<li><strong>渲染后输入版本</strong>：实际填入的用户输入、历史片段、检索文档、规则版本形成的请求内容。</li>
+</ul>
+<p>两次请求即使模板版本相同，也可能因为检索资料版本不同而产生不同回答。因此应该同时保存模板哈希与必要的检索数据版本，必要时保存受控、脱敏且权限受限的可复现输入快照。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> hashlib <span class="hljs-keyword">import</span> sha256
+
+prompt_template = <span class="hljs-string">"只根据给定规则回答，并提供来源。"</span>
+prompt_sha256 = sha256(prompt_template.encode(<span class="hljs-string">"utf-8"</span>)).hexdigest()
+<span class="hljs-built_in">print</span>(prompt_sha256)</code></pre></div><p><strong>哈希不是加密。</strong> 它适合记录内容指纹，但不能代替访问控制、密钥保护或敏感数据脱敏；短而可猜的输入甚至可能被枚举比对。</p>
+<h3 id="section-25">7.3 一次可比较的改动，需要固定哪些变量</h3>
+<table>
+<thead>
+<tr>
+<th>变量</th>
+<th>举例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>模型</td>
+<td>同一模型 ID 或明确仅比较模型差异</td>
+</tr>
+<tr>
+<td>提示词</td>
+<td>A、B 两个版本，各有哈希</td>
+</tr>
+<tr>
+<td>输入样例</td>
+<td>同一组 <code>case_id</code> 与固定内容</td>
+</tr>
+<tr>
+<td>知识库</td>
+<td>同一版资料、同一检索配置</td>
+</tr>
+<tr>
+<td>工具实现</td>
+<td>数据查询和计算工具版本固定</td>
+</tr>
+<tr>
+<td>采样</td>
+<td>温度等参数记录在案</td>
+</tr>
+<tr>
+<td>环境</td>
+<td>同一类部署、并发负载及网络条件</td>
+</tr>
+<tr>
+<td>评分</td>
+<td>同一版本的评分规则和参考答案</td>
+</tr>
+</tbody></table>
+<p>如果一次修改同时换了模型、提示词和知识库，就不能仅凭质量提升断言“是提示词修改有效”。这属于因果归因问题。</p>
+<hr />
+<h2 id="section-26">8. 输入、输出、缓存和推理 Token 的用量口径</h2>
+<h3 id="section-27">8.1 用量字段不是跨供应商完全一致的</h3>
+<p>同一次模型调用可能返回的统计包括：</p>
+<ul>
+<li><code>input_tokens</code> / <code>prompt_tokens</code>：本次模型处理的输入 Token，具体字段依接口而定；</li>
+<li><code>output_tokens</code> / <code>completion_tokens</code>：输出 Token，可能包含不可见的推理、结构化或控制 Token；</li>
+<li><code>cached_tokens</code> / <code>prompt_cache_hit_tokens</code>：输入中命中缓存的部分；</li>
+<li><code>reasoning_tokens</code>：某些推理模型在输出 Token 中用于推理的部分；</li>
+<li><code>server_tool_use</code>：部分供应商另外统计的服务端工具调用使用量。</li>
+</ul>
+<p>例如 DeepSeek Chat Completions 的 <code>prompt_tokens</code> 包括缓存命中与未命中 Token，<code>prompt_cache_hit_tokens + prompt_cache_miss_tokens = prompt_tokens</code>；<code>completion_tokens</code> 用于统计生成 Token，某些模型还可能报告 <code>reasoning_tokens</code>。<strong>不要把缓存命中数与输入总量相加，也不要把推理 Token 与已包含它的输出总量再次相加。</strong></p>
+<p>类似地，OpenAI Responses API 的输出用量中，<code>reasoning_tokens</code> 可以作为 <code>output_tokens_details</code> 的子项；最终用户能看到的字符数不能替代服务端用量统计。</p>
+<h3 id="section-28">8.2 各类统计应各司其职</h3>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">输入总量 input_tokens  ─── 包含 ──&gt; 缓存命中的 cached_input_tokens
+输出总量 output_tokens ─── 包含 ──&gt; 推理使用的 reasoning_output_tokens</code></pre></div><p>如果计费规则将缓存命中输入与普通输入区分价格，可拆成：</p>
+<p>[
+N_{\text{input, uncached}} = N_{\text{input,total}} - N_{\text{input,cached}}
+]</p>
+<p>[
+N_{\text{output,total}} \supseteq N_{\text{output,reasoning}}
+]</p>
+<p>这里的包含关系针对提供相应字段且采用此口径的接口，不能无条件套用于每一种供应商；具体应以官方文档为准。</p>
+<h3 id="section-29">8.3 流式响应时尤其容易漏记用量</h3>
+<p>SSE 增量通常不是完整的用量记录。某些 API 需要等到结束事件才返回累积 Token 统计。若客户端提前断开、代理丢包或生成被取消，可能没有拿到最终 <code>usage</code>。这时应记录 <code>usage_status: "missing"</code> 或类似状态，而不是把缺失用量默认为零。</p>
+<p>供应商控制台、计费账单、请求级 <code>usage</code> 和本地 Token 估算属于不同数据口径。实际费用以对应合同和供应商账单为最终依据；内部估算适用于日常对比与预算预警。</p>
+<h2 id="section-30">9. 模型调用成本计算与账单核对</h2>
+<h3 id="section-31">9.1 基本计费公式</h3>
+<p>假设价格按每百万 Token 报价，且缓存输入有独立费率：</p>
+<p>[
+C_{\text{tokens}} = \frac{(N_{in}-N_{cache})P_{in} + N_{cache}P_{cache} + N_{out}P_{out}}{10^6}
+]</p>
+<p>其中：</p>
+<ul>
+<li><code>N_in</code>：输入 Token 总数；</li>
+<li><code>N_cache</code>：已包含在总输入中的缓存命中 Token；</li>
+<li><code>N_out</code>：输出 Token 总数，按该供应商的实际计费口径；</li>
+<li><code>P_in</code>、<code>P_cache</code>、<code>P_out</code>：对应每百万 Token 费率。</li>
+</ul>
+<p>若还有缓存写入、搜索、浏览器、文件、音频、推理服务附加费、区域服务费或其他计费项，应按供应商的具体定价规则增加对应项，而不是强行塞入上述三项公式。</p>
+<h3 id="section-32">9.2 示例：使用虚构价格计算一次请求</h3>
+<blockquote>
+<p>下列价格仅用于演示计算逻辑，<strong>不是任何厂商的实时价格</strong>。</p>
+</blockquote>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">输入总数：500 tokens
+其中缓存命中：200 tokens
+输出总数：140 tokens（已包含 40 reasoning tokens）
+
+每百万普通输入：$0.80
+每百万缓存输入：$0.08
+每百万输出：$3.20
+
+成本 = (300 × 0.80 + 200 × 0.08 + 140 × 3.20) / 1,000,000
+     = 0.000704 USD</code></pre></div><p>正确逻辑是将缓存命中部分从普通输入中扣除。上述 <code>140</code> 已包含 <code>40</code> 推理 Token，因此不能再加 <code>40 × 输出费率</code>。</p>
+<h3 id="section-33">9.3 为什么要给价格表加版本</h3>
+<p>模型价格会调整，合同可能有折扣，服务等级和长上下文档位也可能改变费率。建议维护配置：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"provider"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"demo-provider"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"model"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"demo-model"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"effective_date"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2026-11-11"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"currency"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"USD"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"billing_unit"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1000000</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"uncached_input_rate"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"0.80"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"cached_input_rate"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"0.08"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"output_rate"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"3.20"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"note"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"仅为教学示例价格"</span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>成本记录既要保存当时使用的费率版本，也应允许之后根据真实账单进行对账和修正。<strong>估算成本不是已结算费用</strong>。</p>
+<h3 id="section-34">9.4 成本指标不能只有“每次调用多少钱”</h3>
+<ul>
+<li>单次 API 调用成本；</li>
+<li>单个用户请求的全链路成本（含多次模型调用）；</li>
+<li>单个后台任务成本（含重试和工具）；</li>
+<li>每次成功任务的平均成本；</li>
+<li>处理 1,000 次实际业务请求的总成本；</li>
+<li>错误重试成本与缓存命中收益。</li>
+</ul>
+<p>设某版本总成本为 <code>C</code>，成功处理的任务数为 <code>S</code>：</p>
+<p>[
+\text{Cost per Success} = \frac{C}{S},\quad S&gt;0
+]</p>
+<p>成功率提高后，单次调用更贵不代表整个方案一定不划算；反过来，调用变便宜但成功率大幅下降也不一定是改进。</p>
+<hr />
+<h2 id="section-35">10. 延迟、吞吐量和请求生命周期测量</h2>
+<h3 id="section-36">10.1 不要将“模型耗时”与“整个请求耗时”混为一谈</h3>
+<p>一次 AI 请求常经历：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">接入请求
+  ├── 认证与参数校验
+  ├── 知识检索／数据库查询
+  ├── 等待并发槽位
+  ├── 发出模型请求
+  │      ├── 网络连接与排队
+  │      ├── 服务端计算
+  │      └── 流式文本增量
+  ├── 工具调用／再次模型调用
+  ├── 输出校验与事实核对
+  └── 持久化、返回最终结果</code></pre></div><p>因此应记录不同层级：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>含义</th>
+<th>解释</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>请求总耗时</td>
+<td>前端/服务端从开始到结束</td>
+<td>体现完整用户体验</td>
+</tr>
+<tr>
+<td>模型调用耗时</td>
+<td>单次 API 调用开始至完成</td>
+<td>体现模型及网络路径的综合耗时</td>
+</tr>
+<tr>
+<td>首字延迟 TTFT</td>
+<td>发送调用到收到首个有意义文本增量</td>
+<td>主要用于流式用户体验</td>
+</tr>
+<tr>
+<td>工具耗时</td>
+<td>检索、SQL、外部工具调用阶段</td>
+<td>找到非模型瓶颈</td>
+</tr>
+<tr>
+<td>排队时长</td>
+<td>等候 Semaphore、队列和限流配额</td>
+<td>区分容量不足与推理慢</td>
+</tr>
+<tr>
+<td><code>p50</code> / <code>p95</code> / <code>p99</code></td>
+<td>延迟分布分位数</td>
+<td>识别尾部慢请求</td>
+</tr>
+<tr>
+<td>吞吐量</td>
+<td>单位时间处理请求数或 Token 数</td>
+<td>衡量系统处理能力</td>
+</tr>
+</tbody></table>
+<p>首个 HTTP 字节、首个 SSE 事件、首个文本 Token 可能是三个不同时间点。工具事件或心跳事件先到达时，不能假装“用户已经看到答案”。</p>
+<h3 id="section-37">10.2 <code>perf_counter()</code> 与系统时钟的区别</h3>
+<p><code>datetime.now(timezone.utc)</code> 可记录时间戳、用于跨记录定位；<code>time.perf_counter()</code> 适合测量本进程内的经过时长。墙上时钟可能因时间同步和手动修改而跳变，不能用两次普通日历时钟的差值替代精确的本地性能测量。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> datetime <span class="hljs-keyword">import</span> datetime, timezone
+<span class="hljs-keyword">from</span> time <span class="hljs-keyword">import</span> perf_counter
+
+started_at = datetime.now(timezone.utc).isoformat()
+start = perf_counter()
+<span class="hljs-comment"># 执行一次请求</span>
+elapsed_ms = (perf_counter() - start) * <span class="hljs-number">1000</span></code></pre></div><p>跨服务器或跨进程测量的时间关系，需要分布式追踪、可靠的时间戳以及对时钟偏差的理解。不同节点上独立 <code>perf_counter()</code> 读数不可直接相减。</p>
+<h3 id="section-38">10.3 分位数比单一平均值更能显示尾延迟</h3>
+<p>假设 100 个请求里 95 个在 1 秒完成，5 个在 30 秒完成：平均值无法充分展示尾部体验。<code>p95</code> 可以辅助观察慢请求，但必须记录样本数量、测量窗口和分位数算法；对非常小的数据集，<code>p95</code> 的解释力有限。</p>
+<p>单独优化延迟时也不能忽略质量：将输出截断或跳过事实核验可能使响应更快，却让系统变得不可靠。</p>
+<hr />
+<h2 id="section-39">11. 一次改动的 A/B 配对评测方法</h2>
+<h3 id="section-40">11.1 一次满意的回答为什么不够</h3>
+<p>生成式模型可能在相同输入下产生不同结果。单次正确只代表一个观察值，无法说明总体质量分布，也无法证明修改没有让其他问题退步。</p>
+<p>应先建立固定评测集：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span><span class="hljs-attr">"case_id"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"c001"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"question"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"角色 A 的基础生命值？"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"version"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"1.2"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"expected_hp"</span><span class="hljs-punctuation">:</span><span class="hljs-number">4</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"category"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"fact"</span><span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">{</span><span class="hljs-attr">"case_id"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"c002"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"question"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"计算折扣后金额"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"expected_total"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"54.03"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"category"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"calculation"</span><span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">{</span><span class="hljs-attr">"case_id"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"c003"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"question"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"未知版本的规则是什么？"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"expected_behavior"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"ask_version"</span><span class="hljs-punctuation">,</span><span class="hljs-attr">"category"</span><span class="hljs-punctuation">:</span><span class="hljs-string">"clarification"</span><span class="hljs-punctuation">}</span></code></pre></div><p>这里只展示三种类别。真实评测集还应包含容易出错的边界条件、多轮上下文、版本冲突、无答案、错误输入和引用无效等场景。</p>
+<h3 id="section-41">11.2 配对实验（Paired Comparison）</h3>
+<p>相同的 <code>case_id</code> 分别交给修改前版本 A 与修改后版本 B。只有这样才能对照同一问题的改进与退步：</p>
+<table>
+<thead>
+<tr>
+<th>案例</th>
+<th>A 结果</th>
+<th>B 结果</th>
+<th>归类</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>c001</td>
+<td>错误</td>
+<td>正确</td>
+<td>改进</td>
+</tr>
+<tr>
+<td>c002</td>
+<td>正确</td>
+<td>正确</td>
+<td>持平</td>
+</tr>
+<tr>
+<td>c003</td>
+<td>正确</td>
+<td>错误</td>
+<td>回归退步</td>
+</tr>
+<tr>
+<td>c004</td>
+<td>错误</td>
+<td>错误</td>
+<td>持平（都失败）</td>
+</tr>
+</tbody></table>
+<p><strong>总体准确率提升并不代表所有案例均改善。</strong> 特别是安全、权限、账单、事实性等关键案例，单个严重退步就可能不符合发布条件。</p>
+<h3 id="section-42">11.3 质量指标应绑定任务</h3>
+<p>问答场景可使用：</p>
+<ul>
+<li><strong>答案正确率</strong>：按预先定义的可核查标准判断；</li>
+<li><strong>引用支持率</strong>：断言能否被对应来源实际支持；</li>
+<li><strong>版本匹配率</strong>：是否使用了正确版本；</li>
+<li><strong>拒绝编造率</strong>：证据不足时是否正确说明；</li>
+<li><strong>结构校验通过率</strong>：JSON / Schema 是否满足契约；</li>
+<li><strong>工具选择正确率</strong>：模型是否使用适当工具；</li>
+<li><strong>业务任务成功率</strong>：用户问题是否真正解决。</li>
+</ul>
+<p>评测员模型可以辅助评分，但应定期与人工标注的标准答案核对一致性。评价标准本身发生变化时，需要记录评分器版本，否则不能直接比较前后结果。</p>
+<h3 id="section-43">11.4 多次重复与抽样偏差</h3>
+<p>为了观察随机性，可以在同一固定样例上分别运行多个独立重复，并记录各次运行。还应避免数据集只包含容易样例：应包含典型任务、长输入、冲突、边界、失败和高风险案例。</p>
+<p>如果重复次数不足、样本规模过小或数据分布与真实用户不同，最多只能得到“在该样本上的观察结果”，不能断言生产总体一定提升。</p>
+<h3 id="section-44">11.5 统计比较的简单表达</h3>
+<p>设数据集包含 <code>N</code> 个唯一案例，版本 A 成功数为 <code>S_A</code>，版本 B 成功数为 <code>S_B</code>：</p>
+<p>[
+Acc_A = S_A/N,\qquad Acc_B = S_B/N
+]</p>
+<p>[
+\Delta Acc_{pp} = 100(Acc_B - Acc_A)
+]</p>
+<p>这里 <code>pp</code> 表示百分点，不是“相对提升百分比”。如正确率从 80% 增加到 90%，提升为 <strong>10 个百分点</strong>，相对提升为 <strong>12.5%</strong>。</p>
+<p>可进一步记录配对改进数 <code>n_improve</code> 与退步数 <code>n_regress</code>，必要时使用适合成对二分类数据的统计方法（如 McNemar 检验）或置信区间分析，而不是只报告一个准确率数字。</p>
+<hr />
+<h2 id="section-45">12. 质量、耗时、成本和风险的综合决策</h2>
+<h3 id="section-46">12.1 一个模拟的 20 条样例比较</h3>
+<p>假设两版模型在同一组测试中的结果如下（全部为<strong>示例数据</strong>）：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>修改前 A</th>
+<th>修改后 B</th>
+<th>变化</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>正确样例数</td>
+<td>16 / 20</td>
+<td>18 / 20</td>
+<td>+2</td>
+</tr>
+<tr>
+<td>正确率</td>
+<td>80%</td>
+<td>90%</td>
+<td>+10 个百分点</td>
+</tr>
+<tr>
+<td>20 条样例合计成本</td>
+<td>$0.08</td>
+<td>$0.12</td>
+<td>+$0.04</td>
+</tr>
+<tr>
+<td>每个成功案例平均成本</td>
+<td>$0.005</td>
+<td>约 $0.00667</td>
+<td>上升</td>
+</tr>
+<tr>
+<td>p95 延迟</td>
+<td>3.0 秒</td>
+<td>4.4 秒</td>
+<td>变慢</td>
+</tr>
+<tr>
+<td>关键引用错误</td>
+<td>1</td>
+<td>0</td>
+<td>改善</td>
+</tr>
+</tbody></table>
+<p>可以看到，B 的质量更高，但也更慢、更贵。不能只靠其中一个指标判定 B 必然更好。</p>
+<p>在演示数据下，每新增一个成功案例对应的<strong>整个测试集增量支出</strong>是 <code>$0.04 / 2 = $0.02</code>。这是针对这一测试集的描述性比值，并不自动等于生产中的真实边际成本或商业收益。</p>
+<h3 id="section-47">12.2 有约束的优化更符合生产要求</h3>
+<p>一种产品策略是：</p>
+<ul>
+<li>正确率达到最低门槛；</li>
+<li>关键事实和权限错误为零或低于明确容忍标准；</li>
+<li>p95 延迟满足服务级目标；</li>
+<li>单请求预期成本不超过预算；</li>
+<li>在全部约束均满足的候选方案中，选择质量更高或成本更低的一版。</li>
+</ul>
+<p>形式化表达为：</p>
+<p>[
+\max Q(x) \quad \text{subject to}\quad L_{95}(x) \le L_{max},\ C(x) \le C_{max},\ R(x) \le R_{max}
+]</p>
+<p>其中 <code>Q</code> 表示质量，<code>L95</code> 为 p95 延迟，<code>C</code> 为成本，<code>R</code> 为风险指标。具体权重和阈值取决于产品目标，不能由通用公式直接决定。</p>
+<h3 id="section-48">12.3 修改收益并非只看模型能力</h3>
+<p>收益可能包括减少人工审核时间、缩短用户等待、降低外部工具调用次数、提高任务完成率以及减少事故修复支出。反之，成本也不止模型账单，还可能包括服务器、存储、向量检索、日志、人工标注、维护和安全审计成本。</p>
+<p>因此成熟的评估需要区分：<strong>模型层成本、工作流层成本、用户任务层效果、产品业务层收益</strong>。</p>
+<hr />
+<h2 id="section-49">13. 日志结构、可观测性和敏感数据保护</h2>
+<h3 id="section-50">13.1 为什么需要统一结构化记录</h3>
+<p>普通文本日志如“模型调用成功”很难进行大规模统计。结构化日志让程序能按 <code>model</code>、<code>prompt_version</code>、<code>case_id</code>、错误类型和时间聚合。一个简化 JSON 记录如下：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"request_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"示例请求 ID"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"trace_id"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"示例追踪 ID"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"timestamp_utc"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"2026-11-11T08:00:00+00:00"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"provider"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"demo-provider"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"requested_model"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"demo-model"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"actual_model"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"demo-model"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"prompt_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"rules-v2"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"prompt_template_sha256"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"sha256-值"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"dataset_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"evalset-v3"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"source_versions"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">"rules-v1.2"</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"latency_ms"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1530.5</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"ttft_ms"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">410.2</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"usage"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"input_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"cached_input_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"output_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">140</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"reasoning_output_tokens"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">40</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"estimated_cost_usd"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"0.000704"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"rate_card_version"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"demo-2026-11-11"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"success"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"validation_status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"supported"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"error_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>需要注意 JSON 内的 <code>sha256-值</code> 只是说明字段含义的占位符；真实程序应输出 SHA-256 的十六进制摘要。上面同样是教学用数据，而非真实 API 日志。</p>
+<h3 id="section-51">13.2 Traces、Metrics 与 Logs 各自的作用</h3>
+<ul>
+<li><strong>Trace（追踪）</strong>：展示一次业务请求穿过路由、数据库、工具、模型等步骤的调用链与耗时；</li>
+<li><strong>Metric（指标）</strong>：聚合成功率、耗时分布、Token 消耗、队列深度等数值；</li>
+<li><strong>Log（日志）</strong>：提供某次调用的具体事件和错误信息。</li>
+</ul>
+<p>OpenTelemetry 允许通过 Span 表达父子调用关系，并将关键字段附加在 Span 属性中。记录时应控制属性的数量和敏感程度，例如通常记录模型 ID、提示词版本、用量，而不默认记录完整的个人对话内容。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 可选示例：需要安装 opentelemetry-api 和 opentelemetry-sdk</span>
+<span class="hljs-keyword">from</span> opentelemetry <span class="hljs-keyword">import</span> trace
+
+tracer = trace.get_tracer(<span class="hljs-string">"llm-service"</span>)
+
+<span class="hljs-keyword">with</span> tracer.start_as_current_span(<span class="hljs-string">"model.request"</span>) <span class="hljs-keyword">as</span> span:
+    span.set_attribute(<span class="hljs-string">"app.prompt_version"</span>, <span class="hljs-string">"rules-v2"</span>)
+    span.set_attribute(<span class="hljs-string">"app.model_id"</span>, <span class="hljs-string">"demo-model"</span>)
+    <span class="hljs-comment"># 调用模型并记录结果；具体字段遵循项目约定和可用的标准语义约定</span></code></pre></div><p>注意：仅安装 API 或获取 Tracer 不一定意味着数据已经被持久导出；实际应用还需配置 SDK、Processor、Exporter、采样与后端存储。GenAI 的 OpenTelemetry 语义约定也会演进，应依照项目锁定版本配置。</p>
+<h3 id="section-52">13.3 敏感信息保护是设计要求，不是上线后的补救</h3>
+<p>完整 Prompt、外部检索文档、工具结果、用户聊天、API Key、身份证明、财务信息可能包含敏感内容。默认将这些原文全部写进日志，会扩大数据暴露面。实践中应：</p>
+<ul>
+<li>默认仅记录必要元数据；</li>
+<li>优先存 <code>case_id</code>、资料版本、Prompt 哈希而非敏感原文；</li>
+<li>对确需复现的输入使用授权、脱敏、加密存储和短期保留；</li>
+<li>记录访问审计、配置保留期限及删除策略；</li>
+<li>错误堆栈和 HTTP Header 中不得泄漏密钥；</li>
+<li>不将个人信息无条件上传第三方可观测性平台。</li>
+</ul>
+<p>OpenTelemetry 官方安全指南明确强调数据最小化，必要时通过 Collector 处理器过滤、删除或修改敏感属性。</p>
+<hr />
+<h2 id="section-53">14. 超时、失败、流式中断时如何记录</h2>
+<h3 id="section-54">14.1 失败本身也是观测结果</h3>
+<p>假设模型调用超时，有时可能没有最终的 Token 统计。如果把用量写成 <code>0</code>，就会错误地表达“确定没有任何 Token 消耗”。更合理的形式是：</p>
+<div class="code-wrap"><div class="code-label"><span>json</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"timeout"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"error_code"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"MODEL_READ_TIMEOUT"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"latency_ms"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">30005</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"usage"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"usage_status"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"missing"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"estimated_cost_usd"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">null</span></span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"billing_reconciliation_required"</span><span class="hljs-punctuation">:</span> <span class="hljs-literal"><span class="hljs-keyword">true</span></span>
+<span class="hljs-punctuation">}</span></code></pre></div><p>这里 <code>null</code> 的含义是“未知/缺失”，不是零。真实计费可能与客户端拿到的部分响应不同。</p>
+<h3 id="section-55">14.2 不同失败阶段的记录重点</h3>
+<table>
+<thead>
+<tr>
+<th>失败阶段</th>
+<th>记录重点</th>
+<th>不应该假设的事</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>输入校验失败</td>
+<td>输入错误类型、请求 ID</td>
+<td>模型一定已经调用</td>
+</tr>
+<tr>
+<td>排队超时</td>
+<td>等待时长、并发队列</td>
+<td>模型已经接收请求</td>
+</tr>
+<tr>
+<td>网络连接失败</td>
+<td>连接类型、网络错误、重试次数</td>
+<td>供应商未计费</td>
+</tr>
+<tr>
+<td>模型执行超时</td>
+<td>已观测耗时、取消状态、可用 usage</td>
+<td>远端生成已终止</td>
+</tr>
+<tr>
+<td>流式中断</td>
+<td>已收到的文本片段、最后事件、缺失最终状态</td>
+<td>已经正常完成</td>
+</tr>
+<tr>
+<td>Schema 校验失败</td>
+<td>字段错误、实际结束状态</td>
+<td>生成输出可用于业务</td>
+</tr>
+<tr>
+<td>事实校验失败</td>
+<td>断言、资料 ID、资料版本、核验结论</td>
+<td>引用存在即代表事实成立</td>
+</tr>
+<tr>
+<td>写库失败</td>
+<td>事务状态、幂等键、重试计划</td>
+<td>外部工具操作也被回滚</td>
+</tr>
+</tbody></table>
+<h3 id="section-56">14.3 重试成本应该按实际尝试汇总</h3>
+<p>重试 3 次后成功的业务任务，其实际成本可能包括前面 2 次的模型费用、第三次的费用与工具开销。日志设计应保留 <code>attempt_id</code>、<code>attempt_number</code>、父任务 ID，避免只记录最终成功调用。</p>
+<p>同一业务任务的重试应具备幂等边界；不过模型生成、搜索和外部调用的成本并不因业务幂等而自动免除。</p>
+<hr />
+<h2 id="section-57">15. 端到端案例：规则问答与确定性计算</h2>
+<p>以下以虚构的游戏角色规则为例，串联这一节各知识领域。</p>
+<p>用户提问：“在 v1.2 中，角色 A 的基础生命值是多少？如果 3 件道具每件 19.99、打 85 折、再加 6% 税，最终金额是多少？”</p>
+<p>业务系统可按以下过程执行：</p>
+<ol>
+<li><strong>意图识别</strong>：模型或传统路由器识别出“规则事实查询 + 金额计算”两个任务。</li>
+<li><strong>资料查询</strong>：按角色 ID 和规则版本 v1.2 读取结构化数值，得到 <code>base_hp = 4</code>，并保留规则来源。</li>
+<li><strong>输入校验</strong>：校验金额字符串、数量整数、折扣率、税率和币种。</li>
+<li><strong>确定性运算</strong>：Python <code>Decimal</code> 按约定顺序计算最终金额 <code>54.03</code>。</li>
+<li><strong>模型说明</strong>：模型根据已确认的事实与数值生成自然语言答复，并附来源；结果数值不允许擅自替换。</li>
+<li><strong>输出核验</strong>：检查模型展示的生命值和金额是否与可信数据一致，并核对引用是否指向正确版本。</li>
+<li><strong>观测记录</strong>：保存请求 ID、模型和提示词版本、数据版本、用量、耗时、状态与估算费用。</li>
+<li><strong>实验比较</strong>：版本 B 修改 Prompt 或选择不同模型后，使用相同输入与同一数据版本比较 A、B 的正确率、引用质量、p95 延迟和任务成本。</li>
+</ol>
+<p>关键的工程分界是：<strong>事实被查询且验证，数值被执行且验证，语言由模型生成但不能绕过前两者的结果约束。</strong></p>
+<h3 id="section-58">15.1 一个合理的分层接口</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># 伪代码，只展示职责分层</span>
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">answer_question</span>(<span class="hljs-params">request</span>):
+    parsed = <span class="hljs-keyword">await</span> intent_parser.parse(request)
+    facts = <span class="hljs-keyword">await</span> rule_repository.lookup(parsed.character_id, parsed.version)
+    calculated_total = pricing_service.calculate(parsed.order)
+    draft = <span class="hljs-keyword">await</span> model_service.compose_answer(parsed, facts, calculated_total)
+    verified = output_validator.verify(draft, facts, calculated_total)
+    <span class="hljs-keyword">await</span> telemetry.record(verified)
+    <span class="hljs-keyword">return</span> verified</code></pre></div><p>在真实生产环境中，异常与请求取消也必须通过 <code>try/finally</code> 或外层中间件处理，否则 <code>compose_answer()</code> 出错时可能遗漏日志。示例代码仅用于展示结构。</p>
+<hr />
+<h2 id="section-59">16. 完整 Python 离线实现及单元测试</h2>
+<p>下列示例使用 Python 标准库，展示六个可复用的知识点：</p>
+<ul>
+<li><code>Decimal</code> 实现确定性计算，并明示舍入政策；</li>
+<li>对照有版本的权威结构化事实；</li>
+<li>正确区分输入总量、缓存命中和包含在输出内的推理 Token；</li>
+<li>记录 Prompt 模板哈希与请求级元数据；</li>
+<li>使用 JSONL 保存脱敏演示日志；</li>
+<li>对同一案例集合进行 A/B 配对评测。</li>
+</ul>
+<p><strong>运行要求：</strong> Python 3.11+；不安装第三方包，不访问网络，不调用真实模型。<code>FakeModel</code> 是一个固定输出的替身，不能被误认为真实大模型推理。</p>
+<p>Windows PowerShell 运行方式：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python verified_example.py</code></pre></div><p>运行日志中的演示 Token 和价格都来自代码里的静态数值，不具有真实账单含义。JSONL 仅是离线演示存储，并没有跨进程事务保证；生产系统应使用适当的日志或数据库基础设施。</p>
+<h3 id="section-60">16.1 完整示例源码</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-string">"""Chapter 9: deterministic numbers, evidence, LLM telemetry and paired eval.
+Standard library only. No paid API calls.
+"""</span>
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> annotations
+
+<span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> asdict, dataclass
+<span class="hljs-keyword">from</span> datetime <span class="hljs-keyword">import</span> datetime, timezone
+<span class="hljs-keyword">from</span> decimal <span class="hljs-keyword">import</span> Decimal, ROUND_HALF_UP
+<span class="hljs-keyword">from</span> hashlib <span class="hljs-keyword">import</span> sha256
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<span class="hljs-keyword">from</span> statistics <span class="hljs-keyword">import</span> median
+<span class="hljs-keyword">from</span> time <span class="hljs-keyword">import</span> perf_counter, sleep
+<span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> <span class="hljs-type">Any</span>
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> unittest
+<span class="hljs-keyword">import</span> uuid
+
+
+CENT = Decimal(<span class="hljs-string">"0.01"</span>)
+MILLION = Decimal(<span class="hljs-string">"1000000"</span>)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">money</span>(<span class="hljs-params">value: Decimal</span>) -&gt; Decimal:
+    <span class="hljs-string">"""Example business policy: round half-up to a cent."""</span>
+    <span class="hljs-keyword">return</span> value.quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">order_total</span>(<span class="hljs-params">unit_price: <span class="hljs-built_in">str</span>, quantity: <span class="hljs-built_in">int</span>, discount_rate: <span class="hljs-built_in">str</span>, tax_rate: <span class="hljs-built_in">str</span></span>) -&gt; Decimal:
+    <span class="hljs-string">"""Example policy: round discounted amount, then compute and round tax."""</span>
+    unit = Decimal(unit_price)
+    discount = Decimal(discount_rate)
+    tax = Decimal(tax_rate)
+    <span class="hljs-keyword">if</span> unit &lt; <span class="hljs-number">0</span> <span class="hljs-keyword">or</span> quantity &lt; <span class="hljs-number">0</span> <span class="hljs-keyword">or</span> <span class="hljs-keyword">not</span> (<span class="hljs-number">0</span> &lt;= discount &lt;= <span class="hljs-number">1</span>) <span class="hljs-keyword">or</span> tax &lt; <span class="hljs-number">0</span>:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"Invalid order inputs"</span>)
+    after_discount = money(unit * quantity * (Decimal(<span class="hljs-number">1</span>) - discount))
+    <span class="hljs-keyword">return</span> after_discount + money(after_discount * tax)
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AuthoritativeFact</span>:
+    source_id: <span class="hljs-built_in">str</span>
+    version: <span class="hljs-built_in">str</span>
+    value: <span class="hljs-built_in">int</span>
+    excerpt: <span class="hljs-built_in">str</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">check_fact</span>(<span class="hljs-params">claimed_value: <span class="hljs-built_in">int</span>, fact: AuthoritativeFact</span>) -&gt; <span class="hljs-built_in">bool</span>:
+    <span class="hljs-string">"""Structured authoritative-data consistency; not a general semantic citation verifier."""</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">type</span>(claimed_value) <span class="hljs-keyword">is</span> <span class="hljs-built_in">int</span> <span class="hljs-keyword">and</span> claimed_value == fact.value
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Usage</span>:
+    input_tokens: <span class="hljs-built_in">int</span>
+    output_tokens: <span class="hljs-built_in">int</span>
+    cached_input_tokens: <span class="hljs-built_in">int</span> = <span class="hljs-number">0</span>
+    reasoning_output_tokens: <span class="hljs-built_in">int</span> = <span class="hljs-number">0</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__post_init__</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> (<span class="hljs-variable language_">self</span>.input_tokens &lt; <span class="hljs-number">0</span> <span class="hljs-keyword">or</span> <span class="hljs-variable language_">self</span>.output_tokens &lt; <span class="hljs-number">0</span> <span class="hljs-keyword">or</span>
+                <span class="hljs-variable language_">self</span>.cached_input_tokens &lt; <span class="hljs-number">0</span> <span class="hljs-keyword">or</span> <span class="hljs-variable language_">self</span>.reasoning_output_tokens &lt; <span class="hljs-number">0</span> <span class="hljs-keyword">or</span>
+                <span class="hljs-variable language_">self</span>.cached_input_tokens &gt; <span class="hljs-variable language_">self</span>.input_tokens <span class="hljs-keyword">or</span>
+                <span class="hljs-variable language_">self</span>.reasoning_output_tokens &gt; <span class="hljs-variable language_">self</span>.output_tokens):
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"Inconsistent usage counters"</span>)
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">RateCard</span>:
+    <span class="hljs-comment"># Example rates ONLY, NOT any provider's live prices.</span>
+    model_id: <span class="hljs-built_in">str</span>
+    effective_date: <span class="hljs-built_in">str</span>
+    input_per_million: Decimal
+    cached_input_per_million: Decimal
+    output_per_million: Decimal
+    currency: <span class="hljs-built_in">str</span> = <span class="hljs-string">"USD"</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">estimate_cost</span>(<span class="hljs-params">usage: Usage | <span class="hljs-literal">None</span>, rates: RateCard</span>) -&gt; Decimal | <span class="hljs-literal">None</span>:
+    <span class="hljs-string">"""Cached input is INCLUDED in input_tokens; reasoning in output_tokens."""</span>
+    <span class="hljs-keyword">if</span> usage <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span>
+    non_cached = usage.input_tokens - usage.cached_input_tokens
+    <span class="hljs-keyword">return</span> (
+        Decimal(non_cached) * rates.input_per_million
+        + Decimal(usage.cached_input_tokens) * rates.cached_input_per_million
+        + Decimal(usage.output_tokens) * rates.output_per_million
+    ) / MILLION
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">prompt_hash</span>(<span class="hljs-params">template: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> sha256(template.encode(<span class="hljs-string">"utf-8"</span>)).hexdigest()
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">FakeModel</span>:
+    <span class="hljs-string">"""Deterministic stand-in, intentionally NOT a real LLM API client."""</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">generate</span>(<span class="hljs-params">self, _: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>], Usage]:
+        sleep(<span class="hljs-number">0.002</span>)
+        <span class="hljs-keyword">return</span> (
+            {<span class="hljs-string">"answer"</span>: <span class="hljs-string">"角色 A 的基础生命值为 4"</span>, <span class="hljs-string">"hp"</span>: <span class="hljs-number">4</span>, <span class="hljs-string">"source_id"</span>: <span class="hljs-string">"rules/hero-a"</span>},
+            Usage(input_tokens=<span class="hljs-number">500</span>, output_tokens=<span class="hljs-number">140</span>, cached_input_tokens=<span class="hljs-number">200</span>,
+                  reasoning_output_tokens=<span class="hljs-number">40</span>),
+        )
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">run_example</span>(<span class="hljs-params">output_path: Path</span>) -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]:
+    template = <span class="hljs-string">"仅依据给定版本的规则回答问题，并提供来源 ID。"</span>
+    fact = AuthoritativeFact(<span class="hljs-string">"rules/hero-a"</span>, <span class="hljs-string">"v1.2"</span>, <span class="hljs-number">4</span>, <span class="hljs-string">"角色 A：基础生命值 4。"</span>)
+    rates = RateCard(<span class="hljs-string">"demo-model"</span>, <span class="hljs-string">"2026-11-11"</span>, Decimal(<span class="hljs-string">"0.80"</span>),
+                     Decimal(<span class="hljs-string">"0.08"</span>), Decimal(<span class="hljs-string">"3.20"</span>))
+    start = perf_counter()
+    started_at = datetime.now(timezone.utc).isoformat()
+    status = <span class="hljs-string">"error"</span>
+    error_code = <span class="hljs-literal">None</span>
+    usage: Usage | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>
+    <span class="hljs-keyword">try</span>:
+        response, usage = FakeModel().generate(template)
+        <span class="hljs-keyword">if</span> response[<span class="hljs-string">"source_id"</span>] != fact.source_id <span class="hljs-keyword">or</span> <span class="hljs-keyword">not</span> check_fact(response[<span class="hljs-string">"hp"</span>], fact):
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"Unsupported claim"</span>)
+        status = <span class="hljs-string">"success"</span>
+    <span class="hljs-keyword">except</span> (KeyError, ValueError, TypeError) <span class="hljs-keyword">as</span> exc:
+        error_code = <span class="hljs-built_in">type</span>(exc).__name__
+    elapsed_ms = (perf_counter() - start) * <span class="hljs-number">1000</span>
+    record = {
+        <span class="hljs-string">"request_id"</span>: <span class="hljs-built_in">str</span>(uuid.uuid4()),
+        <span class="hljs-string">"started_at_utc"</span>: started_at,
+        <span class="hljs-string">"provider"</span>: <span class="hljs-string">"demo"</span>,
+        <span class="hljs-string">"requested_model"</span>: <span class="hljs-string">"demo-model"</span>,
+        <span class="hljs-string">"actual_model"</span>: <span class="hljs-string">"demo-model"</span>,
+        <span class="hljs-string">"prompt_version"</span>: <span class="hljs-string">"rules-answer-v2"</span>,
+        <span class="hljs-string">"prompt_template_sha256"</span>: prompt_hash(template),
+        <span class="hljs-string">"dataset_version"</span>: <span class="hljs-string">"testset-v1"</span>,
+        <span class="hljs-string">"source_versions"</span>: {fact.source_id: fact.version},
+        <span class="hljs-string">"latency_ms"</span>: <span class="hljs-built_in">round</span>(elapsed_ms, <span class="hljs-number">3</span>),
+        <span class="hljs-string">"usage"</span>: asdict(usage) <span class="hljs-keyword">if</span> usage <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>,
+        <span class="hljs-string">"estimated_cost_usd"</span>: <span class="hljs-built_in">str</span>(estimate_cost(usage, rates)) <span class="hljs-keyword">if</span> usage <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">else</span> <span class="hljs-literal">None</span>,
+        <span class="hljs-string">"rate_card_effective_date"</span>: rates.effective_date,
+        <span class="hljs-string">"status"</span>: status,
+        <span class="hljs-string">"error_code"</span>: error_code,
+    }
+    output_path.parent.mkdir(parents=<span class="hljs-literal">True</span>, exist_ok=<span class="hljs-literal">True</span>)
+    <span class="hljs-keyword">with</span> output_path.<span class="hljs-built_in">open</span>(<span class="hljs-string">"a"</span>, encoding=<span class="hljs-string">"utf-8"</span>) <span class="hljs-keyword">as</span> stream:
+        stream.write(json.dumps(record, ensure_ascii=<span class="hljs-literal">False</span>) + <span class="hljs-string">"\n"</span>)
+    <span class="hljs-keyword">return</span> record
+
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">EvalRow</span>:
+    case_id: <span class="hljs-built_in">str</span>
+    passed: <span class="hljs-built_in">bool</span>
+    latency_ms: <span class="hljs-built_in">float</span>
+    cost_usd: Decimal
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">summarize</span>(<span class="hljs-params">rows: <span class="hljs-built_in">list</span>[EvalRow]</span>) -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]:
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> rows:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"Need evaluation rows"</span>)
+    latencies = <span class="hljs-built_in">sorted</span>(row.latency_ms <span class="hljs-keyword">for</span> row <span class="hljs-keyword">in</span> rows)
+    p95_index = <span class="hljs-built_in">max</span>(<span class="hljs-number">0</span>, (<span class="hljs-number">95</span> * <span class="hljs-built_in">len</span>(latencies) + <span class="hljs-number">99</span>) // <span class="hljs-number">100</span> - <span class="hljs-number">1</span>)  <span class="hljs-comment"># nearest-rank</span>
+    <span class="hljs-keyword">return</span> {
+        <span class="hljs-string">"n"</span>: <span class="hljs-built_in">len</span>(rows),
+        <span class="hljs-string">"success_rate"</span>: <span class="hljs-built_in">sum</span>(row.passed <span class="hljs-keyword">for</span> row <span class="hljs-keyword">in</span> rows) / <span class="hljs-built_in">len</span>(rows),
+        <span class="hljs-string">"p50_ms"</span>: median(latencies),
+        <span class="hljs-string">"p95_ms"</span>: latencies[p95_index],
+        <span class="hljs-string">"total_cost_usd"</span>: <span class="hljs-built_in">sum</span>((row.cost_usd <span class="hljs-keyword">for</span> row <span class="hljs-keyword">in</span> rows), Decimal(<span class="hljs-number">0</span>)),
+    }
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">paired_compare</span>(<span class="hljs-params">before: <span class="hljs-built_in">list</span>[EvalRow], after: <span class="hljs-built_in">list</span>[EvalRow]</span>) -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Any</span>]:
+    a = {r.case_id: r <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> before}
+    b = {r.case_id: r <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> after}
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(a) != <span class="hljs-built_in">len</span>(before) <span class="hljs-keyword">or</span> <span class="hljs-built_in">len</span>(b) != <span class="hljs-built_in">len</span>(after) <span class="hljs-keyword">or</span> a.keys() != b.keys():
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"Case IDs must be unique and identical for paired comparison"</span>)
+    wins = <span class="hljs-built_in">sum</span>(<span class="hljs-keyword">not</span> a[k].passed <span class="hljs-keyword">and</span> b[k].passed <span class="hljs-keyword">for</span> k <span class="hljs-keyword">in</span> a)
+    regressions = <span class="hljs-built_in">sum</span>(a[k].passed <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> b[k].passed <span class="hljs-keyword">for</span> k <span class="hljs-keyword">in</span> a)
+    a_summary, b_summary = summarize(before), summarize(after)
+    <span class="hljs-keyword">return</span> {
+        <span class="hljs-string">"before"</span>: a_summary,
+        <span class="hljs-string">"after"</span>: b_summary,
+        <span class="hljs-string">"improved_cases"</span>: wins,
+        <span class="hljs-string">"regressed_cases"</span>: regressions,
+        <span class="hljs-string">"success_rate_delta_pp"</span>: <span class="hljs-number">100</span> * (b_summary[<span class="hljs-string">"success_rate"</span>] - a_summary[<span class="hljs-string">"success_rate"</span>]),
+        <span class="hljs-string">"cost_delta_usd"</span>: b_summary[<span class="hljs-string">"total_cost_usd"</span>] - a_summary[<span class="hljs-string">"total_cost_usd"</span>],
+    }
+
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Tests</span>(unittest.TestCase):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_decimal_order</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-comment"># 19.99 * 3 * 0.85 = 50.9745 -&gt; 50.97; tax 3.0582 -&gt; 3.06</span>
+        <span class="hljs-variable language_">self</span>.assertEqual(order_total(<span class="hljs-string">"19.99"</span>, <span class="hljs-number">3</span>, <span class="hljs-string">"0.15"</span>, <span class="hljs-string">"0.06"</span>), Decimal(<span class="hljs-string">"54.03"</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_money_rejects_bad_discount</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            order_total(<span class="hljs-string">"10"</span>, <span class="hljs-number">1</span>, <span class="hljs-string">"1.5"</span>, <span class="hljs-string">"0.06"</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_evidence_match</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        fact = AuthoritativeFact(<span class="hljs-string">"r1"</span>, <span class="hljs-string">"v1"</span>, <span class="hljs-number">4</span>, <span class="hljs-string">"HP 4"</span>)
+        <span class="hljs-variable language_">self</span>.assertTrue(check_fact(<span class="hljs-number">4</span>, fact))
+        <span class="hljs-variable language_">self</span>.assertFalse(check_fact(<span class="hljs-number">5</span>, fact))
+        <span class="hljs-variable language_">self</span>.assertFalse(check_fact(<span class="hljs-literal">True</span>, fact))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_cost_avoids_double_count</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        u = Usage(<span class="hljs-number">500</span>, <span class="hljs-number">140</span>, <span class="hljs-number">200</span>, <span class="hljs-number">40</span>)
+        r = RateCard(<span class="hljs-string">"demo"</span>, <span class="hljs-string">"2026-11-11"</span>, Decimal(<span class="hljs-string">"0.80"</span>), Decimal(<span class="hljs-string">"0.08"</span>), Decimal(<span class="hljs-string">"3.20"</span>))
+        <span class="hljs-comment"># 300*0.80 + 200*0.08 + 140*3.20 = 704 / 1_000_000</span>
+        <span class="hljs-variable language_">self</span>.assertEqual(estimate_cost(u, r), Decimal(<span class="hljs-string">"0.000704"</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_unknown_usage_is_unknown_cost</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        r = RateCard(<span class="hljs-string">"demo"</span>, <span class="hljs-string">"2026-11-11"</span>, Decimal(<span class="hljs-string">"1"</span>), Decimal(<span class="hljs-string">"0.1"</span>), Decimal(<span class="hljs-string">"2"</span>))
+        <span class="hljs-variable language_">self</span>.assertIsNone(estimate_cost(<span class="hljs-literal">None</span>, r))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_reject_inconsistent_usage</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            Usage(<span class="hljs-number">10</span>, <span class="hljs-number">4</span>, <span class="hljs-number">11</span>, <span class="hljs-number">0</span>)
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            Usage(<span class="hljs-number">10</span>, <span class="hljs-number">4</span>, <span class="hljs-number">0</span>, <span class="hljs-number">5</span>)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_prompt_hash</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.assertEqual(prompt_hash(<span class="hljs-string">"same"</span>), prompt_hash(<span class="hljs-string">"same"</span>))
+        <span class="hljs-variable language_">self</span>.assertNotEqual(prompt_hash(<span class="hljs-string">"same"</span>), prompt_hash(<span class="hljs-string">"different"</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_run_logs_no_raw_prompt</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">from</span> tempfile <span class="hljs-keyword">import</span> TemporaryDirectory
+        <span class="hljs-keyword">with</span> TemporaryDirectory() <span class="hljs-keyword">as</span> tmp:
+            path = Path(tmp) / <span class="hljs-string">"records.jsonl"</span>
+            data = run_example(path)
+            <span class="hljs-variable language_">self</span>.assertEqual(data[<span class="hljs-string">"status"</span>], <span class="hljs-string">"success"</span>)
+            <span class="hljs-variable language_">self</span>.assertIn(<span class="hljs-string">"usage"</span>, data)
+            <span class="hljs-variable language_">self</span>.assertNotIn(<span class="hljs-string">"prompt"</span>, data)
+            <span class="hljs-variable language_">self</span>.assertEqual(json.loads(path.read_text(encoding=<span class="hljs-string">"utf-8"</span>).splitlines()[<span class="hljs-number">0</span>])[<span class="hljs-string">"request_id"</span>], data[<span class="hljs-string">"request_id"</span>])
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_paired_report</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        before = [EvalRow(<span class="hljs-string">f"c<span class="hljs-subst">{i}</span>"</span>, i &lt; <span class="hljs-number">2</span>, <span class="hljs-number">100</span>+i, Decimal(<span class="hljs-string">"0.01"</span>)) <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">4</span>)]
+        after = [EvalRow(<span class="hljs-string">f"c<span class="hljs-subst">{i}</span>"</span>, i &lt; <span class="hljs-number">3</span>, <span class="hljs-number">110</span>+i, Decimal(<span class="hljs-string">"0.02"</span>)) <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">4</span>)]
+        out = paired_compare(before, after)
+        <span class="hljs-variable language_">self</span>.assertEqual(out[<span class="hljs-string">"improved_cases"</span>], <span class="hljs-number">1</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(out[<span class="hljs-string">"regressed_cases"</span>], <span class="hljs-number">0</span>)
+        <span class="hljs-variable language_">self</span>.assertAlmostEqual(out[<span class="hljs-string">"success_rate_delta_pp"</span>], <span class="hljs-number">25.0</span>)
+        <span class="hljs-variable language_">self</span>.assertEqual(out[<span class="hljs-string">"cost_delta_usd"</span>], Decimal(<span class="hljs-string">"0.04"</span>))
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">test_duplicate_pair_ids_rejected</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-literal">None</span>:
+        r = EvalRow(<span class="hljs-string">"a"</span>, <span class="hljs-literal">True</span>, <span class="hljs-number">1</span>, Decimal(<span class="hljs-string">"0"</span>))
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.assertRaises(ValueError):
+            paired_compare([r, r], [r, r])
+
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    unittest.main(verbosity=<span class="hljs-number">2</span>)</code></pre></div><h3 id="section-61">16.2 已执行的离线验证</h3>
+<p>完整代码共包含 10 项 <code>unittest</code> 测试，覆盖：</p>
+<ol>
+<li>折扣、税额的十进制计算结果；</li>
+<li>不合法折扣率的拒绝；</li>
+<li>正确与错误事实值、布尔值类型的区分；</li>
+<li>缓存 Token 与推理 Token 不被重复计费；</li>
+<li>缺失 usage 时成本保持未知；</li>
+<li>异常 Token 用量数据拒绝；</li>
+<li>Prompt 哈希稳定性与差异性；</li>
+<li>JSONL 记录成功写入、原始 Prompt 不出现在日志字段；</li>
+<li>配对评测的改善、退步与成本差异计算；</li>
+<li>重复案例 ID 被阻止，避免不合法的配对比较。</li>
+</ol>
+<p>本地实际执行命令：<code>python verified_example.py</code>。</p>
+<p>验证结果：<strong>10 项测试通过</strong>。这些测试仅说明示例程序的预期本地行为，不证明外部模型的真实性、准确率或外部 API 计费结果。</p>
+<h3 id="section-62">16.3 如何替换成真实模型 API</h3>
+<p>将 <code>FakeModel.generate()</code> 替换为实际 SDK 调用后，应：</p>
+<ul>
+<li>将供应商返回字段映射到统一 <code>Usage</code> 类型，保留原始 provider usage 以便对账；</li>
+<li>从真实响应读取模型 ID、结束原因与可用的后端指纹；</li>
+<li>在 <code>try/finally</code> 中完整记录成功、异常、超时和取消；</li>
+<li>对无法取得最终用量的请求记录 <code>usage_status="missing"</code>；</li>
+<li>使用真实知识数据源进行版本与引用校验；</li>
+<li>用实际有效的费率表记录估算费用；</li>
+<li>让多次模型调用聚合到父业务请求，而不是只记录最后一次。</li>
+</ul>
+<p><strong>不要把模拟的成功次数当作真实模型效果评测。</strong> 真实评测需要运行实际模型并保存每条案例的输出、评定依据和对照结果。</p>
+<hr />
+<h2 id="section-63">17. 常见误区与边界条件</h2>
+<h3 id="section-64">误区 1：“模型会推理，所以可以代替金额计算器。”</h3>
+<p>推理能力和程序执行的确定性不是同一回事。重要数字要经过可验证的规则和代码计算。</p>
+<h3 id="section-65">误区 2：“模型给出了来源链接，事实就一定正确。”</h3>
+<p>引用只是定位线索。事实必须核实来源内容、版本、适用范围和支持关系。</p>
+<h3 id="section-66">误区 3：“<code>temperature=0</code> 可以保证任何一次输出都完全相同。”</h3>
+<p>低温可以减少某些随机性，但不能保证所有模型、服务路由、硬件与 API 版本下都逐字确定。</p>
+<h3 id="section-67">误区 4：“记录模型名和 Prompt 就可以百分百复现。”</h3>
+<p>还需要考虑实际检索资料、工具返回、配置、模型后端版本、外部系统时间和潜在非确定性。</p>
+<h3 id="section-68">误区 5：“模型输出的 reasoning_tokens 应加到 output_tokens 上。”</h3>
+<p>对于将推理 Token 作为输出明细子项的 API，这是重复计数。必须先确认供应商口径。</p>
+<h3 id="section-69">误区 6：“<code>cached_tokens</code> 是输入总量之外的新 Token。”</h3>
+<p>在常见的 OpenAI/DeepSeek 用量结构中，缓存输入包含在输入 Token 总量内；成本计算时应拆分价格，不应重复加总。</p>
+<h3 id="section-70">误区 7：“没有拿到 usage 就代表没有费用。”</h3>
+<p>流式中断、网络超时或工具故障可能导致客户端缺失统计。未知应记为未知，按账单对账。</p>
+<h3 id="section-71">误区 8：“模型平均响应更快，所以用户体验一定更好。”</h3>
+<p>慢请求尾部、首字延迟、失败率、输出质量和排队延迟都可能改变用户体验。</p>
+<h3 id="section-72">误区 9：“新 Prompt 在一次问题上更好，说明整体提升。”</h3>
+<p>必须在相同评测集上比较，并关注回归案例。关键任务的单项严重退步可能高于总体提升价值。</p>
+<h3 id="section-73">误区 10：“只存模型请求内容才能查问题。”</h3>
+<p>元数据、请求 ID、提示词版本、资料版本、结构化错误和安全的可复现样本往往足以定位许多问题。完整原文日志应经过必要性、安全和权限评估。</p>
+<hr />
+<h2 id="section-74">18. 参考文献与术语</h2>
+<h3 id="section-75">18.1 官方技术资料（访问与核对基准：2026-11-11）</h3>
+<ol>
+<li>OpenAI — <strong>Counting tokens</strong>：输入与输出 Token 统计及不可见输出部分。<br /><a href="https://developers.openai.com/api/docs/guides/token-counting">https://developers.openai.com/api/docs/guides/token-counting</a></li>
+<li>OpenAI — <strong>Reasoning models</strong>：<code>output_tokens_details.reasoning_tokens</code> 的含义及生成限制。<br /><a href="https://developers.openai.com/api/docs/guides/reasoning">https://developers.openai.com/api/docs/guides/reasoning</a></li>
+<li>OpenAI — <strong>Evaluation best practices</strong>：评测集设计、配对分析、人工与模型评分。<br /><a href="https://developers.openai.com/api/docs/guides/evaluation-best-practices">https://developers.openai.com/api/docs/guides/evaluation-best-practices</a></li>
+<li>OpenAI — <strong>API Pricing</strong>：真实费用需要查询当期模型、模式、缓存与工具价格；不要使用本文虚构演示价格代替。<br /><a href="https://platform.openai.com/pricing/">https://platform.openai.com/pricing/</a></li>
+<li>DeepSeek — <strong>Chat Completions API</strong>：<code>usage.prompt_tokens</code>、<code>prompt_cache_hit_tokens</code>、<code>completion_tokens</code> 和实际模型字段。<br /><a href="https://api-docs.deepseek.com/api/create-chat-completion/">https://api-docs.deepseek.com/api/create-chat-completion/</a></li>
+<li>DeepSeek — <strong>Responses API</strong>：输入/输出用量、缓存与推理用量子字段，以及流式终止事件。<br /><a href="https://api-docs.deepseek.com/api/create-response/">https://api-docs.deepseek.com/api/create-response/</a></li>
+<li>OpenTelemetry — <strong>Python Instrumentation</strong>：Trace、Span、Metric 与可观测性接口。<br /><a href="https://opentelemetry.io/docs/languages/python/instrumentation/">https://opentelemetry.io/docs/languages/python/instrumentation/</a></li>
+<li>OpenTelemetry — <strong>Handling sensitive data</strong>：遥测敏感数据最小化、过滤和脱敏原则。<br /><a href="https://opentelemetry.io/docs/security/handling-sensitive-data/">https://opentelemetry.io/docs/security/handling-sensitive-data/</a></li>
+<li>Python 官方文档 — <strong>decimal</strong>：十进制计算、量化和舍入。<br /><a href="https://docs.python.org/3/library/decimal.html">https://docs.python.org/3/library/decimal.html</a></li>
+<li>Python 官方文档 — <strong>time.perf_counter</strong>：测量经过时长的高精度计时器。<br />   <a href="https://docs.python.org/3/library/time.html#time.perf_counter">https://docs.python.org/3/library/time.html#time.perf_counter</a></li>
+</ol>
+<blockquote>
+<p>特别说明：OpenAI 评测平台的具体 API 与产品生命周期可能更新。本文采用供应商无关的离线配对评测方法，避免将知识体系绑定到某个可能变更的评测平台接口。</p>
+</blockquote>
+<h3 id="section-76">18.2 术语速查</h3>
+<table>
+<thead>
+<tr>
+<th>术语</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Deterministic Computation</td>
+<td>给定同样输入与规则，计算得到可重复结果的程序化过程</td>
+</tr>
+<tr>
+<td>Provenance</td>
+<td>数据或结论从哪里来、经过怎样处理的来源链</td>
+</tr>
+<tr>
+<td>Ground Truth</td>
+<td>经过定义和核验的评测参考事实或标准答案</td>
+</tr>
+<tr>
+<td>Prompt Version</td>
+<td>提示词模板及相关行为规则的版本</td>
+</tr>
+<tr>
+<td>Fingerprint</td>
+<td>提示词、资料或供应商后端状态的特征标识；不等同严格复现保证</td>
+</tr>
+<tr>
+<td>Usage</td>
+<td>模型调用资源消耗统计，主要包括各类 Token 和工具使用</td>
+</tr>
+<tr>
+<td>TTFT</td>
+<td>Time To First Token，首个有意义文本增量的延迟，具体测量口径应注明</td>
+</tr>
+<tr>
+<td>p95</td>
+<td>在给定分位数定义下，约 95% 样本不超过的统计位置</td>
+</tr>
+<tr>
+<td>Pairwise Evaluation</td>
+<td>使用同一案例成对比较两个模型或提示词版本</td>
+</tr>
+<tr>
+<td>Regression</td>
+<td>改动后此前正确的案例变成错误或质量退步</td>
+</tr>
+<tr>
+<td>Cost per Success</td>
+<td>总资源花费除以成功业务任务数</td>
+</tr>
+<tr>
+<td>Telemetry</td>
+<td>用于观测系统行为的追踪、指标和日志数据</td>
+</tr>
+</tbody></table>
+<hr />
+<p><strong>本节结论</strong>：可靠的 AI 应用不能只有“生成回答”。它必须能够证明重要数字来自确定性计算，重要事实来自可追踪的资料，并对每次模型调用保留足以解释质量、延迟和成本变化的元数据。只有使用相同测试集并同时衡量正确率、风险、耗时与费用，才能判断一次修改是否真正有益。</p>

@@ -1,0 +1,30 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>P02-Python-FastAPI-PostgreSQL-Agno调用链.md</title><link rel="stylesheet" href="/bookshelf/style.css"><body style="padding:24px;max-width:1050px;margin:auto"><a href="/?page=bookshelf&shelf=review">← 文档导航QA</a><article class="article"><h1>P02 Python-FastAPI-PostgreSQL-Agno调用链</h1>
+<blockquote>
+<p>1.10补充（2026-11-14）：正文去除可见Markdown标记与源码位置，引用改为回答末尾按钮展开；原始正文、来源、行号和版本仍保留。此次前端22项、后端相关49项通过，旧1.9完整32条真实回归仍是历史证据，不冒充新提示词的全量实测。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F1.10-%E5%9B%9E%E7%AD%94%E5%B1%95%E7%A4%BA%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8E%92%E6%9F%A5-20261114.md">1.10报告</a>。</p>
+</blockquote>
+<p>核对日期：2026-11-14。代码基线：1.9（<code>7453cd3673b02d52b110b16503d283e97e3dac9a</code>）。</p>
+<p>状态：<strong>已实现，已有容器与真实模型证据</strong>。</p>
+<h2>对应要求（原段要点，转述）</h2>
+<p>使用指定技术栈，打通用户输入、模型调用、工具执行和结果持久化。</p>
+<p>来源：<a href="https://biteagle.yuque.com/mw0520/rzyee0/ay7550zlq5vyq27t#ue59711c5">故剑遗学习目标 · 功能要求 · 本段</a>。
+对应编号：P02。原段SHA256：<code>55e955947974cc2a2a8850fe0e2c6cabf9dea763d0d2b7887aba1ef6dea93168</code>。</p>
+<p>这是原文一个段落的对应回答。要点使用转述；原段定位和哈希用于复核边界，不把此处概括当作公司新要求。</p>
+<h2>回答</h2>
+<p>本项目已经打通这条链路：React输入通过FastAPI进入应用，校验身份和会话归属后创建Run；Runtime使用Agno异步调用模型与受控工具；工具回执、最终正文、引用、用量和状态写入PostgreSQL，网页从SSE或轮询读取结果。</p>
+<h2>本项目如何实现</h2>
+<p>主要入口在<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fmain.py">main.py</a>的create_app、create_run与受理接口。模型执行在<a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fruntime.py">runtime.py</a>的Runtime.execute：Agno负责模型/工具循环，应用负责权限、预算、取消和最终保存。</p>
+<p>网页默认发送<code>POST /sessions/{id}/submissions</code>，先返回202和run_id，本机再GET运行事件流，公网轮询<code>GET /runs/{id}</code>。历史<code>POST /sessions/{id}/runs</code>流式接口仍用于评测。消息及Run先落库，不能把HTTP已受理等同于模型已完成。</p>
+<h2>已有验证与证据</h2>
+<ul>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=backend%2Fapp%2Fmodels.py">数据库模型</a>：ChatSession、Message、Run、ToolCall、UsageRecord等。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=evaluations%2Fresults%2Flive-v19-full-04%2Fresults.jsonl">真实运行</a>：可查model_mode、model_id、prompt_version、tool_calls与usage。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv19-final-r4-runtime-source.json">部署核对</a>：正式与隔离评测容器业务字节相符、安装版本1.9.0。</li>
+<li><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv19-browser-recovery-05%2Fsaved-run.json">公网保存运行</a>：实际live请求与工具/持久化结果。</li>
+</ul>
+<p>证据按各自原日期与运行模式解释。本次建立QA文档未新增付费模型评测或故障注入；已有测试通过也不等于公司正式验收通过。</p>
+<h2>怎样核对或演示</h2>
+<p>挑选一个已保存run_id，依次对照用户输入、ToolCall、回答引用、最终status和用量。现场查看时用有效身份查询自己的运行，不新建付费请求来证明已经存在的记录。</p>
+<h2>结论与边界</h2>
+<p>原轻归仅提供获授权的模型服务配置来源，运行不依赖其聊天进程或数据库。本机轻量演示会用SQLite和模型替身，不能据此声称PostgreSQL/真实模型链路已经验证；证据中的模式必须分别检查。</p>
+<p><a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2F%E5%AE%9E%E6%88%98QA%2F00-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%8C%81%E7%BB%AD%E7%BB%B4%E6%8A%A4.md">返回目录与维护说明</a></p>
+</article></body></html>

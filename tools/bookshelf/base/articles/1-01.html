@@ -1,0 +1,640 @@
+<h1 id="section-1">Python 基础与工程知识详解</h1>
+<blockquote>
+<p><strong>对应学习目标</strong>：Python 的模块、函数、类、类型标注、异常、上下文管理器，以及虚拟环境和依赖管理。结合已有的 C++、JavaScript 经验，重点理解 Python 的差异。</p>
+<p><strong>适用范围</strong>：Python 3.10+；示例以 Python 3.13 兼容写法为主。本篇聚焦语言与工程基础，不展开 <code>asyncio</code> 的协程调度与并发机制。</p>
+</blockquote>
+<h2 id="section-2">1. Python 的运行与对象模型</h2>
+<h3 id="section-3">1.1 语言类型与执行方式</h3>
+<p>Python 通常被称为<strong>动态类型、强类型、支持多范式</strong>的语言：</p>
+<ul>
+<li><strong>动态类型</strong>：变量名没有不可改变的静态类型；运行时对象有类型。<code>x = 1</code> 后可以执行 <code>x = "hello"</code>。</li>
+<li><strong>强类型</strong>：不会在所有场景自动把不兼容的类型转换成另一种类型。例如 <code>1 + "2"</code> 会产生 <code>TypeError</code>。</li>
+<li><strong>多范式</strong>：同时支持过程式、面向对象和函数式风格。</li>
+<li><strong>解释执行与字节码</strong>：以常见的 CPython 为例，源码通常编译为字节码，由 Python 虚拟机执行；因此“解释型语言”不意味着完全没有编译过程。</li>
+</ul>
+<p>Python 使用<strong>缩进</strong>表示代码块，而 C++、JavaScript 主要使用花括号。冒号 <code>:</code> 引出代码块。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">if</span> <span class="hljs-literal">True</span>:
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"inside"</span>)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"outside"</span>)</code></pre></div><h3 id="section-4">1.2 变量名绑定对象，而不是将类型写死在变量上</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">x = [<span class="hljs-number">1</span>, <span class="hljs-number">2</span>]
+y = x
+x.append(<span class="hljs-number">3</span>)
+<span class="hljs-built_in">print</span>(y)  <span class="hljs-comment"># [1, 2, 3]</span></code></pre></div><p><code>x</code> 和 <code>y</code> 指向同一个可变列表对象。这与 JavaScript 的数组对象引用相近；和 C++ 中 <code>std::vector&lt;int&gt; y = x</code> 默认复制一个独立容器不同。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">x = <span class="hljs-number">10</span>
+y = x
+x = <span class="hljs-number">20</span>
+<span class="hljs-built_in">print</span>(y)  <span class="hljs-comment"># 10</span></code></pre></div><p>第二个例子中，<code>x = 20</code> 是让名称 <code>x</code> 重新绑定到整数对象，而不是修改原对象。常用的不可变类型包括 <code>int</code>、<code>str</code>、<code>tuple</code>；常用的可变类型包括 <code>list</code>、<code>dict</code>、<code>set</code>。<strong>元组不可变仅指其元素引用不能被重新赋值，元组内部仍可能包含可变对象。</strong></p>
+<p>Python 函数参数传递的核心也是<strong>对象引用的绑定（共享传参，call by sharing）</strong>：函数可以修改被传入的可变对象，但给形参重新赋值不会改变调用方的变量绑定。</p>
+<h3 id="section-5">1.3 与 C++、JavaScript 的核心差异</h3>
+<table>
+<thead>
+<tr>
+<th>主题</th>
+<th>C++</th>
+<th>JavaScript</th>
+<th>Python</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>变量与类型</td>
+<td>变量通常具有编译期类型</td>
+<td>动态类型，TypeScript 可静态检查</td>
+<td>动态类型，Type Hints 可静态检查</td>
+</tr>
+<tr>
+<td>对象内存</td>
+<td>值、引用、指针及明确的对象生命周期</td>
+<td>对象通常经引用访问并由 GC 管理</td>
+<td>名称绑定对象，常见 CPython 使用引用计数和循环 GC</td>
+</tr>
+<tr>
+<td>代码块</td>
+<td><code>{}</code></td>
+<td><code>{}</code></td>
+<td>缩进</td>
+</tr>
+<tr>
+<td>函数</td>
+<td>函数、重载、模板</td>
+<td>函数是一等值</td>
+<td>函数是一等对象，广泛使用装饰器</td>
+</tr>
+<tr>
+<td>模块化</td>
+<td>头文件、库、C++ Modules</td>
+<td>ESM <code>import</code> / <code>export</code></td>
+<td><code>.py</code> 模块与包、<code>import</code></td>
+</tr>
+<tr>
+<td>类型检查</td>
+<td>主要在编译期</td>
+<td>JS 默认运行时，TS 静态检查</td>
+<td>标注通常不由解释器强制检查</td>
+</tr>
+<tr>
+<td>异常</td>
+<td><code>try</code> / <code>catch</code></td>
+<td><code>try</code> / <code>catch</code></td>
+<td><code>try</code> / <code>except</code></td>
+</tr>
+<tr>
+<td>资源清理</td>
+<td>RAII、析构函数</td>
+<td><code>finally</code>、资源管理 API</td>
+<td><code>with</code> / <code>async with</code></td>
+</tr>
+<tr>
+<td>依赖</td>
+<td>vcpkg、Conan、CMake 等</td>
+<td>npm、pnpm、lockfile</td>
+<td>venv、pip、uv、pyproject.toml、lockfile</td>
+</tr>
+</tbody></table>
+<p>Python 的 <code>None</code> 类似 JavaScript 的 <code>null</code>，但 Python 没有 JS <code>undefined</code> 的直接等价物；访问不存在的变量名通常会抛出 <code>NameError</code>。</p>
+<hr />
+<h2 id="section-6">2. 模块（Module）与包（Package）</h2>
+<h3 id="section-7">2.1 模块的概念</h3>
+<p>在普通工程中，一个 <code>.py</code> 文件通常是一个 Python 模块。模块让函数、类、常量组织在独立命名空间内。</p>
+<p>文件结构：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">project/
+├── main.py
+└── calculations.py</code></pre></div><p><code>calculations.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">add</span>(<span class="hljs-params">a: <span class="hljs-built_in">int</span>, b: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">int</span>:
+    <span class="hljs-keyword">return</span> a + b
+
+PI = <span class="hljs-number">3.14159</span></code></pre></div><p><code>main.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> calculations
+<span class="hljs-keyword">from</span> calculations <span class="hljs-keyword">import</span> add
+
+<span class="hljs-built_in">print</span>(calculations.PI)
+<span class="hljs-built_in">print</span>(add(<span class="hljs-number">2</span>, <span class="hljs-number">3</span>))</code></pre></div><p><code>import calculations</code> 导入模块对象，调用时使用 <code>calculations.add(...)</code>；<code>from calculations import add</code> 则把 <code>add</code> 这个名称绑定到当前模块命名空间。<code>from module import *</code> 可能污染命名空间，通常不适合维护性要求较高的业务代码。</p>
+<h3 id="section-8">2.2 包的概念及 <code>__init__.py</code></h3>
+<p>包是具有层级的模块命名空间。常见工程布局：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">project/
+├── pyproject.toml
+└── app/
+    ├── __init__.py
+    ├── main.py
+    ├── api/
+    │   ├── __init__.py
+    │   └── chat.py
+    └── services/
+        ├── __init__.py
+        └── llm.py</code></pre></div><p>在 <code>app/api/chat.py</code> 中：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> app.services.llm <span class="hljs-keyword">import</span> call_model</code></pre></div><p><code>__init__.py</code> 可用于表明传统的常规包、执行包初始化代码、定义对外导出接口。<strong>它不是所有包都强制需要的</strong>：Python 还支持没有 <code>__init__.py</code> 的命名空间包。不过，项目学习初期采用清晰的普通包结构通常更容易理解。</p>
+<h3 id="section-9">2.3 导入机制与执行边界</h3>
+<p>导入模块时，Python 会搜索模块、创建并初始化模块对象，并执行模块顶层代码。模块通常缓存于 <code>sys.modules</code>，后续导入可能直接复用缓存对象，而不是每次重新执行顶层代码。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-comment"># demo.py</span>
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"module initialized"</span>)
+VALUE = <span class="hljs-number">42</span></code></pre></div><p>在同一解释器进程中重复 <code>import demo</code>，通常只打印一次初始化消息。</p>
+<p>由此带来三类典型问题：</p>
+<ol>
+<li><strong>导入副作用</strong>：模块顶层直接启动网络连接、运行数据库迁移或发送请求，会使任何导入者都触发这些行为。</li>
+<li><strong>循环导入</strong>：A 初始化时导入 B，B 又尝试访问尚未初始化完成的 A，可能抛出导入错误。</li>
+<li><strong>名称遮蔽</strong>：项目文件命名为 <code>json.py</code>、<code>typing.py</code> 等，可能意外覆盖标准库同名模块的查找结果。</li>
+</ol>
+<p>入口保护：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"start"</span>)
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    main()</code></pre></div><p>作为脚本直接执行时，<code>__name__</code> 为 <code>"__main__"</code>；作为模块导入时通常是其模块限定名。对于包内入口，常见运行形式是从项目根目录执行 <code>python -m app.main</code>，这有助于维持稳定的包导入语义。</p>
+<p><strong>与 JavaScript 对比</strong>：Python <code>import</code> 同样具有模块初始化与缓存行为，但模块解析规则、包布局、相对导入语法与 Node.js/浏览器 ESM 不完全相同。<strong>与 C++ 对比</strong>：Python <code>import</code> 不等价于文本包含式 <code>#include</code>。</p>
+<hr />
+<h2 id="section-10">3. 函数（Function）与参数语义</h2>
+<h3 id="section-11">3.1 函数定义及一等对象</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">calculate_total</span>(<span class="hljs-params">price: <span class="hljs-built_in">float</span>, quantity: <span class="hljs-built_in">int</span> = <span class="hljs-number">1</span></span>) -&gt; <span class="hljs-built_in">float</span>:
+    <span class="hljs-keyword">return</span> price * quantity
+
+operation = calculate_total
+<span class="hljs-built_in">print</span>(operation(<span class="hljs-number">12.5</span>, <span class="hljs-number">2</span>))  <span class="hljs-comment"># 25.0</span></code></pre></div><p><code>def</code> 语句创建函数对象并将其绑定到一个名称。函数可以赋值、传参和作为返回值，与 JavaScript 函数类似。</p>
+<p>C++ 对照：</p>
+<div class="code-wrap"><div class="code-label"><span>cpp</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-function"><span class="hljs-type">double</span> <span class="hljs-title">calculate_total</span><span class="hljs-params">(<span class="hljs-type">double</span> price, <span class="hljs-type">int</span> quantity = <span class="hljs-number">1</span>)</span> </span>{
+    <span class="hljs-keyword">return</span> price * quantity;
+}</code></pre></div><p>JavaScript 对照：</p>
+<div class="code-wrap"><div class="code-label"><span>javascript</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">function</span> <span class="hljs-title function_">calculateTotal</span>(<span class="hljs-params">price, quantity = <span class="hljs-number">1</span></span>) {
+  <span class="hljs-keyword">return</span> price * quantity;
+}</code></pre></div><p>Python 的参数类型与返回类型标注并不会自动执行运行时校验。</p>
+<h3 id="section-12">3.2 位置参数、关键字参数与默认参数</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">connect</span>(<span class="hljs-params">host: <span class="hljs-built_in">str</span>, port: <span class="hljs-built_in">int</span> = <span class="hljs-number">5432</span>, *, timeout: <span class="hljs-built_in">float</span> = <span class="hljs-number">5.0</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> <span class="hljs-string">f"<span class="hljs-subst">{host}</span>:<span class="hljs-subst">{port}</span>, timeout=<span class="hljs-subst">{timeout}</span>"</span>
+
+connect(<span class="hljs-string">"localhost"</span>, <span class="hljs-number">5432</span>, timeout=<span class="hljs-number">10.0</span>)</code></pre></div><p><code>*</code> 后面的 <code>timeout</code> 是<strong>仅限关键字参数</strong>。还有 <code>/</code> 可以标记仅限位置参数，常用于明确 API 约定。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">example</span>(<span class="hljs-params">a, /, b, *, c</span>):
+    <span class="hljs-keyword">return</span> a + b + c
+
+example(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, c=<span class="hljs-number">3</span>)</code></pre></div><p>Python 可通过 <code>*args</code> 接收可变数量的位置参数（元组），通过 <code>**kwargs</code> 接收额外关键字参数（字典）：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">collect</span>(<span class="hljs-params">*args: <span class="hljs-built_in">object</span>, **kwargs: <span class="hljs-built_in">object</span></span>) -&gt; <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">tuple</span>, <span class="hljs-built_in">dict</span>]:
+    <span class="hljs-keyword">return</span> args, kwargs
+
+<span class="hljs-built_in">print</span>(collect(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, mode=<span class="hljs-string">"fast"</span>))</code></pre></div><h3 id="section-13">3.3 默认参数在函数定义时求值</h3>
+<p>错误示例：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">add_message</span>(<span class="hljs-params">message: <span class="hljs-built_in">str</span>, history: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []</span>) -&gt; <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>]:
+    history.append(message)
+    <span class="hljs-keyword">return</span> history</code></pre></div><p>这个默认列表在函数定义时建立，并被后续调用复用，因此可能使互不相关的调用共享同一列表。</p>
+<p>正确写法：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">add_message</span>(<span class="hljs-params">message: <span class="hljs-built_in">str</span>, history: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span></span>) -&gt; <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>]:
+    <span class="hljs-keyword">if</span> history <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        history = []
+    history.append(message)
+    <span class="hljs-keyword">return</span> history</code></pre></div><p>这与许多 JavaScript 开发者的直觉不同：JavaScript 的默认参数表达式在每次调用且参数为 <code>undefined</code> 时求值，而 Python 默认参数表达式一般在定义函数时求值。C++ 默认参数规则也不同：默认实参通常在调用点使用，不应类比为 Python 中被持久保存的列表对象。</p>
+<h3 id="section-14">3.4 作用域、闭包与装饰器</h3>
+<p>Python 常见名称解析遵循 <strong>LEGB</strong>：Local（局部）、Enclosing（外围函数）、Global（模块全局）、Built-in（内置）。<code>global</code> 与 <code>nonlocal</code> 用于显式改变赋值所作用的名称绑定范围。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">make_counter</span>():
+    count = <span class="hljs-number">0</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">increment</span>():
+        <span class="hljs-keyword">nonlocal</span> count
+        count += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">return</span> count
+
+    <span class="hljs-keyword">return</span> increment
+
+counter = make_counter()
+<span class="hljs-built_in">print</span>(counter())  <span class="hljs-comment"># 1</span>
+<span class="hljs-built_in">print</span>(counter())  <span class="hljs-comment"># 2</span></code></pre></div><p>函数还可以使用装饰器包装行为：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> functools <span class="hljs-keyword">import</span> wraps
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">log_call</span>(<span class="hljs-params">func</span>):
+<span class="hljs-meta">    @wraps(<span class="hljs-params">func</span>)</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">wrapper</span>(<span class="hljs-params">*args, **kwargs</span>):
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">f"calling <span class="hljs-subst">{func.__name__}</span>"</span>)
+        <span class="hljs-keyword">return</span> func(*args, **kwargs)
+    <span class="hljs-keyword">return</span> wrapper
+
+<span class="hljs-meta">@log_call</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">greet</span>(<span class="hljs-params">name: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> <span class="hljs-string">f"hello, <span class="hljs-subst">{name}</span>"</span></code></pre></div><p><code>@log_call</code> 的本质相当于在函数定义后执行 <code>greet = log_call(greet)</code>。FastAPI 中的路由装饰器也利用了装饰器语法，但其内部机制是注册路由，不等同于上述包装示例。</p>
+<hr />
+<h2 id="section-15">4. 类（Class）、对象与数据模型</h2>
+<h3 id="section-16">4.1 实例、初始化与 <code>self</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">class</span> <span class="hljs-title class_">ModelClient</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, model_name: <span class="hljs-built_in">str</span></span>):
+        <span class="hljs-variable language_">self</span>.model_name = model_name
+        <span class="hljs-variable language_">self</span>.request_count = <span class="hljs-number">0</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">describe</span>(<span class="hljs-params">self</span>) -&gt; <span class="hljs-built_in">str</span>:
+        <span class="hljs-variable language_">self</span>.request_count += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-string">f"model=<span class="hljs-subst">{self.model_name}</span>"</span>
+
+client = ModelClient(<span class="hljs-string">"demo-model"</span>)
+<span class="hljs-built_in">print</span>(client.describe())</code></pre></div><ul>
+<li><code>__init__</code> 负责初始化实例；它不是直接负责分配对象的 <code>__new__</code>。</li>
+<li><code>self</code> 是实例方法中的第一个参数的惯用名称，含义类似 C++ 的 <code>this</code>，但在 Python 定义中显式写出。</li>
+<li><code>client.describe()</code> 会在方法绑定后把 <code>client</code> 作为 <code>self</code> 提供。</li>
+</ul>
+<h3 id="section-17">4.2 类属性与实例属性的共享陷阱</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">class</span> <span class="hljs-title class_">BadConversation</span>:
+    messages = []  <span class="hljs-comment"># 这是类属性，实例之间默认共享</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Conversation</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.messages = []  <span class="hljs-comment"># 每个实例自己的列表</span></code></pre></div><p>Python 实例查找属性时可回退到类属性。若共享的是可变容器，直接修改该容器可能影响所有实例。与 JavaScript 原型上的共享对象有相似风险。</p>
+<h3 id="section-18">4.3 方法种类与继承</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">class</span> <span class="hljs-title class_">Service</span>:
+    provider = <span class="hljs-string">"demo"</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">instance_method</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.provider
+
+<span class="hljs-meta">    @classmethod</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">class_method</span>(<span class="hljs-params">cls</span>):
+        <span class="hljs-keyword">return</span> cls.provider
+
+<span class="hljs-meta">    @staticmethod</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">static_method</span>(<span class="hljs-params">value: <span class="hljs-built_in">int</span></span>):
+        <span class="hljs-keyword">return</span> value * <span class="hljs-number">2</span></code></pre></div><ul>
+<li>实例方法接收 <code>self</code>。</li>
+<li>类方法接收 <code>cls</code>，适用于依赖类本身的工厂逻辑等。</li>
+<li>静态方法不自动接收实例或类。</li>
+</ul>
+<p>Python 支持多重继承和 MRO（方法解析顺序），但业务设计中不应滥用复杂继承层次。<code>super()</code> 按 MRO 协作调用父级实现，而不是简单固定为“直接父类”的别名。</p>
+<h3 id="section-19">4.4 <code>dataclass</code> 与 Pydantic 的区别</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass, field
+
+<span class="hljs-meta">@dataclass</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Session</span>:
+    user_id: <span class="hljs-built_in">int</span>
+    messages: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = field(default_factory=<span class="hljs-built_in">list</span>)</code></pre></div><p><code>@dataclass</code> 能自动生成 <code>__init__</code>、<code>__repr__</code>、比较等常用方法；<code>default_factory=list</code> 为每个实例创建独立列表。</p>
+<p><code>dataclass</code> 不是运行时外部输入校验器。相比之下，Pydantic 的 <code>BaseModel</code> 主要适合解析和验证接口、配置、模型输出等外部数据：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> pydantic <span class="hljs-keyword">import</span> BaseModel, Field
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ChatRequest</span>(<span class="hljs-title class_ inherited__">BaseModel</span>):
+    user_id: <span class="hljs-built_in">int</span>
+    content: <span class="hljs-built_in">str</span> = Field(min_length=<span class="hljs-number">1</span>, max_length=<span class="hljs-number">2000</span>)</code></pre></div><p>Pydantic 默认可能执行类型转换；严格模式与业务约束需要根据接口需求另行配置。</p>
+<hr />
+<h2 id="section-20">5. 类型标注（Type Hints）与类型检查边界</h2>
+<h3 id="section-21">5.1 静态提示，不等于运行时强制校验</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">def</span> <span class="hljs-title function_">add</span>(<span class="hljs-params">a: <span class="hljs-built_in">int</span>, b: <span class="hljs-built_in">int</span></span>) -&gt; <span class="hljs-built_in">int</span>:
+    <span class="hljs-keyword">return</span> a + b
+
+<span class="hljs-built_in">print</span>(add(<span class="hljs-string">"hello"</span>, <span class="hljs-string">" world"</span>))  <span class="hljs-comment"># 运行时可以拼接字符串</span></code></pre></div><p>该调用违反了函数声明的静态类型契约，但 Python 运行时通常不会因标注自动阻止。<strong>Python 类型标注主要服务于人类读者、编辑器、静态检查器（如 mypy、Pyright）及使用标注的框架。</strong></p>
+<h3 id="section-22">5.2 常见标注表达式</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">name: <span class="hljs-built_in">str</span> = <span class="hljs-string">"Alice"</span>
+count: <span class="hljs-built_in">int</span> = <span class="hljs-number">3</span>
+scores: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">float</span>] = [<span class="hljs-number">95.5</span>, <span class="hljs-number">88.0</span>]
+index: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">int</span>] = {<span class="hljs-string">"A"</span>: <span class="hljs-number">1</span>}
+position: <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">int</span>, <span class="hljs-built_in">int</span>] = (<span class="hljs-number">10</span>, <span class="hljs-number">20</span>)
+maybe_name: <span class="hljs-built_in">str</span> | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span></code></pre></div><ul>
+<li><code>list[str]</code> 是元素为字符串的列表的静态表达。</li>
+<li><code>str | None</code> 是联合类型写法，Python 3.10+ 支持。</li>
+<li><code>Any</code> 表示对静态类型检查几乎不设约束，不应滥用。</li>
+<li><code>TypedDict</code> 可描述固定键结构的字典，<code>Protocol</code> 可描述结构化接口（类似 TypeScript 的结构类型）。</li>
+</ul>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> typing <span class="hljs-keyword">import</span> TypedDict, Protocol
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UserRecord</span>(<span class="hljs-title class_ inherited__">TypedDict</span>):
+    <span class="hljs-built_in">id</span>: <span class="hljs-built_in">int</span>
+    name: <span class="hljs-built_in">str</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Sender</span>(<span class="hljs-title class_ inherited__">Protocol</span>):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">send</span>(<span class="hljs-params">self, text: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-literal">None</span>: ...</code></pre></div><p><code>TypedDict</code> 本身不会在运行时把普通字典变成会自动验证的对象。<code>Protocol</code> 的主要用途是静态描述“具备哪些方法/属性”即可满足接口，而不必显式继承同一基类。</p>
+<h3 id="section-23">5.3 类型系统、数据校验、业务正确性不是一回事</h3>
+<table>
+<thead>
+<tr>
+<th>层次</th>
+<th>处理的问题</th>
+<th>典型工具</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>静态类型检查</td>
+<td>调用签名、类型匹配、潜在误用</td>
+<td>Pyright、mypy</td>
+</tr>
+<tr>
+<td>运行时结构校验</td>
+<td>字段是否存在、字符串长度、数字范围</td>
+<td>Pydantic</td>
+</tr>
+<tr>
+<td>业务语义校验</td>
+<td>角色是否存在、用户是否有权限、版本是否匹配</td>
+<td>业务服务与数据库约束</td>
+</tr>
+<tr>
+<td>外部事实核验</td>
+<td>模型生成的事实是否真实</td>
+<td>数据库、检索资料、实际工具结果</td>
+</tr>
+</tbody></table>
+<p>即使模型输出符合 JSON Schema，也不能证明其内容为真。对 AI 应用而言，这些层次必须明确分开。</p>
+<hr />
+<h2 id="section-24">6. 异常（Exception）与错误传播</h2>
+<h3 id="section-25">6.1 异常的传递机制</h3>
+<p>当代码执行 <code>raise</code> 时，当前正常控制流被中断；运行时沿调用栈寻找可处理该异常的 <code>except</code>。如果没有合适的处理器，异常继续向上传播。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">class</span> <span class="hljs-title class_">ModelServiceError</span>(<span class="hljs-title class_ inherited__">Exception</span>):
+    <span class="hljs-keyword">pass</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">parse_prompt</span>(<span class="hljs-params">prompt: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> prompt.strip():
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"prompt must not be empty"</span>)
+    <span class="hljs-keyword">return</span> prompt.strip()
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">service_call</span>(<span class="hljs-params">prompt: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">return</span> parse_prompt(prompt)
+    <span class="hljs-keyword">except</span> ValueError <span class="hljs-keyword">as</span> exc:
+        <span class="hljs-keyword">raise</span> ModelServiceError(<span class="hljs-string">"invalid model request"</span>) <span class="hljs-keyword">from</span> exc</code></pre></div><p><code>raise ... from exc</code> 建立异常链，保留原始原因，有利于定位问题。与 JavaScript 的 <code>throw</code>、C++ 的 <code>throw</code> 概念相近，但 Python 用 <code>except</code> 而非 <code>catch</code>。</p>
+<h3 id="section-26">6.2 <code>try</code>、<code>except</code>、<code>else</code>、<code>finally</code></h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">try</span>:
+    result = <span class="hljs-built_in">int</span>(<span class="hljs-string">"42"</span>)
+<span class="hljs-keyword">except</span> ValueError <span class="hljs-keyword">as</span> exc:
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">f"parse failed: <span class="hljs-subst">{exc}</span>"</span>)
+<span class="hljs-keyword">else</span>:
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">f"parsed: <span class="hljs-subst">{result}</span>"</span>)  <span class="hljs-comment"># try 块没有抛异常时执行</span>
+<span class="hljs-keyword">finally</span>:
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"cleanup"</span>)        <span class="hljs-comment"># 无论正常还是异常，通常都会执行</span></code></pre></div><p><code>finally</code> 适用于清理操作；不要在 <code>finally</code> 中随意 <code>return</code>，否则可能覆盖原本的返回值或异常。</p>
+<h3 id="section-27">6.3 错误分类与处理边界</h3>
+<table>
+<thead>
+<tr>
+<th>错误类别</th>
+<th>示例</th>
+<th>常见处理思路</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>输入错误</td>
+<td>空参数、非法日期</td>
+<td>返回可理解的输入错误，不盲目重试</td>
+</tr>
+<tr>
+<td>外部暂时错误</td>
+<td>网络断开、服务暂不可用</td>
+<td>超时、有限重试、退避</td>
+</tr>
+<tr>
+<td>权限错误</td>
+<td>访问不属于自己的会话</td>
+<td>明确拒绝，不通过重试解决</td>
+</tr>
+<tr>
+<td>程序逻辑错误</td>
+<td><code>TypeError</code>、不合理状态</td>
+<td>记录上下文，修复代码</td>
+</tr>
+<tr>
+<td>资源错误</td>
+<td>文件句柄、连接耗尽</td>
+<td>清理资源并限制并发</td>
+</tr>
+</tbody></table>
+<p><strong>应避免</strong>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">try</span>:
+    perform_operation()
+<span class="hljs-keyword">except</span> Exception:
+    <span class="hljs-keyword">pass</span>  <span class="hljs-comment"># 吞掉错误，调用方可能误以为成功</span></code></pre></div><p>更合理的是只捕获预期的异常，在合适边界转换为业务可理解的错误；不确定如何恢复时，让异常保留原因继续传播。日志中避免记录 API 密钥、令牌、私人消息等敏感内容。</p>
+<p><strong>与异步的联系</strong>：后续学习 <code>asyncio</code> 时，任务取消具有特殊语义。<code>asyncio.CancelledError</code> 在现代 Python 中继承 <code>BaseException</code>，不能简单当作普通业务失败来处理或悄悄吞掉。</p>
+<hr />
+<h2 id="section-28">7. 上下文管理器（Context Manager）</h2>
+<h3 id="section-29">7.1 为什么需要 <code>with</code></h3>
+<p>上下文管理器的核心是把<strong>获取资源、使用资源、退出与释放资源</strong>组成结构化生命周期。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(<span class="hljs-string">"example.txt"</span>, <span class="hljs-string">"w"</span>, encoding=<span class="hljs-string">"utf-8"</span>) <span class="hljs-keyword">as</span> file:
+    file.write(<span class="hljs-string">"hello"</span>)</code></pre></div><p>不论代码块是正常结束还是由于异常退出，文件对象的退出方法都会得到调用，从而关闭文件。它比仅依赖对象销毁时机可靠得多。</p>
+<p>与 C++ RAII 的目的相近，但实现方式不同：C++ 常依赖作用域结束触发析构；Python <code>with</code> 显式依赖 <code>__enter__</code> / <code>__exit__</code> 协议，不能假定 Python 对象离开局部作用域后立即销毁。</p>
+<h3 id="section-30">7.2 底层协议与异常抑制</h3>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">class</span> <span class="hljs-title class_">ManagedResource</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__enter__</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"acquire"</span>)
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__exit__</span>(<span class="hljs-params">self, exc_type, exc_value, traceback</span>):
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">"release"</span>)
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>  <span class="hljs-comment"># 不抑制 with 代码块中发生的异常</span>
+
+<span class="hljs-keyword">with</span> ManagedResource() <span class="hljs-keyword">as</span> resource:
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"use"</span>)</code></pre></div><p><code>__exit__</code> 在异常情况下接收到异常的类型、实例和 traceback。若它返回真值，可能抑制该异常；因此不能为“让代码继续执行”随意返回 <code>True</code>。</p>
+<h3 id="section-31">7.3 <code>contextlib.contextmanager</code></h3>
+<p>不一定需要自己实现整个类；可用生成器构建上下文管理器：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> contextlib <span class="hljs-keyword">import</span> contextmanager
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+
+<span class="hljs-meta">@contextmanager</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">text_writer</span>(<span class="hljs-params">path: Path</span>):
+    f = path.<span class="hljs-built_in">open</span>(<span class="hljs-string">"w"</span>, encoding=<span class="hljs-string">"utf-8"</span>)
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">yield</span> f
+    <span class="hljs-keyword">finally</span>:
+        f.close()
+
+<span class="hljs-keyword">with</span> text_writer(Path(<span class="hljs-string">"output.txt"</span>)) <span class="hljs-keyword">as</span> f:
+    f.write(<span class="hljs-string">"saved"</span>)</code></pre></div><p><code>yield</code> 之前是进入阶段，<code>yield</code> 之后的 <code>finally</code> 是退出清理阶段。</p>
+<h3 id="section-32">7.4 <code>async with</code> 的知识边界</h3>
+<p><code>async with</code> 使用 <code>__aenter__</code> / <code>__aexit__</code> 异步上下文协议，进入与退出资源时允许等待异步操作。</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> httpx
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title function_">fetch_example</span>() -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> httpx.AsyncClient() <span class="hljs-keyword">as</span> client:
+        response = <span class="hljs-keyword">await</span> client.get(<span class="hljs-string">"https://example.com"</span>)
+        response.raise_for_status()
+        <span class="hljs-keyword">return</span> response.text</code></pre></div><p>这是演示异步生命周期的代码，并非建议高并发接口在每次请求中创建 HTTP 客户端。实际服务通常复用客户端和连接池，并在应用停机阶段关闭。</p>
+<p>数据库事务、数据库会话、文件句柄、网络连接、锁等都可能通过上下文管理器管理。<strong>连接、会话与事务不是同一个概念</strong>：它们的生命周期和提交/回滚边界需要分别理解。</p>
+<hr />
+<h2 id="section-33">8. 虚拟环境（venv）与依赖管理</h2>
+<h3 id="section-34">8.1 为什么要隔离环境</h3>
+<p>假设两个工程依赖不同版本的同一库。若都安装到同一个全局 Python 环境，升级其中一个工程的依赖可能破坏另一个工程。</p>
+<p><strong>虚拟环境</strong>是在基础 Python 解释器之上创建的隔离环境，具有自己的包安装位置及相关脚本。它通常不是一份完全独立的操作系统或 Python 运行时拷贝，也不等于 Docker 容器。</p>
+<p>常见目录：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">project/
+├── .venv/              # 本地虚拟环境，不提交到 Git
+├── src/
+├── pyproject.toml      # 项目元数据与依赖声明
+└── uv.lock             # 锁定后的具体依赖解析结果（使用 uv 时）</code></pre></div><h3 id="section-35">8.2 Windows 上使用标准库 <code>venv</code> 与 pip</h3>
+<p>在 PowerShell、项目根目录执行：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">py <span class="hljs-literal">-3</span> <span class="hljs-literal">-m</span> venv .venv
+.\.venv\Scripts\Activate.ps1
+python <span class="hljs-literal">-m</span> pip install fastapi uvicorn
+python <span class="hljs-literal">-m</span> pip list</code></pre></div><p>如果激活受到 PowerShell 策略限制，可以<strong>不激活虚拟环境</strong>，直接使用其解释器：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">.\.venv\Scripts\python.exe <span class="hljs-literal">-m</span> pip install fastapi uvicorn
+.\.venv\Scripts\python.exe <span class="hljs-literal">-m</span> pip list</code></pre></div><p><code>python -m pip</code> 的优势是明确使用当前 Python 解释器对应的 pip，降低多版本 Python 环境下“装到另一个解释器”的概率。查看实际解释器位置：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">python <span class="hljs-literal">-c</span> <span class="hljs-string">"import sys; print(sys.executable)"</span></code></pre></div><p><code>deactivate</code> 用于退出已激活的虚拟环境。<code>.venv</code> 不宜提交版本库，也不宜直接复制到其他路径作为可移植交付物；应根据依赖说明在目标环境重新创建。</p>
+<h3 id="section-36">8.3 依赖声明、解析与锁定</h3>
+<p>这里有三个不同概念：</p>
+<ol>
+<li><strong>声明直接依赖</strong>：本项目明确依赖哪些包，以及允许的版本范围。</li>
+<li><strong>解析传递依赖</strong>：这些包又依赖哪些子包，选取哪些兼容版本。</li>
+<li><strong>锁定依赖结果</strong>：记录具体解析版本，以减少不同机器或不同时点安装结果的差异。</li>
+</ol>
+<p><code>requirements.txt</code> 可以列出安装需求；若需要更严格的可复现性，应明确版本，并考虑平台差异、哈希校验或采用合适锁文件机制。<code>pip freeze</code> 能记录当前环境中的已安装包，但<strong>不是对“哪些是项目直接依赖”的准确描述</strong>。</p>
+<p>现代 Python 项目常使用 <code>pyproject.toml</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>toml</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-section">[project]</span>
+<span class="hljs-attr">name</span> = <span class="hljs-string">"game-ai-service"</span>
+<span class="hljs-attr">version</span> = <span class="hljs-string">"0.1.0"</span>
+<span class="hljs-attr">requires-python</span> = <span class="hljs-string">"&gt;=3.10"</span>
+<span class="hljs-attr">dependencies</span> = [
+    <span class="hljs-string">"fastapi&gt;=0.100"</span>,
+    <span class="hljs-string">"uvicorn&gt;=0.20"</span>,
+]</code></pre></div><p>这只是演示版本约束写法，并不是对当前最新版本的推荐；实际项目应根据已有代码和兼容性测试确定依赖范围。</p>
+<h3 id="section-37">8.4 <code>uv</code> 与 <code>pip</code>、<code>venv</code> 的关系</h3>
+<p><code>uv</code> 是覆盖 Python 解释器管理、项目初始化、依赖解析、虚拟环境与运行命令等功能的工具。常见流程：</p>
+<div class="code-wrap"><div class="code-label"><span>powershell</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">uv init demo<span class="hljs-literal">-project</span>
+<span class="hljs-built_in">cd</span> demo<span class="hljs-literal">-project</span>
+uv add fastapi uvicorn
+uv lock
+uv sync
+uv run python main.py</code></pre></div><ul>
+<li><code>uv init</code>：创建项目。</li>
+<li><code>uv add</code>：添加并记录依赖。</li>
+<li><code>uv lock</code>：解析并更新锁文件。</li>
+<li><code>uv sync</code>：使环境与锁文件及项目依赖一致。</li>
+<li><code>uv run</code>：在项目环境中执行命令，通常会自动检查并同步环境。</li>
+</ul>
+<p>使用 uv 时，<code>uv.lock</code> 通常应提交到仓库，以便团队共享依赖解析结果。可以在 CI 中使用 <code>uv sync --locked</code>，要求锁文件与项目元数据一致而不自动更新；<code>--frozen</code> 则偏向直接遵循现有锁文件、不检查其是否与元数据保持最新，两者语义不完全相同。</p>
+<h3 id="section-38">8.5 依赖环境与机密信息</h3>
+<p>环境变量常用于配置部署差异，如 <code>DATABASE_URL</code>、<code>MODEL_API_KEY</code>。不要把真实密钥写在源码、公开 <code>.env</code>、测试日志或 Git 历史中。可提交只包含占位符的 <code>.env.example</code>。</p>
+<p>还应区分：</p>
+<ul>
+<li><strong>开发依赖</strong>：测试、格式化、静态类型检查工具。</li>
+<li><strong>运行依赖</strong>：应用启动和提供服务所需的库。</li>
+<li><strong>系统依赖</strong>：数据库客户端库、操作系统共享库等，不一定由 pip 完整解决。</li>
+<li><strong>锁文件</strong>：主要锁定解析的 Python 包依赖，不保证不同操作系统、CPU 架构、Python 版本和外部系统库的行为完全一致。</li>
+</ul>
+<hr />
+<h2 id="section-39">9. 综合代码：把模块、类、类型、异常和资源管理连起来</h2>
+<p>以下例子不依赖 FastAPI，演示一个最小的“消息保存”服务：</p>
+<div class="code-wrap"><div class="code-label"><span>text</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs">sample_project/
+├── app/
+│   ├── __init__.py
+│   ├── domain.py
+│   ├── repository.py
+│   └── service.py
+└── main.py</code></pre></div><p><code>app/domain.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> dataclasses <span class="hljs-keyword">import</span> dataclass
+
+<span class="hljs-meta">@dataclass(<span class="hljs-params">frozen=<span class="hljs-literal">True</span></span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">Message</span>:
+    user_id: <span class="hljs-built_in">int</span>
+    text: <span class="hljs-built_in">str</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">InvalidMessageError</span>(<span class="hljs-title class_ inherited__">ValueError</span>):
+    <span class="hljs-keyword">pass</span></code></pre></div><p><code>app/repository.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<span class="hljs-keyword">from</span> .domain <span class="hljs-keyword">import</span> Message
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">MessageRepository</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, path: Path</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.path = path
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">save</span>(<span class="hljs-params">self, message: Message</span>) -&gt; <span class="hljs-literal">None</span>:
+        record = {<span class="hljs-string">"user_id"</span>: message.user_id, <span class="hljs-string">"text"</span>: message.text}
+        <span class="hljs-comment"># 追加写入的教学示例，不提供数据库事务或多进程并发保证。</span>
+        <span class="hljs-keyword">with</span> <span class="hljs-variable language_">self</span>.path.<span class="hljs-built_in">open</span>(<span class="hljs-string">"a"</span>, encoding=<span class="hljs-string">"utf-8"</span>) <span class="hljs-keyword">as</span> file:
+            file.write(json.dumps(record, ensure_ascii=<span class="hljs-literal">False</span>) + <span class="hljs-string">"\n"</span>)</code></pre></div><p><code>app/service.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> .domain <span class="hljs-keyword">import</span> InvalidMessageError, Message
+<span class="hljs-keyword">from</span> .repository <span class="hljs-keyword">import</span> MessageRepository
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">MessageService</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, repository: MessageRepository</span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-variable language_">self</span>.repository = repository
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">submit</span>(<span class="hljs-params">self, user_id: <span class="hljs-built_in">int</span>, text: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> user_id &lt;= <span class="hljs-number">0</span>:
+            <span class="hljs-keyword">raise</span> InvalidMessageError(<span class="hljs-string">"user_id must be positive"</span>)
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> text.strip():
+            <span class="hljs-keyword">raise</span> InvalidMessageError(<span class="hljs-string">"text must not be empty"</span>)
+        <span class="hljs-variable language_">self</span>.repository.save(Message(user_id=user_id, text=text.strip()))</code></pre></div><p><code>main.py</code>：</p>
+<div class="code-wrap"><div class="code-label"><span>python</span><button type="button" class="copy-code">复制代码</button></div><pre><code class="hljs"><span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<span class="hljs-keyword">from</span> app.domain <span class="hljs-keyword">import</span> InvalidMessageError
+<span class="hljs-keyword">from</span> app.repository <span class="hljs-keyword">import</span> MessageRepository
+<span class="hljs-keyword">from</span> app.service <span class="hljs-keyword">import</span> MessageService
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>() -&gt; <span class="hljs-literal">None</span>:
+    repo = MessageRepository(Path(<span class="hljs-string">"messages.jsonl"</span>))
+    service = MessageService(repo)
+
+    <span class="hljs-keyword">try</span>:
+        service.submit(<span class="hljs-number">1</span>, <span class="hljs-string">"你好，Python"</span>)
+    <span class="hljs-keyword">except</span> InvalidMessageError <span class="hljs-keyword">as</span> exc:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">f"input error: <span class="hljs-subst">{exc}</span>"</span>)
+    <span class="hljs-keyword">except</span> OSError <span class="hljs-keyword">as</span> exc:
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">f"storage error: <span class="hljs-subst">{exc}</span>"</span>)
+
+<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
+    main()</code></pre></div><p>此示例的主要知识关系：</p>
+<ul>
+<li><strong>模块/包</strong>：代码依职责分散到 <code>domain</code>、<code>repository</code>、<code>service</code>。</li>
+<li><strong>函数/类</strong>：<code>main()</code> 是入口；Service/Repository 通过类封装行为。</li>
+<li><strong>类型标注</strong>：约束 API 的预期使用方式，辅助 IDE 和静态检查。</li>
+<li><strong>异常</strong>：输入错误和存储错误向调用方传播并分类处理。</li>
+<li><strong>上下文管理器</strong>：使用 <code>with</code> 保证文件句柄关闭。</li>
+<li><strong>依赖关系</strong>：Service 依赖 Repository 的实例，通过构造函数传入。</li>
+</ul>
+<p>此实现有意保持简单：文件写入<strong>没有</strong>数据库事务、用户授权、多进程安全、幂等机制，也不是稳定的生产级消息存储。这些能力属于后续 HTTP、数据库与后台任务章节。</p>
+<hr />
+<h2 id="section-40">10. 易混淆概念的准确区分</h2>
+<table>
+<thead>
+<tr>
+<th>容易混淆的说法</th>
+<th>正确理解</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Python 是解释型语言，所以没有编译过程</td>
+<td>CPython 通常会先编译源码为字节码，再解释执行</td>
+</tr>
+<tr>
+<td>变量的类型就是声明时的类型</td>
+<td>Python 名称可以重新绑定到不同类型的对象</td>
+</tr>
+<tr>
+<td>函数参数都是传值或都是传引用</td>
+<td>更准确说法是共享传参：形参与实参绑定到同一对象</td>
+</tr>
+<tr>
+<td><code>list[str]</code> 能阻止运行时插入整数</td>
+<td>类型标注本身通常不强制运行时校验</td>
+</tr>
+<tr>
+<td><code>dataclass</code> 与 Pydantic 完全等价</td>
+<td>一个主要简化数据类，另一个主要解析和校验外部数据</td>
+</tr>
+<tr>
+<td><code>__init__.py</code> 是包唯一合法的必要条件</td>
+<td>Python 也支持命名空间包</td>
+</tr>
+<tr>
+<td>类属性和实例属性没有区别</td>
+<td>类属性可被多个实例共享，尤其需要防范可变类属性</td>
+</tr>
+<tr>
+<td>每次调用函数都会创建默认列表</td>
+<td>Python 可变默认参数对象通常在定义时创建并复用</td>
+</tr>
+<tr>
+<td><code>except Exception: pass</code> 能提高可靠性</td>
+<td>它可能掩盖错误并制造虚假的成功状态</td>
+</tr>
+<tr>
+<td><code>with</code> 与 <code>try/finally</code> 毫无关系</td>
+<td>上下文管理协议封装资源退出逻辑，与 <code>finally</code> 有相近目的</td>
+</tr>
+<tr>
+<td>虚拟环境就是 Docker</td>
+<td>venv 主要隔离 Python 解释器上下文与包，不隔离整个 OS</td>
+</tr>
+<tr>
+<td><code>pip freeze</code> 就是完整可复现部署方案</td>
+<td>它只记录当前包列表，不涵盖所有平台、系统依赖和构建差异</td>
+</tr>
+<tr>
+<td><code>uv sync --locked</code> 与 <code>--frozen</code> 完全相同</td>
+<td>前者检查锁文件是否最新，后者跳过该检查</td>
+</tr>
+</tbody></table>
+<hr />
+<h2 id="section-41">参考资料（官方文档）</h2>
+<ul>
+<li>Python Tutorial — Modules：<a href="https://docs.python.org/3/tutorial/modules.html">https://docs.python.org/3/tutorial/modules.html</a></li>
+<li>Python Tutorial — Defining Functions：<a href="https://docs.python.org/3/tutorial/controlflow.html#defining-functions">https://docs.python.org/3/tutorial/controlflow.html#defining-functions</a></li>
+<li>Python Tutorial — Classes：<a href="https://docs.python.org/3/tutorial/classes.html">https://docs.python.org/3/tutorial/classes.html</a></li>
+<li>Python <code>typing</code> — Type Hints：<a href="https://docs.python.org/3/library/typing.html">https://docs.python.org/3/library/typing.html</a></li>
+<li>Python <code>contextlib</code>：<a href="https://docs.python.org/3/library/contextlib.html">https://docs.python.org/3/library/contextlib.html</a></li>
+<li>Python <code>venv</code>：<a href="https://docs.python.org/3/library/venv.html">https://docs.python.org/3/library/venv.html</a></li>
+<li>Python Packaging User Guide：<a href="https://packaging.python.org/">https://packaging.python.org/</a></li>
+<li>uv 官方文档（项目与锁文件）：<a href="https://docs.astral.sh/uv/concepts/projects/sync/">https://docs.astral.sh/uv/concepts/projects/sync/</a></li>
+</ul>
+<p><em>文档整理日期：2026-11-11。示例用于解释语言知识和工程语义；实际使用时应以项目锁定的 Python 与依赖版本为准。</em></p>

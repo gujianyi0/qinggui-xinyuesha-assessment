@@ -1,0 +1,31 @@
+{
+  "at": "2026-11-11T15:10:07.739833+00:00",
+  "web_status": 200,
+  "api_status": 200,
+  "health": {
+    "status": "ok",
+    "cache": "available",
+    "model_mode": "live",
+    "model_id": "deepseek-flash",
+    "snapshot_id": "freekill-local-b9dc701220bc",
+    "embedding_mode": "local",
+    "index_published": true,
+    "database": "postgresql",
+    "fault_injection_enabled": false,
+    "budget": {
+      "spent_cny": 5.682864,
+      "reserved_cny": 0.0,
+      "limit_cny": 200.0,
+      "warning": false
+    }
+  },
+  "memory": {
+    "available": true,
+    "physical_load_percent": 70,
+    "physical_total_bytes": 17024741376,
+    "physical_free_bytes": 5065072640,
+    "commit_limit_bytes": 53531963392,
+    "commit_free_bytes": 16676995072
+  },
+  "scope": "Original native database and live model configuration restored after stopping Docker Desktop; health checks only, no new paid questions"
+}

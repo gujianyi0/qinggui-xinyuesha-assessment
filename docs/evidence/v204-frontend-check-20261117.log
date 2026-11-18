@@ -1,0 +1,68 @@
+
+> qinggui-game-assistant-web@2.0.4-local.1 check
+> npm run lint && npm run architecture && npm run typecheck && npm run knip && npm test -- --maxWorkers=1 && npm run build
+
+
+> qinggui-game-assistant-web@2.0.4-local.1 lint
+> biome check src scripts vite.config.ts --error-on-warnings
+
+Checked 87 files in 55ms. No fixes applied.
+
+> qinggui-game-assistant-web@2.0.4-local.1 architecture
+> node scripts/check-architecture.mjs
+
+Architecture: 82 TypeScript files; Feature boundaries, naming, any and argument counts passed.
+
+> qinggui-game-assistant-web@2.0.4-local.1 typecheck
+> tsc --noEmit
+
+
+> qinggui-game-assistant-web@2.0.4-local.1 knip
+> knip --no-progress
+
+
+> qinggui-game-assistant-web@2.0.4-local.1 test
+> vitest run --maxWorkers=1
+
+
+ RUN  v4.1.12 F:/Work/Biteagle/入职考核/frontend
+
+
+ Test Files  21 passed (21)
+      Tests  59 passed (59)
+   Start at  20:15:46
+   Duration  53.97s (transform 1.10s, setup 5.67s, import 4.43s, tests 13.01s, environment 24.43s)
+
+
+> qinggui-game-assistant-web@2.0.4-local.1 build
+> tsc -b && vite build
+
+vite v8.3.7 building client environment for production...
+transforming...
+✓ 2083 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                              0.75 kB │ gzip:  0.49 kB
+dist/assets/bookshelf-DxU9rlGN.css           4.87 kB │ gzip:  1.43 kB
+dist/assets/index-BaFzdQdY.css              38.64 kB │ gzip:  9.01 kB
+dist/assets/search-Cnwa80Cc.js               0.16 kB │ gzip:  0.16 kB
+dist/assets/tab-navigation-5M9ZGyq5.js       0.41 kB │ gzip:  0.29 kB
+dist/assets/source-excerpt-B4Cfq0XB.js       0.66 kB │ gzip:  0.41 kB
+dist/assets/status-tag-DJGyGL7L.js           0.84 kB │ gzip:  0.52 kB
+dist/assets/jobs-DE3JGa4E.js                 8.28 kB │ gzip:  3.40 kB
+dist/assets/library-79VAIB8G.js              8.66 kB │ gzip:  3.56 kB
+dist/assets/jsx-runtime-Wy9s6hX0.js          8.91 kB │ gzip:  3.39 kB
+dist/assets/feedback-DOLReExk.js            12.32 kB │ gzip:  4.44 kB
+dist/assets/bookshelf-CLLePzq1.js           17.51 kB │ gzip:  6.45 kB
+dist/assets/workspace-B04XlJi5.js           46.95 kB │ gzip: 16.91 kB
+dist/assets/markdown-document-DQ15tTcD.js  165.21 kB │ gzip: 49.53 kB
+dist/assets/index-D0Y9l3EL.js              249.53 kB │ gzip: 78.72 kB
+
+✓ built in 7.58s
+[PLUGIN_TIMINGS] JavaScript callbacks ran for 6.3s of this 7.6s build (84%).
+The slowest callbacks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
+  - plugin vite:prepare-out-dir renderStart (63%, 4.8s, 1 call)
+  - plugin vite:css-post renderChunk (20%, 1.5s, 12 calls)
+Additional callback time came from callbacks under 1s.
+See https://rolldown.rs/reference/InputOptions.checks#bundlertimings for more details.
+

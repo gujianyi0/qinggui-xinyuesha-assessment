@@ -1,0 +1,424 @@
+{
+  "started_at": "2026-11-11T14:17:43.624469+00:00",
+  "project": "qinggui-assessment-verify-final",
+  "scope": "Real Linux PostgreSQL/pgvector, Kafka, Redis, independent Worker and pinned CPU BGE; chat is a test double; no model fee or QQ",
+  "checks": [
+    {
+      "name": "seven_service_start_and_migration",
+      "passed": true,
+      "health": {
+        "status": "ok",
+        "cache": "available",
+        "model_mode": "mock",
+        "model_id": "",
+        "snapshot_id": "freekill-local-b9dc701220bc",
+        "embedding_mode": "local",
+        "index_published": false,
+        "database": "postgresql",
+        "fault_injection_enabled": false,
+        "budget": {
+          "spent_cny": 0.0,
+          "reserved_cny": 0.0,
+          "limit_cny": 200.0,
+          "warning": false
+        }
+      },
+      "package_version": "1.4.0",
+      "postgres_version": "17.11 (Debian 17.11-1.pgdg12+2)",
+      "pgvector_version": "0.8.7",
+      "migration": "0001",
+      "container_resources": [
+        {
+          "BlockIO": "5.51MB / 0B",
+          "CPUPerc": "1.02%",
+          "Container": "a7032376441b95d0b8b47b65768933d6c8b22eb77edefde4675f2f9b3db80577",
+          "ID": "a7032376441b",
+          "MemPerc": "1.29%",
+          "MemUsage": "101.2MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-api-1",
+          "NetIO": "17.1kB / 21.6kB",
+          "PIDs": "5"
+        },
+        {
+          "BlockIO": "56.9MB / 954kB",
+          "CPUPerc": "2.96%",
+          "Container": "3431dd6f494ccf08cc000fc03b2c2917064a41ecdf0d119d84ad0ef1039a88da",
+          "ID": "3431dd6f494c",
+          "MemPerc": "3.19%",
+          "MemUsage": "250.6MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-kafka-1",
+          "NetIO": "5.92kB / 5.38kB",
+          "PIDs": "110"
+        },
+        {
+          "BlockIO": "49.3MB / 54.8MB",
+          "CPUPerc": "0.37%",
+          "Container": "2be88f5cafe7066fbd1a08627136ed21f939053d95681e2f0228b0219c9b48fa",
+          "ID": "2be88f5cafe7",
+          "MemPerc": "1.00%",
+          "MemUsage": "78.5MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-postgres-1",
+          "NetIO": "43.5kB / 28.5kB",
+          "PIDs": "8"
+        },
+        {
+          "BlockIO": "19.7MB / 0B",
+          "CPUPerc": "0.43%",
+          "Container": "6171bfc763c759ad94f4fd9ea4bb31a67b0a662ddb4b6a8192eca9e07b83baef",
+          "ID": "6171bfc763c7",
+          "MemPerc": "0.31%",
+          "MemUsage": "24.26MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-redis-1",
+          "NetIO": "3.57kB / 1.03kB",
+          "PIDs": "6"
+        },
+        {
+          "BlockIO": "3.36MB / 4.1kB",
+          "CPUPerc": "0.16%",
+          "Container": "e94430c44eb65079ff4b8e83c6aae791e90fb34a6837e718529eb3a9c0d29337",
+          "ID": "e94430c44eb6",
+          "MemPerc": "0.21%",
+          "MemUsage": "16.71MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-web-1",
+          "NetIO": "10.8kB / 13.9kB",
+          "PIDs": "17"
+        },
+        {
+          "BlockIO": "12.6MB / 0B",
+          "CPUPerc": "0.90%",
+          "Container": "49ba5cc73242317f0518cdfded435ff607fdea523eb2f2cfcbc7927abdfab063",
+          "ID": "49ba5cc73242",
+          "MemPerc": "0.90%",
+          "MemUsage": "71.14MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-worker-1",
+          "NetIO": "13.6kB / 11.6kB",
+          "PIDs": "9"
+        }
+      ]
+    },
+    {
+      "name": "eight_concurrent_submissions_one_real_bge_index",
+      "passed": true,
+      "job_id": "fc639502-f34c-477e-afad-a7d581464d0f",
+      "attempts": 1,
+      "chunks": 659,
+      "vectors": 659,
+      "dimensions": 512,
+      "publications": 1,
+      "container_resources": [
+        {
+          "BlockIO": "5.51MB / 16.1MB",
+          "CPUPerc": "1.02%",
+          "Container": "a7032376441b95d0b8b47b65768933d6c8b22eb77edefde4675f2f9b3db80577",
+          "ID": "a7032376441b",
+          "MemPerc": "1.30%",
+          "MemUsage": "102.5MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-api-1",
+          "NetIO": "633kB / 794kB",
+          "PIDs": "5"
+        },
+        {
+          "BlockIO": "57.8MB / 2.22MB",
+          "CPUPerc": "166.49%",
+          "Container": "3431dd6f494ccf08cc000fc03b2c2917064a41ecdf0d119d84ad0ef1039a88da",
+          "ID": "3431dd6f494c",
+          "MemPerc": "4.23%",
+          "MemUsage": "333MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-kafka-1",
+          "NetIO": "42.2kB / 44.8kB",
+          "PIDs": "141"
+        },
+        {
+          "BlockIO": "49.5MB / 88.7MB",
+          "CPUPerc": "0.39%",
+          "Container": "2be88f5cafe7066fbd1a08627136ed21f939053d95681e2f0228b0219c9b48fa",
+          "ID": "2be88f5cafe7",
+          "MemPerc": "1.36%",
+          "MemUsage": "107MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-postgres-1",
+          "NetIO": "16.8MB / 836kB",
+          "PIDs": "13"
+        },
+        {
+          "BlockIO": "19.7MB / 0B",
+          "CPUPerc": "0.67%",
+          "Container": "6171bfc763c759ad94f4fd9ea4bb31a67b0a662ddb4b6a8192eca9e07b83baef",
+          "ID": "6171bfc763c7",
+          "MemPerc": "0.31%",
+          "MemUsage": "24.44MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-redis-1",
+          "NetIO": "17.9kB / 8.18kB",
+          "PIDs": "6"
+        },
+        {
+          "BlockIO": "3.36MB / 8.19kB",
+          "CPUPerc": "0.13%",
+          "Container": "e94430c44eb65079ff4b8e83c6aae791e90fb34a6837e718529eb3a9c0d29337",
+          "ID": "e94430c44eb6",
+          "MemPerc": "0.22%",
+          "MemUsage": "17.35MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-web-1",
+          "NetIO": "406kB / 479kB",
+          "PIDs": "17"
+        },
+        {
+          "BlockIO": "133MB / 92.6MB",
+          "CPUPerc": "1.41%",
+          "Container": "49ba5cc73242317f0518cdfded435ff607fdea523eb2f2cfcbc7927abdfab063",
+          "ID": "49ba5cc73242",
+          "MemPerc": "2.69%",
+          "MemUsage": "211.7MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-worker-1",
+          "NetIO": "424kB / 16.3MB",
+          "PIDs": "10"
+        }
+      ]
+    },
+    {
+      "name": "pgvector_retrieval_and_redis_cache_hit",
+      "passed": true,
+      "mode": "pgvector",
+      "sources": [
+        "17b4f1f68651669d5aa4:passage:standard:text:aaa_role_mode:3",
+        "9937b633d1dd2e694755:passage:standard:text:kongcheng:0",
+        "223bc8069fe86ce07e43:chunk:0:passage:implementation:standard:renegade_wild:0:chunk:0",
+        "223bc8069fe86ce07e43:chunk:1:passage:implementation:standard:renegade_wild:0:chunk:1",
+        "14d2f742973285f1cf46:passage:standard:text:paoxiao:0"
+      ],
+      "encode_calls": 1,
+      "ttl": 300,
+      "cache_key": "retrieval:3b32eb6d01c8e428b0155d2016639ab574da44b88bbc1f47e38de175b0f189ec",
+      "container_resources": [
+        {
+          "BlockIO": "5.51MB / 47MB",
+          "CPUPerc": "1.02%",
+          "Container": "a7032376441b95d0b8b47b65768933d6c8b22eb77edefde4675f2f9b3db80577",
+          "ID": "a7032376441b",
+          "MemPerc": "1.64%",
+          "MemUsage": "128.7MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-api-1",
+          "NetIO": "777kB / 909kB",
+          "PIDs": "5"
+        },
+        {
+          "BlockIO": "58.1MB / 2.77MB",
+          "CPUPerc": "3.80%",
+          "Container": "3431dd6f494ccf08cc000fc03b2c2917064a41ecdf0d119d84ad0ef1039a88da",
+          "ID": "3431dd6f494c",
+          "MemPerc": "3.34%",
+          "MemUsage": "262.6MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-kafka-1",
+          "NetIO": "59.1kB / 63.4kB",
+          "PIDs": "111"
+        },
+        {
+          "BlockIO": "49.5MB / 91.2MB",
+          "CPUPerc": "0.39%",
+          "Container": "2be88f5cafe7066fbd1a08627136ed21f939053d95681e2f0228b0219c9b48fa",
+          "ID": "2be88f5cafe7",
+          "MemPerc": "1.36%",
+          "MemUsage": "107MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-postgres-1",
+          "NetIO": "16.9MB / 987kB",
+          "PIDs": "13"
+        },
+        {
+          "BlockIO": "19.7MB / 0B",
+          "CPUPerc": "0.44%",
+          "Container": "6171bfc763c759ad94f4fd9ea4bb31a67b0a662ddb4b6a8192eca9e07b83baef",
+          "ID": "6171bfc763c7",
+          "MemPerc": "0.31%",
+          "MemUsage": "24.68MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-redis-1",
+          "NetIO": "32.2kB / 18.6kB",
+          "PIDs": "6"
+        },
+        {
+          "BlockIO": "3.36MB / 8.19kB",
+          "CPUPerc": "0.12%",
+          "Container": "e94430c44eb65079ff4b8e83c6aae791e90fb34a6837e718529eb3a9c0d29337",
+          "ID": "e94430c44eb6",
+          "MemPerc": "0.22%",
+          "MemUsage": "17.38MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-web-1",
+          "NetIO": "462kB / 568kB",
+          "PIDs": "17"
+        },
+        {
+          "BlockIO": "133MB / 92.6MB",
+          "CPUPerc": "1.53%",
+          "Container": "49ba5cc73242317f0518cdfded435ff607fdea523eb2f2cfcbc7927abdfab063",
+          "ID": "49ba5cc73242",
+          "MemPerc": "2.70%",
+          "MemUsage": "212.1MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-worker-1",
+          "NetIO": "482kB / 16.4MB",
+          "PIDs": "10"
+        }
+      ]
+    },
+    {
+      "name": "mock_stream_citations_feedback_race_and_four_identity_boundaries",
+      "passed": true,
+      "session_id": "22c1cafd-1e55-4bd1-8c0e-b0585db72eae",
+      "run_id": "847cfcd2-0cc2-43fc-bba2-7d84de8d7c27",
+      "feedback_id": "99291650-7ea9-4a00-8d8d-71634af0a72b",
+      "container_resources": [
+        {
+          "BlockIO": "5.73MB / 88.2MB",
+          "CPUPerc": "0.90%",
+          "Container": "a7032376441b95d0b8b47b65768933d6c8b22eb77edefde4675f2f9b3db80577",
+          "ID": "a7032376441b",
+          "MemPerc": "5.60%",
+          "MemUsage": "440.5MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-api-1",
+          "NetIO": "983kB / 1.15MB",
+          "PIDs": "60"
+        },
+        {
+          "BlockIO": "58.1MB / 2.96MB",
+          "CPUPerc": "3.28%",
+          "Container": "3431dd6f494ccf08cc000fc03b2c2917064a41ecdf0d119d84ad0ef1039a88da",
+          "ID": "3431dd6f494c",
+          "MemPerc": "3.34%",
+          "MemUsage": "262.9MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-kafka-1",
+          "NetIO": "64.8kB / 69.6kB",
+          "PIDs": "111"
+        },
+        {
+          "BlockIO": "49.5MB / 91.4MB",
+          "CPUPerc": "9.59%",
+          "Container": "2be88f5cafe7066fbd1a08627136ed21f939053d95681e2f0228b0219c9b48fa",
+          "ID": "2be88f5cafe7",
+          "MemPerc": "1.45%",
+          "MemUsage": "113.7MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-postgres-1",
+          "NetIO": "17.1MB / 1.18MB",
+          "PIDs": "15"
+        },
+        {
+          "BlockIO": "19.7MB / 0B",
+          "CPUPerc": "0.48%",
+          "Container": "6171bfc763c759ad94f4fd9ea4bb31a67b0a662ddb4b6a8192eca9e07b83baef",
+          "ID": "6171bfc763c7",
+          "MemPerc": "0.31%",
+          "MemUsage": "24.57MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-redis-1",
+          "NetIO": "43kB / 20.2kB",
+          "PIDs": "6"
+        },
+        {
+          "BlockIO": "3.36MB / 8.19kB",
+          "CPUPerc": "0.12%",
+          "Container": "e94430c44eb65079ff4b8e83c6aae791e90fb34a6837e718529eb3a9c0d29337",
+          "ID": "e94430c44eb6",
+          "MemPerc": "0.22%",
+          "MemUsage": "17.18MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-web-1",
+          "NetIO": "565kB / 685kB",
+          "PIDs": "17"
+        },
+        {
+          "BlockIO": "133MB / 92.6MB",
+          "CPUPerc": "1.25%",
+          "Container": "49ba5cc73242317f0518cdfded435ff607fdea523eb2f2cfcbc7927abdfab063",
+          "ID": "49ba5cc73242",
+          "MemPerc": "2.70%",
+          "MemUsage": "212.1MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-worker-1",
+          "NetIO": "506kB / 16.4MB",
+          "PIDs": "10"
+        }
+      ]
+    },
+    {
+      "name": "queued_and_running_cancel_keep_published_index",
+      "passed": true,
+      "queued": "1702cd3b-ea48-4d11-835e-41b9d5c445c5",
+      "running": "9f461849-1f74-40df-b602-47d93495d5d0",
+      "container_resources": [
+        {
+          "BlockIO": "5.73MB / 97.7MB",
+          "CPUPerc": "27.87%",
+          "Container": "a7032376441b95d0b8b47b65768933d6c8b22eb77edefde4675f2f9b3db80577",
+          "ID": "a7032376441b",
+          "MemPerc": "5.74%",
+          "MemUsage": "451.2MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-api-1",
+          "NetIO": "1.16MB / 1.37MB",
+          "PIDs": "61"
+        },
+        {
+          "BlockIO": "58.1MB / 3.38MB",
+          "CPUPerc": "3.35%",
+          "Container": "3431dd6f494ccf08cc000fc03b2c2917064a41ecdf0d119d84ad0ef1039a88da",
+          "ID": "3431dd6f494c",
+          "MemPerc": "3.36%",
+          "MemUsage": "264.3MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-kafka-1",
+          "NetIO": "81.3kB / 87.5kB",
+          "PIDs": "111"
+        },
+        {
+          "BlockIO": "49.5MB / 92.1MB",
+          "CPUPerc": "0.59%",
+          "Container": "2be88f5cafe7066fbd1a08627136ed21f939053d95681e2f0228b0219c9b48fa",
+          "ID": "2be88f5cafe7",
+          "MemPerc": "1.39%",
+          "MemUsage": "109.4MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-postgres-1",
+          "NetIO": "17.6MB / 1.36MB",
+          "PIDs": "13"
+        },
+        {
+          "BlockIO": "19.7MB / 0B",
+          "CPUPerc": "6.53%",
+          "Container": "6171bfc763c759ad94f4fd9ea4bb31a67b0a662ddb4b6a8192eca9e07b83baef",
+          "ID": "6171bfc763c7",
+          "MemPerc": "0.31%",
+          "MemUsage": "24.45MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-redis-1",
+          "NetIO": "48.5kB / 22.7kB",
+          "PIDs": "6"
+        },
+        {
+          "BlockIO": "3.36MB / 8.19kB",
+          "CPUPerc": "0.12%",
+          "Container": "e94430c44eb65079ff4b8e83c6aae791e90fb34a6837e718529eb3a9c0d29337",
+          "ID": "e94430c44eb6",
+          "MemPerc": "0.23%",
+          "MemUsage": "17.75MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-web-1",
+          "NetIO": "681kB / 828kB",
+          "PIDs": "17"
+        },
+        {
+          "BlockIO": "868kB / 0B",
+          "CPUPerc": "66.97%",
+          "Container": "49ba5cc73242317f0518cdfded435ff607fdea523eb2f2cfcbc7927abdfab063",
+          "ID": "49ba5cc73242",
+          "MemPerc": "0.90%",
+          "MemUsage": "71MiB / 7.681GiB",
+          "Name": "qinggui-assessment-verify-final-worker-1",
+          "NetIO": "60.9kB / 451kB",
+          "PIDs": "10"
+        }
+      ]
+    }
+  ],
+  "source_sha256": {
+    "compose.yaml": "83d3c722e663d62b2865e1ffc70cb4bec55af76e855a322682c6be573092e181",
+    "compose.verify.yaml": "de18e0aad0fd41ded17bb2aa6ca2adf4503f8d32331ded71f1033ba8953f7ebf",
+    "scripts/verify_compose.py": "d632cc28853318685c112ac97263a8f5b2c236c12bec796b0a29a511369564cf"
+  },
+  "passed": false,
+  "error_type": "TimeoutError",
+  "error": "condition timed out during worker-crash",
+  "monitor": {
+    "samples": 371,
+    "unexpected_failures": 0,
+    "failure_samples": []
+  },
+  "finished_at": "2026-11-11T14:24:35.829007+00:00"
+}
