@@ -15,12 +15,14 @@ import {
   Square,
   Swords,
   UserRound,
+  X,
 } from 'lucide-react'
 import type { FormEvent, KeyboardEvent } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import CitationList from '@/components/business/source-citations'
 import { ErrorNotice, Spinner } from '@/components/ui'
 import { focusTextControlSurface } from '@/components/ui/input-surface'
+import type { PendingSubmission } from '@/features/chat/services/run-transport'
 import {
   forgetSubmission,
   lookupSubmission,
@@ -33,12 +35,15 @@ import { displayError } from '@/services/api'
 import { cancelRun, listSessionMessages } from '@/services/sessions'
 import type { Citation, Message, Session, Snapshot } from '@/types/domain'
 import { useElapsedSeconds } from '../hooks/use-elapsed-seconds'
+import type { QueuedQuestion } from '../hooks/use-question-queue'
+import { useQuestionQueue } from '../hooks/use-question-queue'
 
 interface ChatScreenProps {
   userId?: string
   token: string
   sessionId: string | null
   onCreate: (title: string) => Promise<Session>
+  onSessionCreated?: (id: string) => void
   snapshots: Snapshot[]
   snapshotId: string
   onSnapshotChange: (id: string) => void
@@ -77,6 +82,7 @@ export default function ChatScreen({
   token,
   sessionId,
   onCreate,
+  onSessionCreated,
   snapshots,
   snapshotId,
   onSnapshotChange,
@@ -86,14 +92,18 @@ export default function ChatScreen({
   const isOnline = useOnlineStatus()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
+  const [hasRestoredQuestion, setRestoredQuestion] = useState(false)
   const [isBusy, setBusy] = useState(false)
   const elapsedSeconds = useElapsedSeconds(isBusy)
   const [isLoading, setLoading] = useState(false)
+  const [readySession, setReadySession] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState('')
   const [isCancelRequested, setCancelRequested] = useState(false)
   const [pending, setPending] =
     useState<ReturnType<typeof pendingSubmission>>(null)
+  const queue = useQuestionQueue(userId, sessionId)
+  const nextQuestionId = queue.questions[0]?.id
   useEffect(() => {
     const refresh = () =>
       setPending(sessionId ? pendingSubmission(userId, sessionId) : null)
@@ -110,11 +120,16 @@ export default function ChatScreen({
   const busyRef = useRef(false)
   const activeSession = useRef<string | null>(sessionId)
   const generation = useRef(0)
+  const initialQuestionKey = `qinggui-first-question:${userId}`
 
   useEffect(() => {
     if (!token) return
+    const previous = sessionStorage.getItem(initialQuestionKey)
     const question = sessionStorage.getItem(`qinggui-next-question:${userId}`)
-    if (question) {
+    if (previous) {
+      setInput(previous)
+      setRestoredQuestion(true)
+    } else if (question) {
       setInput(question)
       sessionStorage.removeItem(`qinggui-next-question:${userId}`)
     }
@@ -122,7 +137,7 @@ export default function ChatScreen({
       generation.current += 1
       controller.current?.abort('detach')
     }
-  }, [token, userId])
+  }, [token, userId, initialQuestionKey])
 
   useEffect(() => {
     if (busyRef.current && activeSession.current === sessionId) return
@@ -136,6 +151,7 @@ export default function ChatScreen({
     let ignore = false
     setError('')
     setProgress('')
+    setReadySession(null)
     followTail.current = true
     if (!sessionId) {
       setMessages([])
@@ -145,7 +161,10 @@ export default function ChatScreen({
     setLoading(true)
     listSessionMessages({ token, sessionId })
       .then((result) => {
-        if (!ignore) setMessages(result)
+        if (!ignore) {
+          setMessages(result)
+          setReadySession(sessionId)
+        }
       })
       .catch((error) => {
         if (!ignore) setError(displayError(error))
@@ -160,9 +179,13 @@ export default function ChatScreen({
 
   useEffect(() => {
     // Only move this pane, without restarting smooth scrolling for every token.
-    if (messages.length && followTail.current && scrollRef.current)
+    if (
+      (messages.length || queue.questions.length) &&
+      followTail.current &&
+      scrollRef.current
+    )
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-  }, [messages])
+  }, [messages, queue.questions.length])
 
   async function reload() {
     if (!sessionId || isBusy) return
@@ -170,6 +193,7 @@ export default function ChatScreen({
     setError('')
     try {
       setMessages(await listSessionMessages({ token, sessionId }))
+      setReadySession(sessionId)
     } catch (error) {
       setError(displayError(error))
     } finally {
@@ -179,12 +203,84 @@ export default function ChatScreen({
 
   async function handleSend(event?: FormEvent, recovering = false) {
     event?.preventDefault()
-    const saved =
-      recovering && sessionId ? pendingSubmission(userId, sessionId) : null
-    const message = saved?.message || input.trim()
-    if (!message || busyRef.current || isLoading || !isOnline) return
+    if (isLoading || !isOnline) return
+    if (recovering) {
+      const saved = sessionId ? pendingSubmission(userId, sessionId) : null
+      if (saved) await runQuestion({ message: saved.message, saved })
+      return
+    }
+    const message = input.trim()
+    if (!message) return
+    if (sessionId && (busyRef.current || pending || queue.questions.length)) {
+      try {
+        queue.enqueue({ id: crypto.randomUUID(), message, snapshotId })
+        setInput('')
+        setRestoredQuestion(false)
+      } catch {
+        setError('无法保存排队问题，请检查浏览器存储设置后重试')
+      }
+      return
+    }
+    await runQuestion({ message })
+  }
+
+  const sendNextQuestion = useEffectEvent((saved: PendingSubmission | null) => {
+    if (!sessionId || busyRef.current) return
+    if (saved?.session_id === sessionId) {
+      void runQuestion({ message: saved.message, saved })
+      return
+    }
+    const question = queue.questions[0]
+    if (question)
+      void runQuestion({ message: question.message, queued: question })
+  })
+
+  useEffect(() => {
+    if (
+      sessionId &&
+      readySession === sessionId &&
+      nextQuestionId &&
+      !isBusy &&
+      !isLoading &&
+      isOnline &&
+      !error
+    )
+      sendNextQuestion(pending)
+  }, [
+    sessionId,
+    readySession,
+    nextQuestionId,
+    pending,
+    isBusy,
+    isLoading,
+    isOnline,
+    error,
+  ])
+
+  async function runQuestion({
+    message,
+    saved,
+    queued,
+  }: {
+    message: string
+    saved?: PendingSubmission
+    queued?: QueuedQuestion
+  }) {
+    if (busyRef.current || isLoading || !isOnline) return
+    const requestId = queued?.id ?? saved?.request_id
     const submittedDraft = input
-    if (!saved) setInput('')
+    if (!sessionId) {
+      try {
+        sessionStorage.setItem(initialQuestionKey, message)
+      } catch {
+        setError('无法保存待发送的问题，请检查浏览器存储设置后重试')
+        return
+      }
+    }
+    if (!saved && !queued) {
+      setRestoredQuestion(false)
+      setInput('')
+    }
     followTail.current = true
     busyRef.current = true
     setBusy(true)
@@ -197,10 +293,14 @@ export default function ChatScreen({
     runId.current = null
     const assistantId = `answer-${crypto.randomUUID()}`
     let terminal = false
-    let hasSession = Boolean(sessionId)
     try {
       const id = sessionId || (await onCreate(message.slice(0, 28))).id
-      hasSession = true
+      if (
+        currentGeneration !== generation.current ||
+        currentController.signal.aborted
+      )
+        return
+      activeSession.current = id
       if (saved) {
         try {
           const found = await lookupSubmission({
@@ -210,8 +310,15 @@ export default function ChatScreen({
             signal: currentController.signal,
           })
           if (found.status !== 'running') {
+            const history = await listSessionMessages({
+              token,
+              sessionId: id,
+              signal: currentController.signal,
+            })
+            if (currentGeneration !== generation.current) return
+            queue.remove(saved.request_id)
             forgetSubmission(userId, id)
-            setMessages(await listSessionMessages({ token, sessionId: id }))
+            setMessages(history)
             setProgress('已恢复上次请求结果')
             return
           }
@@ -226,7 +333,6 @@ export default function ChatScreen({
             throw error
         }
       }
-      activeSession.current = id
       if (currentGeneration !== generation.current) return
       setMessages((current) => [
         ...current,
@@ -244,10 +350,11 @@ export default function ChatScreen({
             ]),
         { id: assistantId, role: 'assistant', content: '', citations: [] },
       ])
-      await streamRun({
+      const observation = streamRun({
         sessionId: id,
         message: message,
-        snapshotId: saved?.snapshot_id ?? snapshotId,
+        snapshotId: saved?.snapshot_id ?? queued?.snapshotId ?? snapshotId,
+        requestId,
         token: token,
         signal: currentController.signal,
         onEvent: ({ event, data }) => {
@@ -314,17 +421,34 @@ export default function ChatScreen({
         },
         scope: userId,
       })
+      if (requestId && pendingSubmission(userId, id)?.request_id === requestId)
+        queue.remove(requestId)
+      if (!sessionId) {
+        // The request is now bound to this session before navigation can rerender the chat.
+        if (pendingSubmission(userId, id))
+          sessionStorage.removeItem(initialQuestionKey)
+        setReadySession(id)
+        onSessionCreated?.(id)
+      }
+      await observation
+      if (terminal && requestId) queue.remove(requestId)
       if (!terminal) setError('回答连接提前结束，请刷新记录核对最终状态')
     } catch (error) {
       if (
         currentGeneration === generation.current &&
         !(error instanceof Error && error.name === 'AbortError')
       ) {
-        if (!hasSession && !saved) setInput((draft) => draft || submittedDraft)
+        if (
+          !sessionId &&
+          !pendingSubmission(userId, activeSession.current ?? '')
+        )
+          setInput((draft) => draft || submittedDraft)
         setError(displayError(error))
       }
     } finally {
       if (currentGeneration === generation.current) {
+        if (!sessionId || (!saved && !queued && hasRestoredQuestion))
+          sessionStorage.removeItem(initialQuestionKey)
         busyRef.current = false
         setBusy(false)
         controller.current = null
@@ -347,7 +471,6 @@ export default function ChatScreen({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (isBusy) return
     if (
       event.key === 'Enter' &&
       !event.shiftKey &&
@@ -534,6 +657,29 @@ export default function ChatScreen({
               ))}
             </div>
           )}
+          {queue.questions.length > 0 && (
+            <ol
+              className="message-list queued-questions"
+              aria-label="等待回答的问题"
+            >
+              {queue.questions.map((question) => (
+                <li className="queued-question" key={question.id}>
+                  <div>
+                    <small>已排队</small>
+                    <p>{question.message}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label={`移除排队问题：${question.message}`}
+                    onClick={() => queue.remove(question.id)}
+                  >
+                    <X size={16} />
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
         <div className="composer-region">
           {isBusy && (
@@ -545,6 +691,11 @@ export default function ChatScreen({
           {!isOnline && (
             <p className="composer-status" role="status">
               当前离线，输入内容会保留，联网后可继续发送
+            </p>
+          )}
+          {hasRestoredQuestion && !isBusy && (
+            <p className="composer-status" role="status">
+              已找回刷新前的问题，点击发送即可继续
             </p>
           )}
           {pending && !isBusy && (
@@ -563,7 +714,7 @@ export default function ChatScreen({
           {error && (
             <ErrorNotice
               message={error}
-              onRetry={() => void reload()}
+              onRetry={sessionId ? () => void reload() : undefined}
               onDismiss={() => setError('')}
             />
           )}
@@ -600,39 +751,45 @@ export default function ChatScreen({
             <div className="composer-bottom">
               <span id="composer-status" aria-live="polite">
                 <MessageCircle size={13} />
-                {isBusy
-                  ? '正在回答，可编辑下一条，完成后再发送'
-                  : '基于当前资料快照回答'}
+                {queue.questions.length > 0
+                  ? `${queue.questions.length} 条问题排队中`
+                  : isBusy && sessionId
+                    ? '可发送下一条，当前回答完成后处理'
+                    : '基于当前资料快照回答'}
               </span>
-              {isBusy ? (
-                <button
-                  type="button"
-                  className="send-button cancel-button"
-                  onClick={() => void handleCancel()}
-                  disabled={isCancelRequested}
-                  aria-label="取消回答"
-                >
-                  <Square size={14} />
-                  {isCancelRequested ? '取消中' : '停止'}
-                </button>
-              ) : (
+              <div className="composer-actions">
+                {isBusy && (
+                  <button
+                    type="button"
+                    className="send-button cancel-button"
+                    onClick={() => void handleCancel()}
+                    disabled={isCancelRequested}
+                    aria-label="取消回答"
+                  >
+                    <Square size={14} />
+                    {isCancelRequested ? '取消中' : '停止'}
+                  </button>
+                )}
                 <button
                   type="submit"
                   className="send-button"
-                  disabled={!input.trim() || isLoading || !isOnline}
+                  disabled={
+                    !input.trim() ||
+                    isLoading ||
+                    !isOnline ||
+                    (isBusy && !sessionId)
+                  }
                   aria-label="发送问题"
                 >
                   <ArrowUp size={18} />
                 </button>
-              )}
+              </div>
             </div>
           </form>
           <div className="composer-hint">
             <span>
               <CornerDownLeft size={11} />
-              {isBusy
-                ? 'Enter 换行 · 草稿会保留'
-                : 'Enter 发送 · Shift + Enter 换行'}
+              Enter 发送 · Shift + Enter 换行
             </span>
             <span>请勿填写账号密码等私人信息</span>
           </div>

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { flushSync } from 'react-dom'
 import { expect, it, vi } from 'vitest'
 import Chat from '@/features/chat/components/chat-screen'
 import { streamRun } from '@/features/chat/services/run-transport'
@@ -356,7 +357,9 @@ it('allows composing the next question during a reply without submitting it or l
     await screen.findByRole('button', { name: '取消回答' })
     expect(input).toBeEnabled()
     fireEvent.change(input, { target: { value: '刘备技能\n补充说明' } })
-    expect(fireEvent.keyDown(input, { key: 'Enter' })).toBe(true)
+    expect(fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })).toBe(
+      true,
+    )
     expect(vi.mocked(streamRun).mock.calls.length).toBe(before + 1)
     act(() => emit({ event: 'delta', data: { text: '正在回答曹操' } }))
     expect(input).toHaveValue('刘备技能\n补充说明')
@@ -524,6 +527,234 @@ it('keeps a next-question draft while recovering the previous request', async ()
     expect(vi.mocked(streamRun).mock.calls.at(-1)?.[0].message).toBe('原始问题')
   } finally {
     localStorage.removeItem(key)
+    vi.unstubAllGlobals()
+  }
+})
+
+it('sends the first question when selecting the newly created session commits immediately', async () => {
+  const props = {
+    userId: 'first-send',
+    token: 'test',
+    onCreate: vi.fn(async () => ({
+      id: 'new-conversation',
+      title: '1',
+      created_at: '2026-11-18T00:00:00Z',
+    })),
+    snapshots: [],
+    snapshotId: 'test',
+    onSnapshotChange: vi.fn(),
+    isMockMode: false,
+    onFeedback: vi.fn(),
+  }
+  let finish!: (event: StreamEvent) => void
+  const observe = vi.mocked(streamRun).mockImplementationOnce(
+    ({ onEvent, signal }) =>
+      new Promise<void>((resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        })
+        finish = (event) => {
+          onEvent(event)
+          resolve()
+        }
+      }),
+  )
+  const select = vi.fn((id: string) => {
+    flushSync(() =>
+      rerender(<Chat {...props} sessionId={id} onSessionCreated={select} />),
+    )
+  })
+  const { rerender } = render(
+    <Chat {...props} sessionId={null} onSessionCreated={select} />,
+  )
+
+  fireEvent.change(screen.getByRole('textbox', { name: '输入问题' }), {
+    target: { value: '1' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: '发送问题' }))
+  await waitFor(() =>
+    expect(select).toHaveBeenCalledExactlyOnceWith('new-conversation'),
+  )
+  expect(observe.mock.calls.at(-1)?.[0]).toMatchObject({
+    sessionId: 'new-conversation',
+    message: '1',
+  })
+  expect(observe.mock.calls.at(-1)?.[0].signal.aborted).toBe(false)
+  act(() =>
+    finish({
+      event: 'completed',
+      data: { text: '请补充想问的规则', citations: [] },
+    }),
+  )
+  expect(await screen.findByText('请补充想问的规则')).toBeVisible()
+})
+
+it('restores the first question after a reload interrupts creating the session', async () => {
+  const props = {
+    userId: 'refresh-during-creation',
+    token: 'test',
+    sessionId: null,
+    onCreate: vi.fn(() => new Promise<never>(() => {})),
+    snapshots: [],
+    snapshotId: 'test',
+    onSnapshotChange: vi.fn(),
+    isMockMode: false,
+    onFeedback: vi.fn(),
+  }
+  const before = render(<Chat {...props} />)
+  fireEvent.change(screen.getByRole('textbox', { name: '输入问题' }), {
+    target: { value: '1' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: '发送问题' }))
+  expect(props.onCreate).toHaveBeenCalledExactlyOnceWith('1')
+  before.unmount()
+  const after = render(<Chat {...props} />)
+  try {
+    expect(screen.getByRole('textbox', { name: '输入问题' })).toHaveValue('1')
+    expect(
+      screen.getByText('已找回刷新前的问题，点击发送即可继续'),
+    ).toBeVisible()
+    expect(props.onCreate).toHaveBeenCalledTimes(1)
+  } finally {
+    after.unmount()
+    sessionStorage.removeItem('qinggui-first-question:refresh-during-creation')
+  }
+})
+
+it('queues a follow-up during the reply, then sends it in the same conversation', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response('[]')),
+  )
+  const stream = vi.mocked(streamRun)
+  const before = stream.mock.calls.length
+  let finishFirst!: () => void
+  stream.mockImplementationOnce(async ({ onEvent }) => {
+    await new Promise<void>((resolve) => {
+      finishFirst = resolve
+    })
+    onEvent({ event: 'completed', data: { text: '第一条的回答' } })
+  })
+  stream.mockImplementationOnce(async ({ onEvent }) => {
+    onEvent({ event: 'completed', data: { text: '结合第一条的追问回答' } })
+  })
+  try {
+    render(
+      <Chat
+        userId="queue-test"
+        token="test"
+        sessionId="same-chat"
+        onCreate={vi.fn()}
+        snapshots={[]}
+        snapshotId="test"
+        onSnapshotChange={vi.fn()}
+        isMockMode={false}
+        onFeedback={vi.fn()}
+      />,
+    )
+    const input = screen.getByRole('textbox', { name: '输入问题' })
+    const send = screen.getByRole('button', { name: '发送问题' })
+    fireEvent.change(input, { target: { value: '第一问' } })
+    await waitFor(() => expect(send).toBeEnabled())
+    fireEvent.click(send)
+    await screen.findByRole('button', { name: '取消回答' })
+    fireEvent.change(input, { target: { value: '再问一个问题' } })
+    expect(send).toBeEnabled()
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByText('已排队')).toBeVisible()
+    expect(input).toHaveValue('')
+    expect(stream).toHaveBeenCalledTimes(before + 1)
+    fireEvent.change(input, { target: { value: '撤回这条' } })
+    fireEvent.click(send)
+    fireEvent.click(
+      screen.getByRole('button', { name: '移除排队问题：撤回这条' }),
+    )
+    expect(screen.queryByText('撤回这条')).not.toBeInTheDocument()
+    fireEvent.change(input, { target: { value: '留着的草稿' } })
+    await act(async () => finishFirst())
+    expect(await screen.findByText('结合第一条的追问回答')).toBeVisible()
+    expect(screen.getByText('第一条的回答')).toBeVisible()
+    expect(screen.queryByText('已排队')).not.toBeInTheDocument()
+    expect(stream.mock.calls.at(-1)?.[0]).toMatchObject({
+      sessionId: 'same-chat',
+      message: '再问一个问题',
+      requestId: expect.any(String),
+    })
+    expect(stream).toHaveBeenCalledTimes(before + 2)
+    expect(input).toHaveValue('留着的草稿')
+  } finally {
+    sessionStorage.removeItem('qinggui-question-queue:queue-test:same-chat')
+    vi.unstubAllGlobals()
+  }
+})
+
+it('recovers the old answer after reload and continues the queued question with its original id', async () => {
+  const queueKey = 'qinggui-question-queue:restored-queue:old-chat'
+  const pendingKey = 'qinggui-pending:restored-queue:old-chat'
+  sessionStorage.setItem(
+    queueKey,
+    JSON.stringify([
+      { id: 'queued-id', message: '已发送的追问', snapshotId: 'old-snapshot' },
+    ]),
+  )
+  localStorage.setItem(
+    pendingKey,
+    JSON.stringify({
+      request_id: 'original',
+      session_id: 'old-chat',
+      message: '原问题',
+      snapshot_id: 'old-snapshot',
+    }),
+  )
+  const fetcher = vi.fn(
+    async (url: string) =>
+      new Response(
+        url.includes('/requests/')
+          ? JSON.stringify({ run_id: 'old-run', status: 'completed' })
+          : JSON.stringify([
+              {
+                id: 'persisted',
+                role: 'assistant',
+                content: '已恢复第一条',
+                citations: [],
+              },
+            ]),
+      ),
+  )
+  vi.stubGlobal('fetch', fetcher)
+  const stream = vi.mocked(streamRun)
+  const before = stream.mock.calls.length
+  stream.mockImplementationOnce(async ({ onEvent }) =>
+    onEvent({ event: 'completed', data: { text: '追问在刷新后完成' } }),
+  )
+  try {
+    render(
+      <Chat
+        userId="restored-queue"
+        token="test"
+        sessionId="old-chat"
+        onCreate={vi.fn()}
+        snapshots={[]}
+        snapshotId="new-snapshot"
+        onSnapshotChange={vi.fn()}
+        isMockMode={false}
+        onFeedback={vi.fn()}
+      />,
+    )
+    expect(await screen.findByText('追问在刷新后完成')).toBeVisible()
+    expect(screen.getByText('已恢复第一条')).toBeVisible()
+    expect(stream).toHaveBeenCalledTimes(before + 1)
+    expect(stream.mock.calls.at(-1)?.[0]).toMatchObject({
+      sessionId: 'old-chat',
+      message: '已发送的追问',
+      snapshotId: 'old-snapshot',
+      requestId: 'queued-id',
+    })
+    expect(sessionStorage.getItem(queueKey)).toBeNull()
+    expect(localStorage.getItem(pendingKey)).toBeNull()
+  } finally {
+    localStorage.removeItem(pendingKey)
+    sessionStorage.removeItem(queueKey)
     vi.unstubAllGlobals()
   }
 })

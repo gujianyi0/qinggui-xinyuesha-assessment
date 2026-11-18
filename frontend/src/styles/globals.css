@@ -954,6 +954,33 @@ label {
   font-size: 9px;
   color: #96a599;
 }
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.queued-questions {
+  list-style: none;
+}
+.queued-question {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+.queued-question p {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+}
+.queued-question button {
+  flex-shrink: 0;
+}
 .send-button {
   background: var(--teal);
   color: white;
