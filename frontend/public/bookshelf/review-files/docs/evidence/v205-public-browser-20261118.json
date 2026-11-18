@@ -1,0 +1,38 @@
+{
+  "sourceCommit": "dd26be46a12659ecb90ad6b8d5a73cf31643bb0b",
+  "method": "Actual Ego browser clicks, 390px simulated viewport and native mouse wheel; not physical mobile hardware",
+  "records": {
+    "history": {
+      "messages": 2,
+      "citations": 11,
+      "writeInputs": 0,
+      "alerts": []
+    },
+    "drafts": {
+      "rows": 5,
+      "total": "共 5 条反馈草稿",
+      "editButtons": 0
+    },
+    "feedback": {
+      "rows": 5,
+      "total": "共 5 条已提交反馈"
+    }
+  },
+  "readme": {
+    "version": true,
+    "download": true,
+    "url": "https://qinggui-assessment.c2115259095.workers.dev/?page=bookshelf&shelf=review&document=8-12",
+    "viewport": 390,
+    "overflow": false,
+    "alerts": []
+  },
+  "mobile_history": {
+    "viewport": 390,
+    "overflow": false,
+    "sourceExpanded": true,
+    "scrollTop": 906.6666870117188,
+    "writeInputs": 0,
+    "alerts": []
+  },
+  "model_calls": 0
+}

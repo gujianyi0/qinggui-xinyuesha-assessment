@@ -2,7 +2,7 @@
 
 base保存既有知识书架的7方向、49目标/49原文快照，来源为同工作区知识浏览网页；第49篇《从使用者角度验证交互》于2026-11-17补齐。不是新增游戏资料，也不进入RAG。
 
-本工具使用marked和sanitize-html导出正文与证据链接。知识文档仅为7方向49篇；11份文档导航QA单列为assessment_reference，不属于学习资料。原生阅读由轻归features/bookshelf和已有react-markdown/remark-gfm适配提供，发布副本不再包含原独立网页脚本、品牌或掌握进度。依赖精确版本及锁文件随仓库提供。第三方许可证见base/licenses；highlight.js仅对应历史静态高亮与样式。
+本工具使用marked和sanitize-html导出正文与证据链接。知识文档仅为7方向49篇；12份文档导航QA（含项目README）单列为assessment_reference，不属于学习资料。原生阅读由轻归features/bookshelf和已有react-markdown/remark-gfm适配提供，发布副本不再包含原独立网页脚本、品牌或掌握进度。依赖精确版本及锁文件随仓库提供。第三方许可证见base/licenses；highlight.js仅对应历史静态高亮与样式。
 
 更新项目文档后，从项目根目录执行：
 

@@ -1,0 +1,20 @@
+{
+  "sourceCommit": "dd26be46a12659ecb90ad6b8d5a73cf31643bb0b",
+  "session_total": 370,
+  "session_ids_match_local": true,
+  "session_pages_checked": 19,
+  "drafts": 5,
+  "submitted_feedback": 5,
+  "feedback_ids_match_local": true,
+  "sample_session_id": "c1c0f15d-6155-4a1d-b74a-e05e7acef932",
+  "sample_messages": 2,
+  "sample_content_and_citations_match_local": true,
+  "visitor_own_sessions": 0,
+  "private_history_access_status": 404,
+  "shared_write_status": 404,
+  "bob_password_preserved": true,
+  "learning": 49,
+  "review": 12,
+  "readme_document": "8-12",
+  "model_calls": 0
+}

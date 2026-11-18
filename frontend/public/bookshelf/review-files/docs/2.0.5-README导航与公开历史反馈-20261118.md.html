@@ -11,7 +11,14 @@
 <li>公开访客不能继续向主人会话提问、取消主人运行、修改/确认主人草稿或读取其他身份私人记录。访客自己的“最近对话”“我的反馈”仍按身份隔离。</li>
 </ul>
 <h2>验证记录</h2>
-<p>17项公网入口/中继定向测试通过，覆盖共享开关、服务及访客身份、主人选择、跨身份读写拒绝、来源展示、分页校验、反馈和精确凭据遮盖，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv205-public-records-tests-20261118.xml">定向JUnit</a>。完整后端251项通过，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv205-pytest-20261118.xml">完整JUnit</a>；前端61项及Lint/架构/类型/Knip/生产构建通过，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv205-frontend-check-20261118.log">门禁日志</a>。实际本地/公网验证结果在发布后补充；没有重新运行32条付费模型回归，也不为读取历史再调用模型。</p>
+<p>17项公网入口/中继定向测试通过，覆盖共享开关、服务及访客身份、主人选择、跨身份读写拒绝、来源展示、分页校验、反馈和精确凭据遮盖，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv205-public-records-tests-20261118.xml">定向JUnit</a>。完整后端251项通过，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv205-pytest-20261118.xml">完整JUnit</a>；前端61项及Lint/架构/类型/Knip/生产构建通过，见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv205-frontend-check-20261118.log">门禁日志</a>。实际验证已完成：</p>
+<ul>
+<li>公网分页19次遍历全部370个会话，ID集合与本机alice列表完全一致；5份草稿和5条提交也逐项对应。选定历史消息的正文与引用同本地原始记录一致；普通私有接口跨身份读取404、共享写入404、访客自己的会话列表仍独立为空。bob密码321仍可登录。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv205-public-live-20261118.json">公网及主库对应核验</a>。</li>
+<li>真实浏览器免密进入后看到20条第一页和370条总数；打开历史显示2条消息、11个引用按钮；草稿和提交页各5条，没有编辑、确认或发送按钮。README卡片位于文档导航QA，8-12打开当前2.0.5正文，并保留独立下载。390px模拟宽度没有横向溢出，展开历史引用后真实滚轮使主内容scrollTop达到906.67。见<a href="/?page=bookshelf&amp;shelf=review&amp;file=docs%2Fevidence%2Fv205-public-browser-20261118.json">浏览器记录</a>。没有把模拟视口写成物理真机验证。</li>
+<li>API以v2.0.5-local.1镜像在无进行中Run时更新，运行源码哈希与本地一致，原PostgreSQL卷保留；只重启公网适配器来加载GET白名单。Worker、Kafka、Redis、数据库及原前端未重建。公网真实模型配置保留，读取历史没有新增模型调用或费用。</li>
+<li>已验证应用提交dd26be4的GitHub CI推送和PR均成功：44211342363、44211351271。后续文档与证据发布提交以公网/public-build.json为准；不移动已有v2.0.4标签。</li>
+</ul>
+<p>没有重新运行32条付费模型回归或一小时Worker测试，也未补跑Storybook和Lighthouse。代码公开不等于数据库内容写入GitHub：这些共享记录仍通过受控API实时读取。</p>
 <h2>访问</h2>
 <p>公网公开历史与反馈：<a href="https://qinggui-assessment.c2115259095.workers.dev/?page=shared">https://qinggui-assessment.c2115259095.workers.dev/?page=shared</a> 。README：<a href="https://qinggui-assessment.c2115259095.workers.dev/?page=bookshelf&amp;shelf=review&amp;document=8-12">https://qinggui-assessment.c2115259095.workers.dev/?page=bookshelf&amp;shelf=review&amp;document=8-12</a> 。需要先以独立访客进入工作区；所有访客都可检阅公开记录。</p>
 </article></body></html>

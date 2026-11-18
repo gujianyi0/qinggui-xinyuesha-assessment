@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-17",
+  "updated": "2026-11-18",
   "sourceShelf": "tools/bookshelf/base",
   "sourceOrigin": "工作区知识浏览网页，2026-11-17本地快照",
   "learningGoals": 49,
@@ -10,8 +10,8 @@
     {
       "path": "docs/2.0.5-README导航与公开历史反馈-20261118.md",
       "url": "/bookshelf/review-files/docs/2.0.5-README%E5%AF%BC%E8%88%AA%E4%B8%8E%E5%85%AC%E5%BC%80%E5%8E%86%E5%8F%B2%E5%8F%8D%E9%A6%88-20261118.md",
-      "sha256": "14e39c7576368cab0c29792aff6871047fad42e5bc1488dbd4bf3f2b9e0e863d",
-      "bytes": 2934
+      "sha256": "77b8208c5bc7a4f4b6ddeb76d86642512ea0325193d31423c7c4d6e50de9d74e",
+      "bytes": 4442
     },
     {
       "path": "docs/evidence/v205-public-records-tests-20261118.xml",
@@ -30,6 +30,18 @@
       "url": "/bookshelf/review-files/docs/evidence/v205-frontend-check-20261118.log.txt",
       "sha256": "409c63cfab221ce5f941083be6d33fdf07e5b55fabf1f186f58b047391d4f15c",
       "bytes": 2501
+    },
+    {
+      "path": "docs/evidence/v205-public-live-20261118.json",
+      "url": "/bookshelf/review-files/docs/evidence/v205-public-live-20261118.json",
+      "sha256": "e4af359ef5d981bd9b85b433dbd1c1205005ab77413eeaa45b97cdf5076611af",
+      "bytes": 608
+    },
+    {
+      "path": "docs/evidence/v205-public-browser-20261118.json",
+      "url": "/bookshelf/review-files/docs/evidence/v205-public-browser-20261118.json",
+      "sha256": "c94260083dea9c46420f0d4d7e876c4ee56c8cd120dbfb45960cbc885ec4b9ef",
+      "bytes": 965
     },
     {
       "path": "docs/2.0.4-公网发布与GitHub同步-20261117.md",
@@ -532,8 +544,8 @@
     {
       "path": "tools/bookshelf/README.md",
       "url": "/bookshelf/review-files/tools/bookshelf/README.md",
-      "sha256": "e2c958dd78be67fe73e49a11984724da03057abc9906ef5bd2b4ede2e1ed1b1f",
-      "bytes": 1796
+      "sha256": "359bab941b85d884031126f4c3c4b9728decbca1fe28fca0fcc815b04e610951",
+      "bytes": 1817
     },
     {
       "path": "backend/app/main.py",

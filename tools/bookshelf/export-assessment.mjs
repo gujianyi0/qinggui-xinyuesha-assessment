@@ -24,7 +24,7 @@ data.learningDocumentCount=data.records.filter(r=>r.available).length;
 data.records=data.records.map(record=>({...record,kind:'learning',sourcePath:'learning/'+record.filename}));
 data.reviewDocuments=[];
 data.reviewSection={title:'文档导航QA',kind:'assessment_reference'};
-data.assessmentExport={updated:'2026-11-17',scope:'local-read-only',source:'docs/文档导航QA',progress:'not-connected'};
+data.assessmentExport={updated:'2026-11-18',scope:'read-only-reference',source:'docs/文档导航QA + README',progress:'backend-proxy'};
 const names=['文档导航QA.md','01-源码依赖迁移配置与资料.md','02-验证测试修正与试用反馈.md','03-主要功能与后台任务进度.md',
   '测试与修复记录/测试与修复记录.md','测试与修复记录/01-固定样例与来源核对.md','测试与修复记录/02-真实模型前后对照.md',
   '测试与修复记录/03-具体问题修正全过程.md','测试与修复记录/04-自动化与后台故障测试.md',
@@ -115,6 +115,6 @@ await fs.writeFile(path.join(output,'index.html'),'<!doctype html><html lang="zh
 await fs.mkdir(path.join(output,'licenses'),{recursive:true});
 await fs.cp(path.join(input,'licenses'),path.join(output,'licenses'),{recursive:true,force:true});
 await fs.writeFile(path.join(output,'THIRD-PARTY-NOTICES.md'),'# 本地知识书架来源\n\n原书架来自本工作区知识浏览网页，保留7个学习方向、49条目标和49份原文；文档导航QA单列为考核资料，不进入学习目录。轻归原生模块复用既有Markdown适配与Query层提供搜索、阅读目录和字号；导出保留原文和证据链接，不加载独立书架的重复界面。\n\nMarkdown生成使用marked与sanitize-html；已有代码高亮及样式来自highlight.js。许可证见licenses/。本地副本不连接Cloudflare D1、不导出主人管理口令、不修改云端掌握进度。\n');
-const manifest={updated:'2026-11-17',sourceShelf:'tools/bookshelf/base',sourceOrigin:'工作区知识浏览网页，2026-11-17本地快照',learningGoals:49,learningDocuments:data.records.filter(r=>r.group<7&&r.available).length,reviewDocuments:names.length,cloudModified:false,files:[...copied].filter(([,v])=>!v.directory).map(([file,value])=>({path:path.relative(root,file).replaceAll('\\','/'),...value})),unexported:[...new Set(excluded)].sort()};
+const manifest={updated:'2026-11-18',sourceShelf:'tools/bookshelf/base',sourceOrigin:'工作区知识浏览网页，2026-11-17本地快照',learningGoals:49,learningDocuments:data.records.filter(r=>r.group<7&&r.available).length,reviewDocuments:names.length,cloudModified:false,files:[...copied].filter(([,v])=>!v.directory).map(([file,value])=>({path:path.relative(root,file).replaceAll('\\','/'),...value})),unexported:[...new Set(excluded)].sort()};
 await fs.writeFile(path.join(output,'export-manifest.json'),JSON.stringify(manifest,null,2));
 console.log(JSON.stringify({reviewDocuments:names.length,linkedFiles:manifest.files.length,unexported:manifest.unexported.length,output}));
