@@ -14,14 +14,43 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 await fs.rm(output,{recursive:true,force:true});
 await fs.mkdir(output,{recursive:true});
-for(const name of ['articles','originals','style.css','code.css','source-goals.md']){
+for(const name of ['articles','originals','style.css','code.css']){
   await fs.cp(path.join(input,name),path.join(output,name),{recursive:true,force:true});
 }
 const data=JSON.parse(await fs.readFile(path.join(input,'data.json'),'utf8'));
 if(data.groups.length!==7||data.records.length!==49)throw Error('Expected unchanged seven-direction source shelf');
-data.learningGoalCount=49;
+data.title='知识书架';
+delete data.source;
 data.learningDocumentCount=data.records.filter(r=>r.available).length;
-data.records=data.records.map(record=>({...record,kind:'learning',sourcePath:'learning/'+record.filename}));
+
+// The imported articles put the original assignment prompt in the opening metadata.
+const goalLabel='(?:(?:对应|适用)(?:学习|知识)?目标|(?:学习|知识)目标)';
+const markdownGoal=new RegExp(`^(?:> *\\*{0,2}|\\*{0,2})${goalLabel}\\*{0,2}[：:]`);
+const htmlGoal=new RegExp(`(<p>|<br\\s*/?>)(?:<strong>)?${goalLabel}(?:</strong>)?[：:](?:(?!<br\\s*/?>|</p>)[^\r\n])*(<br\\s*/?>|</p>)`,'g');
+const plainSearch=markdown=>markdown.replace(/[#*>`|\[\]]/g,' ').replace(/\s+/g,' ').trim();
+
+data.records=await Promise.all(data.records.map(async ({goal,source,...record})=>{
+  const original=path.join(output,'originals',record.id+'.md');
+  const article=path.join(output,'articles',record.id+'.html');
+  const [markdown,html]=await Promise.all([fs.readFile(original,'utf8'),fs.readFile(article,'utf8')]);
+  const eol=markdown.includes('\r\n')?'\r\n':'\n';
+  const lines=markdown.split(eol);
+  const intro=lines.slice(0,16);
+  const filtered=intro.filter((line,index)=>!markdownGoal.test(line) && !(
+    /^>\s*$/.test(line) && markdownGoal.test(intro[index-1]||'') && !intro[index-2]?.startsWith('>')
+  ));
+  const clean=filtered.concat(lines.slice(intro.length)).join(eol);
+  const htmlLines=html.split('\n');
+  const cleanHtml=htmlLines.slice(0,16).join('\n')
+    .replace(htmlGoal,(_,before,after)=>before==='<p>'&&after==='</p>'?'':after==='</p>'?after:before)
+    .replace(/<blockquote>\s*<\/blockquote>\n?/g,'');
+  await Promise.all([
+    fs.writeFile(original,clean),
+    fs.writeFile(article,[cleanHtml,...htmlLines.slice(16)].join('\n')),
+  ]);
+  return {...record,kind:'learning',sourcePath:'learning/'+record.filename,
+    characters:clean.length,hash:hash(clean),search:plainSearch(clean)};
+}));
 data.reviewDocuments=[];
 data.reviewSection={title:'文档导航QA',kind:'assessment_reference'};
 data.assessmentExport={updated:'2026-11-18',scope:'read-only-reference',source:'docs/文档导航QA + README',progress:'backend-proxy'};
@@ -115,10 +144,10 @@ const searchIndex=Object.fromEntries([...data.records,...data.reviewDocuments].m
 for(const record of [...data.records,...data.reviewDocuments])record.search='';
 await fs.writeFile(path.join(output,'search.json'),JSON.stringify(searchIndex));
 await fs.writeFile(path.join(output,'data.json'),JSON.stringify(data));
-await fs.writeFile(path.join(output,'index.html'),'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/?page=bookshelf"><title>轻归 · 知识书架＆QA</title><a href="/?page=bookshelf">进入轻归知识书架＆QA</a></html>');
+await fs.writeFile(path.join(output,'index.html'),'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/?page=bookshelf"><title>轻归 · 知识书架</title><a href="/?page=bookshelf">进入轻归知识书架</a></html>');
 await fs.mkdir(path.join(output,'licenses'),{recursive:true});
 await fs.cp(path.join(input,'licenses'),path.join(output,'licenses'),{recursive:true,force:true});
-await fs.writeFile(path.join(output,'THIRD-PARTY-NOTICES.md'),'# 本地知识书架来源\n\n原书架来自本工作区知识浏览网页，保留7个学习方向、49条目标和49份原文；文档导航QA单列为考核资料，不进入学习目录。轻归原生模块复用既有Markdown适配与Query层提供搜索、阅读目录和字号；导出保留原文和证据链接，不加载独立书架的重复界面。\n\nMarkdown生成使用marked与sanitize-html；已有代码高亮及样式来自highlight.js。许可证见licenses/。本地副本不连接Cloudflare D1、不导出主人管理口令、不修改云端掌握进度。\n');
-const manifest={updated:'2026-11-18',sourceShelf:'tools/bookshelf/base',sourceOrigin:'工作区知识浏览网页，2026-11-17本地快照',learningGoals:49,learningDocuments:data.records.filter(r=>r.group<7&&r.available).length,reviewDocuments:names.length,cloudModified:false,files:[...copied].filter(([,v])=>!v.directory).map(([file,value])=>({path:path.relative(root,file).replaceAll('\\','/'),...value})),unexported:[...new Set(excluded)].sort()};
+await fs.writeFile(path.join(output,'THIRD-PARTY-NOTICES.md'),'# 本地知识书架来源\n\n原书架来自本工作区知识浏览网页，包含7个知识方向和49篇文章；文档导航QA单列。轻归原生模块复用既有Markdown适配与Query层提供搜索、阅读目录和字号；导出保留原文和证据链接，不加载独立书架的重复界面。\n\nMarkdown生成使用marked与sanitize-html；已有代码高亮及样式来自highlight.js。许可证见licenses/。本地副本不连接Cloudflare D1、不导出主人管理口令、不修改云端掌握进度。\n');
+const manifest={updated:'2026-11-18',sourceShelf:'tools/bookshelf/base',sourceOrigin:'工作区知识浏览网页，2026-11-17本地快照',learningDocuments:data.records.filter(r=>r.group<7&&r.available).length,reviewDocuments:names.length,cloudModified:false,files:[...copied].filter(([,v])=>!v.directory).map(([file,value])=>({path:path.relative(root,file).replaceAll('\\','/'),...value})),unexported:[...new Set(excluded)].sort()};
 await fs.writeFile(path.join(output,'export-manifest.json'),JSON.stringify(manifest,null,2));
 console.log(JSON.stringify({reviewDocuments:names.length,linkedFiles:manifest.files.length,unexported:manifest.unexported.length,output}));

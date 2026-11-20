@@ -1,7 +1,7 @@
 <h1 id="section-1">大模型原理、API 与输出校验（八）</h1>
 <h1 id="section-2">使用 Pydantic 校验模型结果：格式错误、缺字段、拒答与信息不足的分类处理</h1>
 <blockquote>
-<p><strong>对应学习目标</strong>：用 Pydantic 等方式校验模型结果，分别处理格式错误、缺字段、拒答和信息不足，让调用方知道发生了什么。<br /><strong>范围</strong>：本篇讨论模型输出的解析、验证、语义分流、错误传递与对外接口契约；不展开下一条关于数值计算、运行用量或提示词版本收益分析的知识点。<br /><strong>技术前提</strong>：Python 3.11+、Pydantic v2、FastAPI（演示）。</p>
+<p><strong>范围</strong>：本篇讨论模型输出的解析、验证、语义分流、错误传递与对外接口契约；不展开下一条关于数值计算、运行用量或提示词版本收益分析的知识点。<br /><strong>技术前提</strong>：Python 3.11+、Pydantic v2、FastAPI（演示）。</p>
 </blockquote>
 <hr />
 <h2 id="section-3">01. 为什么模型输出不能直接作为业务结果？</h2>

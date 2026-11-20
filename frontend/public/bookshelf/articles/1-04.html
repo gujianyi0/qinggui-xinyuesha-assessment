@@ -1,6 +1,6 @@
 <h1 id="section-1">Python 基础与异步编程（四）：事件循环阻塞、异步客户端与线程池</h1>
 <blockquote>
-<p>对应学习目标：<strong>同步网络请求、<code>time.sleep</code>、耗时计算为什么可能阻塞事件循环；异步客户端、线程池各适合什么场景。</strong></p>
+
 <p>内容范围：事件循环调度原理、阻塞 I/O、CPU 密集型工作、<code>httpx.AsyncClient</code>、<code>asyncio.to_thread</code>、<code>ThreadPoolExecutor</code>、<code>ProcessPoolExecutor</code>、FastAPI 执行模型、取消与超时、测量与排错。适用于 Python 3.13+ 的主要语法；涉及解释器实现的部分单独说明。</p>
 </blockquote>
 <h2 id="section-2">1. 先明确“阻塞”的对象</h2>

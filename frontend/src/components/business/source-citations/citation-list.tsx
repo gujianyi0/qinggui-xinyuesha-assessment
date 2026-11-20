@@ -9,6 +9,30 @@ interface CitationListProps {
   compact?: boolean
   onInteract?: () => void
 }
+function uniqueCitations(items: Citation[]): Citation[] {
+  const ids = new Set<string>()
+  const excerpts = new Set<string>()
+  return items.filter((item) => {
+    const id = JSON.stringify([item.snapshot_id, item.id])
+    const excerpt = item.excerpt?.trim().replace(/\r\n/g, '\n')
+    const location =
+      item.path && excerpt
+        ? JSON.stringify([
+            item.snapshot_id,
+            item.path,
+            item.line_start,
+            item.line_end ?? item.line_start,
+            excerpt,
+          ])
+        : null
+    const duplicate =
+      ids.has(id) || (location !== null && excerpts.has(location))
+    ids.add(id)
+    if (location !== null) excerpts.add(location)
+    return !duplicate
+  })
+}
+
 export default function CitationList({
   items,
   compact = false,
@@ -16,8 +40,9 @@ export default function CitationList({
 }: CitationListProps) {
   const [expanded, setExpanded] = useState<string | null>(null)
   const id = useId()
-  if (!items.length) return null
-  const active = items.findIndex(
+  const sources = uniqueCitations(items)
+  if (!sources.length) return null
+  const active = sources.findIndex(
     (item, index) => expanded === `${item.id}-${index}`,
   )
   function handleToggle(key: string) {
@@ -28,13 +53,13 @@ export default function CitationList({
     <div className={`citation-list ${compact ? 'compact' : ''}`}>
       <div className="eyebrow citation-heading">
         <BookOpen size={13} />
-        {compact ? '参考来源' : '依据与来源'} <span>{items.length}</span>
+        {compact ? '参考来源' : '依据与来源'} <span>{sources.length}</span>
       </div>
       <div className={compact ? 'citation-buttons' : 'citation-cards'}>
-        {items.map((item, index) => (
+        {sources.map((item, index) => (
           <div
             className="citation-item"
-            key={`${item.id}:${item.path}:${item.line_start ?? 0}`}
+            key={JSON.stringify([item.snapshot_id, item.id])}
           >
             <SourceButton
               source={item}
@@ -56,7 +81,7 @@ export default function CitationList({
       </div>
       {compact && active >= 0 && (
         <SourceDetail
-          source={items[active]}
+          source={sources[active]}
           number={active + 1}
           id={`${id}-${active}`}
         />

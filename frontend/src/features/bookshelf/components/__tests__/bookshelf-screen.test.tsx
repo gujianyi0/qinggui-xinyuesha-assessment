@@ -9,7 +9,7 @@ function document(
   kind: ShelfDocument['kind'],
   title: string,
 ): ShelfDocument {
-  return {
+  const sourceDocument = {
     id,
     kind,
     title,
@@ -20,6 +20,7 @@ function document(
     search: title,
     toc: [],
   }
+  return sourceDocument
 }
 const catalog: ShelfCatalog = {
   groups: [{ id: 6, title: '测试与部署', short: '测试与部署' }],
@@ -94,9 +95,10 @@ it('shows shared progress and owner mastery controls without merging review docu
     learned: false,
     revision: 3,
   })
-  expect(screen.getByRole('link', { name: '下载原文' })).toHaveAttribute(
-    'download',
-  )
+  expect(
+    screen.queryByRole('link', { name: '下载原文' }),
+  ).not.toBeInTheDocument()
+  expect(screen.queryByText('学习交互验证')).not.toBeInTheDocument()
 })
 
 it('keeps shared mastery read only for a reviewer while allowing personal bookmarks', async () => {

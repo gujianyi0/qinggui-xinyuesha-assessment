@@ -1,7 +1,7 @@
 import CitationList from '@/components/business/source-citations'
 import { EmptyState, ErrorNotice, Spinner } from '@/components/ui'
 import { handleTabNavigation } from '@/components/ui/tab-navigation'
-import { answerText } from '@/features/chat'
+import { answerCitations, answerText } from '@/features/chat'
 import { relativeDate } from '@/lib/date-time'
 import { useQuery } from '@/lib/query'
 import { updateUrl, useUrlSearch } from '@/lib/url-state'
@@ -177,7 +177,10 @@ export default function SharedRecordsScreen({
                           : item.content}
                       </div>
                       {item.citations?.length > 0 && (
-                        <CitationList items={item.citations} compact />
+                        <CitationList
+                          items={answerCitations(item.content, item.citations)}
+                          compact
+                        />
                       )}
                     </article>
                   ))}

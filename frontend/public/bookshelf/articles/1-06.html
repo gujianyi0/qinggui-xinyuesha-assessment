@@ -1,7 +1,7 @@
 <h1 id="section-1">Python 基础与异步编程（六）</h1>
 <h1 id="section-2">HTTP 客户端与数据库连接的复用、关闭，以及服务停止时对在途任务的处理</h1>
 <blockquote>
-<p>对应学习目标：<strong>HTTP 客户端与数据库连接的复用和关闭，服务停止时如何处理在途任务。</strong><br />适用技术栈：Python 3.13、<code>asyncio</code>、HTTPX、FastAPI / Starlette、Uvicorn、SQLAlchemy 2.x、PostgreSQL。<br />文档性质：独立技术知识详解。代码中的生产环境配置值为示例，必须根据实际负载和服务端容量调整。</p>
+<p>适用技术栈：Python 3.13、<code>asyncio</code>、HTTPX、FastAPI / Starlette、Uvicorn、SQLAlchemy 2.x、PostgreSQL。<br />文档性质：独立技术知识详解。代码中的生产环境配置值为示例，必须根据实际负载和服务端容量调整。</p>
 </blockquote>
 <hr />
 <h2 id="section-3">1. 为什么网络客户端与数据库连接必须管理生命周期</h2>

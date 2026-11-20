@@ -1,6 +1,6 @@
 <h1 id="section-1">消息队列与后台任务可靠性（一）：Kafka Topic、Partition、Offset、Producer、Consumer 与 Consumer Group</h1>
 <blockquote>
-<p><strong>对应知识目标</strong>：Kafka 的 Topic、Partition、Offset、Producer、Consumer 和 Consumer Group；分区内顺序与跨分区顺序的区别。<br /><strong>知识范围</strong>：Apache Kafka 的基本日志模型、消费组与顺序语义，必要时连接后台任务故障场景。消费位点的精细提交策略、重试/DLQ、Worker 幂等和 Kafka 事务会在后续独立知识点深入。<br /><strong>依据</strong>：Apache Kafka 4.4 官方介绍、设计文档、客户端配置和命令行文档。示例依赖时区无关，不依赖生产环境。</p>
+<p><strong>知识范围</strong>：Apache Kafka 的基本日志模型、消费组与顺序语义，必要时连接后台任务故障场景。消费位点的精细提交策略、重试/DLQ、Worker 幂等和 Kafka 事务会在后续独立知识点深入。<br /><strong>依据</strong>：Apache Kafka 4.4 官方介绍、设计文档、客户端配置和命令行文档。示例依赖时区无关，不依赖生产环境。</p>
 </blockquote>
 <hr />
 <h2 id="section-2">1. Kafka 在后台任务系统中的位置</h2>

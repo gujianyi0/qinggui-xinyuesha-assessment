@@ -10,8 +10,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 
 from .answer_sources import (
+    DECK_FIELDS,
+    IMPLEMENTATION_FIELDS,
+    RULE_FIELDS,
     SourceTail,
     card_answer_mode,
+    card_subjects,
     card_tool_context,
     render_card_answer,
     select_answer_sources,
@@ -252,10 +256,33 @@ class Runtime:
                 knowledge = json.loads(await search_knowledge(message))
                 if entities.get("error") and knowledge.get("error"):
                     raise ModelFailure("资料查询工具暂时不可用，可稍后重试")
-                exact = [e for e in entities.get("items", []) if e["name"] in message]
+                items = entities.get("items", [])
+                subjects = card_subjects(message, {item["name"] for item in items if item["kind"] == "card"})
+                exact = [item for item in items if item["name"] in (subjects if item["kind"] == "card" else message)]
                 if exact:
-                    collect_sources(exact[:2], citations)
-                    answer = "【模型替身演示，非真实模型结果】\n" + "\n".join(f"{e['name']}：{e.get('description', '')}\n数据：{json.dumps(e.get('attributes', {}), ensure_ascii=False)}" for e in exact[:2])
+                    deck = bool(DECK_FIELDS.search(message))
+                    rules = bool(RULE_FIELDS.search(message))
+                    implementation = bool(IMPLEMENTATION_FIELDS.search(message))
+                    summaries = []
+                    for item in exact[:2]:
+                        name = item["name"]
+                        if item["kind"] != "card":
+                            collect_sources([item], citations)
+                            summaries.append(f"{name}：{item['description']}" if item.get("description") else f"{name}的资料见下方来源。")
+                            continue
+                        description = item.get("description")
+                        if not deck or rules or implementation:
+                            details = item.get("description_sources") if not implementation else None
+                            collect_sources([{"source": source} for source in details or [item["source"]]], citations)
+                            if description:
+                                summaries.append(f"{name}：{description}")
+                        if deck:
+                            specs = item.get("attribute_sources", [])
+                            collect_sources([{"source": source} for source in specs], citations)
+                            summaries.append(f"【{name}】的牌堆数据{'见下方的牌堆配置' if specs else '在当前资料中暂无对应记录'}。")
+                        elif not description:
+                            summaries.append(f"{name}的资料见下方来源。")
+                    answer = "【模型替身演示，非真实模型结果】\n" + "\n".join(summaries)
                 elif knowledge.get("items"):
                     collect_sources(knowledge["items"][:1], citations)
                     answer = "【模型替身演示，非真实模型结果】以下是检索到的资料，请核对问题前提：\n" + knowledge["items"][0]["text"]
@@ -346,7 +373,7 @@ class Runtime:
                         "复述牌面动作词时，原文是‘使用’就写‘使用’，原文是‘打出’就写‘打出’，两者不可互换。只问某张牌能否应对另一张牌时，用发起效果的牌面说明直接作答，不引申其他牌的时机、伤害类型或术语沿革。",
                         "正文完成后，另起一行输出 [[sources:来源ID1,来源ID2]]。使用实际工具结果的source.id或description_sources/attribute_sources中对应的id，只列直接支持本次结论且实际使用的证据；无直接依据用 [[sources:]]。不引用仅召回的相近牌、无关的牌堆配置或重复资料。",
                     ])
-                instructions.append("面向玩家直接作答，简洁自然、分段清楚；正文不使用星号加粗、Markdown标题或反引号，不显示runtime/packages等源码路径。必要时提资料标题和适用版本，完整来源与位置由网页末尾的来源按钮展示；不能因此省略必要条件、冲突或未核验说明。")
+                instructions.append("面向玩家直接作答，简洁自然、分段清楚；正文不使用星号加粗、Markdown标题或反引号，不显示runtime/packages等源码路径，不直接输出工具返回的属性 JSON。必要时提资料标题和适用版本，完整来源与位置由网页末尾的来源按钮展示；不能因此省略必要条件、冲突或未核验说明。")
                 prompt_version = "grounded-" + hashlib.sha256(json.dumps(instructions, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()[:16]
                 async with self.database.sessions.begin() as db:
                     await db.execute(update(Run).where(Run.id == run_id, Run.status == "running").values(prompt_version=prompt_version))

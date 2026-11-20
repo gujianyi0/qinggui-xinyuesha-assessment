@@ -1,7 +1,7 @@
 <h1 id="section-1">消息队列与后台任务可靠性（三）</h1>
 <h1 id="section-2">至少一次投递、业务幂等键、最终结果唯一性与消息标识</h1>
 <blockquote>
-<p>对应学习目标：<strong>至少一次投递意味着可能重复处理。业务幂等键、最终结果唯一性与消息标识分别解决什么问题。</strong><br />核心技术：Apache Kafka、Consumer Group、Offset、幂等消费者、PostgreSQL 唯一约束、数据库事务、Inbox/Outbox 模式。<br />文档性质：独立知识教材；代码可在无 Kafka Broker 的本地环境中复现关键数据库语义。<br />验证说明：文末 27 项测试使用 Python 标准库 + SQLite 真实数据库文件运行通过；<strong>未</strong>声称已完成真实 Kafka、PostgreSQL 或外部服务集成测试。</p>
+<p>核心技术：Apache Kafka、Consumer Group、Offset、幂等消费者、PostgreSQL 唯一约束、数据库事务、Inbox/Outbox 模式。<br />文档性质：独立知识教材；代码可在无 Kafka Broker 的本地环境中复现关键数据库语义。<br />验证说明：文末 27 项测试使用 Python 标准库 + SQLite 真实数据库文件运行通过；<strong>未</strong>声称已完成真实 Kafka、PostgreSQL 或外部服务集成测试。</p>
 </blockquote>
 <hr />
 <h2 id="section-3">1. 从“至少一次投递”开始</h2>

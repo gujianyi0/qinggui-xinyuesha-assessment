@@ -1,6 +1,6 @@
 <h1 id="section-1">消息队列与后台任务可靠性（七）：消费延迟、在途任务、优雅停机、重平衡与真实业务进度</h1>
 <blockquote>
-<p>对应学习目标：消费延迟、在途任务、优雅停机和重平衡，区分进程存活与任务真正推进。</p>
+
 <p>知识范围：Apache Kafka 传统 Consumer Group、Kafka 4.x 新 Consumer Rebalance Protocol、Python asyncio 与 aiokafka、PostgreSQL 中的持久化业务状态。示例侧重理解运行机制和安全边界，使用可离线运行的教学模拟器；真实 Broker 与数据库行为另行区分。</p>
 <p>核心判断：<strong>Worker 进程还活着 ≠ Kafka Consumer 仍持有有效分区 ≠ 正在获取消息 ≠ 正在处理消息 ≠ 业务成功落库 ≠ Kafka 已安全提交进度。</strong></p>
 </blockquote>

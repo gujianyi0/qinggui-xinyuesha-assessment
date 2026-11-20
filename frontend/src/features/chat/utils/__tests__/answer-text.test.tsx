@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { expect, it } from 'vitest'
 import CitationList from '@/components/business/source-citations'
-import { answerText } from '@/features/chat/utils/answer-text'
+import { answerCitations, answerText } from '@/features/chat/utils/answer-text'
 
 const source = {
   id: 'caocao',
@@ -37,6 +37,45 @@ it('hides source paths during streaming before citations arrive, without changin
   ).toBe('错误日志在 C:\\Games\\client.log；技能标识 jianxiong，快照0.5.25。')
 })
 
+it('removes legacy mock attribute dumps while keeping ordinary data answers', () => {
+  const label = '【模型替身演示，非真实模型结果】'
+  const facts = '数据：黑桃 A、红桃 Q。'
+  expect(answerText(`${label}\n闪电\n数据：{"deck_specs":[]}\n${facts}`)).toBe(
+    `${label}\n闪电\n${facts}`,
+  )
+  expect(answerText('数据：{"valid":true}')).toBe('数据：{"valid":true}')
+})
+
+it('shows the rule and deck evidence for a legacy card answer', () => {
+  const card = { ...source, id: 'slash', title: '杀' }
+  const rule = { ...card, id: 'slash-rule', evidence_type: 'skill_description' }
+  const deck = { ...card, id: 'slash:deck-spec', title: '杀牌堆配置' }
+  const citations = [card, rule, deck]
+  expect(
+    answerCitations(
+      '【模型替身演示，非真实模型结果】\n杀\n数据：{}',
+      citations,
+    ),
+  ).toEqual([rule, deck])
+  expect(answerCitations('杀的代码实现如下', citations)).toEqual(citations)
+})
+
+it('shows one button for identical evidence and keeps distinct excerpts', () => {
+  render(
+    <CitationList
+      compact
+      items={[
+        source,
+        source,
+        { ...source, id: 'alias', excerpt: ` ${source.excerpt} ` },
+        { ...source, id: 'separate', title: '护驾', excerpt: '护驾的规则' },
+      ]}
+    />,
+  )
+  expect(screen.getAllByRole('button', { name: /查看来源/ })).toHaveLength(2)
+  expect(screen.getByRole('button', { name: '查看来源 2：护驾' })).toBeVisible()
+})
+
 it('does not attribute a shared source file to the last cited skill', () => {
   expect(
     answerText(source.path, [
@@ -57,6 +96,7 @@ it('opens complete source evidence only from the answer-end button and can close
     'runtime/packages/standard/pkg/init.lua:17–21',
   )
   expect(detail).toHaveTextContent('fixed-snapshot')
+  expect(detail).not.toHaveTextContent(/^曹操/)
   expect(await screen.findByText('体力4，技能奸雄、护驾。')).toBeInTheDocument()
   expect(button).toHaveAttribute('aria-controls', detail.id)
   fireEvent.click(button)

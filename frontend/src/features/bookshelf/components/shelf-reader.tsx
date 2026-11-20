@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Check, Download, Star } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Star } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ErrorNotice, Spinner } from '@/components/ui'
 import MarkdownDocument from '@/lib/markdown/markdown-document'
@@ -158,21 +158,11 @@ export default function ShelfReader({
           >
             A＋
           </button>
-          <a
-            href={`/bookshelf/originals/${document.id}.md`}
-            download={document.filename}
-          >
-            <Download size={14} />
-            下载原文
-          </a>
         </div>
       </div>
       <h1 className="shelf-title" ref={heading} tabIndex={-1}>
         {document.title}
       </h1>
-      {!isReview && document.goal && (
-        <p className="shelf-goal">{document.goal}</p>
-      )}
       {content.error && (
         <ErrorNotice
           message={displayError(content.error)}

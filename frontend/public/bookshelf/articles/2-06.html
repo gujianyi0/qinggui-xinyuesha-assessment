@@ -1,7 +1,7 @@
 <h1 id="section-1">大模型原理、API 与输出校验（六）</h1>
 <h1 id="section-2">普通响应与流式响应：文本增量、结束事件、超时和中途断开的处理</h1>
 <blockquote>
-<p>知识目标：理解模型 API 的普通响应（Non-streaming）与流式响应（Streaming）如何工作；正确处理文本增量、完成与失败事件、超时、用户取消及网络中断，防止把不完整输出误当成完整结果。</p>
+
 <p>技术基准：Python 3.13+ 的 <code>asyncio</code>；FastAPI；HTTPX；基于公开接口的 Chat Completions 和 Responses API。不同模型提供商、协议与 SDK 版本的行为可能不同，须以当前服务的接口文档为准。文中示例分为<strong>可离线运行的演示</strong>与<strong>需要 API 密钥的远程调用</strong>，不可混淆。</p>
 </blockquote>
 <hr />

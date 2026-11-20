@@ -1,6 +1,6 @@
 <h1 id="section-1">消息队列与后台任务可靠性（五）：同分区并发处理、连续完成水位与安全 Offset 提交</h1>
 <blockquote>
-<p>对应学习目标：<strong>同分区并发处理时，后完成的消息不能越过尚未完成的较早消息，导致重启后漏处理。</strong><br />知识范围：Apache Kafka 消费组、aiokafka 手动提交、异步 Worker、故障恢复、数据库幂等。<br />示例环境：Python 3.13；教学代码仅使用 Python 标准库和 SQLite；Kafka 客户端代码展示集成模式，未进行真实 Broker 验证。</p>
+<p>知识范围：Apache Kafka 消费组、aiokafka 手动提交、异步 Worker、故障恢复、数据库幂等。<br />示例环境：Python 3.13；教学代码仅使用 Python 标准库和 SQLite；Kafka 客户端代码展示集成模式，未进行真实 Broker 验证。</p>
 </blockquote>
 <h2 id="section-2">1. 一句话理解问题</h2>
 <p>Kafka 一个分区内的日志是按 Offset 排列的，但一个 Worker 可以把同一分区的多条消息交给多个协程同时处理。此时<strong>消息的读取顺序、完成顺序、提交顺序是不同的</strong>：</p>

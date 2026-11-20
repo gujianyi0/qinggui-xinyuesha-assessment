@@ -2578,25 +2578,6 @@ dd {
   line-height: 1.8;
   color: var(--ink, #253a36);
 }
-.source-detail-heading {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 1px 0 12px;
-}
-.source-detail-heading strong {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink, #253a36);
-}
-.source-detail-heading > span {
-  font-size: 10px;
-  color: var(--muted);
-  padding: 2px 7px;
-  background: var(--soft);
-  border-radius: 4px;
-}
 .source-metadata {
   font-size: 11px;
   color: var(--muted);
@@ -2758,9 +2739,6 @@ dd {
 }
 @media (max-width: 650px) {
   .source-excerpt {
-    font-size: 13px;
-  }
-  .source-detail-heading strong {
     font-size: 13px;
   }
   .source-metadata {

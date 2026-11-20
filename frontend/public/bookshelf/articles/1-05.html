@@ -1,6 +1,6 @@
 <h1 id="section-1">Python 基础与异步编程（五）：超时、取消、异常传播、资源清理与并发限制</h1>
 <blockquote>
-<p><strong>对应学习目标</strong>：超时、取消、异常传播、资源清理和并发限制；一个模型请求很慢时，其他请求仍能得到响应。</p>
+
 <p><strong>技术范围</strong>：Python 3.13、<code>asyncio</code>、FastAPI、HTTPX；核心机制也适用于相近的 Python 3.11+ 版本。代码中没有依赖真实付费模型的示例可本地运行。</p>
 <p><strong>核心结论</strong>：异步系统是否可靠，不只取决于用了多少 <code>async def</code>，更取决于等待是否会让出事件循环、超时与取消能否正确传播、资源能否释放、容量是否受到限制，以及失败能否被准确表示。</p>
 </blockquote>

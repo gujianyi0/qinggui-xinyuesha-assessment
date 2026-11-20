@@ -81,10 +81,14 @@ def _card_pattern(card_names):
     return re.compile('|'.join(re.escape(name) for name in sorted(card_names, key=lambda n: (-len(n), n))))
 
 
+def card_subjects(question, card_names):
+    return tuple(dict.fromkeys(_card_pattern(card_names).findall(question))) if card_names else ()
+
+
 def card_answer_mode(question, card_names):
     if not card_names or DECK_FIELDS.search(question) or IMPLEMENTATION_FIELDS.search(question):
         return None
-    subjects = set(_card_pattern(card_names).findall(question))
+    subjects = card_subjects(question, card_names)
     if len(subjects) == 1 and all(field in question for field in ('时机', '目标', '效果')):
         return 'rules'
     if len(subjects) == 2 and COMPARE.search(question):
@@ -103,7 +107,7 @@ def render_card_answer(mode, question, citations, card_names):
     """For simple card questions reproduce the source's actual action words."""
     if not mode:
         return None
-    subjects = tuple(dict.fromkeys(_card_pattern(card_names).findall(question)))
+    subjects = card_subjects(question, card_names)
     descriptions = {source['title']: _plain_card_text(source['excerpt']) for source in citations
                     if source.get('evidence_type') == 'skill_description'
                     and source.get('title') in subjects and source.get('excerpt')}
@@ -129,7 +133,7 @@ def _card_sources(question, answer, candidates, card_names):
     if not deck and not rules:
         return None
     names = _card_pattern(card_names)
-    subjects = tuple(dict.fromkeys(names.findall(question))) if card_names else ()
+    subjects = card_subjects(question, card_names)
     if not subjects or not set(subjects).intersection(names.findall(answer)):
         return None
     if IMPLEMENTATION_FIELDS.search(question) or any(

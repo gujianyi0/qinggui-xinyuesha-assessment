@@ -2,7 +2,6 @@
   "updated": "2026-11-18",
   "sourceShelf": "tools/bookshelf/base",
   "sourceOrigin": "工作区知识浏览网页，2026-11-17本地快照",
-  "learningGoals": 49,
   "learningDocuments": 49,
   "reviewDocuments": 12,
   "cloudModified": false,
@@ -22,8 +21,8 @@
     {
       "path": "backend/app/answer_sources.py",
       "url": "/bookshelf/review-files/backend/app/answer_sources.py",
-      "sha256": "72189e574b6553731e27752b8777e5551027ea89b04cbf9bff5e4d8c7f46d959",
-      "bytes": 8665
+      "sha256": "efec2aba0e5e6f94629d7e1cae5c6d2c21cfc8888d465853d9b1a0cdccf09cc0",
+      "bytes": 8732
     },
     {
       "path": "docs/evidence/v208-citations-local-20261118.json",
@@ -184,8 +183,8 @@
     {
       "path": "frontend/src/features/bookshelf/components/bookshelf-screen.tsx",
       "url": "/bookshelf/review-files/frontend/src/features/bookshelf/components/bookshelf-screen.tsx.txt",
-      "sha256": "19bb025fa1437e381be1d00c578e2c44241d106c0e9a7e86b0500b1f1d0a8cf8",
-      "bytes": 10897
+      "sha256": "dc2efa9f6da552679c815041b1afbfa687de6685fb54238057154c7fff81ca52",
+      "bytes": 10653
     },
     {
       "path": "docs/进度同步-20261117-v203.md",
@@ -256,8 +255,8 @@
     {
       "path": "backend/app/runtime.py",
       "url": "/bookshelf/review-files/backend/app/runtime.py",
-      "sha256": "93d719bea8847ee3598d6b6b70ee3b793c2ea4a159aa041dd39bddba9a9baa63",
-      "bytes": 38608
+      "sha256": "f386c510350cb4df1236531193716be8bce31b7f92dbc98b6f8590edfe6c8772",
+      "bytes": 40354
     },
     {
       "path": "tests/test_agno_protocol.py",
@@ -460,8 +459,8 @@
     {
       "path": "frontend/src/features/chat/components/chat-screen.tsx",
       "url": "/bookshelf/review-files/frontend/src/features/chat/components/chat-screen.tsx.txt",
-      "sha256": "25da3f7d789a51a9a70c2a616662faf51481183f9d8107eb0e0044e2ae6bf640",
-      "bytes": 28405
+      "sha256": "e6854297b44658c8e2d9a806b458dbb9f0eecf87afe83d0d5cb739a2aa2d5380",
+      "bytes": 28447
     },
     {
       "path": "docs/evidence/v201-pytest-20261117.log",
@@ -562,8 +561,8 @@
     {
       "path": "tools/bookshelf/README.md",
       "url": "/bookshelf/review-files/tools/bookshelf/README.md",
-      "sha256": "359bab941b85d884031126f4c3c4b9728decbca1fe28fca0fcc815b04e610951",
-      "bytes": 1817
+      "sha256": "121b3b7d50a55746070ebd83cbc2add5cdda6021aeb312b90af7239eb454f871",
+      "bytes": 1892
     },
     {
       "path": "backend/app/main.py",
@@ -940,8 +939,8 @@
     {
       "path": "scripts/verify_bookshelf.py",
       "url": "/bookshelf/review-files/scripts/verify_bookshelf.py",
-      "sha256": "b77a3bd6cbc7a703c4d99b19998becfa62c10669e4c9eb8616c76993629479fe",
-      "bytes": 5341
+      "sha256": "b9bbd7b0c9f0a9d6f53c5cdbd3f52fa775d4ff902d2a85b75bdd6ebb6f9d6df5",
+      "bytes": 6223
     },
     {
       "path": "scripts/verify_browser_request_recovery.py",
@@ -2752,8 +2751,8 @@
     {
       "path": "tests/test_runtime.py",
       "url": "/bookshelf/review-files/tests/test_runtime.py",
-      "sha256": "4f7b04fdc7177505a722da74714c8c20cf19372f0876270722300a66e4a21f33",
-      "bytes": 2992
+      "sha256": "46dc9225be81e31e5c96082786fa471f58284c14810f65a6d3323bd394a92dad",
+      "bytes": 3656
     },
     {
       "path": "docs/实战QA/P10-可复现启动迁移测试与Compose.md",

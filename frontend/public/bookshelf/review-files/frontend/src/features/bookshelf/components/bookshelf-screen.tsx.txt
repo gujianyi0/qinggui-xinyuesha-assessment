@@ -64,7 +64,7 @@ export default function BookshelfScreen({
     (item) =>
       (isReview || !group || String(item.group) === group) &&
       (isReview || !onlySaved || bookmarks.saved.includes(item.id)) &&
-      `${item.title} ${item.goal || ''} ${searchIndex.data?.[item.id] || item.search}`
+      `${item.title} ${searchIndex.data?.[item.id] || item.search}`
         .toLocaleLowerCase()
         .includes(search.trim().toLocaleLowerCase()),
   )
@@ -104,7 +104,7 @@ export default function BookshelfScreen({
     catalog.data?.records.filter((item) => progress.data?.ids.includes(item.id))
       .length ?? 0
   return (
-    <section className="shelf-module" aria-label="知识书架＆QA">
+    <section className="shelf-module" aria-label="知识书架">
       <div
         className="tab-row"
         role="tablist"
@@ -201,9 +201,7 @@ export default function BookshelfScreen({
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder={
-                      isReview
-                        ? '查找实现、测试和修复记录…'
-                        : '搜索标题、学习目标或正文…'
+                      isReview ? '查找实现、测试和修复记录…' : '搜索标题或正文…'
                     }
                   />
                 </label>
@@ -268,9 +266,6 @@ export default function BookshelfScreen({
                       )}
                       {!isReview && bookmarks.saved.includes(item.id) && (
                         <span className="shelf-saved-label">已收藏</span>
-                      )}
-                      {!isReview && item.goal && (
-                        <span className="shelf-document-goal">{item.goal}</span>
                       )}
                     </span>
                     <ArrowRight size={16} />

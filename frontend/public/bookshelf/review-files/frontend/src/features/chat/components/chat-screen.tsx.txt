@@ -29,7 +29,7 @@ import {
   pendingSubmission,
   streamRun,
 } from '@/features/chat/services/run-transport'
-import { answerText } from '@/features/chat/utils/answer-text'
+import { answerCitations, answerText } from '@/features/chat/utils/answer-text'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { displayError } from '@/services/api'
 import { cancelRun, listSessionMessages } from '@/services/sessions'
@@ -628,7 +628,7 @@ export default function ChatScreen({
                     {item.role !== 'user' && (
                       <>
                         <CitationList
-                          items={item.citations ?? []}
+                          items={answerCitations(item.content, item.citations)}
                           compact
                           onInteract={() => {
                             followTail.current = false

@@ -2,7 +2,6 @@ import { FileText } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 import { Spinner } from '@/components/ui'
 import type { Citation } from '@/types/domain'
-import { sourceLabel } from './source-labels'
 
 const SourceExcerpt = lazy(() => import('@/components/shared/source-excerpt'))
 interface SourceDetailProps {
@@ -21,10 +20,6 @@ export default function SourceDetail({
       id={id}
       aria-label={`来源 ${number}详情`}
     >
-      <div className="source-detail-heading">
-        <strong>{source.title || `资料 ${number}`}</strong>
-        <span>{sourceLabel(source.evidence_type)}</span>
-      </div>
       <div className="source-metadata">
         <p>
           <FileText size={12} />

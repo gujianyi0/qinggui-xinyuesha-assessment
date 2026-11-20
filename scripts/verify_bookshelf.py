@@ -1,6 +1,7 @@
 """Verify shelf documents, file previews, source bytes and private boundaries."""
 import hashlib
 import json
+import re
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -26,7 +27,10 @@ def verify():
     data = json.loads((SHELF / 'data.json').read_text(encoding='utf-8'))
     manifest = json.loads((SHELF / 'export-manifest.json').read_text(encoding='utf-8'))
     assert len(data['groups']) == 7 and len(data['records']) == 49
-    assert all(r['kind'] == 'learning' for r in data['records'])
+    assert all(r['kind'] == 'learning' and 'goal' not in r and 'source' not in r for r in data['records'])
+    assert 'source' not in data and not (SHELF / 'source-goals.md').exists()
+    prompts = re.compile(r'^(?:>\s*)?\**(?:(?:对应|适用)(?:学习|知识)?目标|(?:学习|知识)目标)\**[：:]')
+    search = json.loads((SHELF / 'search.json').read_text(encoding='utf-8'))
     review = data['reviewDocuments']
     assert len(review) == 12
     assert review[0]['sourcePath'] == 'README.md' and review[0]['id'] == '8-12'
@@ -42,7 +46,12 @@ def verify():
     for record in data['records']:
         original = ROOT / 'tools/bookshelf/base/originals' / (record['id'] + '.md')
         exported = SHELF / 'originals' / (record['id'] + '.md')
-        assert original.read_bytes() == exported.read_bytes()
+        source_lines = original.read_text(encoding='utf-8').splitlines()
+        exported_lines = exported.read_text(encoding='utf-8').splitlines()
+        assert not any(prompts.match(line) for line in exported_lines[:16]), exported
+        filtered = [line for line in source_lines[:16] if not prompts.match(line)] + source_lines[16:]
+        assert [line for line in exported_lines if line.strip() != '>'] == [line for line in filtered if line.strip() != '>'], exported
+        assert search[record['id']] == ' '.join(re.sub(r'[#*>`|\[\]]', ' ', '\n'.join(exported_lines)).split())
         assert hashlib.sha256(exported.read_bytes()).hexdigest() == record['hash'], original
     for record in review:
         source = ROOT / 'docs/文档导航QA' / record['filename']
@@ -95,7 +104,7 @@ def verify():
             count += 1
     assert not (SHELF / 'app.js').exists()
     assert not (SHELF / 'shared-progress.js').exists()
-    result = {'review_documents': len(review), 'learning_goals': 49, 'linked_source_files': len(manifest['files']),
+    result = {'review_documents': len(review), 'knowledge_documents': len(data['records']), 'linked_source_files': len(manifest['files']),
               'local_links_checked': count, 'private_values_found': 0, 'owner_credentials_in_static_assets': False,
               'historical_missing_paths': manifest['unexported']}
     print(json.dumps(result, ensure_ascii=False))

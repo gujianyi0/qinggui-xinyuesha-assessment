@@ -5,7 +5,6 @@ export interface ShelfDocument {
   filename: string
   sourcePath: string
   group?: number
-  goal?: string
   search: string
   toc: { id: string; level: number; text: string }[]
 }

@@ -3,7 +3,7 @@ import asyncio
 import pytest
 from sqlalchemy import select
 
-from backend.app.models import BudgetAccount, ChatSession, Run, UsageRecord, User
+from backend.app.models import BudgetAccount, ChatSession, Message, Run, UsageRecord, User
 from backend.app.runtime import ModelFailure
 
 
@@ -17,6 +17,18 @@ async def stored_run(app):
         db.add(run)
         await db.flush()
         return run
+
+
+async def test_mock_deck_question_keeps_configuration_in_the_matching_source(app):
+    run = await stored_run(app)
+    app.state.runtime.start(run.id, "闪电有哪些花色和点数？")
+    await app.state.runtime.tasks[run.id]
+    async with app.state.database.sessions() as db:
+        answer = await db.scalar(select(Message).where(Message.session_id == run.session_id, Message.role == "assistant"))
+    assert "数据：" not in answer.content
+    assert "见下方的牌堆配置" in answer.content
+    assert [source["title"] for source in answer.citations] == ["闪电牌堆配置"]
+    assert "Card.Spade, 1" in answer.citations[0]["excerpt"]
 
 
 async def test_cancel_during_generation_remains_terminal(app):

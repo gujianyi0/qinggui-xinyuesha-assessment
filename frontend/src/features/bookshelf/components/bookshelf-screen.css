@@ -41,8 +41,7 @@
 .shelf-search:focus-within {
   border-color: var(--teal);
 }
-.shelf-count,
-.shelf-document-goal {
+.shelf-count {
   color: var(--muted);
   font-size: 13px;
 }
@@ -177,32 +176,14 @@
   font-size: 15px;
   line-height: 1.7;
 }
-.shelf-document-goal {
-  display: block;
-  margin-top: 6px;
-  line-height: 1.8;
-}
 .shelf-document:hover {
   border-color: var(--teal);
-}
-.shelf-reader-actions a {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--teal);
 }
 .shelf-title {
   font-size: 25px;
   line-height: 1.6;
   margin: 26px 0 16px;
   outline: none;
-}
-.shelf-goal {
-  color: var(--muted);
-  line-height: 1.9;
-  padding: 14px 18px;
-  background: var(--soft);
-  border-radius: 8px;
 }
 .shelf-reading-layout {
   display: grid;
